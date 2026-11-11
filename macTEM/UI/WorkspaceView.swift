@@ -113,7 +113,11 @@ struct WorkspaceView: View {
                     }
                 }
                     .id(item.id)
-                    .stackArrowKeys(item: item, items: appState.openItems)
+                    // The Image and Diffraction rooms take a stack's frame keys in their own keyed container (`ImageKeyedRoom`,
+                    // `DiffractionKeyedPane`), beside the mark and spot cursor's keys: a second focusable ancestor here would take the
+                    // keyboard from them on every click (macEM#509).
+                    .stackArrowKeys(item: item, items: appState.openItems,
+                                    enabled: ![.image, .diffraction].contains(appState.navigation.workspaceArea))
                     .overlay {
                         if item.session.isLoading { loadingState.background(.regularMaterial) }
                     }
@@ -207,10 +211,12 @@ struct WelcomeWorkspace: View {
 private struct StackArrowKeys: ViewModifier {
     let item: OpenItem
     let items: OpenItems
+    /// Off in a room whose own keyed container steps the frames.
+    let enabled: Bool
     @FocusState private var hasFocus: Bool
 
     func body(content: Content) -> some View {
-        if let stack = item.stack {
+        if enabled, let stack = item.stack {
             content
                 .focusable()
                 // DEPARTURE from the system focus ring (#629): the picture fills the pane, so a ring round it reads as a selection of
@@ -232,7 +238,9 @@ private struct StackArrowKeys: ViewModifier {
 }
 
 private extension View {
-    func stackArrowKeys(item: OpenItem, items: OpenItems) -> some View { modifier(StackArrowKeys(item: item, items: items)) }
+    func stackArrowKeys(item: OpenItem, items: OpenItems, enabled: Bool) -> some View {
+        modifier(StackArrowKeys(item: item, items: items, enabled: enabled))
+    }
 }
 
 /// When the infobar shows a room's run, and its words (pure).

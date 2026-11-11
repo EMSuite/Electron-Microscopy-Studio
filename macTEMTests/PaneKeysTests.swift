@@ -90,7 +90,7 @@ nonisolated final class PaneKeysTests: XCTestCase {
         XCTAssertNil(PaneKey(key: .leftArrow, modifiers: EventModifiers(rawValue: 96).union(.command)), "a real ⌘← is the menu's")
         XCTAssertEqual(PaneKey(key: .rightArrow, modifiers: [.shift, .numericPad, .capsLock]), .arrow(.right))
         XCTAssertNil(PaneKey(key: .leftArrow, modifiers: [.command]))
-        XCTAssertNil(PaneKey(key: .upArrow, modifiers: [.option]))
+        XCTAssertEqual(PaneKey(key: .upArrow, modifiers: [.option]), .cursorArrow(.up), "⌥ and an arrow are the cursor's (macEM#509)")
         XCTAssertEqual(PaneKey(key: .delete, modifiers: []), .delete)
         XCTAssertEqual(PaneKey(key: .deleteForward, modifiers: []), .delete)
         XCTAssertNil(PaneKey(key: .delete, modifiers: [.command]), "⌘⌫ is the menu's, not ours")
@@ -144,7 +144,31 @@ nonisolated final class PaneKeysTests: XCTestCase {
         XCTAssertNil(PaneKey.read(key: .delete, modifiers: [], isRepeat: true), "a held ⌫ fires once")
         XCTAssertNil(PaneKey.read(key: KeyEquivalent("c"), modifiers: .command, isRepeat: true))
         XCTAssertEqual(PaneKey.read(key: .delete, modifiers: [], isRepeat: false)?.key, .delete)
-        XCTAssertNil(PaneKey.read(key: .return, modifiers: [], isRepeat: false))
+        XCTAssertEqual(PaneKey.read(key: .return, modifiers: [], isRepeat: false)?.key, .enter)
+        XCTAssertNil(PaneKey.read(key: .return, modifiers: [], isRepeat: true), "a held Return sets one point")
+        let coarse = PaneKey.read(key: .leftArrow, modifiers: EventModifiers(rawValue: 96).union([.option, .shift]), isRepeat: true)
+        XCTAssertEqual(coarse?.key, .cursorArrow(.left), "a held ⌥⇧← repeats")
+        XCTAssertEqual(coarse?.shift, true)
+    }
+
+    /// The cursor's keys (macEM#509): ⌥ and an arrow, with ⇧ or not, is the cursor's arrow, a real press's flags included; any other
+    /// modifier with it is not ours. Return, Home and End are read bare only. Red under: ⌥-arrows read as the frame arrows (they would
+    /// step a stack's frames); ⌘⌥← read as ours (the menu's); ⌘Return or ⇧Home read as ours.
+    func testTheCursorsArrowsReturnHomeAndEndAreRead() {
+        for (key, direction) in [(KeyEquivalent.leftArrow, MoveCommandDirection.left), (.rightArrow, .right), (.upArrow, .up), (.downArrow, .down)] {
+            XCTAssertEqual(PaneKey(key: key, modifiers: [.option]), .cursorArrow(direction))
+            XCTAssertEqual(PaneKey(key: key, modifiers: [.option, .shift]), .cursorArrow(direction))
+            XCTAssertEqual(PaneKey(key: key, modifiers: EventModifiers(rawValue: 96).union(.option)), .cursorArrow(direction), "a real ⌥ press")
+            XCTAssertNil(PaneKey(key: key, modifiers: [.option, .command]))
+            XCTAssertNil(PaneKey(key: key, modifiers: [.option, .control]))
+        }
+        XCTAssertEqual(PaneKey(key: .return, modifiers: []), .enter)
+        XCTAssertNil(PaneKey(key: .return, modifiers: [.command]))
+        XCTAssertEqual(PaneKey(key: .home, modifiers: []), .home)
+        XCTAssertEqual(PaneKey(key: .end, modifiers: []), .end)
+        XCTAssertNil(PaneKey(key: .home, modifiers: [.shift]))
+        XCTAssertTrue(PaneKey.cursorArrow(.up).repeats)
+        XCTAssertFalse(PaneKey.enter.repeats)
     }
 
     /// The Image room's table. Red under: Delete or Copy given an action with no mark selected; Escape given one with no angle in
@@ -160,6 +184,49 @@ nonisolated final class PaneKeysTests: XCTestCase {
         XCTAssertEqual(route(.escape, mark: false, angle: true), .cancelAngle)
         XCTAssertNil(route(.escape, mark: true, angle: false), "Escape drops an angle in progress; it deselects nothing")
         XCTAssertNil(route(.arrow(.left)))
+    }
+
+    /// The Image room's frame and cursor keys (macEM#509, #510). ← and → step a stack's frames, Home and End go to its ends, ↑ and ↓
+    /// are nobody's; ⌥ and an arrow move the cursor one pixel, ⌥⇧ one coarse step, and Return sets a point, only while a measuring tool
+    /// is chosen. Red under: the frame keys routed with no stack (a plain picture's ← would be eaten); ← and → swapped; the cursor's
+    /// keys routed with Pan; the fine and the coarse step swapped; Return routed with Pan.
+    func testTheImageRoomRoutesTheFrameAndCursorKeys() {
+        func route(_ key: PaneKey, shift: Bool = false, stack: Bool = false, measuring: Bool = false) -> PaneKeyAction? {
+            PaneKeyRouter.image(key, shift: shift, state: ImageKeyState(markSelected: false, angleInProgress: false, stack: stack, measuring: measuring))
+        }
+        XCTAssertEqual(route(.arrow(.left), stack: true), .stepFrame(by: -1))
+        XCTAssertEqual(route(.arrow(.right), stack: true), .stepFrame(by: 1))
+        XCTAssertEqual(route(.arrow(.right), shift: true, stack: true), .stepFrame(by: 1), "⇧→ steps a frame, as before")
+        XCTAssertNil(route(.arrow(.up), stack: true))
+        XCTAssertEqual(route(.home, stack: true), .firstFrame)
+        XCTAssertEqual(route(.end, stack: true), .lastFrame)
+        for key in [PaneKey.arrow(.left), .arrow(.right), .home, .end] {
+            XCTAssertNil(route(key, measuring: true), "not a stack: \(key) goes on")
+        }
+        XCTAssertEqual(route(.cursorArrow(.left), measuring: true), .moveCursor(.left, fine: true))
+        XCTAssertEqual(route(.cursorArrow(.down), shift: true, measuring: true), .moveCursor(.down, fine: false))
+        XCTAssertEqual(route(.enter, measuring: true), .setPoint)
+        XCTAssertNil(route(.cursorArrow(.left), stack: true), "Pan: the cursor's keys go on")
+        XCTAssertNil(route(.enter, stack: true))
+    }
+
+    /// The Diffraction pattern's keys: a stack's frames, and the spot cursor's keys only in the Spot tool; ⌫, ⌘C and Escape are not
+    /// the pattern's. Red under: the cursor's keys in the Ring tool; Return adding a spot in the Ring tool; ⌫ taken from the table.
+    func testTheDiffractionPatternRoutesTheFrameAndSpotKeys() {
+        func route(_ key: PaneKey, shift: Bool = false, stack: Bool = false, spots: Bool = false) -> PaneKeyAction? {
+            PaneKeyRouter.diffraction(key, shift: shift, state: DiffractionKeyState(stack: stack, addsSpots: spots))
+        }
+        XCTAssertEqual(route(.arrow(.left), stack: true), .stepFrame(by: -1))
+        XCTAssertEqual(route(.end, stack: true), .lastFrame)
+        XCTAssertNil(route(.arrow(.left)))
+        XCTAssertEqual(route(.cursorArrow(.right), spots: true), .moveCursor(.right, fine: true))
+        XCTAssertEqual(route(.cursorArrow(.up), shift: true, spots: true), .moveCursor(.up, fine: false))
+        XCTAssertEqual(route(.enter, spots: true), .setPoint)
+        XCTAssertNil(route(.cursorArrow(.right)), "the Ring tool")
+        XCTAssertNil(route(.enter))
+        for key in [PaneKey.delete, .copy, .escape] {
+            XCTAssertNil(route(key, stack: true, spots: true), "\(key) is not the pattern's")
+        }
     }
 
     // MARK: The FFT room's keys on a real owner
@@ -349,6 +416,127 @@ nonisolated final class PaneKeysTests: XCTestCase {
         XCTAssertFalse(keys().canCopy, "the mark is gone")
     }
 
+    /// The room's arm and the VoiceOver twin's state, as `ImagePane` holds them, for the keys the room builds.
+    @MainActor private final class TwinRoom {
+        var arm: AngleArm?
+        var cursor = MarkCursorState()
+    }
+
+    /// Escape drops a point the VoiceOver twin holds (macTEM#262) as it drops the pointer's unfinished angle, through the keys the
+    /// room builds (`ImageKeyedRoom.keys`); with nothing in progress it goes on. Red under: Escape routed only for an arm (the
+    /// twin's point survived it, and the next Set point made a mark from it); the cancel leaving the held point or the arm.
+    @MainActor func testEscapeDropsThePointTheTwinHolds() {
+        let (measurements, _) = markedImage()
+        let image = FFTAnalysisTests.plant()
+        let room = TwinRoom()
+        func keys() -> ImageRoomKeys {
+            ImageKeyedRoom.keys(image: { image }, measurements: measurements,
+                                angleArm: Binding(get: { room.arm }, set: { room.arm = $0 }),
+                                markCursor: Binding(get: { room.cursor }, set: { room.cursor = $0 }))
+        }
+        XCTAssertFalse(keys().handle(.escape), "nothing in progress: Escape goes on")
+        room.cursor.first = ImagePoint(x: 4, y: 5)
+        XCTAssertTrue(keys().handle(.escape), "a held point is a mark in progress")
+        XCTAssertNil(room.cursor.first)
+        room.arm = AngleArm(a: ImagePoint(x: 2, y: 2), vertex: ImagePoint(x: 9, y: 9))
+        room.cursor.first = ImagePoint(x: 4, y: 5)
+        XCTAssertTrue(keys().handle(.escape))
+        XCTAssertNil(room.arm)
+        XCTAssertNil(room.cursor.first)
+        XCTAssertFalse(keys().handle(.escape), "and then nothing is")
+    }
+
+    /// The keys make a mark (macEM#509): through the keys the room builds, ⌥ and the arrows walk the cursor (one pixel, ⌥⇧ the coarse
+    /// step), Return sets the first point and then the second, and the Distance is the one two Set points at those pixels make, which
+    /// is the drag's (ImageMeasurementsSessionTests). The cursor is shown after a key. With Pan the same keys go on. Red under: the
+    /// cursor's keys not routed; ⌥← moving the coarse step; ⌥⇧ moving one pixel; Return making the mark on the first point; the
+    /// mark's points other than the cursor's pixels.
+    @MainActor func testTheCursorKeysMakeTheMarkTwoSetPointsMake() throws {
+        let image = FFTAnalysisTests.plant(width: 400, height: 300)   // a coarse step of 4 columns and 3 rows; the centre (199, 149)
+        let basis = MarkCursorBasis(width: 400, height: 300, version: 1)
+        let measurements = ImageMeasurements()
+        let room = TwinRoom()
+        func keys(_ kind: ImageMark.Kind? = .distance) -> ImageRoomKeys {
+            ImageKeyedRoom.keys(image: { image }, measurements: measurements,
+                                angleArm: Binding(get: { room.arm }, set: { room.arm = $0 }),
+                                markCursor: Binding(get: { room.cursor }, set: { room.cursor = $0 }), kind: kind, basis: basis)
+        }
+        let real = EventModifiers(rawValue: 96)
+        XCTAssertEqual(keys(nil).handle(key: .leftArrow, modifiers: real.union(.option)), .ignored, "Pan: the keys go on")
+        XCTAssertEqual(keys(nil).handle(key: .return, modifiers: []), .ignored)
+        XCTAssertEqual(keys().handle(key: .leftArrow, modifiers: real.union(.option)), .handled)
+        XCTAssertEqual(room.cursor.position, MarkCursor.Pixel(x: 198, y: 149), "⌥← one pixel")
+        XCTAssertTrue(room.cursor.shown, "a key shows the cursor")
+        XCTAssertEqual(keys().handle(key: .upArrow, modifiers: real.union([.option, .shift])), .handled)
+        XCTAssertEqual(room.cursor.position, MarkCursor.Pixel(x: 198, y: 146), "⌥⇧↑ one coarse step (1 % of 300)")
+        XCTAssertEqual(keys().handle(key: .return, modifiers: []), .handled)
+        XCTAssertEqual(room.cursor.first, ImagePoint(x: 198, y: 146))
+        XCTAssertTrue(measurements.marks.isEmpty, "one point is no mark")
+        for _ in 0..<5 { XCTAssertEqual(keys().handle(key: .rightArrow, modifiers: real.union([.option, .shift]), isRepeat: true), .handled) }
+        XCTAssertEqual(keys().handle(key: .downArrow, modifiers: real.union(.option)), .handled)
+        XCTAssertEqual(keys().handle(key: .return, modifiers: []), .handled)
+        XCTAssertNil(room.cursor.first, "the mark took both points")
+        let mark = try XCTUnwrap(measurements.marks.first)
+        XCTAssertEqual(measurements.marks.count, 1)
+
+        let twin = ImageMeasurements()
+        let actions = MarkCursorActions(image: image, measurements: twin, kind: .distance, basis: basis)
+        var state = MarkCursorState()
+        var arm: AngleArm?
+        state.position = MarkCursor.Pixel(x: 198, y: 146)
+        XCTAssertEqual(actions.setPoint(&state, arm: &arm), .held(point: 1, of: 2))
+        state.position = MarkCursor.Pixel(x: 218, y: 147)
+        XCTAssertEqual(actions.setPoint(&state, arm: &arm), .added)
+        let set = try XCTUnwrap(twin.marks.first)
+        XCTAssertEqual(mark.kind, .distance)
+        XCTAssertEqual(mark.points, [ImagePoint(x: 198, y: 146), ImagePoint(x: 218, y: 147)])
+        XCTAssertEqual(mark.points, set.points)
+        XCTAssertEqual(mark.width, set.width)
+        XCTAssertEqual(measurements.selection, mark.id, "selected, as a drawn mark is")
+        XCTAssertTrue(keys().handle(.escape) == false, "nothing in progress after the mark")
+    }
+
+    /// A stack's frame keys are the Image room's now (`StackArrowKeys` is off there, macEM#509): ← and → step, Home and End go to the
+    /// ends; without a stack they go on. Red under: the frame keys not routed to the stack's calls; a step the wrong way.
+    @MainActor func testTheImageRoomStepsAStacksFrames() {
+        let (measurements, _) = markedImage()
+        let room = TwinRoom()
+        var calls: [String] = []
+        let frames = StackFrameKeys(step: { calls.append("step \($0)") }, first: { calls.append("first") }, last: { calls.append("last") })
+        func keys(_ frames: StackFrameKeys?) -> ImageRoomKeys {
+            ImageKeyedRoom.keys(image: { FFTAnalysisTests.plant() }, measurements: measurements,
+                                angleArm: Binding(get: { room.arm }, set: { room.arm = $0 }),
+                                markCursor: Binding(get: { room.cursor }, set: { room.cursor = $0 }), frames: frames)
+        }
+        let real = EventModifiers(rawValue: 96)
+        XCTAssertEqual(keys(frames).handle(key: .rightArrow, modifiers: real), .handled)
+        XCTAssertEqual(keys(frames).handle(key: .leftArrow, modifiers: real, isRepeat: true), .handled)
+        XCTAssertEqual(keys(frames).handle(key: .home, modifiers: []), .handled)
+        XCTAssertEqual(keys(frames).handle(key: .end, modifiers: []), .handled)
+        XCTAssertEqual(keys(frames).handle(key: .upArrow, modifiers: real), .ignored)
+        XCTAssertEqual(calls, ["step 1", "step -1", "first", "last"])
+        XCTAssertEqual(keys(nil).handle(key: .rightArrow, modifiers: real), .ignored, "not a stack")
+    }
+
+    /// The Diffraction pattern's keys reach their calls: the frames, and the spot cursor's move and add in the Spot tool. Red under: a
+    /// key routed but not performed; the fine flag dropped.
+    @MainActor func testTheDiffractionPatternKeysReachTheirCalls() {
+        var calls: [String] = []
+        let frames = StackFrameKeys(step: { calls.append("step \($0)") }, first: { calls.append("first") }, last: { calls.append("last") })
+        let cursor = CursorKeys(move: { calls.append("move \($0) \($1 ? "fine" : "coarse")") }, set: { calls.append("add") })
+        let spot = DiffractionPatternKeys(frames: frames, cursor: cursor)
+        let real = EventModifiers(rawValue: 96)
+        XCTAssertEqual(spot.handle(key: .leftArrow, modifiers: real), .handled)
+        XCTAssertEqual(spot.handle(key: .leftArrow, modifiers: real.union(.option)), .handled)
+        XCTAssertEqual(spot.handle(key: .upArrow, modifiers: real.union([.option, .shift])), .handled)
+        XCTAssertEqual(spot.handle(key: .return, modifiers: []), .handled)
+        XCTAssertEqual(spot.handle(key: .delete, modifiers: []), .ignored, "⌫ is the table's")
+        XCTAssertEqual(calls, ["step -1", "move left fine", "move up coarse", "add"])
+        let ring = DiffractionPatternKeys(frames: nil, cursor: nil)
+        XCTAssertEqual(ring.handle(key: .leftArrow, modifiers: real.union(.option)), .ignored)
+        XCTAssertEqual(ring.handle(key: .return, modifiers: []), .ignored)
+    }
+
     // MARK: The source pins
 
     /// The file's code with every `//` comment removed (a whole-line comment and a trailing one): a comment may name what the
@@ -398,22 +586,26 @@ nonisolated final class PaneKeysTests: XCTestCase {
     /// wrapper that passes other modifiers or phase; a pane without the press modifier (the keys stay with the other pane).
     func testEachRoomRootCarriesTheKeyedContainerAndEachPaneSaysItWasPressed() throws {
         XCTAssertTrue(try source("macTEM/UI/FFTRoom.swift").contains(".modifier(FFTKeyedRoom(analysis: item.fft"))
-        XCTAssertTrue(try source("macTEM/UI/ImagePane.swift").contains(".modifier(ImageKeyedRoom(image: image"))
+        XCTAssertTrue(try source("macTEM/UI/ImagePane.swift").contains(".modifier(ImageKeyedRoom(item: item"))
         let keys = try source("macTEM/App/PaneKeys.swift")
         let fft = try slice(keys, from: "struct FFTKeyedRoom: ViewModifier", to: "struct FFTPanePress")
-        let image = try slice(keys, from: "struct ImageKeyedRoom: ViewModifier")
+        let image = try slice(keys, from: "struct ImageKeyedRoom: ViewModifier", to: "struct DiffractionPatternKeys")
         let common = [".focusable()", ".focusEffectDisabled()",
                       ".onCopyCommand(perform: keys.canCopy ? { keys.copyProviders() } : nil)",
                       ".onDeleteCommand(perform: keys.canDelete ? { _ = keys.handle(.delete) } : nil)"]
         for part in common + [".onKeyPress(phases: [.down, .repeat]) { keys.handle($0) }"] {
             XCTAssertEqual(fft.components(separatedBy: part).count - 1, 1, "the FFT container carries \(part)")
         }
-        for part in common + [".onKeyPress(phases: .down) { keys.handle($0) }"] {
+        // The Image container repeats a held arrow too (a stack's frames, the cursor's ⌥-arrows), and holds the keyboard by value.
+        for part in common + [".onKeyPress(phases: [.down, .repeat]) { keys.handle($0) }", ".focused($focus, equals: .room)",
+                              ".defaultFocus($focus, .room)"] {
             XCTAssertEqual(image.components(separatedBy: part).count - 1, 1, "the Image container carries \(part)")
         }
-        XCTAssertTrue(keys.contains("handle(key: press.key, modifiers: press.modifiers, isRepeat: press.phase == .repeat)"),
-                      "the FFT press wrapper hands the press over whole")
-        XCTAssertTrue(keys.contains("handle(key: press.key, modifiers: press.modifiers)\n"), "and the Image one")
+        XCTAssertEqual(keys.components(separatedBy: "handle(key: press.key, modifiers: press.modifiers, isRepeat: press.phase == .repeat)").count - 1,
+                       3, "the FFT, Image and Diffraction press wrappers hand the press over whole")
+        XCTAssertTrue(try source("macTEM/UI/DiffractionRoom.swift").contains(".modifier(DiffractionKeyedPane(keys: patternKeys))"))
+        // A stack's frame keys are the Image and Diffraction rooms' own: `StackArrowKeys` is off there.
+        XCTAssertTrue(try source("macTEM/UI/WorkspaceView.swift").contains("enabled: ![.image, .diffraction].contains(appState.navigation.workspaceArea)"))
         let press = try slice(keys, from: "struct FFTPanePress: ViewModifier", to: "// MARK: - The Image room")
         XCTAssertTrue(press.contains(".simultaneousGesture(DragGesture(minimumDistance: 0).onChanged"), "any press, simultaneously")
         XCTAssertTrue(press.contains("if keyPane != pane { keyPane = pane }"))

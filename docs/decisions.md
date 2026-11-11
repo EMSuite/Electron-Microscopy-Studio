@@ -449,3 +449,21 @@ and a second key would be a second secret to keep for no gain: an attacker with 
 
 **What would reverse it.** The apps getting separate websites, or one app's key having to be replaced without the other's.
 
+
+## 2026-11-16 — The mark and spot cursor's keys, and who owns a stack's frame keys (macEM#509, #510)
+
+**What.** The keyboard twin of a mark or a spot: in the Image room with Distance, Angle or Profile chosen, and in the Diffraction
+room's Spot tool, ⌥ and an arrow move a cursor one pixel, ⌥⇧ and an arrow one coarse step (1 % of the axis), and Return sets a
+point (adds a spot) there; Escape drops the points, as before. The VoiceOver actions (#262) gain the same one-pixel moves ("Move
+point one pixel left" and so on). Once a key or an action has moved it, the cursor is drawn as a small open square and the
+status line reads its pixel, until the pointer moves over the picture. The Image and Diffraction rooms now step a stack's frames
+(←, →, Home, End) in their own keyed container (`ImageKeyedRoom`, `DiffractionKeyedPane`), and `StackArrowKeys` is off there.
+
+**Why.** Design-dna principle 7: every pointer action has a keyboard twin. The plain arrows were already a stack's frame keys, so
+the cursor takes ⌥. With two nested focusable containers (the stack's and the room's) the stack's took the keyboard on every click,
+so keys only the inner one handles could not be relied on; one container per room now owns every key of that room, as
+`SEMRoomFocus` does in the SEM rooms. The one-pixel step makes any pixel of a 4096² picture
+reachable; the coarse step alone stepped 40 px.
+
+**Reversal.** If ⌥-arrows clash with a system or app shortcut, change `PaneKey.cursorArrow`'s modifier in `App/PaneKeys.swift`;
+the routers and the tests read the key from there. Turning `StackArrowKeys` back on in these rooms brings back the nested focus.

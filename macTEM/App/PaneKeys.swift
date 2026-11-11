@@ -36,12 +36,20 @@ import TEMSession
 /// builds one without a `KeyPress`).
 nonisolated enum PaneKey: Equatable {
     case arrow(MoveCommandDirection)
+    /// ⌥ with an arrow (⇧ too, for the coarse step): moves the Image room's mark cursor and the Diffraction room's spot cursor
+    /// (UI/MarkCursor.swift), so the plain arrows stay the frame keys of a stack.
+    case cursorArrow(MoveCommandDirection)
     case delete
     case copy
     case escape
+    /// Return: sets a point at the cursor (the Image room) or adds a spot there (the Diffraction room).
+    case enter
+    /// Home and End: a stack's first and last frame.
+    case home
+    case end
 
-    /// nil for any other key, and for these with a modifier they do not take: an arrow takes ⇧ (ten pixels), ⌘C takes ⌘ alone,
-    /// ⌫ and Escape none. Only the four real modifiers count: a real arrow press carries the numeric-pad and function flags
+    /// nil for any other key, and for these with a modifier they do not take: an arrow takes ⇧ (ten pixels), ⌥ (the cursor's arrow)
+    /// or both, ⌘C takes ⌘ alone, ⌫, Escape, Return, Home and End none. Only the four real modifiers count: a real arrow press carries the numeric-pad and function flags
     /// (raw 96, ⇧← 98) and Forward Delete the function flag (64), as the refuter measured on a hosted view; Caps Lock too is
     /// not a modifier of the key.
     init?(key: KeyEquivalent, modifiers: EventModifiers) {
@@ -51,6 +59,13 @@ nonisolated enum PaneKey: Equatable {
         case .rightArrow where held.isSubset(of: .shift): self = .arrow(.right)
         case .upArrow where held.isSubset(of: .shift): self = .arrow(.up)
         case .downArrow where held.isSubset(of: .shift): self = .arrow(.down)
+        case .leftArrow where held.contains(.option) && held.isSubset(of: [.option, .shift]): self = .cursorArrow(.left)
+        case .rightArrow where held.contains(.option) && held.isSubset(of: [.option, .shift]): self = .cursorArrow(.right)
+        case .upArrow where held.contains(.option) && held.isSubset(of: [.option, .shift]): self = .cursorArrow(.up)
+        case .downArrow where held.contains(.option) && held.isSubset(of: [.option, .shift]): self = .cursorArrow(.down)
+        case .return where held.isEmpty: self = .enter
+        case .home where held.isEmpty: self = .home
+        case .end where held.isEmpty: self = .end
         case .delete where held.isEmpty, .deleteForward where held.isEmpty: self = .delete
         case .escape where held.isEmpty: self = .escape
         case KeyEquivalent("c") where held == .command: self = .copy
@@ -58,10 +73,12 @@ nonisolated enum PaneKey: Equatable {
         }
     }
 
-    /// Only an arrow repeats while held, as `onMoveCommand` did; ⌫ and ⌘C fire once per press.
+    /// Only an arrow repeats while held, as `onMoveCommand` did (the cursor's arrows too); ⌫, ⌘C and Return fire once per press.
     var repeats: Bool {
-        if case .arrow = self { return true }
-        return false
+        switch self {
+        case .arrow, .cursorArrow: true
+        default: false
+        }
     }
 
     /// The press's key, modifiers and phase read to the key it is for, or nil when it is not ours (or a repeat of a key that
@@ -81,6 +98,14 @@ nonisolated enum PaneKeyAction: Equatable {
     case deleteMark
     case copyMark
     case cancelAngle
+    /// A stack's frame: `by` frames on, or the first or the last.
+    case stepFrame(by: Int)
+    case firstFrame
+    case lastFrame
+    /// The cursor one pixel (`fine`) or one coarse step (`MarkCursor.step`) that way.
+    case moveCursor(MoveCommandDirection, fine: Bool)
+    /// A point set at the cursor (the Image room), a spot added there (the Diffraction room).
+    case setPoint
 }
 
 /// The FFT room's two panes: the keys are for the one pressed last.
@@ -102,8 +127,20 @@ nonisolated struct FFTKeyState: Equatable {
 /// What the Image room's keys depend on.
 nonisolated struct ImageKeyState: Equatable {
     var markSelected: Bool
-    /// An angle whose first arm is drawn, waiting for its third point.
+    /// A mark waiting for its next point: an angle whose first arm is drawn, or a point the cursor holds (`MarkCursorState`,
+    /// UI/MarkCursor.swift).
     var angleInProgress: Bool
+    /// The item is a stack: ← and → step its frames, Home and End go to its ends.
+    var stack: Bool = false
+    /// Distance, Angle or Profile is chosen: ⌥ and an arrow move the mark cursor, Return sets a point there.
+    var measuring: Bool = false
+}
+
+/// What the Diffraction room's pattern keys depend on.
+nonisolated struct DiffractionKeyState: Equatable {
+    var stack: Bool
+    /// The Spot tool is chosen: a click adds a spot, so ⌥ and an arrow move the spot cursor and Return adds one there.
+    var addsSpots: Bool
 }
 
 nonisolated enum PaneKeyRouter {
@@ -124,13 +161,42 @@ nonisolated enum PaneKeyRouter {
         }
     }
 
-    /// ⌫ and ⌘C act on the selected mark; Escape drops an angle that is in progress. The arrows are not the Image room's.
-    static func image(_ key: PaneKey, state: ImageKeyState) -> PaneKeyAction? {
+    /// ⌫ and ⌘C act on the selected mark; Escape drops an angle (or a cursor's point) that is in progress. ← and → step a stack's
+    /// frames, Home and End go to its ends (↑ and ↓ are nobody's). While a measuring tool is chosen, ⌥ and an arrow move the mark
+    /// cursor one pixel, ⌥⇧ and an arrow one coarse step, and Return sets a point there (macEM#509, #510).
+    static func image(_ key: PaneKey, shift: Bool = false, state: ImageKeyState) -> PaneKeyAction? {
         switch key {
         case .delete: state.markSelected ? .deleteMark : nil
         case .copy: state.markSelected ? .copyMark : nil
         case .escape: state.angleInProgress ? .cancelAngle : nil
-        case .arrow: nil
+        case .arrow(let direction): frameStep(direction, stack: state.stack)
+        case .home: state.stack ? .firstFrame : nil
+        case .end: state.stack ? .lastFrame : nil
+        case .cursorArrow(let direction): state.measuring ? .moveCursor(direction, fine: !shift) : nil
+        case .enter: state.measuring ? .setPoint : nil
+        }
+    }
+
+    /// The Diffraction pattern's keys: a stack's frames as in the Image room; in the Spot tool, ⌥ and an arrow move the spot cursor
+    /// (⌥⇧ the coarse step) and Return adds a spot there. Nothing else is the pattern's (⌫ is the readout table's).
+    static func diffraction(_ key: PaneKey, shift: Bool = false, state: DiffractionKeyState) -> PaneKeyAction? {
+        switch key {
+        case .arrow(let direction): frameStep(direction, stack: state.stack)
+        case .home: state.stack ? .firstFrame : nil
+        case .end: state.stack ? .lastFrame : nil
+        case .cursorArrow(let direction): state.addsSpots ? .moveCursor(direction, fine: !shift) : nil
+        case .enter: state.addsSpots ? .setPoint : nil
+        case .delete, .copy, .escape: nil
+        }
+    }
+
+    /// ← one frame back and → one on, in a stack; ↑ and ↓ nothing.
+    private static func frameStep(_ direction: MoveCommandDirection, stack: Bool) -> PaneKeyAction? {
+        guard stack else { return nil }
+        switch direction {
+        case .left: return .stepFrame(by: -1)
+        case .right: return .stepFrame(by: 1)
+        default: return nil
         }
     }
 }
@@ -211,7 +277,7 @@ struct FFTRoomKeys {
             if let id = analysis.selection { FFTSpotUndo.remove([id], in: analysis, undoManager: undoManager) }
         case .copySpot:
             if let text = copyText() { writer.write(text) }
-        case .deleteMark, .copyMark, .cancelAngle:
+        case .deleteMark, .copyMark, .cancelAngle, .stepFrame, .firstFrame, .lastFrame, .moveCursor, .setPoint:
             break
         }
     }
@@ -287,32 +353,37 @@ struct ImageRoomKeys {
     /// The owner whose image ⌫'s Edit > Undo puts the mark back on, and the window's undo manager (#325); nil registers no undo.
     var session: ImageSession?
     var undoManager: UndoManager?
+    /// The stack's frame keys; nil when the item is not a stack.
+    var frames: StackFrameKeys?
+    /// The mark cursor's keys while Distance, Angle or Profile is chosen (macEM#509); nil with Pan.
+    var cursor: CursorKeys?
 
     var state: ImageKeyState {
-        ImageKeyState(markSelected: measurements.mark(measurements.selection) != nil, angleInProgress: angleInProgress)
+        ImageKeyState(markSelected: measurements.mark(measurements.selection) != nil, angleInProgress: angleInProgress,
+                      stack: frames != nil, measuring: cursor != nil)
     }
 
-    func route(_ key: PaneKey) -> PaneKeyAction? {
-        PaneKeyRouter.image(key, state: state)
+    func route(_ key: PaneKey, shift: Bool = false) -> PaneKeyAction? {
+        PaneKeyRouter.image(key, shift: shift, state: state)
     }
 
     var canCopy: Bool { route(.copy) != nil }
     var canDelete: Bool { route(.delete) != nil }
 
     @discardableResult
-    func handle(_ key: PaneKey) -> Bool {
-        guard let action = route(key) else { return false }
+    func handle(_ key: PaneKey, shift: Bool = false) -> Bool {
+        guard let action = route(key, shift: shift) else { return false }
         perform(action)
         return true
     }
 
-    func handle(key: KeyEquivalent, modifiers: EventModifiers) -> KeyPress.Result {
-        guard let read = PaneKey.read(key: key, modifiers: modifiers, isRepeat: false) else { return .ignored }
-        return handle(read.key) ? .handled : .ignored
+    func handle(key: KeyEquivalent, modifiers: EventModifiers, isRepeat: Bool = false) -> KeyPress.Result {
+        guard let read = PaneKey.read(key: key, modifiers: modifiers, isRepeat: isRepeat) else { return .ignored }
+        return handle(read.key, shift: read.shift) ? .handled : .ignored
     }
 
     func handle(_ press: KeyPress) -> KeyPress.Result {
-        handle(key: press.key, modifiers: press.modifiers)
+        handle(key: press.key, modifiers: press.modifiers, isRepeat: press.phase == .repeat)
     }
 
     private func perform(_ action: PaneKeyAction) {
@@ -323,6 +394,16 @@ struct ImageRoomKeys {
             if let text = copyText() { writer.write(text) }
         case .cancelAngle:
             cancelAngle()
+        case .stepFrame(let delta):
+            frames?.step(delta)
+        case .firstFrame:
+            frames?.first()
+        case .lastFrame:
+            frames?.last()
+        case .moveCursor(let direction, let fine):
+            cursor?.move(direction, fine)
+        case .setPoint:
+            cursor?.set()
         case .nudgeRegion, .clearRegion, .deleteSpot, .copySpot:
             break
         }
@@ -338,26 +419,154 @@ struct ImageRoomKeys {
     }
 }
 
-/// The Image room's root: focusable, key-pressed, and the owner of Edit > Copy and Delete for the room.
+/// A stack's frame keys on its owners at the moment of use: ← and → one frame, Home and End the ends (what `StackArrowKeys` does in
+/// the rooms without keys of their own).
+@MainActor
+struct StackFrameKeys {
+    let step: @MainActor (Int) -> Void
+    let first: @MainActor () -> Void
+    let last: @MainActor () -> Void
+
+    /// `item`'s frame keys, nil when it is not a stack.
+    static func of(_ item: OpenItem, in items: OpenItems) -> StackFrameKeys? {
+        guard let stack = item.stack else { return nil }
+        let end = stack.frameCount - 1
+        return StackFrameKeys(step: { items.stepFrame(item, by: $0) },
+                              first: { items.showFrame(item, to: 0) },
+                              last: { items.showFrame(item, to: end) })
+    }
+}
+
+/// A cursor's keys (UI/MarkCursor.swift): ⌥ and an arrow move it (`fine`: one pixel, else the coarse step), Return sets a point or
+/// adds a spot there.
+@MainActor
+struct CursorKeys {
+    let move: @MainActor (MoveCommandDirection, Bool) -> Void
+    let set: @MainActor () -> Void
+}
+
+/// The room's one keyboard target, bound by value as `SEMRoomFocus` binds its own (a Bool reads true while a descendant has it).
+enum PaneKeyTarget: Hashable {
+    case room
+}
+
+/// The Image room's root: focusable, key-pressed, and the owner of Edit > Copy and Delete for the room. It is the room's ONE keyed
+/// container, a stack's frame keys too (`StackArrowKeys` stays off in this room): a second focusable ancestor took the keyboard on
+/// every click, so this container's Escape, Delete and the mark cursor's keys never reached it on a stack (macEM#509). A press on the
+/// pane gives it the keyboard, and it is the window's default focus while nothing else claims it, as `SEMRoomFocus`.
 struct ImageKeyedRoom: ViewModifier {
-    let image: CalibratedImage
-    /// The image's owner, for Edit > Undo of a removed mark.
-    let session: ImageSession
-    let measurements: ImageMeasurements
+    let item: OpenItem
+    let items: OpenItems
     @Binding var angleArm: AngleArm?
+    /// The mark cursor's state (UI/MarkCursor.swift): a point it holds is an unfinished mark too, which Escape drops with the arm.
+    @Binding var markCursor: MarkCursorState
+    /// The chosen tool's kind of mark; nil with Pan (the cursor's keys are off).
+    let kind: ImageMark.Kind?
+    /// The picture the cursor's points are set on.
+    let basis: MarkCursorBasis
+    @Environment(AppState.self) private var appState
     @Environment(\.undoManager) private var undoManager
+    @FocusState private var focus: PaneKeyTarget?
 
     func body(content: Content) -> some View {
-        let x = image.x, y = image.y
-        let arm = $angleArm
-        let keys = ImageRoomKeys(measurements: measurements, label: { MarkFormat.value($0, x: x, y: y) },
-                                 angleInProgress: arm.wrappedValue != nil, cancelAngle: { arm.wrappedValue = nil },
-                                 session: session, undoManager: undoManager)
+        // The session, never its image: a key closure SwiftUI keeps after the pane is gone keeps no pixels alive (#577).
+        let session = item.session
+        let state = appState
+        let keys = Self.keys(image: { session.imageOrBlank }, measurements: item.measurements, angleArm: $angleArm,
+                             markCursor: $markCursor, kind: kind, basis: basis, frames: StackFrameKeys.of(item, in: items),
+                             session: session, undoManager: undoManager,
+                             refused: { SessionPanels.markRefused($0, .added, appState: state) })
         return content
             .focusable()
             .focusEffectDisabled()   // DEVIATION as `FFTKeyedRoom`'s, named there
-            .onKeyPress(phases: .down) { keys.handle($0) }
+            // A held arrow repeats (the frames, the cursor); ⌫, ⌘C and Return do not (`PaneKey.repeats`).
+            .onKeyPress(phases: [.down, .repeat]) { keys.handle($0) }
             .onCopyCommand(perform: keys.canCopy ? { keys.copyProviders() } : nil)
             .onDeleteCommand(perform: keys.canDelete ? { _ = keys.handle(.delete) } : nil)
+            .focused($focus, equals: .room)
+            .defaultFocus($focus, .room)
+            // Any press on the pane (a click, a drag, the start of a pan) gives the room the keyboard, simultaneously, so the marks' and
+            // the zoom's gestures are not disturbed (`FFTPanePress`, `SEMMapPress`).
+            .simultaneousGesture(DragGesture(minimumDistance: 0).onChanged { _ in if focus != .room { focus = .room } })
+    }
+
+    /// The room's keys on the owners now, so a test drives the ones the room has: Escape routes while an angle's arm or a point the
+    /// cursor holds waits, and drops both; ⌥ and an arrow move the cursor and Return sets a point while a tool is chosen (`kind`).
+    /// `image` is read at each use, never held.
+    static func keys(image: @escaping @MainActor () -> CalibratedImage, measurements: ImageMeasurements,
+                     angleArm arm: Binding<AngleArm?>, markCursor cursor: Binding<MarkCursorState>,
+                     kind: ImageMark.Kind? = nil, basis: MarkCursorBasis? = nil, frames: StackFrameKeys? = nil,
+                     session: ImageSession? = nil, undoManager: UndoManager? = nil,
+                     refused: @escaping @MainActor (SessionLineage.Refusal) -> Void = { _ in }) -> ImageRoomKeys {
+        let shown = image()
+        let x = shown.x, y = shown.y
+        let at = basis ?? MarkCursorBasis(width: shown.width, height: shown.height, version: 0)
+        var keys = ImageRoomKeys(measurements: measurements, label: { MarkFormat.value($0, x: x, y: y) },
+                                 angleInProgress: arm.wrappedValue != nil || cursor.wrappedValue.first != nil,
+                                 cancelAngle: { arm.wrappedValue = nil; cursor.wrappedValue.first = nil },
+                                 session: session, undoManager: undoManager)
+        keys.frames = frames
+        if let kind {
+            let actions: @MainActor () -> MarkCursorActions = { MarkCursorActions(image: image(), measurements: measurements, kind: kind, basis: at) }
+            keys.cursor = CursorKeys(move: { direction, fine in
+                                         guard let step = MarkCursor.Move(direction) else { return }
+                                         actions().move(step, fine: fine, cursor: cursor)
+                                     },
+                                     set: { actions().setPoint(cursor: cursor, arm: arm, refused: refused) })
+        }
+        return keys
+    }
+}
+
+// MARK: - The Diffraction room
+
+/// The Diffraction pattern's keys, built from the owner at the moment of use: a stack's frames, and in the Spot tool the spot cursor's
+/// ⌥-arrows and Return (macEM#509).
+@MainActor
+struct DiffractionPatternKeys {
+    var frames: StackFrameKeys?
+    /// The spot cursor's keys while a click adds a spot; nil otherwise.
+    var cursor: CursorKeys?
+
+    var state: DiffractionKeyState { DiffractionKeyState(stack: frames != nil, addsSpots: cursor != nil) }
+
+    @discardableResult
+    func handle(_ key: PaneKey, shift: Bool = false) -> Bool {
+        guard let action = PaneKeyRouter.diffraction(key, shift: shift, state: state) else { return false }
+        switch action {
+        case .stepFrame(let delta): frames?.step(delta)
+        case .firstFrame: frames?.first()
+        case .lastFrame: frames?.last()
+        case .moveCursor(let direction, let fine): cursor?.move(direction, fine)
+        case .setPoint: cursor?.set()
+        default: return false
+        }
+        return true
+    }
+
+    func handle(key: KeyEquivalent, modifiers: EventModifiers, isRepeat: Bool = false) -> KeyPress.Result {
+        guard let read = PaneKey.read(key: key, modifiers: modifiers, isRepeat: isRepeat) else { return .ignored }
+        return handle(read.key, shift: read.shift) ? .handled : .ignored
+    }
+
+    func handle(_ press: KeyPress) -> KeyPress.Result {
+        handle(key: press.key, modifiers: press.modifiers, isRepeat: press.phase == .repeat)
+    }
+}
+
+/// The Diffraction pattern's keyed container: the room's frame keys and the spot cursor's, focusable as `ImageKeyedRoom` (and so
+/// `StackArrowKeys` stays off in this room). Only the pattern: the readout table keeps its own keyboard (⌫, ↑ and ↓).
+struct DiffractionKeyedPane: ViewModifier {
+    let keys: DiffractionPatternKeys
+    @FocusState private var focus: PaneKeyTarget?
+
+    func body(content: Content) -> some View {
+        content
+            .focusable()
+            .focusEffectDisabled()   // DEVIATION as `FFTKeyedRoom`'s, named there
+            .onKeyPress(phases: [.down, .repeat]) { keys.handle($0) }
+            .focused($focus, equals: .room)
+            .defaultFocus($focus, .room)
+            .simultaneousGesture(DragGesture(minimumDistance: 0).onChanged { _ in if focus != .room { focus = .room } })
     }
 }
