@@ -99,6 +99,34 @@ package nonisolated struct CanvasPixels: Sendable, Equatable {
         }
     }
 
+    /// The levels of a display canvas: 1…65535 over a value range, 0 masked. Two bytes a pixel in the app and on the GPU.
+    package static let displayLevels: ClosedRange<Float> = 1...65_535
+
+    /// A presentation-only canvas of `values` (an FFT spectrum's log power, NaN masked) at 16 bits: each finite value becomes
+    /// 1 + round((v − low) / (high − low) · 65534) over the finite range, a non-finite one 0, which the view draws masked (the
+    /// shader masks a value below its range). Half the bytes of a Float32 display copy and of its GPU buffer (the 375 MP alite
+    /// SEM image's spectrum settled 2.9 GB above the image with both in Float32, macEM#579). A level is 1/65534 of the range,
+    /// below what a screen or the eye resolves; `rawRange` and `histogram` stay those of the values themselves, so the
+    /// Display section's window and histogram read in the values' own units. Nothing measured reads it.
+    package static func displayLevels(_ values: [Float], width: Int, height: Int, contentVersion: Int,
+                                      histogram: IntensityHistogram?) -> CanvasPixels {
+        var low = Float.infinity, high = -Float.infinity
+        for v in values where v.isFinite { low = min(low, v); high = max(high, v) }
+        let range: ClosedRange<Float>? = low <= high ? low...high : nil
+        let span = range.map { $0.upperBound - $0.lowerBound } ?? 0
+        let steps = displayLevels.upperBound - displayLevels.lowerBound
+        let levels = [UInt16](unsafeUninitializedCapacity: values.count) { out, count in
+            for i in values.indices {
+                let v = values[i]
+                if !v.isFinite { out[i] = 0; continue }
+                out[i] = span > 0 ? UInt16(1 + ((v - low) / span * steps).rounded()) : 1
+            }
+            count = values.count
+        }
+        return CanvasPixels(width: width, height: height, values: [], native: .uint16(levels), scale: .raw(range: displayLevels),
+                            contentVersion: contentVersion, rawRange: range, histogram: histogram)
+    }
+
     /// FNV-1a over the stored bytes and the size: changes when the pixels do, as `MetalImageView.contentVersion` does for Float32.
     private static func nativeVersion<T>(_ values: [T], width: Int, height: Int) -> Int {
         var hash: UInt64 = 0xcbf2_9ce4_8422_2325
@@ -126,7 +154,8 @@ package nonisolated struct CanvasPixels: Sendable, Equatable {
     package func normalizedValue(at index: Int) -> Float {
         let v = native?[index] ?? values[index]
         guard case .raw(let range) = scale else { return v }
-        guard let range, v.isFinite else { return FloatImage.invalidDisplayValue }
+        // Below the range is masked: a display canvas's 0 (`displayLevels`); a raw image's range is its own minimum.
+        guard let range, v.isFinite, v >= range.lowerBound else { return FloatImage.invalidDisplayValue }
         if transfer == .log {
             // ImagoKit's `DisplayNormalization.normalizedLog`, one pixel: log10(1 + max(v, 0)) in Double, rounded to Float32,
             // over the same of the raw range (the log is monotonic, so those are the finite log values' extremes).
