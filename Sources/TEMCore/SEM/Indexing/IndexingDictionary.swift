@@ -409,14 +409,24 @@ package nonisolated struct DictionaryIndexingPlan: Sendable {
     /// The experimental patterns of scan rows `rows`, read through the room's source, row after row, at the type they are indexed in
     /// (the file's without a processing stage, float32 through one; #620). Off the caller's actor.
     @concurrent package func readBlock(_ rows: Range<Int>) async throws -> StoredPatterns {
-        var parts: [StoredPatterns] = []
-        parts.reserveCapacity(rows.count)
+        // Each row appended as it is read, so the block is never held twice.
+        let pixels = source.patternRows * source.patternColumns
+        var type = source.pipeline?.outputType(source.storedType) ?? source.storedType
+        var bytes = Data()
+        var count = 0
         for row in rows {
             try Task.checkCancellation()
-            parts.append(try source.storedPatterns(row: row))
+            let part = try source.storedPatterns(row: row)
+            if count == 0 {
+                type = part.dataType
+                bytes.reserveCapacity(rows.count * part.byteCount)
+            } else if part.dataType != type {
+                throw StoredPatterns.Error.mixedTypes(type, part.dataType)
+            }
+            bytes.append(part.bytes)
+            count += part.count
         }
-        return try StoredPatterns(joining: parts, pixels: source.patternRows * source.patternColumns,
-                                  emptyType: source.pipeline?.outputType(source.storedType) ?? source.storedType)
+        return try StoredPatterns(dataType: type, count: count, pixels: pixels, bytes: bytes)
     }
 
     /// Indexes the scan rows `rows` against the dictionary (projected chunk by chunk); `experimental` holds their patterns as
