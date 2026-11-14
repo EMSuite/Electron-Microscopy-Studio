@@ -196,7 +196,8 @@ package nonisolated struct DictionaryIndexingPlan: Sendable {
     /// Scan rows per block (the last may hold fewer).
     package let rowsPerBlock: Int
 
-    /// The experimental patterns of one block stay within this many bytes as float64 (D-SEM-92); the dictionary's chunks are then
+    /// The experimental patterns of one block stay within this many bytes as float64 (D-SEM-92), the size of their prepared copy (the
+    /// block itself is held at its stored type, #620); the dictionary's chunks are then
     /// `DictionaryIndexing`'s own memory budget. The demo scan (4125 patterns of 60 × 60) is one block.
     package static let blockBudget = 128 << 20
 
@@ -405,23 +406,25 @@ package nonisolated struct DictionaryIndexingPlan: Sendable {
         blocks.map { Self.chunking(points: $0.count * source.scanColumns, keptPixels: keptPixels, dictionary: rotations.count, options: options).chunks }
     }
 
-    /// The experimental patterns of scan rows `rows`, read through the room's source, row after row. Off the caller's actor.
-    @concurrent package func readBlock(_ rows: Range<Int>) async throws -> [Double] {
-        var experimental: [Double] = []
-        experimental.reserveCapacity(rows.count * source.scanColumns * source.patternRows * source.patternColumns)
+    /// The experimental patterns of scan rows `rows`, read through the room's source, row after row, at the type they are indexed in
+    /// (the file's without a processing stage, float32 through one; #620). Off the caller's actor.
+    @concurrent package func readBlock(_ rows: Range<Int>) async throws -> StoredPatterns {
+        var parts: [StoredPatterns] = []
+        parts.reserveCapacity(rows.count)
         for row in rows {
             try Task.checkCancellation()
-            for pattern in try source.patterns(row: row) { experimental.append(contentsOf: pattern) }
+            parts.append(try source.storedPatterns(row: row))
         }
-        return experimental
+        return try StoredPatterns(joining: parts, pixels: source.patternRows * source.patternColumns,
+                                  emptyType: source.pipeline?.outputType(source.storedType) ?? source.storedType)
     }
 
     /// Indexes the scan rows `rows` against the dictionary (projected chunk by chunk); `experimental` holds their patterns as
     /// `readBlock` reads them (a run against several phases reads a block once for every phase), nil reads them here. `progress`
     /// hears of each chunk merged. A cancelled task stops before the next chunk. Off the caller's actor.
-    @concurrent package func indexBlock(_ rows: Range<Int>, experimental: [Double]? = nil,
+    @concurrent package func indexBlock(_ rows: Range<Int>, experimental: StoredPatterns? = nil,
                                         progress: DictionaryIndexing.Progress? = nil) async throws -> DictionaryIndexing.Result {
-        let patterns: [Double]
+        let patterns: StoredPatterns
         if let experimental { patterns = experimental } else { patterns = try await readBlock(rows) }
         return try await DictionaryIndexing.indexAsync(experimental: patterns, navigationShape: [rows.count, source.scanColumns],
                                                        master: master.master, rotations: rotations, detector: detector, energy: energy,

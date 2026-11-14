@@ -170,12 +170,12 @@ package nonisolated enum IndexingRefinement {
     /// Rows `rows` of `result` (a dictionary run against one phase) refined. `experimental` holds those rows' patterns as
     /// `DictionaryIndexingPlan.readBlock` reads them. The detector is the run's plan's (one mean PC). `isCancelled` is asked once per
     /// pattern, on the solver's worker threads.
-    package static func refine(_ result: IndexingResult, rows: Range<Int>, experimental: [Double], isFloat32: Bool,
+    package static func refine(_ result: IndexingResult, rows: Range<Int>, experimental: StoredPatterns, isFloat32: Bool,
                                detector: EBSDDetectorGeometry, master: EBSDRefinement.Master, signalMask: [Bool]?,
                                settings: IndexingRefineSettings, isCancelled: @Sendable () -> Bool = { false }) throws -> IndexingRefinedBlock {
         let columns = result.scanColumns, pixels = detector.rows * detector.columns
         guard rows.lowerBound >= 0, rows.upperBound <= result.rowsDone,
-              experimental.count == rows.count * columns * pixels else { throw EBSDRefinement.Error.detectorShape }
+              experimental.count == rows.count * columns, experimental.pixels == pixels else { throw EBSDRefinement.Error.detectorShape }
         let start = rows.lowerBound * columns
         var block = (0..<(rows.count * columns)).map { result.solutions[start + $0] ?? HoughIndexer.Solution() }
         var evaluations = [Int](repeating: 0, count: block.count)
@@ -184,10 +184,8 @@ package nonisolated enum IndexingRefinement {
         guard !points.isEmpty else {
             return IndexingRefinedBlock(rows: rows, solutions: block, evaluations: evaluations, projectionCenters: [])
         }
-        var values = [Float]()
-        values.reserveCapacity(points.count * pixels)
-        for p in points { values += experimental[(p * pixels)..<((p + 1) * pixels)].map { Float($0) } }
-        let patterns = EBSDRefinement.Patterns(count: points.count, pixels: pixels, values: values, isFloat32: isFloat32)
+        // The block stays at its stored type; each indexed point's pattern is widened to float32 as it is refined (#620).
+        let patterns = EBSDRefinement.Patterns(stored: experimental, indices: points, isFloat32: isFloat32)
         let solver = settings.solver(signalMask: signalMask)
         let rotations = points.map { block[$0].quaternion }
         var pcs: [SIMD3<Double>] = []

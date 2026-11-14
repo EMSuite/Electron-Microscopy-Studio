@@ -166,7 +166,7 @@ nonisolated final class SEMNonFiniteInputsTests: XCTestCase {
         let pixels = shape[0] * shape[1]
         let values = try ref.array("patterns").values.prefix(pixels).map { Float($0) }
         let start = try ref.array("start_euler").values
-        return OnePattern(patterns: EBSDRefinement.Patterns(count: 1, pixels: pixels, values: values, isFloat32: false),
+        return OnePattern(patterns: try EBSDRefinement.Patterns(count: 1, pixels: pixels, values: values, isFloat32: false),
                           detector: detector, master: master, start: SIMD3(start[0], start[1], start[2]))
     }
 }

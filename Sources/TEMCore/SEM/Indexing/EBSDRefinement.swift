@@ -87,16 +87,31 @@ package nonisolated enum EBSDRefinement {
         }
     }
 
-    /// Patterns to refine: `count` patterns of the detector's rows x columns, row-major, as float32 values. `isFloat32` is
-    /// whether they are float32 data (kikuchipy then rescales each to −1 ... 1 first); integer patterns pass their values.
+    /// Patterns to refine: patterns of the detector's rows x columns, row-major, held at their stored type (#620) and widened to
+    /// float32 one at a time as each is refined. `indices` picks which stored patterns are refined, in order (nil: every one), so a
+    /// map's indexed points are refined without a copy. `isFloat32` is whether they are float32 data (kikuchipy then rescales each to
+    /// −1 ... 1 first); integer patterns pass their values.
     package struct Patterns: Sendable {
-        package let count: Int
-        package let pixels: Int
-        package let values: [Float]
+        package let stored: StoredPatterns
+        package let indices: [Int]?
         package let isFloat32: Bool
 
-        package init(count: Int, pixels: Int, values: [Float], isFloat32: Bool) {
-            self.count = count; self.pixels = pixels; self.values = values; self.isFloat32 = isFloat32
+        package init(stored: StoredPatterns, indices: [Int]? = nil, isFloat32: Bool) {
+            self.stored = stored; self.indices = indices; self.isFloat32 = isFloat32
+        }
+
+        /// `count` patterns of `pixels` float32 values (a parity reference, a test).
+        package init(count: Int, pixels: Int, values: [Float], isFloat32: Bool) throws {
+            guard pixels > 0, values.count == count * pixels else { throw EBSDRefinement.Error.detectorShape }
+            try self.init(stored: StoredPatterns(floats: values, pixels: pixels), isFloat32: isFloat32)
+        }
+
+        package var count: Int { indices?.count ?? stored.count }
+        package var pixels: Int { stored.pixels }
+
+        /// Pattern `i`'s values at `kept` (all when nil) as float32, the block the solver works on.
+        func floats(_ i: Int, kept: [Int]?) -> [Float] {
+            stored.floats(pattern: indices?[i] ?? i, kept: kept)
         }
     }
 
@@ -142,8 +157,8 @@ package nonisolated enum EBSDRefinement {
     // MARK: - Pattern preparation and the objective
 
     /// `_prepare_pattern`: float32, rescaled to −1 ... 1 for float32 data, then centred; with its squared norm.
-    static func prepare(_ pattern: ArraySlice<Float>, rescale: Bool) -> (values: [Float], squaredNorm: Double)? {
-        var p = Array(pattern)
+    static func prepare(_ pattern: [Float], rescale: Bool) -> (values: [Float], squaredNorm: Double)? {
+        var p = pattern
         if rescale {
             guard let lo = p.min(), let hi = p.max(), hi > lo else { return nil }
             let recip = 1 / (Double(hi) - Double(lo))
@@ -200,6 +215,9 @@ package nonisolated enum EBSDRefinement {
         return idx
     }
 
+    /// The kept pixels as `StoredPatterns.gather` takes them: nil when every pixel is kept.
+    static func gatherMask(_ kept: [Int], pixels: Int) -> [Int]? { kept.count == pixels ? nil : kept }
+
     /// `_get_direction_cosines_for_fixed_pc` on the kept pixels.
     static func directionCosines(_ detector: EBSDDetectorGeometry, pc: SIMD3<Double>, sampleToDetector m: [Double], kept: [Int]) -> [SIMD3<Double>] {
         let all = MasterPatternProjection.directionCosines(rows: detector.rows, columns: detector.columns, pc: pc, sampleToDetector: m)
@@ -253,13 +271,13 @@ package nonisolated enum EBSDRefinement {
         try check(patterns, count: starts.count, detector: detector)
         let tr = try trustRegion(settings, expected: 3, anglesFirst: 3)
         let kept = try keptPixels(settings.signalMask, pixels: patterns.pixels)
+        let mask = gatherMask(kept, pixels: patterns.pixels)
         let m = sampleToDetector(detector)
         let pcs = detector.projectionCenters
         let shared = pcs.count == 1 ? directionCosines(detector, pc: pcs[0], sampleToDetector: m, kept: kept) : nil
         let checked = settings.options
         return try perPattern(patterns.count, isCancelled: isCancelled) { (i: Int) throws -> OrientationResult in
-            let base = patterns.values[(i * patterns.pixels)..<((i + 1) * patterns.pixels)]
-            guard let exp = prepare(ArraySlice(kept.map { base[base.startIndex + $0] }), rescale: patterns.isFloat32) else {
+            guard let exp = prepare(patterns.floats(i, kept: mask), rescale: patterns.isFloat32) else {
                 // A flat pattern: kikuchipy's NCC is NaN there and the run carries on, so this one is NaN, its start kept.
                 let start = starts[i].first ?? SIMD3(repeating: .nan)
                 return OrientationResult(score: .nan, evaluations: 0, euler: start, pseudoSymmetryIndex: nil)
@@ -289,12 +307,12 @@ package nonisolated enum EBSDRefinement {
         try check(patterns, count: rotations.count, detector: detector)
         let tr = try trustRegion(settings, expected: 3, anglesFirst: 0)
         let kept = try keptPixels(settings.signalMask, pixels: patterns.pixels)
+        let mask = gatherMask(kept, pixels: patterns.pixels)
         let m = sampleToDetector(detector)
         let pcs = detector.projectionCenters
         return try perPattern(patterns.count, isCancelled: isCancelled) { (i: Int) throws -> ProjectionCenterResult in
-            let base = patterns.values[(i * patterns.pixels)..<((i + 1) * patterns.pixels)]
             let pc0 = pcs.count == 1 ? pcs[0] : pcs[i]
-            guard let exp = prepare(ArraySlice(kept.map { base[base.startIndex + $0] }), rescale: patterns.isFloat32) else {
+            guard let exp = prepare(patterns.floats(i, kept: mask), rescale: patterns.isFloat32) else {
                 return ProjectionCenterResult(score: .nan, evaluations: 0, pc: pc0)   // flat: NaN, as kikuchipy carries on
             }
             let q = rotations[i]
@@ -315,12 +333,12 @@ package nonisolated enum EBSDRefinement {
         try check(patterns, count: starts.count, detector: detector)
         let tr = try trustRegion(settings, expected: 6, anglesFirst: 3)
         let kept = try keptPixels(settings.signalMask, pixels: patterns.pixels)
+        let mask = gatherMask(kept, pixels: patterns.pixels)
         let m = sampleToDetector(detector)
         let pcs = detector.projectionCenters
         return try perPattern(patterns.count, isCancelled: isCancelled) { (i: Int) throws -> OrientationProjectionCenterResult in
-            let base = patterns.values[(i * patterns.pixels)..<((i + 1) * patterns.pixels)]
             let pc0 = pcs.count == 1 ? pcs[0] : pcs[i]
-            guard let exp = prepare(ArraySlice(kept.map { base[base.startIndex + $0] }), rescale: patterns.isFloat32) else {
+            guard let exp = prepare(patterns.floats(i, kept: mask), rescale: patterns.isFloat32) else {
                 let start = starts[i].first ?? SIMD3(repeating: .nan)   // flat: NaN, as kikuchipy carries on
                 return OrientationProjectionCenterResult(score: .nan, evaluations: 0, euler: start, pc: pc0, pseudoSymmetryIndex: nil)
             }
@@ -381,21 +399,18 @@ package nonisolated enum EBSDRefinement {
 
     private static func check(_ patterns: Patterns, count: Int, detector: EBSDDetectorGeometry) throws {
         guard patterns.count == count else { throw Error.patternCount(patterns: patterns.count, starts: count) }
-        guard patterns.pixels == detector.rows * detector.columns, patterns.values.count == patterns.count * patterns.pixels else {
+        guard patterns.pixels == detector.rows * detector.columns else {
             throw Error.detectorShape
         }
         let c = detector.projectionCenters.count
         guard c == 1 || c == count else { throw Error.centreCount(centres: c, patterns: count) }
     }
 
-    /// The refined points' patterns out of one per map point.
+    /// The refined points' patterns out of one per map point: their indices, not a copy.
     private static func select(_ patterns: Patterns, points: [Int], of pointCount: Int) throws -> Patterns {
         guard patterns.count == pointCount else { throw Error.patternCount(patterns: patterns.count, starts: pointCount) }
         if points.count == pointCount { return patterns }
-        var values: [Float] = []
-        values.reserveCapacity(points.count * patterns.pixels)
-        for p in points { values.append(contentsOf: patterns.values[(p * patterns.pixels)..<((p + 1) * patterns.pixels)]) }
-        return Patterns(count: points.count, pixels: patterns.pixels, values: values, isFloat32: patterns.isFloat32)
+        return Patterns(stored: patterns.stored, indices: points.map { patterns.indices?[$0] ?? $0 }, isFloat32: patterns.isFloat32)
     }
 
     /// A detector with one PC per map point restricted to the refined points (kikuchipy's `pc_flattened[points_to_refine]`).
