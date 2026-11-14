@@ -236,7 +236,7 @@ package nonisolated enum MasterPatternProjection {
         guard centres == 1 || centres == rotations.count else { throw Error.centreCount(centres: centres, rotations: rotations.count) }
         let pixels = detector.rows * detector.columns
         guard pixels > 0 else { throw Error.emptyDetector }
-        let (upperSlice, lowerSlice) = try master.hemispheres(energy: energy)
+        let (upper, lower) = try master.hemispheres(energy: energy)
         if rotations.isEmpty { return Patterns(count: 0, rows: detector.rows, columns: detector.columns, outputType: output, values: []) }
         let cosines = directionCosines(detector: detector)
         let rescale = output.formatoType != master.dataType
@@ -244,7 +244,6 @@ package nonisolated enum MasterPatternProjection {
         let side = master.side
         let scale = Double(side - 1) / 2
         var values = [Double](repeating: 0, count: rotations.count * pixels)
-        let upper = Array(upperSlice), lower = Array(lowerSlice)
         upper.withUnsafeBufferPointer { up in
             lower.withUnsafeBufferPointer { lo in
                 values.withUnsafeMutableBufferPointer { out in

@@ -69,9 +69,9 @@ package nonisolated enum EBSDRefinement {
             try MasterPatternProjection.checkSuitable(master)
             let (u, l) = try master.hemispheres(energy: energy)
             if master.dataType == .float32 {
-                upper = Array(u); lower = Array(l)
+                upper = u; lower = l
             } else {
-                upper = Self.rescaled(Array(u)); lower = Self.rescaled(Array(l))
+                upper = Self.rescaled(u); lower = Self.rescaled(l)
             }
             side = master.side
             scale = Double(master.side - 1) / 2
