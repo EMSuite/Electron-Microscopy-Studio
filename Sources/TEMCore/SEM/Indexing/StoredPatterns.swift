@@ -82,7 +82,7 @@ package nonisolated struct StoredPatterns: Sendable, Equatable {
         let start = p * pixels
         let n = kept?.count ?? pixels
         bytes.withUnsafeBytes { raw in
-            func run<S>(_: S.Type, _ convert: (S) -> Double) {
+            func run<S: BitwiseCopyable>(_: S.Type, _ convert: (S) -> Double) {
                 let size = MemoryLayout<S>.size
                 if let kept {
                     for k in 0 ..< n { dst[k] = T(convert(raw.loadUnaligned(fromByteOffset: (start + kept[k]) * size, as: S.self))) }
