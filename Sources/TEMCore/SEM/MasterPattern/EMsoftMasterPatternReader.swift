@@ -87,8 +87,9 @@ package nonisolated struct EBSDMasterPattern: Sendable, Equatable {
     package var energies: [Double]
     /// The side of the square pattern in px (`2 npx + 1`).
     package var side: Int
-    /// The intensities, C order (hemisphere, energy, row, column); every stored uint8 or float32 value is exact in Float.
-    package var values: [Float]
+    /// The intensities, C order (hemisphere, energy, row, column), held at the stored type (uint8, uint16 or float32; a float64
+    /// file rounded to Float); each reads as a Float, exact for every uint8, uint16 and float32 value.
+    package var values: MasterPatternValues
     package var phase: Phase
     /// The energy axis hyperspy builds: offset the first energy read, scale the Monte Carlo `Ebinsize`.
     package var energyAxis: EnergyAxis
@@ -101,16 +102,18 @@ package nonisolated struct EBSDMasterPattern: Sendable, Equatable {
     /// The pixel offset hyperspy gives both signal axes: `-side // 2` (floor division).
     package var pixelOffset: Int { Int((-Double(side) / 2).rounded(.down)) }
 
-    /// The pattern of one hemisphere (0 upper, 1 lower when both are held) and one energy index, row-major `side x side`.
-    package func pattern(hemisphere h: Int, energy e: Int) -> ArraySlice<Float> {
+    /// The pattern of one hemisphere (0 upper, 1 lower when both are held) and one energy index, row-major `side x side`, as Floats
+    /// (a copy of that one pattern: the block a computation takes).
+    package func pattern(hemisphere h: Int, energy e: Int) -> [Float] {
         let n = side * side
         let start = (h * energies.count + e) * n
-        return values[start ..< start + n]
+        return values.floats(start ..< start + n)
     }
 
     /// The upper and lower Lambert patterns a projection samples (`_get_master_pattern_arrays_from_energy`): with several
-    /// energies, the one at `energy` keV on the energy axis (the highest when nil); with one hemisphere, it serves as both.
-    package func hemispheres(energy: Double?) throws -> (upper: ArraySlice<Float>, lower: ArraySlice<Float>) {
+    /// energies, the one at `energy` keV on the energy axis (the highest when nil); with one hemisphere, it serves as both (one
+    /// array, not copied). Floats of that energy only: the rest stay at the stored type.
+    package func hemispheres(energy: Double?) throws -> (upper: [Float], lower: [Float]) {
         var e = 0
         if energies.count > 1 {
             let value = energy ?? (energyAxis.offset + energyAxis.scale * Double(energyAxis.size - 1))
@@ -170,8 +173,8 @@ package nonisolated enum EMsoftMasterPatternReader {
             case .upper: names = ["\(label)NH"]
             case .lower: names = ["\(label)SH"]
             }
-            // Room for every hemisphere is reserved once the first is read, never from the stored npx alone.
-            var values: [Float] = []
+            // Each hemisphere at the stored type, joined (upper first) once both are read.
+            var parts: [MasterPatternValues] = []
             var dataType: FormatoDataType?
             for dataset in names {
                 let (stored, block) = try readHemisphere(reader, path: "\(dataGroup)/\(dataset)", projection: projection,
@@ -180,10 +183,17 @@ package nonisolated enum EMsoftMasterPatternReader {
                     throw EBSDReadError(text: "the two hemispheres are stored as \(dataType.rawValue) and \(stored.rawValue).")
                 }
                 dataType = stored
-                if values.isEmpty { values.reserveCapacity(names.count * block.count) }
-                values += block
+                parts.append(block)
             }
             guard let dataType else { throw EBSDReadError(text: "no master pattern dataset was read.") }
+            let values: MasterPatternValues
+            if parts.count == 1 { values = parts[0] } else {
+                guard let joined = MasterPatternValues.joined(parts) else {
+                    throw EBSDReadError(text: "the two hemispheres are stored as different types.")
+                }
+                values = joined
+            }
+            parts = []
             let read = picked.map { energies[$0] }
             return EBSDMasterPattern(diffractionType: type, projection: projection, hemisphere: hemisphere, dataType: dataType,
                                      hemisphereCount: names.count, energies: read, side: side, values: values, phase: phase,
@@ -225,11 +235,12 @@ package nonisolated enum EMsoftMasterPatternReader {
         }
     }
 
-    /// One hemisphere's patterns for the picked energies, `side x side` each. A Lambert dataset is (numset, energy, y, x): the
-    /// asymmetric positions are summed and cast back to the stored type (`data.sum(axis).astype(data.dtype)`: uint8 wraps at 256);
-    /// a stereographic dataset is (energy, y, x), flipped up-down.
+    /// One hemisphere's patterns for the picked energies, `side x side` each, at the stored type (uint8 and uint16 as stored,
+    /// float32 and float64 as Floats). A Lambert dataset is (numset, energy, y, x): the asymmetric positions are summed and cast
+    /// back to the stored type (`data.sum(axis).astype(data.dtype)`: uint8 wraps at 256); a stereographic dataset is
+    /// (energy, y, x), flipped up-down. One energy is read at a time.
     static func readHemisphere(_ reader: HDF5Reader, path: String, projection: EBSDMasterPattern.Projection, energies picked: [Int],
-                               energyCount: Int, side: Int) throws -> (FormatoDataType, [Float]) {
+                               energyCount: Int, side: Int) throws -> (FormatoDataType, MasterPatternValues) {
         guard try reader.exists(path) else { throw EBSDReadError(text: "the file has no dataset '\(path)'.") }
         let info = try reader.datasetInfo(path)
         guard case .numeric(let type) = info.type, type == .uint8 || type == .float32 || type == .float64 || type == .uint16 else {
@@ -238,49 +249,85 @@ package nonisolated enum EMsoftMasterPatternReader {
         let shape = info.shape
         // `side` comes from patternSide, so its square fits an Int; room for the patterns is reserved once the shape holds them.
         let n = side * side
-        var out: [Float] = []
+        var out = HemisphereValues(type)
         switch (projection, shape.count) {
         case (.lambert, 4):
             guard shape[1] == energyCount, shape[2] == side, shape[3] == side else {
                 throw EBSDReadError(text: "'\(path)' has shape \(shape), not (numset, \(energyCount), \(side), \(side)).")
             }
-            try reserve(&out, patterns: picked.count, of: n, path: path, shape: shape)
+            try out.reserve(patterns: picked.count, of: n, path: path, shape: shape)
             let numset = shape[0]
             for e in picked {
-                let block = try reader.readDataset(path, start: [0, e, 0, 0], count: [numset, 1, side, side]).doubles()
+                let slab = try reader.readDataset(path, start: [0, e, 0, 0], count: [numset, 1, side, side])
+                // Floats hold every uint8, uint16 and float32 value exactly, so their float64 sums are the stored values' sums.
+                let block: [Double] = type == .float64 ? slab.doubles() : []
+                let single: [Float] = type == .float64 ? [] : slab.floats()
                 for p in 0 ..< n {
                     var sum = 0.0
-                    for s in 0 ..< numset { sum += block[s * n + p] }
-                    out.append(cast(sum, to: type))
+                    if type == .float64 {
+                        for s in 0 ..< numset { sum += block[s * n + p] }
+                    } else {
+                        for s in 0 ..< numset { sum += Double(single[s * n + p]) }
+                    }
+                    out.append(sum)
                 }
             }
         case (.lambert, 3), (.stereographic, 3):
             guard shape[0] == energyCount, shape[1] == side, shape[2] == side else {
                 throw EBSDReadError(text: "'\(path)' has shape \(shape), not (\(energyCount), \(side), \(side)).")
             }
-            try reserve(&out, patterns: picked.count, of: n, path: path, shape: shape)
+            try out.reserve(patterns: picked.count, of: n, path: path, shape: shape)
             for e in picked {
-                let block = try reader.readDataset(path, start: [e, 0, 0], count: [1, side, side]).doubles()
+                let slab = try reader.readDataset(path, start: [e, 0, 0], count: [1, side, side])
+                let block: [Double] = slab.doubles()
                 if projection == .stereographic {
                     for r in stride(from: side - 1, through: 0, by: -1) {
-                        for c in 0 ..< side { out.append(Float(block[r * side + c])) }
+                        for c in 0 ..< side { out.append(block[r * side + c]) }
                     }
                 } else {
-                    out.append(contentsOf: block.map { Float($0) })
+                    for v in block { out.append(v) }
                 }
             }
         default:
             throw EBSDReadError(text: "'\(path)' has shape \(shape), which is not a \(projection.rawValue) master pattern layout.")
         }
-        return (type, out)
+        return (type, out.values)
     }
 
-    /// A sum cast back to the stored type as numpy's `astype` does: an integer type wraps modulo its range, a float32 rounds.
-    static func cast(_ sum: Double, to type: FormatoDataType) -> Float {
-        switch type {
-        case .uint8: return Float(UInt64(sum) % 256)
-        case .uint16: return Float(UInt64(sum) % 65_536)
-        default: return Float(sum)
+    /// A hemisphere's values as they are read, kept at the stored type: a sum or a value cast as numpy's `astype` casts it (an
+    /// integer type wraps modulo its range, a float32 rounds; a float64 is rounded to Float, as the reader held it before #620).
+    struct HemisphereValues {
+        private var u8: [UInt8] = []
+        private var u16: [UInt16] = []
+        private var f32: [Float] = []
+        let type: FormatoDataType
+
+        init(_ type: FormatoDataType) { self.type = type }
+
+        mutating func reserve(patterns: Int, of n: Int, path: String, shape: [Int]) throws {
+            let total = patterns.multipliedReportingOverflow(by: n)
+            guard !total.overflow else { throw EBSDReadError(text: "'\(path)' has shape \(shape), more values than macEM holds.") }
+            switch type {
+            case .uint8: u8.reserveCapacity(total.partialValue)
+            case .uint16: u16.reserveCapacity(total.partialValue)
+            default: f32.reserveCapacity(total.partialValue)
+            }
+        }
+
+        mutating func append(_ value: Double) {
+            switch type {
+            case .uint8: u8.append(UInt8(UInt64(value) % 256))
+            case .uint16: u16.append(UInt16(UInt64(value) % 65_536))
+            default: f32.append(Float(value))
+            }
+        }
+
+        var values: MasterPatternValues {
+            switch type {
+            case .uint8: MasterPatternValues(.uint8(u8))
+            case .uint16: MasterPatternValues(.uint16(u16))
+            default: MasterPatternValues(.float32(f32))
+            }
         }
     }
 
@@ -311,13 +358,6 @@ package nonisolated enum EMsoftMasterPatternReader {
             throw EBSDReadError(text: "the file's '\(path)' is \(npx), a pattern side no dataset has.")
         }
         return side.partialValue
-    }
-
-    /// Room in `out` for `patterns` patterns of `n` values, once the dataset's shape is known to hold them.
-    private static func reserve(_ out: inout [Float], patterns: Int, of n: Int, path: String, shape: [Int]) throws {
-        let total = patterns.multipliedReportingOverflow(by: n)
-        guard !total.overflow else { throw EBSDReadError(text: "'\(path)' has shape \(shape), more values than macEM holds.") }
-        out.reserveCapacity(total.partialValue)
     }
 
     /// `os.path.split(path)[0]`: everything before the last slash, trailing slashes removed unless only slashes remain.

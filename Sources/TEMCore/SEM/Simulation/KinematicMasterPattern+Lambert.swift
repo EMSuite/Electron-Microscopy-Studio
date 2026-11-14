@@ -60,7 +60,7 @@ extension KinematicMasterPattern {
             }
         }
         return EBSDMasterPattern(diffractionType: .ebsd, projection: .lambert, hemisphere: .both, dataType: .float32, hemisphereCount: 2,
-                                 energies: [energyKeV], side: size, values: values,
+                                 energies: [energyKeV], side: size, values: MasterPatternValues(values),
                                  phase: EBSDMasterPattern.Phase(name: phase.name, spaceGroup: phase.spaceGroup ?? 1, pointGroup: phase.pointGroupName ?? "1",
                                                                 containsInversion: phase.pointGroup?.containsInversion ?? false,
                                                                 lattice: phase.lattice ?? [], atomCount: 0),
