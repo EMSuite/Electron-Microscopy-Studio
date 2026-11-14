@@ -138,15 +138,33 @@ package nonisolated enum DictionaryIndexing {
     /// pattern of `pixels` values every `pixels`), centred for NCC, divided by their Euclidean norm. A flat pattern divides zero by
     /// zero, so its values are NaN, as kikuchipy's are.
     package static func prepare(_ values: UnsafeBufferPointer<Double>, count: Int, pixels: Int, kept: [Int], metric: Metric) -> [Double] {
-        let n = kept.count
-        var out = [Double](repeating: 0, count: count * n)
         let all = kept.count == pixels
+        return prepare(count: count, length: kept.count, metric: metric) { p, dst in
+            guard let source = values.baseAddress else { return }   // no pattern, nothing to copy
+            let src = source + p * pixels
+            if all { for k in 0 ..< kept.count { dst[k] = src[k] } } else { for k in 0 ..< kept.count { dst[k] = src[kept[k]] } }
+        }
+    }
+
+    /// `prepare` of the patterns `patterns` of a block held at its stored type, each widened to float64 as it is prepared (#620): the
+    /// numbers of `prepare` on the block's doubles, without a float64 copy of the block.
+    package static func prepare(_ stored: StoredPatterns, patterns: [Int], kept: [Int], metric: Metric) -> [Double] {
+        let mask: [Int]? = kept.count == stored.pixels ? nil : kept
+        return prepare(count: patterns.count, length: kept.count, metric: metric) { p, dst in
+            stored.gather(pattern: patterns[p], kept: mask, into: dst)
+        }
+    }
+
+    /// The preparation itself: `load(p, dst)` writes pattern p's `length` kept values to `dst`, then they are centred (NCC) and
+    /// divided by their norm in place.
+    private static func prepare(count: Int, length n: Int, metric: Metric,
+                                load: (Int, UnsafeMutablePointer<Double>) -> Void) -> [Double] {
+        var out = [Double](repeating: 0, count: count * n)
         out.withUnsafeMutableBufferPointer { o in
             for p in 0 ..< count {
-                guard let source = values.baseAddress, let target = o.baseAddress else { return }   // no pattern, nothing to copy
-                let src = source + p * pixels
+                guard let target = o.baseAddress else { return }   // no pattern, nothing to prepare
                 let dst = target + p * n
-                if all { for k in 0 ..< n { dst[k] = src[k] } } else { for k in 0 ..< n { dst[k] = src[kept[k]] } }
+                load(p, dst)
                 if metric.centres {
                     var sum = 0.0
                     for k in 0 ..< n { sum += dst[k] }
@@ -278,21 +296,31 @@ package nonisolated enum DictionaryIndexing {
 
     // MARK: - Indexing
 
+    /// Doubles as a float64 block, refused as before when they are not whole patterns.
+    private static func stored(_ values: [Double], pixels: Int) throws -> StoredPatterns {
+        guard pixels > 0, values.count % pixels == 0 else {
+            throw Error.patternCount(values: values.count, patterns: pixels > 0 ? values.count / pixels : 0, pixels: pixels)
+        }
+        return try StoredPatterns(doubles: values, pixels: pixels)
+    }
+
     /// The checked experimental side: navigation shape, masks, the prepared patterns of the points in the data.
     private struct Experimental {
         let count: Int
         let inData: [Bool]
         let indexed: [Int]
         let kept: [Int]
-        let prepared: [Double]
+        /// The prepared patterns in float64; let go once the GPU holds its float32 copy.
+        var prepared: [Double]
     }
 
-    private static func experimentalSide(_ experimental: [Double], navigationShape: [Int], pixels: Int, options: Options) throws -> Experimental {
+    private static func experimentalSide(_ experimental: StoredPatterns, navigationShape: [Int], pixels: Int, options: Options) throws -> Experimental {
         guard options.keepN >= 1 else { throw Error.keepN(options.keepN) }
-        guard pixels > 0, experimental.count % pixels == 0 else {
-            throw Error.patternCount(values: experimental.count, patterns: pixels > 0 ? experimental.count / pixels : 0, pixels: pixels)
+        guard pixels > 0, experimental.pixels == pixels else {
+            let values = experimental.count * experimental.pixels
+            throw Error.patternCount(values: values, patterns: pixels > 0 ? values / pixels : 0, pixels: pixels)
         }
-        let count = experimental.count / pixels
+        let count = experimental.count
         guard !navigationShape.isEmpty, navigationShape.reduce(1, *) == count else { throw Error.navigationShape(navigationShape, patterns: count) }
         var inData = [Bool](repeating: true, count: count)
         if let mask = options.navigationMask {
@@ -302,10 +330,8 @@ package nonisolated enum DictionaryIndexing {
         }
         let kept = try keptPixels(options.signalMask, pixels: pixels)
         let indexed = (0 ..< count).filter { inData[$0] }
-        var selected = [Double]()
-        selected.reserveCapacity(indexed.count * pixels)
-        for p in indexed { selected.append(contentsOf: experimental[(p * pixels) ..< ((p + 1) * pixels)]) }
-        let prepared = selected.withUnsafeBufferPointer { prepare($0, count: indexed.count, pixels: pixels, kept: kept, metric: options.metric) }
+        // Each pattern in the data widened as it is prepared: no float64 copy of the block (#620).
+        let prepared = prepare(experimental, patterns: indexed, kept: kept, metric: options.metric)
         return Experimental(count: count, inData: inData, indexed: indexed, kept: kept, prepared: prepared)
     }
 
@@ -315,7 +341,7 @@ package nonisolated enum DictionaryIndexing {
     /// Runs the chunks: `chunk(start, end)` hands the dictionary patterns `start ..< end` (float32-valued doubles, row-major), each
     /// prepared, matched on the chosen backend and merged. Inside a task, a cancelled task stops before the next chunk
     /// (`CancellationError`); `progress` hears of each chunk merged.
-    private static func run(_ exp: Experimental, pixels: Int, dictionarySize: Int, rotations: [SIMD4<Double>], navigationShape: [Int],
+    private static func run(_ exp: inout Experimental, pixels: Int, dictionarySize: Int, rotations: [SIMD4<Double>], navigationShape: [Int],
                             options: Options, progress: Progress? = nil, chunk: (Int, Int) throws -> [Double]) throws -> Result {
         guard dictionarySize > 0 else { throw Error.emptyDictionary }
         let keepN = min(options.keepN, dictionarySize)
@@ -323,7 +349,10 @@ package nonisolated enum DictionaryIndexing {
         let per = try chunkSize(options, experimental: nExp, length: length, dictionary: dictionarySize)
         let metal = usesMetal(options.backend, work: nExp * dictionarySize * length)
         var gpu: DictionaryIndexingMetal.Matcher?
-        if metal { gpu = try DictionaryIndexingMetal.Matcher(experimental: exp.prepared, count: nExp, length: length) }
+        if metal {
+            gpu = try DictionaryIndexingMetal.Matcher(experimental: exp.prepared, count: nExp, length: length)
+            exp.prepared = []   // the GPU holds its float32 copy; the float64 one is not read again
+        }
         var best = Best(patterns: nExp, keepN: keepN)
         let chunks = (dictionarySize + per - 1) / per
         progress?(0, chunks)
@@ -365,14 +394,14 @@ package nonisolated enum DictionaryIndexing {
     /// (`get_patterns`' default) to compare with it.
     package static func index(experimental: [Double], navigationShape: [Int], dictionary: [Double], rotations: [SIMD4<Double>],
                               pixels: Int, options: Options = Options()) throws -> Result {
-        let exp = try experimentalSide(experimental, navigationShape: navigationShape, pixels: pixels, options: options)
+        var exp = try experimentalSide(try stored(experimental, pixels: pixels), navigationShape: navigationShape, pixels: pixels, options: options)
         guard !dictionary.isEmpty else { throw Error.emptyDictionary }
         guard dictionary.count % pixels == 0 else {
             throw Error.patternCount(values: dictionary.count, patterns: dictionary.count / pixels, pixels: pixels)
         }
         let size = dictionary.count / pixels
         guard rotations.count == size else { throw Error.rotationCount(rotations: rotations.count, patterns: size) }
-        return try run(exp, pixels: pixels, dictionarySize: size, rotations: rotations, navigationShape: navigationShape, options: options) { s, e in
+        return try run(&exp, pixels: pixels, dictionarySize: size, rotations: rotations, navigationShape: navigationShape, options: options) { s, e in
             Array(dictionary[(s * pixels) ..< (e * pixels)])
         }
     }
@@ -383,11 +412,20 @@ package nonisolated enum DictionaryIndexing {
     package static func index(experimental: [Double], navigationShape: [Int], master: EBSDMasterPattern, rotations: [SIMD4<Double>],
                               detector: EBSDDetectorGeometry, energy: Double? = nil, options: Options = Options(),
                               progress: Progress? = nil) throws -> Result {
+        try index(experimental: try stored(experimental, pixels: detector.rows * detector.columns), navigationShape: navigationShape,
+                  master: master, rotations: rotations, detector: detector, energy: energy, options: options, progress: progress)
+    }
+
+    /// `index(experimental:navigationShape:master:…)` on a block held at its stored type (`DictionaryIndexingPlan.readBlock`, #620): each
+    /// pattern is widened to float64 as it is prepared, so the scores are those of the block's doubles.
+    package static func index(experimental: StoredPatterns, navigationShape: [Int], master: EBSDMasterPattern, rotations: [SIMD4<Double>],
+                              detector: EBSDDetectorGeometry, energy: Double? = nil, options: Options = Options(),
+                              progress: Progress? = nil) throws -> Result {
         let pixels = detector.rows * detector.columns
-        let exp = try experimentalSide(experimental, navigationShape: navigationShape, pixels: pixels, options: options)
+        var exp = try experimentalSide(experimental, navigationShape: navigationShape, pixels: pixels, options: options)
         guard !rotations.isEmpty else { throw Error.emptyDictionary }
         let metal = usesMetal(options.backend, work: exp.indexed.count * rotations.count * exp.kept.count)
-        return try run(exp, pixels: pixels, dictionarySize: rotations.count, rotations: rotations, navigationShape: navigationShape,
+        return try run(&exp, pixels: pixels, dictionarySize: rotations.count, rotations: rotations, navigationShape: navigationShape,
                        options: options, progress: progress) { s, e in
             let chunk = Array(rotations[s ..< e])
             if metal {
@@ -400,7 +438,7 @@ package nonisolated enum DictionaryIndexing {
 
     /// `index(experimental:navigationShape:master:rotations:detector:energy:options:progress:)` off the caller's actor (seconds to
     /// minutes); cancelling the calling task stops it before the next chunk.
-    @concurrent package static func indexAsync(experimental: [Double], navigationShape: [Int], master: EBSDMasterPattern,
+    @concurrent package static func indexAsync(experimental: StoredPatterns, navigationShape: [Int], master: EBSDMasterPattern,
                                                rotations: [SIMD4<Double>], detector: EBSDDetectorGeometry, energy: Double? = nil,
                                                options: Options = Options(), progress: Progress? = nil) async throws -> Result {
         try index(experimental: experimental, navigationShape: navigationShape, master: master, rotations: rotations,
