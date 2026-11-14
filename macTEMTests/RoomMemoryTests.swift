@@ -162,12 +162,19 @@ nonisolated final class RoomMemoryTests: XCTestCase {
                                             target: DocumentTarget, state: AppState, host: NSView,
                                             use: @MainActor (AppState) async throws -> Void, busy: @MainActor (AppState) -> Bool,
                                             closed: @MainActor (AppState) -> Bool) async throws {
+        // The footprint once malloc has handed its free pages back: a parse of many small values (an `.ang`'s 250 000 lines) leaves
+        // freed pages in malloc's regions, which it returns only under pressure (CI, 14 Nov: 12 MiB, a whole number of MiB, after the
+        // Maps room's close). Asked for at both ends, so it is the same measure before and after.
+        func settled() -> Int {
+            _ = malloc_zone_pressure_relief(nil, 0)
+            return ImageStackTests.footprint()
+        }
         _ = try await cycle(small, rooms: rooms, target: target, state: state, host: host, use: use, busy: busy, closed: closed)
-        let before = ImageStackTests.footprint()
+        let before = settled()
         let open = try await cycle(large, rooms: rooms, target: target, state: state, host: host, use: use, busy: busy, closed: closed)
         // What is freed off the main actor (a pass's last buffer) lands a moment after the close: asked again for a few seconds.
-        let back = try await conditionHolds(within: 5) { ImageStackTests.footprint() - before < allowed }
-        let after = ImageStackTests.footprint()
+        let back = try await conditionHolds(within: 5) { settled() - before < allowed }
+        let after = settled()
         if let seen {
             XCTAssertGreaterThan(open - before, seen, "\(name): the measure sees the open file (\(open - before) bytes over the baseline)")
         }
