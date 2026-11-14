@@ -12,7 +12,6 @@
 
 import Foundation
 import FormatoCore
-import simd
 import TEMCore
 import TEMSession
 import XCTest
@@ -73,7 +72,8 @@ nonisolated final class IndexingStoredBlockTests: XCTestCase {
         let master = try IndexingMasterPattern.load(url).master
         let rotations: [SIMD4<Double>] = (0 ..< 12).map { k in
             let a = Double(k) * 0.13
-            return simd_normalize(SIMD4(cos(a), sin(a) * 0.6, sin(a) * 0.48, sin(a) * 0.64))
+            // A unit quaternion: 0.6² + 0.48² + 0.64² = 1.
+            return SIMD4(cos(a), sin(a) * 0.6, sin(a) * 0.48, sin(a) * 0.64)
         }
         var detector = dataset.detector
         detector.binning = 8
