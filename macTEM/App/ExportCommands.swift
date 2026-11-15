@@ -1,14 +1,15 @@
 //
 //  ExportCommands.swift
 //  Role: the File menu's export items, in their own `Commands`, so `ImageCommands` and `AppState` stay as they are; the scene adds
-//        `ExportCommands()` to its `.commands`. They act on the focused window's `AppState`. Listed always, each enabled only where
-//        it can act: Export Image… (⇧⌘E) and Export Profile… in the Image room and Export Results… (⇧⌥⌘E) in the Results room
-//        (`ExportSnapshot.availability`), Export Transform… (⌥⌘E), Export Radial Profile… and Export Spots… in the FFT room
-//        (`ExportSnapshot.fftAvailability`), and Export Session Report… wherever the SEM rooms hold a result. Listed only while
-//        their room shows its document, as mac4DSTEM lists its Spectroscopy exports: the EDS room's five
-//        (`ExportSnapshot.edsAvailability`), the EELS room's seven (`eelsAvailability`), the Patterns room's six
-//        (`patternsAvailability`), the Indexing room's five (`indexingAvailability`) and the Maps room's four
-//        (`mapsAvailability`), each through the room's own export (`RoomExports`), the call its inspector button makes.
+//        `ExportCommands()` to its `.commands`. They act on the focused window's `AppState`. The menu lists only the room on
+//        screen's exports, as mac4DSTEM's File menu does (#631, Paul's pick): Export Image… (⇧⌘E) and Export Profile… in the Image
+//        room, Export Transform… (⌥⌘E), Export Radial Profile… and Export Spots… in the FFT room, Export Results… (⇧⌥⌘E) in the
+//        Results room, and Export Session Report… in the Results room and the rooms that feed it (`FixedExports.listed(in:)`);
+//        each still enabled only where it can act (`ExportSnapshot.availability`, `ExportSnapshot.fftAvailability`,
+//        `SEMSessionLedger.hasRows`). The EDS room's five (`ExportSnapshot.edsAvailability`), the EELS room's seven
+//        (`eelsAvailability`), the Patterns room's six (`patternsAvailability`), the Indexing room's five
+//        (`indexingAvailability`) and the Maps room's four (`mapsAvailability`) are listed while their room shows its document,
+//        each through the room's own export (`RoomExports`), the call its inspector button makes.
 //
 //        PLACEMENT: after the Save group, which this app's File menu fills with Close Image and Close Window (`ImageCommands`
 //        replaces it) — the anchor already known to render here. `.importExport`, the HIG's home of Export, would put the items
@@ -34,45 +35,53 @@ struct ExportCommands: Commands {
         let patterns = appState.flatMap(ExportSnapshot.patternsAvailability(of:))
         let indexing = appState.flatMap(ExportSnapshot.indexingAvailability(of:))
         let maps = appState.flatMap(ExportSnapshot.mapsAvailability(of:))
+        let fixed = FixedExports.listed(in: appState?.navigation.workspaceArea)
         CommandGroup(after: .saveItem) {
-            Divider()
-            Button("Export Image…") {
-                if let appState { ExportPanels.exportImage(appState: appState) }
+            // The Image room's two.
+            if fixed.contains(.image) {
+                Divider()
+                Button("Export Image…") {
+                    if let appState { ExportPanels.exportImage(appState: appState) }
+                }
+                .keyboardShortcut("e", modifiers: [.command, .shift])
+                .disabled(availability?.image != true)
+                Button("Export Profile…") {
+                    if let appState { ExportPanels.exportProfile(appState: appState) }
+                }
+                .disabled(availability?.profile != true)
             }
-            .keyboardShortcut("e", modifiers: [.command, .shift])
-            .disabled(availability?.image != true)
-            Button("Export Profile…") {
-                if let appState { ExportPanels.exportProfile(appState: appState) }
+            // The FFT room's three, enabled with the spectrum on screen current.
+            if fixed.contains(.fft) {
+                Divider()
+                Button("Export Transform…") {
+                    if let appState { ExportPanels.exportTransform(appState: appState) }
+                }
+                .keyboardShortcut("e", modifiers: [.command, .option])
+                .disabled(fft?.transform != true)
+                Button("Export Radial Profile…") {
+                    if let appState { ExportPanels.exportRadialProfile(appState: appState) }
+                }
+                .disabled(fft?.profile != true)
+                Button("Export Spots…") {
+                    if let appState { ExportPanels.exportSpots(appState: appState) }
+                }
+                .disabled(fft?.spots != true)
             }
-            .disabled(availability?.profile != true)
-            // The FFT room's three: enabled only there, with the spectrum on screen current.
-            Divider()
-            Button("Export Transform…") {
-                if let appState { ExportPanels.exportTransform(appState: appState) }
-            }
-            .keyboardShortcut("e", modifiers: [.command, .option])
-            .disabled(fft?.transform != true)
-            Button("Export Radial Profile…") {
-                if let appState { ExportPanels.exportRadialProfile(appState: appState) }
-            }
-            .disabled(fft?.profile != true)
-            Button("Export Spots…") {
-                if let appState { ExportPanels.exportSpots(appState: appState) }
-            }
-            .disabled(fft?.spots != true)
+            if fixed.contains(.results) || fixed.contains(.sessionReport) { Divider() }
             // The Results room's one: every finished measurement of the file as one CSV. ⇧⌥⌘E is free (⌘E is the
             // system's Use Selection for Find; ⇧⌘E and ⌥⌘E are the Image and FFT rooms').
-            Divider()
-            Button("Export Results…") {
-                if let appState { ExportPanels.exportResults(appState: appState) }
+            if fixed.contains(.results) {
+                Button("Export Results…") { if let appState { ExportPanels.exportResults(appState: appState) } }
+                .keyboardShortcut("e", modifiers: [.command, .option, .shift])
+                .disabled(availability?.results != true)
             }
-            .keyboardShortcut("e", modifiers: [.command, .option, .shift])
-            .disabled(availability?.results != true)
             // The SEM session as one report (D-SEM-103): enabled wherever the SEM rooms hold a result; no key.
-            Button("Export Session Report…") {
-                if let appState { ExportPanels.exportSessionReport(appState: appState) }
+            if fixed.contains(.sessionReport) {
+                Button("Export Session Report…") {
+                    if let appState { ExportPanels.exportSessionReport(appState: appState) }
+                }
+                .disabled(session != true)
             }
-            .disabled(session != true)
             // The EDS room's five, in the menu only while that room shows a spectrum image.
             if let appState, let eds { edsItems(eds, appState: appState) }
             // The EELS room's seven, on the same terms.
@@ -144,6 +153,23 @@ struct ExportCommands: Commands {
         ForEach(MapsExportKind.allCases) { kind in
             Button("Export \(kind.title)") { RoomExports.maps(kind, appState: appState) }
                 .disabled(!maps.isEnabled(kind))
+        }
+    }
+}
+
+/// Which of the File menu's fixed export groups a room lists (#631): each room only its own, as mac4DSTEM's File menu does. No window
+/// in focus lists none. The rooms with their own items (EDS, EELS, Patterns, Indexing, Maps) list them through their availability.
+nonisolated enum FixedExports: Hashable, Sendable {
+    case image, fft, results, sessionReport
+
+    static func listed(in area: WorkspaceArea?) -> Set<FixedExports> {
+        guard let area else { return [] }
+        switch area {
+        case .image: return [.image]
+        case .fft: return [.fft]
+        case .results: return [.results, .sessionReport]
+        case .edx, .patterns, .indexing, .maps: return [.sessionReport]
+        case .diffraction, .eels: return []
         }
     }
 }

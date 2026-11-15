@@ -79,48 +79,92 @@ final class IndexingRoomState {
         exportData = Data()
     }
 
-    /// Makes the bytes of `kind` from the session and opens the save panel, or, with `directory` (the UI journeys' export folder), writes the
-    /// file there; says why when there is nothing to write.
-    @MainActor func export(_ kind: IndexingExportKind, from session: IndexingSession, directory: URL? = nil, report: (String) -> Void) {
+    /// What an export reads, taken from the session on the main actor as values (#251): the bytes are made from it off the main actor.
+    nonisolated enum Input: Sendable {
+        case scalarMap(canvas: CanvasPixels, display: ImageExport.Display, scaleBar: Bool, dataset: EBSDDataset, fileName: String, map: String)
+        case rgbaMap(rgba: [UInt8], width: Int, height: Int, fileName: String)
+        case resultsCSV(IndexingResult, stepX: Double, stepY: Double)
+        case ang(IndexingSession.CrystalMapRecipe, options: ANGWriter.Options)
+        case ctf(IndexingSession.CrystalMapRecipe, project: String, author: String, acquisition: CrystalMapAcquisition?)
+        case methodJSON(Data)
+    }
+
+    /// Why an export has nothing to write, in the room's words.
+    nonisolated struct NothingToWrite: Error, LocalizedError {
+        let words: String
+        var errorDescription: String? { words }
+    }
+
+    /// The bytes of an export: the PNG, the CSV, the .ang or .ctf text, the method record. Off the main actor: an .ang of a large
+    /// scan is a formatted line per point.
+    @concurrent nonisolated static func bytes(_ input: Input) async throws -> Data {
+        switch input {
+        case .scalarMap(let canvas, let display, let scaleBar, let dataset, let fileName, let map):
+            return try PatternsRoomState.mapPNG(canvas: canvas, display: display, scaleBar: scaleBar, dataset: dataset, fileName: fileName, map: map)
+        case .rgbaMap(let rgba, let width, let height, let fileName):
+            guard let png = PatternsRoomState.mixPNG(rgba: rgba, width: width, height: height, fileName: fileName) else {
+                throw NothingToWrite(words: "Export failed: the map could not be encoded.")
+            }
+            return png
+        case .resultsCSV(let result, let stepX, let stepY):
+            return Data(result.csv(stepX: stepX, stepY: stepY).utf8)
+        case .ang(let recipe, let options):
+            guard let map = try recipe.make() else { throw NothingToWrite(words: "Nothing to export yet: the run has not started.") }
+            return Data(try ANGWriter.text(of: map, options: options).utf8)
+        case .ctf(let recipe, let project, let author, let acquisition):
+            guard let map = try recipe.make() else { throw NothingToWrite(words: "Nothing to export yet: the run has not started.") }
+            return Data(try CTFWriter.text(of: IndexingResult.ctfColumns(map), project: project, author: author, acquisition: acquisition).utf8)
+        case .methodJSON(let json):
+            return try ExportSnapshot.stampingProvenance(json)
+        }
+    }
+
+    /// What `kind` reads from the session now, on the main actor.
+    @MainActor static func input(_ kind: IndexingExportKind, from session: IndexingSession, document: EBSDSession.Document,
+                                 result: IndexingResult) throws -> Input {
+        switch kind {
+        case .mapPNG:
+            if session.showsScalarMap, let canvas = session.mapPresentation.canvas {
+                // A scalar layer as the pane shows it (colormap, window, gamma, scale bar), through the Image room's exporter.
+                return .scalarMap(canvas: canvas, display: ExportSnapshot.display(canvas: canvas, presentation: session.mapPresentation),
+                                  scaleBar: session.mapPresentation.showsScaleBar, dataset: document.dataset, fileName: document.fileName,
+                                  map: "indexed \(session.layer.title)")
+            }
+            guard let rgba = session.mapRGBA else { throw NothingToWrite(words: "Export failed: the map could not be encoded.") }
+            return .rgbaMap(rgba: rgba, width: result.scanColumns, height: result.scanRows, fileName: document.fileName)
+        case .resultsCSV:
+            return .resultsCSV(result, stepX: document.dataset.stepX, stepY: document.dataset.stepY)
+        case .ang:
+            guard let recipe = session.crystalMapRecipe() else { throw NothingToWrite(words: "Nothing to export yet: the run has not started.") }
+            var options = result.method == .dictionary ? IndexingResult.dictionaryAngOptions : IndexingResult.angOptions
+            options.acquisition = session.exportAcquisition(software: ExportSnapshot.provenance())
+            return .ang(recipe, options: options)
+        case .ctf:
+            guard let recipe = session.crystalMapRecipe() else { throw NothingToWrite(words: "Nothing to export yet: the run has not started.") }
+            return .ctf(recipe, project: (document.fileName as NSString).deletingPathExtension, author: ExportSnapshot.softwareName(),
+                        acquisition: session.exportAcquisition(software: ExportSnapshot.provenance()))
+        case .methodJSON:
+            guard let json = try session.methodJSON() else { throw NothingToWrite(words: "Nothing to export yet: the run has not started.") }
+            return .methodJSON(json)
+        }
+    }
+
+    /// Makes the bytes of `kind` from the session (read on the main actor, made off it, #251) and opens the save panel, or, with
+    /// `directory` (the UI journeys' export folder), writes the file there; says why when there is nothing to write.
+    @MainActor func export(_ kind: IndexingExportKind, from session: IndexingSession, directory: URL? = nil, report: (String) -> Void) async {
         guard let document = session.patterns.document else { report("Nothing to export yet: no dataset is open."); return }
         guard let result = session.result, result.reachedCount > 0 else { report("Nothing to export yet: Index has not run."); return }
+        let layer = session.layer, refined = session.shownRun?.refinement != nil
         let data: Data
         do {
-            switch kind {
-            case .mapPNG:
-                if session.showsScalarMap, let canvas = session.mapPresentation.canvas {
-                    // A scalar layer as the pane shows it (colormap, window, gamma, scale bar), through the Image room's exporter.
-                    data = try PatternsRoomState.mapPNG(canvas: canvas, presentation: session.mapPresentation, dataset: document.dataset,
-                                                        fileName: document.fileName, map: "indexed \(session.layer.title)")
-                } else {
-                    guard let rgba = session.mapRGBA,
-                          let png = PatternsRoomState.mixPNG(rgba: rgba, width: result.scanColumns, height: result.scanRows,
-                                                             fileName: document.fileName) else {
-                        report("Export failed: the map could not be encoded."); return
-                    }
-                    data = png
-                }
-            case .resultsCSV:
-                data = Data(result.csv(stepX: document.dataset.stepX, stepY: document.dataset.stepY).utf8)
-            case .ang:
-                guard let map = try session.crystalMap() else { report("Nothing to export yet: the run has not started."); return }
-                var options = result.method == .dictionary ? IndexingResult.dictionaryAngOptions : IndexingResult.angOptions
-                options.acquisition = session.exportAcquisition(software: ExportSnapshot.provenance())
-                data = Data(try ANGWriter.text(of: map, options: options).utf8)
-            case .ctf:
-                guard let map = try session.crystalMap() else { report("Nothing to export yet: the run has not started."); return }
-                let project = (document.fileName as NSString).deletingPathExtension
-                data = Data(try CTFWriter.text(of: IndexingResult.ctfColumns(map), project: project, author: ExportSnapshot.softwareName(),
-                                               acquisition: session.exportAcquisition(software: ExportSnapshot.provenance())).utf8)
-            case .methodJSON:
-                guard let json = try session.methodJSON() else { report("Nothing to export yet: the run has not started."); return }
-                data = try ExportSnapshot.stampingProvenance(json)
-            }
+            data = try await Self.bytes(Self.input(kind, from: session, document: document, result: result))
+        } catch let nothing as NothingToWrite {
+            report(nothing.words); return
         } catch {
             report("Export failed: \(error.localizedDescription)"); return
         }
-        exportLayer = session.layer
-        let record = Self.record(kind, data: data, layer: exportLayer, method: result.method, refined: session.shownRun?.refinement != nil,
+        exportLayer = layer
+        let record = Self.record(kind, data: data, layer: exportLayer, method: result.method, refined: refined,
                                  fileName: document.fileName)
         if let directory {
             let name = (document.fileName as NSString).deletingPathExtension + kind.suffix(layer: exportLayer)

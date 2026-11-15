@@ -27,3 +27,14 @@ per action; it does not rank the actions against each other. CPU time is the app
 that uses several cores (8.9 s of CPU in 2.9 s of wall clock).
 
 The signpost column is the app's own compute time and is what to compare between commits; the clock column is the user-visible total with the driver's cost in it. A signpost that is not listed for an action ran before the measured window (the FFT transform runs when the room opens).
+
+## SEM rooms (signposts in place, numbers to come)
+
+The SEM rooms carry their own signposts in the same subsystem: `sem.map` (the navigation map's pass at the open, with the scan's mean
+riding on it), `sem.quality` (image quality and dot product maps), `sem.process` (a Patterns room Process run), `sem.index.hough` and
+`sem.index.dictionary` (an Indexing room run, from the plan to the last row or block), and `maps.segment` (a Maps room Segment). Instruments
+shows them under the `performance` category. Their rows join the table above when they are measured on the owner's files (the Instruments
+pass, #594); the demo scan (55 x 75 patterns) is too small to say anything about a real one.
+
+Memory over a scan is a unit test, not a row here: `SEMMemoryTests` writes a 72 MB record file and checks that the map pass, the mean pass
+and the Hough row loop each grow the process footprint by a few scan rows, never by the scan.

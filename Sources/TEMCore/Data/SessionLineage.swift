@@ -466,6 +466,16 @@ package nonisolated struct SessionLineage: Sendable, Equatable {
         return json
     }
 
+    /// The bytes `node` takes in the canonical JSON (`jsonString`). With sorted keys a node is written the same alone as in the
+    /// array, so a lineage's size after a `replace` is its size less the old node's plus the new one's (#623: a drag sample does
+    /// not encode the whole lineage). Nil when the node cannot be encoded.
+    package static func jsonBytes(of node: Node) -> Int? {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
+        // try? OK: a node that cannot be encoded leaves the caller to the whole lineage's check.
+        return try? encoder.encode(node).count
+    }
+
     /// Decode and validate. Never a partial graph: the first failed check refuses. A `version` this build does not
     /// know is NOT a refusal: it returns a read-only lineage (no nodes), so the file is read for the rest of what it
     /// holds and never rewritten over.

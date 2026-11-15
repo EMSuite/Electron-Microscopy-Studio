@@ -56,6 +56,45 @@ nonisolated final class IndexingResultTests: XCTestCase {
         XCTAssertLessThan(moves, 64, "\(moves) of \(blocks) blocks moved the landed matches to a new buffer")
     }
 
+    /// The counts the room reads on every progress tick (#252) are kept as rows land, and equal the counts of the solutions themselves:
+    /// a Hough run against two phases, row by row, a row landed twice included, and a dictionary run block by block. Red before: the
+    /// counts were reductions over the scan (no stored counts to compare).
+    func testTheCountsKeptAsRowsLandEqualTheSolutionsCounted() throws {
+        let nickel = try XCTUnwrap(IndexingPhase.presets.first { $0.name == "Ni" })
+        var second = nickel
+        second.name = "Ni 2"
+        func counted(_ result: IndexingResult) -> (reached: Int, indexed: Int, byPhase: [Int]) {
+            var byPhase = [Int](repeating: 0, count: result.phases.count)
+            for case let s? in result.solutions where result.phases.indices.contains(s.phase) { byPhase[s.phase] += 1 }
+            return (result.solutions.compactMap { $0 }.count, result.solutions.filter { ($0?.phase ?? -1) >= 0 }.count, byPhase)
+        }
+        var hough = IndexingResult(scanRows: 6, scanColumns: Self.columns, phases: [nickel, second])
+        for row in [0, 1, 2, 2, 3] {
+            let solutions = (0..<Self.columns).map { c -> HoughIndexer.Solution in
+                var s = HoughIndexer.Solution()
+                s.phase = (row + c) % 3 - 1   // -1 (not indexed), 0 or 1
+                return s
+            }
+            hough.land(solutions, at: row)
+            let truth = counted(hough)
+            XCTAssertEqual(hough.reachedCount, truth.reached, "row \(row)")
+            XCTAssertEqual(hough.indexedCount, truth.indexed, "row \(row)")
+            XCTAssertEqual(hough.countsByPhase, truth.byPhase, "row \(row)")
+        }
+        XCTAssertEqual(hough.reachedCount, 4 * Self.columns, "a row landed twice counts once")
+
+        var dictionary = IndexingResult(scanRows: 6, scanColumns: Self.columns, phases: [nickel], metric: .ncc)
+        for rows in [0..<2, 2..<3, 3..<6] {
+            dictionary.land(Self.block(rows: rows), rows: rows)
+            let truth = counted(dictionary)
+            XCTAssertEqual(dictionary.reachedCount, truth.reached)
+            XCTAssertEqual(dictionary.indexedCount, truth.indexed)
+            XCTAssertEqual(dictionary.countsByPhase, truth.byPhase)
+        }
+        XCTAssertEqual(dictionary.reachedCount, dictionary.pointCount)
+        XCTAssertLessThan(dictionary.indexedCount, dictionary.pointCount, "every seventh point is out of the data")
+    }
+
     /// A dictionary block of scan rows `rows`: distinct finite scores, simulation indices and rotations, every seventh point out of the data.
     private static func block(rows: Range<Int>) -> DictionaryIndexing.Result {
         let points = rows.count * columns, matches = rows.count * columns * keep

@@ -50,13 +50,13 @@ nonisolated final class IndexingExportMenuTests: XCTestCase {
         XCTAssertNil(ExportSnapshot.indexingAvailability(of: state), "another room lists none")
         state.navigation.workspaceArea = .indexing
         XCTAssertEqual(ExportSnapshot.indexingAvailability(of: state), IndexingExportAvailability(indexed: false))
-        RoomExports.indexing(.resultsCSV, appState: state)
+        await RoomExports.indexing(.resultsCSV, appState: state).value
         XCTAssertEqual(state.statusText, "Nothing to export yet: Index has not run.")
 
         XCTAssertNil(state.indexing.refusal)
         await state.indexing.index().value
         XCTAssertEqual(ExportSnapshot.indexingAvailability(of: state), IndexingExportAvailability(indexed: true))
-        RoomExports.indexing(.resultsCSV, appState: state)
+        await RoomExports.indexing(.resultsCSV, appState: state).value
         XCTAssertEqual(state.statusText, "Exported Demo EBSD indexing results.csv")
         XCTAssertTrue(FileManager.default.fileExists(atPath: folder.appendingPathComponent("Demo EBSD indexing results.csv").path))
     }

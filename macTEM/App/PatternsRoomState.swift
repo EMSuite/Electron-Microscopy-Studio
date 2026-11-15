@@ -248,14 +248,20 @@ final class PatternsRoomState {
 
     /// The scan map as the pane shows it, one PNG pixel per scan point, through the Image room's exporter; the step is the pixel calibration.
     @MainActor static func mapPNG(canvas: CanvasPixels, presentation: ImagePresentation, dataset: EBSDDataset, fileName: String, map: String) throws -> Data {
+        try mapPNG(canvas: canvas, display: ExportSnapshot.display(canvas: canvas, presentation: presentation), scaleBar: presentation.showsScaleBar,
+                   dataset: dataset, fileName: fileName, map: map)
+    }
+
+    /// The same from the display taken on the main actor (`ExportSnapshot.display`): callable off it (#251).
+    nonisolated static func mapPNG(canvas: CanvasPixels, display: ImageExport.Display, scaleBar: Bool, dataset: EBSDDataset, fileName: String,
+                                   map: String) throws -> Data {
         let unit = dataset.scanUnit
         let image = CalibratedImage(width: canvas.width, height: canvas.height, pixels: canvas.normalized,
                                     x: AxisCalibration(scale: dataset.stepX, unit: unit), y: AxisCalibration(scale: dataset.stepY, unit: unit),
                                     fileName: fileName, source: "scan map \(map)", voltage: dataset.sem.beamEnergyKeV.map { $0 * 1000 },
                                     notes: ["\(dataset.format.rawValue)"])
-        let display = ExportSnapshot.display(canvas: canvas, presentation: presentation)
         return try ImageExport.render(source: ExportSource(image: image, software: ExportSnapshot.provenance()), display: display, marks: [],
-                                      options: ImageExport.Options(scaleBar: presentation.showsScaleBar, marks: false)).png
+                                      options: ImageExport.Options(scaleBar: scaleBar, marks: false)).png
     }
 
     /// The pattern as the pane shows it (its colormap, window and gamma), one PNG pixel per detector pixel, through the Image room's exporter.

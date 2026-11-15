@@ -120,7 +120,12 @@ package final class ImageMeasurements {
     }
 
     /// One node per mark, from the first mark; other kinds and removed nodes a restore kept.
-    package private(set) var lineage = SessionLineage()
+    package private(set) var lineage = SessionLineage() { didSet { lineageBytesMemo = nil } }
+    /// The bytes of `lineage`'s canonical JSON, once worked out for it (`.some(nil)`: it cannot be written); let go when it changes.
+    /// The Image room's tail reads `recordingRefusal` on every body, a drag's too (#623).
+    @ObservationIgnored private var lineageBytesMemo: Int??
+    /// How many times the whole lineage was encoded to count its bytes: a test pins that a drag encodes none.
+    @ObservationIgnored package private(set) var lineageEncodes = 0
     package private(set) var sidecar = Sidecar.none
     package private(set) var notes: [Note] = []
     /// Raised by every change to the lineage; the file is saved when the sidecar holds this revision.
@@ -133,7 +138,7 @@ package final class ImageMeasurements {
     /// can record would take the saved text past `SessionSidecarFile.maxTotalTextBytes`). `add` is the exact check.
     package var recordingRefusal: SessionLineage.Refusal? {
         if let refusal = lineage.mintRefusal { return refusal }
-        guard let lineageBytes = Self.lineageBytes(lineage) else { return .tooLargeToSave(bytes: SessionLineage.maximumJSONBytes, limit: SessionSidecarFile.maxTotalTextBytes) }
+        guard let lineageBytes = lineageByteCount else { return .tooLargeToSave(bytes: SessionLineage.maximumJSONBytes, limit: SessionSidecarFile.maxTotalTextBytes) }
         let total = SessionSidecarFile.totalTextBytes(sourceBytes: sourceBytes, lineageBytes: lineageBytes + SessionMarks.smallestNodeBytes)
         return total > SessionSidecarFile.maxTotalTextBytes ? .tooLargeToSave(bytes: total, limit: SessionSidecarFile.maxTotalTextBytes) : nil
     }
@@ -147,15 +152,41 @@ package final class ImageMeasurements {
     /// object, a shape and the 64-digit fingerprint come to about 250).
     private static let sourceReserveBytes = 512
 
-    private static func lineageBytes(_ lineage: SessionLineage) -> Int? {
+    private func lineageBytes(_ lineage: SessionLineage) -> Int? {
+        lineageEncodes += 1
         // try? OK: a lineage that cannot be written (over the 4 MiB cap) is over the budget; the caller says so.
-        (try? lineage.jsonString())?.utf8.count
+        return (try? lineage.jsonString())?.utf8.count
+    }
+
+    /// The bytes of `lineage`'s canonical JSON (nil: it cannot be written), worked out once per lineage.
+    package var lineageByteCount: Int? {
+        if let memo = lineageBytesMemo { return memo }
+        let bytes = lineageBytes(lineage)
+        lineageBytesMemo = .some(bytes)
+        return bytes
+    }
+
+    /// The headroom under the sidecar budget within which a replaced node's size is trusted without encoding the whole lineage.
+    private static let derivedBudgetMargin = 1024
+
+    /// The bytes of `candidate`, `lineage` with node `id` replaced, from the known size and the two nodes' own (`jsonBytes(of:)`); nil
+    /// when that cannot be worked out.
+    private func replacedBytes(_ candidate: SessionLineage, node id: String) -> Int? {
+        guard let current = lineageBytesMemo ?? nil,
+              let old = lineage.nodes.first(where: { $0.id == id }), let new = candidate.nodes.first(where: { $0.id == id }),
+              let oldBytes = SessionLineage.jsonBytes(of: old), let newBytes = SessionLineage.jsonBytes(of: new) else { return nil }
+        return current - oldBytes + newBytes
     }
 
     /// The refusal for a lineage that, saved, would hold more than a sidecar may, or nil.
     private func budgetRefusal(of candidate: SessionLineage) -> SessionLineage.Refusal? {
+        budgetRefusal(bytes: lineageBytes(candidate))
+    }
+
+    /// The same for a lineage of `bytes` (nil: it cannot be written).
+    private func budgetRefusal(bytes: Int?) -> SessionLineage.Refusal? {
         let limit = SessionSidecarFile.maxTotalTextBytes
-        guard let bytes = Self.lineageBytes(candidate) else { return .tooLargeToSave(bytes: SessionLineage.maximumJSONBytes, limit: limit) }
+        guard let bytes else { return .tooLargeToSave(bytes: SessionLineage.maximumJSONBytes, limit: limit) }
         let total = SessionSidecarFile.totalTextBytes(sourceBytes: sourceBytes, lineageBytes: bytes)
         return total > limit ? .tooLargeToSave(bytes: total, limit: limit) : nil
     }
@@ -403,8 +434,19 @@ package final class ImageMeasurements {
                              results: SessionMarks.results(of: session, x: image.x, y: image.y,
                                                            samples: profile?.samples.count),
                              recorded: SessionLineage.milliseconds(now())) {
-            if budgetRefusal(of: candidate) != nil { return false }
-            lineage = candidate
+            // A drag sample replaces one node: its size follows from the known size and the two nodes' own, and the whole lineage
+            // is encoded only near the budget (#623).
+            let derived = replacedBytes(candidate, node: node)
+            let limit = SessionSidecarFile.maxTotalTextBytes
+            if let derived, SessionSidecarFile.totalTextBytes(sourceBytes: sourceBytes, lineageBytes: derived) + Self.derivedBudgetMargin <= limit {
+                lineage = candidate
+                lineageBytesMemo = .some(derived)
+            } else {
+                let bytes = lineageBytes(candidate)
+                if budgetRefusal(bytes: bytes) != nil { return false }
+                lineage = candidate
+                lineageBytesMemo = .some(bytes)
+            }
             revision += 1
         }
         profiles[mark.id] = profile
