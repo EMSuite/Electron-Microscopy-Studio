@@ -75,7 +75,6 @@ private struct FFTRegionSection: View {
     let session: ImageSession
     private var image: CalibratedImage { session.imageOrBlank }
     let analysis: FFTAnalysis
-    @Environment(\.undoManager) private var undoManager
 
     var body: some View {
         let region = analysis.region
@@ -275,6 +274,7 @@ private struct FFTSpotsSection: View {
     let session: ImageSession
     private var image: CalibratedImage { session.imageOrBlank }
     let analysis: FFTAnalysis
+    @Environment(\.undoManager) private var undoManager
 
     var body: some View {
         let spots = analysis.spots
