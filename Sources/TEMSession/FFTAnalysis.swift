@@ -444,6 +444,9 @@ package final class FFTAnalysis {
     /// "Find spots": the settings of the finder and the number of spots it put on the spectrum last time.
     package private(set) var spotFinder = FFTSpotFinder.Settings()
     package private(set) var findSpotsFailure: String?
+    /// True while Find Spots runs (off the main actor, #623).
+    package private(set) var isFindingSpots = false
+    @ObservationIgnored private var findRun: Task<Void, Never>?
     /// The spectrum's display window in its displayed values; nil is the default window's edge.
     package var spectrumWindowLow: Float?
     package var spectrumWindowHigh: Float?
@@ -654,22 +657,37 @@ package final class FFTAnalysis {
     }
 
     /// Find spots: the finder's strongest reflections on the spectrum shown, each measured as a click would be (the existing spot
-    /// lane). Replaces the spots already there; a spectrum not yet current finds none.
-    package func findSpots() {
+    /// lane). Replaces the spots already there; a spectrum not yet current finds none. The finder scans the whole spectrum, so it runs
+    /// off the main actor (#623); its peaks land only on the spectrum they were found on, and a newer Find Spots supersedes it.
+    @discardableResult
+    package func findSpots() -> Task<Void, Never> {
         findSpotsFailure = nil
-        guard isSpectrumCurrent, let product = spectrum else { return }
-        let settings = spotFinder
+        findRun?.cancel()
+        guard isSpectrumCurrent, let product = spectrum else { findRun = nil; isFindingSpots = false; return Task {} }
+        let settings = spotFinder, key = product.key
         let values = product.canvas.normalized, width = product.width, height = product.height
-        let interval = Signposts.begin("fft.find"); defer { Signposts.end(interval) }
-        do {
-            let peaks = try FFTSpotFinder.find(values: values, width: width, height: height, settings: settings)
-            dropSpots()
-            reconcileMask()
-            if peaks.isEmpty { findSpotsFailure = "No spot stands out of the transform: lower the threshold or the minimum distance." }
-            for p in peaks { measureSpot(row: p.row, col: p.column, contrast: p.contrast) }
-        } catch {
-            findSpotsFailure = (error as? LocalizedError)?.errorDescription ?? "The finder could not run: \(error)"
+        isFindingSpots = true
+        let run = Task { [weak self] in
+            let found: Result<[FFTSpotFinder.Found], any Error> = await offMainActor {
+                let interval = Signposts.begin("fft.find"); defer { Signposts.end(interval) }
+                return Result { try FFTSpotFinder.find(values: values, width: width, height: height, settings: settings) }
+            }
+            guard let self, !Task.isCancelled else { return }
+            isFindingSpots = false
+            // The transform changed while the finder ran: its peaks belong to the old one.
+            guard isSpectrumCurrent, spectrum?.key == key else { return }
+            switch found {
+            case .success(let peaks):
+                dropSpots()
+                reconcileMask()
+                if peaks.isEmpty { findSpotsFailure = "No spot stands out of the transform: lower the threshold or the minimum distance." }
+                for p in peaks { measureSpot(row: p.row, col: p.column, contrast: p.contrast) }
+            case .failure(let error):
+                findSpotsFailure = (error as? LocalizedError)?.errorDescription ?? "The finder could not run: \(error)"
+            }
         }
+        findRun = run
+        return run
     }
 
     /// A click on the spectrum shown (or Measure at…): a new spot at that bin, measured off the main actor. A click on

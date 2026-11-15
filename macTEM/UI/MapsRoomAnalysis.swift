@@ -208,7 +208,7 @@ struct MapsGrainsTable: View {
                         TableColumn(SEMColumnSpeech.header("GOS °"), value: \.gosDegrees) {
                             Text(MapsRoomFormat.angle($0.gosDegrees, digits: 2)).monospacedDigit()
                         }
-                        TableColumn("Schmid") { row in Text(GrainTableFormat.schmid(row, slip: session.slip)).monospacedDigit() }
+                        TableColumn("Schmid") { row in Text(GrainTableFormat.schmid(row, byGrain: session.schmidByGrain)).monospacedDigit() }
                         TableColumn("Neighbours", value: \.neighbours) { Text(verbatim: "\($0.neighbours)").monospacedDigit() }
                     }
                     .focused($tableFocused)
@@ -357,7 +357,7 @@ struct MapsHistogramPane: View {
         Group {
             if let analysis = session.analysis {
                 let kind = state.histogramKind
-                let histogram = analysis.histogram(kind)
+                let histogram = session.histogram(kind) ?? analysis.histogram(kind)
                 let ticks = session.selectedRows.compactMap { analysis.histogramValue(kind, of: $0) }
                 let unit = kind == .grainSize ? EBSDBrowsing.unitLabel(analysis.scanUnit) : "°"
                 VStack(alignment: .leading, spacing: 4) {

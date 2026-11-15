@@ -66,9 +66,9 @@ nonisolated final class MapsExportMenuTests: XCTestCase {
         state.navigation.workspaceArea = .maps
         XCTAssertEqual(ExportSnapshot.mapsAvailability(of: state), MapsExportAvailability(map: true, grains: false, texture: false))
 
-        RoomExports.maps(.grains, appState: state)
+        await RoomExports.maps(.grains, appState: state).value
         XCTAssertEqual(state.statusText, "Nothing to export yet: segment the map first.")
-        RoomExports.maps(.map, appState: state)
+        await RoomExports.maps(.map, appState: state).value
         XCTAssertEqual(state.statusText, "Exported Demo EBSD map IPF-Z.png")
         XCTAssertTrue(FileManager.default.fileExists(atPath: folder.appendingPathComponent("Demo EBSD map IPF-Z.png").path))
 
