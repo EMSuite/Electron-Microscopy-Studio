@@ -100,19 +100,19 @@ private struct MeasureMarksList: View {
             VStack(alignment: .leading, spacing: Self.rowSpacing) {
                 ForEach(marks) { mark in
                     MeasureMarkRow(mark: mark, x: image.x, y: image.y,
-                                   isSelected: mark.id == selection, measurements: measurements, image: session.image)
+                                   isSelected: mark.id == selection, measurements: measurements, session: session)
                 }
             }
             .focusable()
             .focused($hasFocus)
             .simultaneousGesture(TapGesture().onEnded { hasFocus = true })
             .onDeleteCommand {
-                if let selection { MarkUndo.remove([selection], in: measurements, image: session.image, undoManager: undoManager) }
+                if let selection { MarkUndo.remove([selection], in: measurements, session: session, undoManager: undoManager) }
             }
             .onCopyCommand { copyProviders(marks: marks, selection: selection) }
             .onMoveCommand { move($0, marks: marks, selection: selection) }
             InspectorActionRow {
-                Button("Remove All") { MarkUndo.remove(marks.map(\.id), in: measurements, image: session.image, undoManager: undoManager) }
+                Button("Remove All") { MarkUndo.remove(marks.map(\.id), in: measurements, session: session, undoManager: undoManager) }
             }
         }
     }
@@ -145,8 +145,8 @@ private struct MeasureMarkRow: View {
     let y: AxisCalibration?
     let isSelected: Bool
     let measurements: ImageMeasurements
-    /// The image the mark is put back on by Edit > Undo.
-    let image: CalibratedImage?
+    /// The owner whose image Edit > Undo puts the mark back on (a reference, never the pixels).
+    let session: ImageSession
     @Environment(\.undoManager) private var undoManager
 
     /// The symbols differ in width; a fixed one keeps the values in a column.
@@ -173,7 +173,7 @@ private struct MeasureMarkRow: View {
             .accessibilityValue(MarkFormat.value(mark, x: x, y: y))
             .accessibilityIdentifier("image.mark")
             .accessibilityAddTraits(isSelected ? .isSelected : [])
-            Button("Remove", systemImage: "xmark") { MarkUndo.remove([mark.id], in: measurements, image: image, undoManager: undoManager) }
+            Button("Remove", systemImage: "xmark") { MarkUndo.remove([mark.id], in: measurements, session: session, undoManager: undoManager) }
                 .labelStyle(.iconOnly)
                 .buttonStyle(.borderless)
                 .help("Remove")

@@ -79,7 +79,7 @@ struct ImagePane: View {
         .padding(8)
         .clipped()
         // The one keyed container of the room: Delete, ⌘C, Escape and Edit > Copy / Delete (`PaneKeys.swift`).
-        .modifier(ImageKeyedRoom(image: image, measurements: item.measurements, angleArm: $angleArm))
+        .modifier(ImageKeyedRoom(image: image, session: item.session, measurements: item.measurements, angleArm: $angleArm))
         // The COMMITTED values only (`zoom`, `offset`); the live gesture fields change on every sample and stay here.
         .onChange(of: zp.zoom) { item.viewport = ImageViewport(zoom: zp.zoom, offset: zp.offset) }
         .onChange(of: zp.offset) { item.viewport = ImageViewport(zoom: zp.zoom, offset: zp.offset) }

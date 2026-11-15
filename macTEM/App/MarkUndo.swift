@@ -15,17 +15,21 @@ import TEMSession
 
 @MainActor
 enum MarkUndo {
-    /// Removes the marks `ids` (in the list's order) and registers the undo that puts them back on `image`. The action name says what went:
-    /// "Remove Distance", "Remove Angle", "Remove Profile", or "Remove All Marks".
-    static func remove(_ ids: [ImageMark.ID], in measurements: ImageMeasurements, image: CalibratedImage?, undoManager: UndoManager?) {
+    /// Removes the marks `ids` (in the list's order) and registers the undo that puts them back on the image `session` shows when the undo
+    /// runs. The undo holds the session weakly and never the pixels, so a closed file's image is not kept alive by Edit > Undo (#577).
+    /// The action name says what went: "Remove Distance", "Remove Angle", "Remove Profile", or "Remove All Marks".
+    static func remove(_ ids: [ImageMark.ID], in measurements: ImageMeasurements, session: ImageSession?, undoManager: UndoManager?) {
         let removed = measurements.marks.enumerated().filter { ids.contains($0.element.id) }.map { (index: $0.offset, mark: $0.element) }
         guard !removed.isEmpty else { return }
         if removed.count == measurements.marks.count, removed.count > 1 { measurements.removeAll() } else {
             for entry in removed { measurements.remove(entry.mark.id) }
         }
-        guard let image else { return }
+        guard let session else { return }
         register(in: undoManager, measurements: measurements, actionName: actionName(removed.map(\.mark)),
-                 undo: { restore(removed, in: measurements, on: image) },
+                 undo: { [weak session] in
+                     guard let image = session?.image else { return false }
+                     return restore(removed, in: measurements, on: image)
+                 },
                  redo: { removeAgain(removed, in: measurements) })
     }
 
