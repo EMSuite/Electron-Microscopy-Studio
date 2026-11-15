@@ -430,8 +430,8 @@ Image… (⇧⌘E) and Export Profile…, the FFT room its three (Export Transfo
 (⇧⌥⌘E) and Export Session Report…, the EDS, Patterns, Indexing and Maps rooms their own items and Export Session Report…
 (`FixedExports.listed(in:)`, `ExportCommands`). Each item keeps its key and is still enabled only where it can act.
 
-**Why.** Up to 24 export items in one menu, most of them greyed, read as clutter; mac4DSTEM's File menu lists the current
-room's items flat, and Paul picked the same (2026-11-15, #631). A key only works while its item is listed, which is the
+**Why.** The seven Image, FFT and Results items were listed in every room, greyed outside their own, beside the room's items;
+mac4DSTEM's File menu lists the current room's items flat, and Paul picked the same (2026-11-15, #631). A key only works while its item is listed, which is the
 room where it was enabled anyway.
 
 **Reverse it.** Drop the `if fixed.contains(…)` checks in `ExportCommands` (every fixed item listed again, greyed outside its
