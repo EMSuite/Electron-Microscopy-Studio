@@ -52,7 +52,7 @@ nonisolated final class EBSDPassGenerationTests: XCTestCase {
         session.showMap(.imageQuality)
         XCTAssertTrue(session.isQualityMapping)
         session.setVirtualGrid(VirtualBSEGrid(3))
-        for _ in 0..<6000 where session.isQualityMapping { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("!session.isQualityMapping", seconds: 30) { !session.isQualityMapping }
         XCTAssertFalse(session.isQualityMapping)
         XCTAssertEqual(session.imageQualityMap?.count, DemoDocuments.Truth.ebsdScanRows * DemoDocuments.Truth.ebsdScanColumns)
         XCTAssertNotNil(session.dotProductMap)

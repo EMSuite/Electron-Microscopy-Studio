@@ -13,6 +13,9 @@ Get the signed and notarised DMG from the [latest release](https://github.com/ma
 macOS 26 or later on an Apple silicon Mac. The SEM rooms and SEM files below are not in a release yet: to use them
 now, build the app yourself.
 
+From 2.1 the download checks for updates itself (macEM > Check for Updates…, and a daily check you can turn off in
+Settings); the App Store version updates through the store.
+
 Up to 1.3 the app was called macTEM. To update, quit macTEM, drag macEM to Applications, then move macTEM to the Trash.
 Your recent files, the folders you allowed and your `.mactem.h5` session files carry over.
 

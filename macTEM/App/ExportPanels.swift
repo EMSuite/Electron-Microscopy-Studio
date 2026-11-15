@@ -3,7 +3,9 @@
 //  Role: the two save panels of the Image room's export: Export
 //        Image… (a PNG, with the Scale bar and Marks options) and Export Profile… (a CSV, no options). They present
 //        a sheet on the window, ask `ExportSnapshot` for what the selected file gives, and hand TEMCore's `@concurrent`
-//        writers the values; the infobar and the alert report. Nothing is rendered or written here.
+//        writers the values; the infobar and the alert report. Nothing is rendered or written here. The later panels (Export
+//        Results…, Export Session Report…) follow the same rule: the SEM session report is set, encoded and written in one
+//        `@concurrent` step, `sessionReportFile` (#251), and the main actor only presents and reports.
 //
 //  WHY APPKIT (the suite's rule: AppKit only where SwiftUI cannot do the job, named where used): the macOS 27 SDK's
 //  `fileExporter` overloads and `fileDialog*` modifiers offer no accessory, and the options belong in the save panel
@@ -115,10 +117,12 @@ enum ExportPanels {
     /// File > Export Session Report… and the Results inspector's Export Report…: the SEM session as one PDF or Markdown report
     /// (D-SEM-103), with the Report section's choices. The rows and the context are taken when the panel opens; a Markdown report links
     /// the figures from the folder it is written to, so it is set after OK. The rows' numbers are in `ExportSnapshot.labelLocale`, as the
-    /// figures' labels are, so the report reads the same on every Mac; the Results room shows them in the reader's.
-    static func exportSessionReport(appState: AppState) {
+    /// figures' labels are, so the report reads the same on every Mac; the Results room shows them in the reader's. The report is set
+    /// and written off the main actor (#251); the task ends when it is written or refused.
+    @discardableResult
+    static func exportSessionReport(appState: AppState) -> Task<Void, Never>? {
         let rows = SEMSessionLedger.rows(of: appState, locale: ExportSnapshot.labelLocale)
-        guard !rows.isEmpty else { return }
+        guard !rows.isEmpty else { return nil }
         let options = appState.resultsRoom.reportOptions(rows)
         let context = SEMReportFile.context(namesAuthor: appState.resultsRoom.reportNamesAuthor)
         let stem = SEMReportFile.stem(options.title)
@@ -126,11 +130,12 @@ enum ExportPanels {
         if let directory = appState.exportDirectory {
             try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             let url = directory.appendingPathComponent(stem).appendingPathExtension(options.format.fileExtension)
-            writeSessionReport(rows, options: options, context: context, to: url, appState: appState)
-            return
+            return Task.immediate { await writeSessionReport(rows, options: options, context: context, to: url, appState: appState) }
         }
-        guard let window = hostWindowOrBeep() else { return }
-        Task.immediate { await presentSessionReportPanel(rows, options: options, context: context, stem: stem, on: window, appState: appState) }
+        guard let window = hostWindowOrBeep() else { return nil }
+        return Task.immediate {
+            await presentSessionReportPanel(rows, options: options, context: context, stem: stem, on: window, appState: appState)
+        }
     }
 
     /// The report's panel, in the folder of the first file the session read that is not a demo's (`defaultFolder(for:)`), else
@@ -142,25 +147,32 @@ enum ExportPanels {
         let panel = savePanel(type: SEMReportFile.contentType(options.format), name: stem, directory: folder,
                               message: "Export the SEM session as one \(options.format.title) report")
         guard await present(panel, on: window) == .OK, let url = panel.url else { return }
-        writeSessionReport(rows, options: options, context: context, to: url, appState: appState)
+        await writeSessionReport(rows, options: options, context: context, to: url, appState: appState)
     }
 
-    /// Sets the report and writes it to `url`; the status bar says what it holds, the alert why it could not be written.
+    /// Sets the report and writes it to `url` off the main actor; the status bar says what it holds, the alert why it could not be written.
     private static func writeSessionReport(_ rows: [SEMSessionRow], options: SEMSessionReport.Options, context: SEMSessionReport.Context,
-                                           to url: URL, appState: AppState) {
+                                           to url: URL, appState: AppState) async {
         writing += 1
         defer { writing -= 1 }
-        let document = SEMSessionReport.document(rows, options: options, context: context)
-        guard let data = SEMReportFile.data(of: document, format: options.format, context: context, directory: url.deletingLastPathComponent()) else {
-            appState.present(ExportFile.Failure.encodeFailed)
-            return
-        }
         do {
-            try ExportFile.write(data, to: url)
-            report(SEMReportFile.doneLine(name: url.lastPathComponent, document: document), in: appState)
+            let line = try await sessionReportFile(rows, options: options, context: context, to: url)
+            report(line, in: appState)
         } catch {
             appState.present(error)
         }
+    }
+
+    /// The report set (`SEMSessionReport.document`), encoded (`SEMReportFile.data`, a PDF draws every figure) and written
+    /// (`ExportFile.write`) in one step off the main actor (#251); returns the status bar's line.
+    @concurrent nonisolated static func sessionReportFile(_ rows: [SEMSessionRow], options: SEMSessionReport.Options,
+                                                          context: SEMSessionReport.Context, to url: URL) async throws -> String {
+        let document = SEMSessionReport.document(rows, options: options, context: context)
+        guard let data = SEMReportFile.data(of: document, format: options.format, context: context, directory: url.deletingLastPathComponent()) else {
+            throw ExportFile.Failure.encodeFailed
+        }
+        try ExportFile.write(data, to: url)
+        return SEMReportFile.doneLine(name: url.lastPathComponent, document: document)
     }
 
     /// The folder a panel opens in for a file the session read: the file's own, or nil (the system's choice) for a shipped demo,

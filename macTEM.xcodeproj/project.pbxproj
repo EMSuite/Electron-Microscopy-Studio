@@ -20,6 +20,7 @@
 		B00000000000000000000152 /* ShellSpectroscopy in Frameworks */ = {isa = PBXBuildFile; productRef = B00000000000000000000151 /* ShellSpectroscopy */; };
 		B00000000000000000000162 /* ShellEDXModel in Frameworks */ = {isa = PBXBuildFile; productRef = B00000000000000000000161 /* ShellEDXModel */; };
 		B00000000000000000000172 /* ShellAgentDoor in Frameworks */ = {isa = PBXBuildFile; productRef = B00000000000000000000171 /* ShellAgentDoor */; };
+		B00000000000000000000181 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = B00000000000000000000180 /* Sparkle */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -54,6 +55,7 @@
 		B00000000000000000000004 /* Exceptions for "macTEM" folder in "macTEM" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				"Info-Direct.plist",
 				Info.plist,
 			);
 			target = B00000000000000000000001 /* macTEM */;
@@ -94,6 +96,7 @@
 				B00000000000000000000152 /* ShellSpectroscopy in Frameworks */,
 				B00000000000000000000162 /* ShellEDXModel in Frameworks */,
 				B00000000000000000000172 /* ShellAgentDoor in Frameworks */,
+				B00000000000000000000181 /* Sparkle in Frameworks */,
 			);
 		};
 		C00000000000000000000006 /* Frameworks */ = {
@@ -144,6 +147,7 @@
 				B00000000000000000000005 /* Sources */,
 				B00000000000000000000006 /* Frameworks */,
 				B00000000000000000000007 /* Resources */,
+				B00000000000000000000190 /* Leave Sparkle out of the store build */,
 			);
 			buildRules = (
 			);
@@ -161,6 +165,7 @@
 				B00000000000000000000151 /* ShellSpectroscopy */,
 				B00000000000000000000161 /* ShellEDXModel */,
 				B00000000000000000000171 /* ShellAgentDoor */,
+				B00000000000000000000180 /* Sparkle */,
 			);
 			productName = macTEM;
 			productReference = B00000000000000000000002 /* macEM.app */;
@@ -242,6 +247,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				A00000000000000000000007 /* XCLocalSwiftPackageReference "." */,
+				B00000000000000000000182 /* XCRemoteSwiftPackageReference "Sparkle" */,
 			);
 			preferredProjectObjectVersion = 90;
 			productRefGroup = A00000000000000000000003 /* Products */;
@@ -276,6 +282,28 @@
 			);
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		B00000000000000000000190 /* Leave Sparkle out of the store build */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Leave Sparkle out of the store build";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# The App Store build (MACEM_STORE_BUILD=YES) carries no updater (#583): its code is compiled out (no SPARKLE condition),\n# -dead_strip_dylibs drops the unused load command (the HDF5 frameworks, loaded by path, are kept as needed), and this removes the framework Xcode embedded for the package.\nif [ \"${MACEM_STORE_BUILD}\" = YES ]; then\n  rm -rf \"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/Sparkle.framework\"\nfi\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		B00000000000000000000005 /* Sources */ = {
@@ -504,24 +532,32 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = macTEM;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
-				CODE_SIGN_ENTITLEMENTS = macTEM/macTEM.entitlements;
+				CODE_SIGN_ENTITLEMENTS = "macTEM/macTEM$(MACEM_FLAVOUR_SUFFIX_$(MACEM_STORE_BUILD)).entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 2;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = NO;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				ENABLE_USER_SELECTED_FILES = readwrite;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = macTEM/Info.plist;
+				INFOPLIST_FILE = "macTEM/Info$(MACEM_FLAVOUR_SUFFIX_$(MACEM_STORE_BUILD)).plist";
 				INFOPLIST_KEY_CFBundleDisplayName = macEM;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2026 Paul Lobpreis.";
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/../Frameworks";
+				MACEM_FLAVOUR_SUFFIX_NO = "-Direct";
+				MACEM_FLAVOUR_SUFFIX_YES = "";
+				MACEM_STORE_BUILD = NO;
+				MACEM_STORE_LDFLAGS_YES = "-Wl,-dead_strip_dylibs -Wl,-needed_framework,FormatoLibHDF5 -Wl,-needed_framework,FormatoLibSZ -Wl,-needed_framework,FormatoLibAEC";
+				MACEM_UPDATER_CONDITION_NO = SPARKLE;
+				OTHER_LDFLAGS = "$(inherited) $(MACEM_STORE_LDFLAGS_$(MACEM_STORE_BUILD))";
 				PRODUCT_BUNDLE_IDENTIFIER = com.mac4dstem.macTEM;
 				PRODUCT_MODULE_NAME = macTEM;
 				PRODUCT_NAME = macEM;
 				SUPPORTED_PLATFORMS = macosx;
 				SUPPORTS_MACCATALYST = NO;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) $(MACEM_UPDATER_CONDITION_$(MACEM_STORE_BUILD))";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -537,25 +573,33 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = macTEM;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
-				CODE_SIGN_ENTITLEMENTS = macTEM/macTEM.entitlements;
+				CODE_SIGN_ENTITLEMENTS = "macTEM/macTEM$(MACEM_FLAVOUR_SUFFIX_$(MACEM_STORE_BUILD)).entitlements";
 				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 2;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = NO;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				ENABLE_USER_SELECTED_FILES = readwrite;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = macTEM/Info.plist;
+				INFOPLIST_FILE = "macTEM/Info$(MACEM_FLAVOUR_SUFFIX_$(MACEM_STORE_BUILD)).plist";
 				INFOPLIST_KEY_CFBundleDisplayName = macEM;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2026 Paul Lobpreis.";
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/../Frameworks";
+				MACEM_FLAVOUR_SUFFIX_NO = "-Direct";
+				MACEM_FLAVOUR_SUFFIX_YES = "";
+				MACEM_STORE_BUILD = NO;
+				MACEM_STORE_LDFLAGS_YES = "-Wl,-dead_strip_dylibs -Wl,-needed_framework,FormatoLibHDF5 -Wl,-needed_framework,FormatoLibSZ -Wl,-needed_framework,FormatoLibAEC";
+				MACEM_UPDATER_CONDITION_NO = SPARKLE;
+				OTHER_LDFLAGS = "$(inherited) $(MACEM_STORE_LDFLAGS_$(MACEM_STORE_BUILD))";
 				PRODUCT_BUNDLE_IDENTIFIER = com.mac4dstem.macTEM;
 				PRODUCT_MODULE_NAME = macTEM;
 				PRODUCT_NAME = macEM;
 				SUPPORTED_PLATFORMS = macosx;
 				SUPPORTS_MACCATALYST = NO;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) $(MACEM_UPDATER_CONDITION_$(MACEM_STORE_BUILD))";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -570,24 +614,32 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = macTEM;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
-				CODE_SIGN_ENTITLEMENTS = macTEM/macTEM.entitlements;
+				CODE_SIGN_ENTITLEMENTS = "macTEM/macTEM$(MACEM_FLAVOUR_SUFFIX_$(MACEM_STORE_BUILD)).entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 2;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = NO;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				ENABLE_USER_SELECTED_FILES = readwrite;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = macTEM/Info.plist;
+				INFOPLIST_FILE = "macTEM/Info$(MACEM_FLAVOUR_SUFFIX_$(MACEM_STORE_BUILD)).plist";
 				INFOPLIST_KEY_CFBundleDisplayName = macEM;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2026 Paul Lobpreis.";
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/../Frameworks";
+				MACEM_FLAVOUR_SUFFIX_NO = "-Direct";
+				MACEM_FLAVOUR_SUFFIX_YES = "";
+				MACEM_STORE_BUILD = NO;
+				MACEM_STORE_LDFLAGS_YES = "-Wl,-dead_strip_dylibs -Wl,-needed_framework,FormatoLibHDF5 -Wl,-needed_framework,FormatoLibSZ -Wl,-needed_framework,FormatoLibAEC";
+				MACEM_UPDATER_CONDITION_NO = SPARKLE;
+				OTHER_LDFLAGS = "$(inherited) $(MACEM_STORE_LDFLAGS_$(MACEM_STORE_BUILD))";
 				PRODUCT_BUNDLE_IDENTIFIER = com.mac4dstem.macTEM;
 				PRODUCT_MODULE_NAME = macTEM;
 				PRODUCT_NAME = macEM;
 				SUPPORTED_PLATFORMS = macosx;
 				SUPPORTS_MACCATALYST = NO;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) $(MACEM_UPDATER_CONDITION_$(MACEM_STORE_BUILD))";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -751,6 +803,17 @@
 		};
 /* End XCLocalSwiftPackageReference section */
 
+/* Begin XCRemoteSwiftPackageReference section */
+		B00000000000000000000182 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.10.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
 		B0000000000000000000000B /* TEMCore */ = {
 			isa = XCSwiftPackageProductDependency;
@@ -787,6 +850,11 @@
 		B00000000000000000000171 /* ShellAgentDoor */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = ShellAgentDoor;
+		};
+		B00000000000000000000180 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = B00000000000000000000182 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

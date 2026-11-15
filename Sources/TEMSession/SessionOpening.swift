@@ -255,10 +255,7 @@ extension SessionSave.Refusal {
     package nonisolated var isPermissionDenied: Bool {
         switch self {
         case .file(.notPermitted): return true
-        case .file(.cannotWrite(_, let detail)):
-            let text = detail.lowercased()
-            return text.contains("operation not permitted") || text.contains("permission denied")
-                || text.contains("eperm") || text.contains("eacces")
+        case .file(.cannotWrite(_, let detail)): return PermissionDenial.isDenied(detail: detail)
         default: return false
         }
     }

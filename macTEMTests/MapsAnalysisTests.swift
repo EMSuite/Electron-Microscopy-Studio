@@ -376,6 +376,24 @@ nonisolated final class MapsAnalysisTests: XCTestCase {
         XCTAssertTrue(analysis.outline(of: Set<Int>()).isEmpty)
     }
 
+    /// A cancelled texture stops before its figures instead of holding the map until the last is made (#713: the Maps room's memory
+    /// check saw a closed map's worth still alive while a cancelled texture ran on). Red under: the checks between figures removed.
+    func testACancelledTextureStopsBeforeItsFigures() async throws {
+        let map = try ANGReader.read(url: Self.sdss).map
+        let phase = try XCTUnwrap(map.phases.entries.first { $0.id != PhaseList.notIndexedID })
+        let id = phase.id
+        let task = Task.detached { () throws -> MapTexture in
+            withUnsafeCurrentTask { $0?.cancel() }
+            return try MapTexture.compute(map, phaseID: id, size: 61)
+        }
+        do {
+            _ = try await task.value
+            XCTFail("a cancelled texture made its figures")
+        } catch {
+            XCTAssertTrue(error is CancellationError, "\(error)")
+        }
+    }
+
     func testTheSelectedGrainsPolesLandWhereTheProjectionPutsThem() throws {
         let map = try ANGReader.read(url: Self.sdss).map
         let phase = try XCTUnwrap(map.phases.entries.first { $0.id != PhaseList.notIndexedID })

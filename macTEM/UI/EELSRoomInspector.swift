@@ -468,6 +468,7 @@ private struct EELSReferencesBlock: View {
     let session: EELSSession
     @State private var selected: EELSReference.ID?
     @State private var importing = false
+    @State private var edgeChoice = 0
 
     var body: some View {
         let picked = session.pickedEdges.filter { session.plot?.core?.range.contains($0.onsetEV) ?? false }
@@ -495,14 +496,22 @@ private struct EELSReferencesBlock: View {
                     .accessibilityAction(.default) { selected = reference.id }
                 }
             }
-            InspectorActionRow {
-                Menu("From region") {
-                    ForEach(Array(picked.enumerated()), id: \.offset) { _, edge in
-                        Button(EELSFitCompute.title(edge)) { selected = session.addReferenceFromRegion(edge: edge)?.id }
+            // The edge is a row and the action a plain button (control-placement §3: no pull-down menus of actions); with one edge picked
+            // there is nothing to choose and the row is left out.
+            let edgeIndex = EELSReferenceEdge.index(edgeChoice, count: picked.count)
+            if picked.count > 1 {
+                InspectorRow("Edge") {
+                    Picker("Edge", selection: $edgeChoice) {
+                        ForEach(Array(picked.enumerated()), id: \.offset) { i, edge in Text(EELSFitCompute.title(edge)).tag(i) }
                     }
+                    .pickerStyle(.menu).labelsHidden().fixedSize()
+                    .help("The edge whose signal window the From Region reference covers")
+                    .accessibilityIdentifier("eels.references.edge")
                 }
-                .menuStyle(.button).fixedSize()
-                .disabled(picked.isEmpty)
+            }
+            InspectorActionRow {
+                Button("From Region") { if let i = edgeIndex { selected = session.addReferenceFromRegion(edge: picked[i])?.id } }
+                .disabled(edgeIndex == nil)
                 .help(picked.isEmpty ? "Pick an edge in the periodic table first: the reference is the region's spectrum over that edge's signal window, less the background."
                       : "The selected region's (else the whole map's) core loss over the edge's signal window, less the power-law background")
                 .accessibilityIdentifier("eels.references.fromRegion")
@@ -608,5 +617,13 @@ struct EELSFileMicroscope {
     init?(_ loaded: LoadedEELS?) {
         guard let loaded else { return nil }
         beamEnergyKeV = loaded.beamEnergyKeV; convergenceMrad = loaded.convergenceMrad; collectionMrad = loaded.collectionMrad
+    }
+}
+
+/// Which picked edge the References block's From Region uses: the chosen one while it is still in the list, else the first; nil with none.
+nonisolated enum EELSReferenceEdge {
+    static func index(_ choice: Int, count: Int) -> Int? {
+        guard count > 0 else { return nil }
+        return (0..<count).contains(choice) ? choice : 0
     }
 }
