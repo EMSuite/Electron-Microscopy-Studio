@@ -115,10 +115,10 @@ nonisolated final class PatternsRoomTests: XCTestCase {
         XCTAssertEqual(session.pinned, EBSDPosition(row: 3, column: 14))
         session.step(.right, by: 100)
         XCTAssertEqual(session.pinned, EBSDPosition(row: 3, column: DemoDocuments.Truth.ebsdScanColumns - 1), "an arrow stops at the edge")
-        for _ in 0..<2000 where session.patternPosition != session.pinned { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("session.patternPosition == session.pinned", seconds: 10) { session.patternPosition == session.pinned }
         XCTAssertEqual(session.patternPosition, session.pinned)
 
-        for _ in 0..<4000 where session.isMapping { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("!session.isMapping", seconds: 20) { !session.isMapping }
         XCTAssertFalse(session.isMapping)
         XCTAssertEqual(session.meanIntensities?.count, DemoDocuments.Truth.ebsdScanRows * DemoDocuments.Truth.ebsdScanColumns)
         XCTAssertEqual(session.mapPresentation.canvas?.width, DemoDocuments.Truth.ebsdScanColumns)
@@ -147,7 +147,7 @@ nonisolated final class PatternsRoomTests: XCTestCase {
         // A new grid runs the pass again and drops the mix.
         session.setVirtualGrid(VirtualBSEGrid(3))
         XCTAssertNil(session.virtualImages); XCTAssertFalse(session.hasMix); XCTAssertEqual(session.mapChoice, .mean)
-        for _ in 0..<4000 where session.isMapping { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("!session.isMapping", seconds: 20) { !session.isMapping }
         XCTAssertEqual(session.virtualImages?.count, 10)
 
         session.close()
@@ -169,7 +169,7 @@ nonisolated final class PatternsRoomTests: XCTestCase {
         for (n, expected) in zip(canvas.normalized, truth) {
             XCTAssertEqual(Double(range.lowerBound + n * (range.upperBound - range.lowerBound)), Double(expected), accuracy: 1e-3)
         }
-        for _ in 0..<4000 where session.isMapping { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("!session.isMapping", seconds: 20) { !session.isMapping }
         XCTAssertEqual(session.meanIntensities?.count, 9)
     }
 
@@ -356,7 +356,7 @@ nonisolated final class PatternsRoomTests: XCTestCase {
         let state = AppState(launch: LaunchOptions(arguments: []))
         await state.open(urls: [try fixture("ebsd-kikuchipy-h5ebsd", "h5")])?.value
         XCTAssertEqual(state.navigation.workspaceArea, .patterns)
-        for _ in 0..<2000 where !state.ebsd.hasDataset { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("state.ebsd.hasDataset", seconds: 10) { state.ebsd.hasDataset }
         XCTAssertEqual(state.ebsd.fileName, "ebsd-kikuchipy-h5ebsd.h5")
         XCTAssertTrue(state.openItems.items.isEmpty, "a pattern dataset is not an open image")
         XCTAssertEqual(state.windowTitle, "ebsd-kikuchipy-h5ebsd.h5")

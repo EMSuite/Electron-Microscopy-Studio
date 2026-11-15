@@ -189,7 +189,7 @@ nonisolated final class IndexingDictionaryRoomTests: XCTestCase {
 
         // The best match: the pinned point's best orientation simulated on the run's detector.
         indexing.pin(position)
-        for _ in 0..<4000 where indexing.bestMatchPosition != position { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("indexing.bestMatchPosition == position", seconds: 20) { indexing.bestMatchPosition == position }
         XCTAssertEqual(indexing.bestMatchPosition, position)
         let canvas = try XCTUnwrap(indexing.bestMatchPresentation.canvas)
         XCTAssertEqual([canvas.width, canvas.height], [60, 60])
@@ -259,7 +259,7 @@ nonisolated final class IndexingDictionaryRoomTests: XCTestCase {
         let (_, indexing) = try await openNickel()
         indexing.setMethod(.dictionary)
         indexing.editDictionarySettings { $0.resolution = 10 }
-        for _ in 0..<4000 where indexing.dictionarySize == nil { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("indexing.dictionarySize != nil", seconds: 20) { indexing.dictionarySize != nil }
         let single = try XCTUnwrap(indexing.dictionarySize)
         let singleChunks = try XCTUnwrap(indexing.dictionaryChunking).chunks
         await indexing.index().value
@@ -274,7 +274,7 @@ nonisolated final class IndexingDictionaryRoomTests: XCTestCase {
                        "the latest master pattern opened of the phase's space group")
         XCTAssertNil(indexing.refusal, indexing.refusal ?? "")
         XCTAssertTrue(indexing.verbHelp.contains("patterns with Dictionary (ni, Al)"), indexing.verbHelp)
-        for _ in 0..<4000 where indexing.dictionarySize == nil { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("indexing.dictionarySize != nil", seconds: 20) { indexing.dictionarySize != nil }
         XCTAssertEqual(indexing.dictionarySize, 2 * single, "one dictionary per phase")
         XCTAssertEqual(indexing.dictionaryChunking?.chunks, 2 * singleChunks)
 
@@ -316,7 +316,7 @@ nonisolated final class IndexingDictionaryRoomTests: XCTestCase {
         let line = try XCTUnwrap(indexing.readout(at: position))
         XCTAssertTrue(line.hasPrefix("row 10 · col 20 · ni · φ₁"), line)
         indexing.pin(position)
-        for _ in 0..<4000 where indexing.bestMatchPosition != position { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("indexing.bestMatchPosition == position", seconds: 20) { indexing.bestMatchPosition == position }
         XCTAssertEqual(indexing.bestMatchPosition, position)
         XCTAssertEqual(indexing.bestMatchPresentation.canvas.map { [$0.width, $0.height] }, [60, 60])
 

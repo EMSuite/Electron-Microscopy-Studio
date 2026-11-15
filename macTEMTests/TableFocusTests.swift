@@ -35,7 +35,7 @@ nonisolated final class TableFocusTests: XCTestCase {
         XCTAssertTrue(indexing.contains("if personPicked, !picked.isEmpty { tableFocused = true }"))
         XCTAssertTrue(indexing.contains(".onChange(of: selection) { _, picked in if !picked.isEmpty { tableFocused = true } }"), "Bands")
         XCTAssertEqual(indexing.components(separatedBy: ".focused($tableFocused)").count - 1, 2)
-        XCTAssertTrue(indexing.contains("SelectsThePickedRow(patterns: session.patterns, columns: dataset.scanColumns, rows: rows, selection: $selection)"))
+        XCTAssertTrue(indexing.contains("SelectsThePickedRow(patterns: session.patterns, columns: dataset.scanColumns, result: session.result, selection: $selection)"))
         let maps = try code("macTEM/UI/MapsRoomAnalysis.swift")
         XCTAssertTrue(maps.contains("personPicked = true session.selectGrains(picked)"))
         XCTAssertTrue(maps.contains("if personPicked, !picked.isEmpty { Task { @MainActor in tableFocused = true } }"))
