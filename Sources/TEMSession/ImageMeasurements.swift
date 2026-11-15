@@ -282,6 +282,19 @@ package final class ImageMeasurements {
         if !changed(marks[i], on: image) { marks[i].width = before }
     }
 
+    /// Puts back a removed mark (Edit > Undo, #325) with its id, kind, points and width, at `index` in the list (the end when past it), as `add`
+    /// records it: a new node, since the removed one stays dated in the lineage. A refusal is `add`'s, and the mark is then not back.
+    @discardableResult
+    package func restore(_ mark: ImageMark, at index: Int, on image: CalibratedImage) -> SessionLineage.Refusal? {
+        guard !marks.contains(where: { $0.id == mark.id }) else { return nil }
+        if let refusal = add(mark, on: image) { return refusal }
+        if let from = marks.lastIndex(where: { $0.id == mark.id }) {
+            let to = min(max(index, 0), marks.count - 1)
+            if from != to { marks.insert(marks.remove(at: from), at: to) }
+        }
+        return nil
+    }
+
     package func remove(_ id: ImageMark.ID) {
         if let node = nodeIDs.removeValue(forKey: id) {
             lineage.remove(id: node, at: SessionLineage.milliseconds(now()))
