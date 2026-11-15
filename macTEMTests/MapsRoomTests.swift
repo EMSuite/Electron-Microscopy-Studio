@@ -253,7 +253,7 @@ nonisolated final class MapsRoomTests: XCTestCase {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("maps-export-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: dir) }
         var reports: [String] = []
-        state.exportMap(from: session, directory: dir) { reports.append($0) }
+        await state.exportMap(from: session, directory: dir) { reports.append($0) }
         XCTAssertEqual(reports, ["Exported ebsd-sdss-ferrite-austenite map IPF-Z.png"])
         let data = try Data(contentsOf: dir.appendingPathComponent("ebsd-sdss-ferrite-austenite map IPF-Z.png"))
         XCTAssertEqual(Array(data.prefix(4)), [0x89, 0x50, 0x4E, 0x47])
