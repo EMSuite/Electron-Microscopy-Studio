@@ -71,7 +71,7 @@ nonisolated final class IndexingCompareTests: XCTestCase {
         XCTAssertNil(state.mapsStaleness, "the Hough run in Maps is still the room's Hough run")
 
         // Method picks the run on screen, its layers, its exports.
-        indexing.setLayer(.score)
+        await indexing.setLayer(.score).value
         indexing.setMethod(.hough)
         XCTAssertEqual(indexing.result?.method, .hough)
         XCTAssertEqual(indexing.availableLayers, IndexingLayer.layers(for: .hough))
@@ -172,10 +172,10 @@ nonisolated final class IndexingCompareTests: XCTestCase {
         XCTAssertEqual(indexing.comparison?.comparedCount, dictionary.indexedCount, "the file holds every point")
 
         // The layer: IPF-X draws both on IPF-X; a layer that is not IPF draws them on IPF-Z.
-        indexing.setLayer(.ipfX)
+        await indexing.setLayer(.ipfX).value
         await indexing.refreshComparison().value
         XCTAssertEqual(indexing.comparePictures?.layer, .ipfX)
-        indexing.setLayer(.score)
+        await indexing.setLayer(.score).value
         XCTAssertEqual(indexing.compareLayer, .ipfZ)
         await indexing.refreshComparison().value
         XCTAssertEqual(indexing.comparePictures?.layer, .ipfZ)
