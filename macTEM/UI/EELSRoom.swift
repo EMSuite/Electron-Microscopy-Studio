@@ -507,6 +507,27 @@ struct EELSWindowItem: Equatable {
     let refusal: String?
 }
 
+/// The background previews under the edges (`EELSBackgroundFit.extrapolation`, a power-law fit per edge), kept per core spectrum and
+/// windows: a zoom, a pan or another frame of the plot reuses them (#623); a window drag or another spectrum makes them again. Held in
+/// `@State`; not observed.
+final class EELSBackgroundPreviews {
+    private var core: EELSPlotCurve?
+    private var curves: [EELSEdgeWindows: [Double]?] = [:]
+    /// How many previews were fitted: a test pins that a zoom fits none.
+    private(set) var fits = 0
+
+    func curve(of core: EELSPlotCurve, windows: EELSEdgeWindows) -> [Double]? {
+        if core != self.core { self.core = core; curves = [:] }
+        if let kept = curves[windows] { return kept }
+        let made = EELSBackgroundFit.extrapolation(of: core, windows: windows, over: windows.background.lowerBound...windows.signal.upperBound)
+        fits += 1
+        // A drag makes a preview per sample: only the latest few are worth keeping.
+        if curves.count > 16 { curves = [:] }
+        curves[windows] = made
+        return made
+    }
+}
+
 /// The region's low loss and core loss on one energy axis (a marked gap when the windows leave energies out), counts on a log axis: the zero-loss mask hatched, each picked edge's
 /// background and signal windows shaded and draggable with the background extrapolated under the signal, the kit's model curve in the accent, its power-law background dashed,
 /// the references dashed. Hover reads energy and counts into the status line, snapped to an edge onset within 5 eV.
@@ -527,6 +548,7 @@ private struct EELSSpectrumView: View {
     /// A drag that is not a window's: the axis zoom or the pan, from the window and counts zoom it started at (the EDS spectrum's gestures).
     @State private var viewDrag: (zone: EELSSpectrumDrag.Zone, window: ClosedRange<Double>, yZoom: Double)?
     @State private var pinchStart: ClosedRange<Double>?
+    @State private var previews = EELSBackgroundPreviews()
 
     private static let right = EELSSpectrumLayout.right, gapWidth: CGFloat = 30, handleReach: CGFloat = 5
     /// One "Zoom in" halves the energies shown; one "Pan" moves them by a quarter of the window.
@@ -600,7 +622,7 @@ private struct EELSSpectrumView: View {
                 // Under each edge: the kit's fitted power law while the windows are the ones the fit used, else the kit's preview of the windows as they are now (the live drag).
                 let backgrounds = items.map { item -> [Double]? in
                     if let fitted = plot.backgrounds.first(where: { $0.edgeID == EELSFitCompute.id(item.edge) }), fitted.windows == item.windows { return fitted.curve }
-                    return plot.core.flatMap { EELSBackgroundFit.extrapolation(of: $0, windows: item.windows, over: item.windows.background.lowerBound...item.windows.signal.upperBound) }
+                    return plot.core.flatMap { previews.curve(of: $0, windows: item.windows) }
                 }
                 // What the plot shows, in words (its accessibility value while no pointer is over it): the energies shown and each edge's windows.
                 let spoken = EELSRoomFormat.windowsSpeech(items: items.map { (title: EELSFitCompute.title($0.edge), windows: $0.windows) }, shown: w)

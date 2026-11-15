@@ -53,9 +53,7 @@ nonisolated final class PatternsProcessingTests: XCTestCase {
 
         // Binning shows at once on the processed pattern; Raw shows the file's pattern again.
         session.editPipeline { $0.binning = 2 }
-        for _ in 0..<2000 where session.patternPresentation.canvas?.width != DemoDocuments.Truth.ebsdPatternSide / 2 {
-            try await Task.sleep(for: .milliseconds(5))
-        }
+        try await waitUntil("session.patternPresentation.canvas?.width == DemoDocuments.Truth.ebsdPatternSide / 2", seconds: 10) { session.patternPresentation.canvas?.width == DemoDocuments.Truth.ebsdPatternSide / 2 }
         XCTAssertEqual(session.patternPresentation.canvas?.width, DemoDocuments.Truth.ebsdPatternSide / 2)
         XCTAssertTrue(session.patternIsProcessed)
         session.setPatternDisplay(.raw)

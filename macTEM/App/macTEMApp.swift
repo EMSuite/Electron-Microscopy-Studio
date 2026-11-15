@@ -334,6 +334,10 @@ struct macTEMApp: App {
     // File-menu actions asked for while no window is focused (`MenuActionRelay`): read by the commands, taken
     // by the window they open.
     @State private var menuRelay = MenuActionRelay()
+    #if SPARKLE
+    // The website download's updater (App/SoftwareUpdate.swift, #583); the App Store build has none.
+    @State private var softwareUpdate = SoftwareUpdate()
+    #endif
     private static let isUITesting = LaunchOptions().isUITesting
 
     var body: some Scene {
@@ -359,9 +363,17 @@ struct macTEMApp: App {
                 ExportCommands()
                 // View > Zoom In, Zoom Out, Zoom to Fit (⌘+ ⌘− ⌘0) on the pane that publishes its zoom (control placement §6).
                 ZoomCommands()
+                #if SPARKLE
+                SoftwareUpdateCommands(update: softwareUpdate)   // macEM > Check for Updates…
+                #endif
             }
         // Settings (⌘,): the agent door's switch (`AgentSettingsView`).
-        Settings { AgentSettingsView() }
+        Settings {
+            AgentSettingsView()
+                #if SPARKLE
+                .environment(softwareUpdate)
+                #endif
+        }
         // The Particles view's object table, beside the image (ImageRoomParticles.swift); never opened at launch.
         Window("Objects", id: ParticleTableWindow.id) { ObjectsWindow(windows: windows) }
             .defaultLaunchBehavior(.suppressed)

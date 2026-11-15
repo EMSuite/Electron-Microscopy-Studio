@@ -78,7 +78,7 @@ nonisolated final class PatternCancellationTests: XCTestCase {
         // Stop while the run is inside its first row: released, it reads no further row.
         var reads = gated.hold()
         let stopped = session.process()
-        for _ in 0..<2000 where gated.rowReads == reads { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("gated.rowReads != reads", seconds: 10) { gated.rowReads != reads }
         XCTAssertEqual(gated.rowReads, reads + 1, "the run is inside its first row")
         session.stop()
         XCTAssertFalse(session.isProcessing)

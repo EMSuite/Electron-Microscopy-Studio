@@ -436,3 +436,16 @@ room where it was enabled anyway.
 
 **Reverse it.** Drop the `if fixed.contains(…)` checks in `ExportCommands` (every fixed item listed again, greyed outside its
 room), or group them in an Export submenu.
+
+## 2026-11-15 — The download's updater shares mac4DSTEM's feed host and signing key
+
+**What.** The website download gets Sparkle 2 (#583), built as mac4DSTEM builds it (one `MACEM_STORE_BUILD` switch,
+`Info-Direct.plist` and `macTEM-Direct.entitlements` for the download, no updater in the store build). Its feed is
+`https://mac4dstem.com/appcast/macem.xml`, beside mac4DSTEM's, and its DMGs are signed with the same EdDSA key in Paul's
+login keychain; `SUPublicEDKey` is the same public key in both apps.
+
+**Why.** The suite has one website and one signing Mac. Sparkle's `sign_update` reads one key from the keychain by default,
+and a second key would be a second secret to keep for no gain: an attacker with the keychain has both.
+
+**What would reverse it.** The apps getting separate websites, or one app's key having to be replaced without the other's.
+

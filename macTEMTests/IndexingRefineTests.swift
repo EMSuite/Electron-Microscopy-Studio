@@ -45,7 +45,7 @@ nonisolated final class IndexingRefineTests: XCTestCase {
         patterns.onBind = { indexing.bind($0) }
         patterns.onClose = { indexing.close() }
         await patterns.open(url: url).value
-        for _ in 0..<6000 where patterns.isMapping || patterns.isComputingMean || patterns.isProcessing { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("!(patterns.isMapping || patterns.isComputingMean || patterns.isProcessing)", seconds: 30) { !(patterns.isMapping || patterns.isComputingMean || patterns.isProcessing) }
         let master = try XCTUnwrap(DemoDocuments.Shipped.nickelMasterPattern.url, "DemoData/ holds no master pattern")
         await indexing.openMasterPattern(url: master).value
         return (patterns, indexing)
@@ -573,6 +573,6 @@ nonisolated final class IndexingRefineTests: XCTestCase {
         XCTAssertTrue(inspector.contains("InspectorValueRow(\"PC std\", deviation)"))
         let room = squeezed(try source("macTEM/UI/IndexingRoom.swift"))
         XCTAssertTrue(room.contains("return Key(run: session.shownRun?.id, rowsDone: landed,"), "the Results table's key names the run")
-        XCTAssertTrue(room.contains(".onChange(of: key, initial: true) { refresh() }"))
+        XCTAssertTrue(room.contains(".task(id: RowsRequest(key: key, order: sortOrder)) { await refresh() }"))
     }
 }

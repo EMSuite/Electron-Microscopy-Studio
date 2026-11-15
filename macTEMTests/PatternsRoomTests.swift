@@ -115,10 +115,10 @@ nonisolated final class PatternsRoomTests: XCTestCase {
         XCTAssertEqual(session.pinned, EBSDPosition(row: 3, column: 14))
         session.step(.right, by: 100)
         XCTAssertEqual(session.pinned, EBSDPosition(row: 3, column: DemoDocuments.Truth.ebsdScanColumns - 1), "an arrow stops at the edge")
-        for _ in 0..<2000 where session.patternPosition != session.pinned { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("session.patternPosition == session.pinned", seconds: 10) { session.patternPosition == session.pinned }
         XCTAssertEqual(session.patternPosition, session.pinned)
 
-        for _ in 0..<4000 where session.isMapping { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("!session.isMapping", seconds: 20) { !session.isMapping }
         XCTAssertFalse(session.isMapping)
         XCTAssertEqual(session.meanIntensities?.count, DemoDocuments.Truth.ebsdScanRows * DemoDocuments.Truth.ebsdScanColumns)
         XCTAssertEqual(session.mapPresentation.canvas?.width, DemoDocuments.Truth.ebsdScanColumns)
@@ -128,6 +128,16 @@ nonisolated final class PatternsRoomTests: XCTestCase {
         // The virtual images (P1-07): the pass landed the whole detector's sum and the 5 x 5 tiles; the map follows the choice; the mix needs three tiles.
         XCTAssertEqual(session.virtualGrid, VirtualBSEGrid(5))
         XCTAssertEqual(session.virtualImages?.count, 26)
+        // The canvases the tiles pane and the map draw were made with the pass, off the main actor (#256), from the same pixels.
+        // Red before: no canvases kept; the pane made 26 of them on every body pass.
+        let scanColumns = DemoDocuments.Truth.ebsdScanColumns, scanRows = DemoDocuments.Truth.ebsdScanRows
+        for tile in session.virtualGrid.tiles {
+            let image = try XCTUnwrap(session.tileImage(tile))
+            XCTAssertEqual(session.tileCanvas(tile), CanvasPixels.make(width: scanColumns, height: scanRows, pixels: image), "tile \(tile.label)")
+        }
+        XCTAssertEqual(session.mapCanvas(for: .bse), CanvasPixels.make(width: scanColumns, height: scanRows, pixels: try XCTUnwrap(session.virtualImages?.first)))
+        XCTAssertEqual(session.meanCanvas, CanvasPixels.make(width: scanColumns, height: scanRows, pixels: try XCTUnwrap(session.meanIntensities)))
+        XCTAssertEqual(session.mapPresentation.canvas, session.meanCanvas, "the map shows the mean's canvas as made")
         let meanCanvas = session.mapPresentation.canvas?.contentVersion
         session.showMap(.bse)
         XCTAssertNotEqual(session.mapPresentation.canvas?.contentVersion, meanCanvas, "the BSE sum is another picture")
@@ -137,9 +147,9 @@ nonisolated final class PatternsRoomTests: XCTestCase {
         session.showMap(.tile(tile))
         XCTAssertEqual(session.mapValue(at: .origin)?.label, "r2 c1")
         XCTAssertFalse(session.hasMix)
-        session.setMixTile(tile, channel: 0); session.setMixTile(VirtualBSETile(row: 2, column: 2), channel: 1)
+        await session.setMixTile(tile, channel: 0).value; await session.setMixTile(VirtualBSETile(row: 2, column: 2), channel: 1).value
         XCTAssertFalse(session.hasMix)
-        session.setMixTile(VirtualBSETile(row: 2, column: 3), channel: 2)
+        await session.setMixTile(VirtualBSETile(row: 2, column: 3), channel: 2).value
         XCTAssertTrue(session.hasMix)
         XCTAssertEqual(session.mapChoice, .mix)
         XCTAssertEqual(session.mixRGBA?.count, 30 * 40 * 4)
@@ -147,7 +157,7 @@ nonisolated final class PatternsRoomTests: XCTestCase {
         // A new grid runs the pass again and drops the mix.
         session.setVirtualGrid(VirtualBSEGrid(3))
         XCTAssertNil(session.virtualImages); XCTAssertFalse(session.hasMix); XCTAssertEqual(session.mapChoice, .mean)
-        for _ in 0..<4000 where session.isMapping { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("!session.isMapping", seconds: 20) { !session.isMapping }
         XCTAssertEqual(session.virtualImages?.count, 10)
 
         session.close()
@@ -169,7 +179,7 @@ nonisolated final class PatternsRoomTests: XCTestCase {
         for (n, expected) in zip(canvas.normalized, truth) {
             XCTAssertEqual(Double(range.lowerBound + n * (range.upperBound - range.lowerBound)), Double(expected), accuracy: 1e-3)
         }
-        for _ in 0..<4000 where session.isMapping { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("!session.isMapping", seconds: 20) { !session.isMapping }
         XCTAssertEqual(session.meanIntensities?.count, 9)
     }
 
@@ -327,7 +337,7 @@ nonisolated final class PatternsRoomTests: XCTestCase {
         try await waitUntil("the map pass to end", seconds: 20) { !session.isMapping }
         await state.export(.mapPNG, from: session, directory: dir) { reports.append($0) }
         XCTAssertEqual(reports.last, "Exported Demo EBSD map mean.png")
-        for (channel, column) in [1, 2, 3].enumerated() { session.setMixTile(VirtualBSETile(row: 2, column: column), channel: channel) }
+        for (channel, column) in [1, 2, 3].enumerated() { await session.setMixTile(VirtualBSETile(row: 2, column: column), channel: channel).value }
         await state.export(.mapPNG, from: session, directory: dir) { reports.append($0) }
         XCTAssertEqual(reports.last, "Exported Demo EBSD map mix.png")
         let mix = try Data(contentsOf: dir.appendingPathComponent("Demo EBSD map mix.png"))
@@ -356,7 +366,7 @@ nonisolated final class PatternsRoomTests: XCTestCase {
         let state = AppState(launch: LaunchOptions(arguments: []))
         await state.open(urls: [try fixture("ebsd-kikuchipy-h5ebsd", "h5")])?.value
         XCTAssertEqual(state.navigation.workspaceArea, .patterns)
-        for _ in 0..<2000 where !state.ebsd.hasDataset { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("state.ebsd.hasDataset", seconds: 10) { state.ebsd.hasDataset }
         XCTAssertEqual(state.ebsd.fileName, "ebsd-kikuchipy-h5ebsd.h5")
         XCTAssertTrue(state.openItems.items.isEmpty, "a pattern dataset is not an open image")
         XCTAssertEqual(state.windowTitle, "ebsd-kikuchipy-h5ebsd.h5")
