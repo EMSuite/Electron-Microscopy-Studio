@@ -1,7 +1,8 @@
 //
 //  AgentDoorTools.swift
 //  Role: macTEM's half of the agent door (MacEMUI's `ShellAgentDoor`, docs/agent-door.md there): the door this app opens and the
-//        tools it hands it. Read-only: each tool looks at what the window shows and answers; none changes the app.
+//        tools it hands it. The tools here are read-only: each looks at what the window shows and answers. The ones that act (a
+//        room, the EDS room's picks, region and runs) are in AgentDoorRooms.swift (#558).
 //
 //        ONE SOURCE PER FACT: the picture is Export Image…'s own (`ExportSnapshot.imageSnapshot` into `ImageExport.render`: the
 //        display window, colormap, scale bar and marks as the file exports them), made smaller when it is large; the results are
@@ -24,7 +25,7 @@ enum MacTEMAgentDoor {
     /// The app's one door. Opened by the Settings switch, and at launch when it was left on.
     static let shared: AgentDoor = {
         let door = AgentDoor(appName: "macEM", appVersion: version(), preferredPort: port)
-        door.register(MacTEMAgentDoor.tools)
+        door.register(MacTEMAgentDoor.allTools)
         return door
     }()
 
@@ -33,6 +34,9 @@ enum MacTEMAgentDoor {
 
     /// The preference behind Settings > Agents: off until the person turns it on.
     static let enabledKey = "prefs.agentDoorEnabled"
+
+    /// The preference behind Settings > Agents' second switch: whether the tools that act may run (#558). Off until the person turns it on.
+    static let runsKey = "prefs.agentRunsEnabled"
 
     /// A picture's longest side at scale 1; scale 2 and 3 allow twice and three times as much. An agent judges a figure, it does
     /// not measure from it: a 4096² export is tens of MB.
@@ -46,6 +50,7 @@ enum MacTEMAgentDoor {
     static func start(with appState: AppState, defaults: UserDefaults = .standard) {
         shared.enroll(appState) { [weak appState] in appState.map { MacTEMAgentDoor.summary(of: $0) } ?? [:] }
         guard !appState.launch.isUITesting else { return }
+        shared.runsAllowed = defaults.bool(forKey: runsKey)
         shared.setEnabled(defaults.bool(forKey: enabledKey))
     }
 
