@@ -74,10 +74,10 @@ nonisolated final class PatternsExportMenuTests: XCTestCase {
         addTeardownBlock { try? FileManager.default.removeItem(at: folder) }
         let state = AppState(launch: LaunchOptions(arguments: ["--export-dir", folder.path]))
         await state.ebsd.bind(try DemoDocuments.ebsd()).value
-        RoomExports.patterns(.metadataJSON, appState: state)
+        await RoomExports.patterns(.metadataJSON, appState: state).value
         XCTAssertEqual(state.statusText, "Exported Demo EBSD metadata.json")
         XCTAssertTrue(FileManager.default.fileExists(atPath: folder.appendingPathComponent("Demo EBSD metadata.json").path))
-        RoomExports.patterns(.overlayCSV, appState: state)
+        await RoomExports.patterns(.overlayCSV, appState: state).value
         XCTAssertEqual(state.statusText, "Nothing to export yet: no Kikuchi overlay is on the pattern.")
     }
 

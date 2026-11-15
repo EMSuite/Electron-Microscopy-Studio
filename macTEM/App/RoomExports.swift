@@ -269,9 +269,11 @@ enum RoomExports {
     }
 
     /// The Patterns room's: the bytes of `kind` at the pattern on screen, to the room's save panel or into a UI journey's export
-    /// folder, with the room's line in the status line (what is missing, when there is nothing to write).
-    static func patterns(_ kind: PatternsExportKind, appState: AppState) {
-        appState.patternsRoom.export(kind, from: appState.ebsd, directory: appState.exportDirectory) { appState.statusText = $0 }
+    /// folder, with the room's line in the status line (what is missing, when there is nothing to write). The pictures are encoded off
+    /// the main actor (#251); the task ends when the file is written.
+    @discardableResult
+    static func patterns(_ kind: PatternsExportKind, appState: AppState) -> Task<Void, Never> {
+        Task { await appState.patternsRoom.export(kind, from: appState.ebsd, directory: appState.exportDirectory) { appState.statusText = $0 } }
     }
 
     /// The Indexing room's: the bytes of `kind` from the run on screen, to the room's save panel or into a UI journey's export

@@ -133,7 +133,7 @@ struct PatternsExportSection: View {
     }
 
     private func export(_ kind: PatternsExportKind) {
-        state.export(kind, from: session, directory: appState.exportDirectory, report: { appState.statusText = $0 })
+        Task { await state.export(kind, from: session, directory: appState.exportDirectory, report: { appState.statusText = $0 }) }
     }
 }
 

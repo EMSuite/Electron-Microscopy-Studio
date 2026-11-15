@@ -35,7 +35,7 @@ nonisolated final class KikuchiOverlayExportTests: XCTestCase {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("overlay-export-\(UUID().uuidString)")
         var reports: [String] = []
 
-        state.export(.overlayCSV, from: session, directory: dir) { reports.append($0) }
+        await state.export(.overlayCSV, from: session, directory: dir) { reports.append($0) }
         XCTAssertEqual(reports.last, "Nothing to export yet: no Kikuchi overlay is on the pattern.")
 
         session.setOverlayOn(true)
@@ -48,13 +48,13 @@ nonisolated final class KikuchiOverlayExportTests: XCTestCase {
 
         let position = try XCTUnwrap(session.patternPosition)
         let stem = "patterns_v2 overlay r\(position.row) c\(position.column)"
-        state.export(.overlayCSV, from: session, directory: dir) { reports.append($0) }
+        await state.export(.overlayCSV, from: session, directory: dir) { reports.append($0) }
         XCTAssertEqual(reports.last, "Exported \(stem).csv")
         let csv = try String(contentsOf: dir.appendingPathComponent("\(stem).csv"), encoding: .utf8)
         XCTAssertEqual(csv, KikuchiOverlay.csv(overlay))
         XCTAssertTrue(csv.hasPrefix("feature,h_or_u,k_or_v,l_or_w,label,x1_px,y1_px,x2_px,y2_px,theta_rad\nband,"))
 
-        state.export(.overlayPNG, from: session, directory: dir) { reports.append($0) }
+        await state.export(.overlayPNG, from: session, directory: dir) { reports.append($0) }
         let pngName = "patterns_v2 pattern r\(position.row) c\(position.column) overlay.png"
         XCTAssertEqual(reports.last, "Exported \(pngName)")
         let png = try Data(contentsOf: dir.appendingPathComponent(pngName))

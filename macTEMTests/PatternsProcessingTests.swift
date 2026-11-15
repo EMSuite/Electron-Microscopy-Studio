@@ -166,7 +166,7 @@ nonisolated final class PatternsProcessingTests: XCTestCase {
         let state = PatternsRoomState()
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("patterns-method-\(UUID().uuidString)")
         var reports: [String] = []
-        state.export(.methodJSON, from: session, directory: dir) { reports.append($0) }
+        await state.export(.methodJSON, from: session, directory: dir) { reports.append($0) }
         XCTAssertEqual(reports, ["Exported Demo EBSD processing method.json"])
         let data = try Data(contentsOf: dir.appendingPathComponent("Demo EBSD processing method.json"))
         let json = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
