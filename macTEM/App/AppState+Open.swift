@@ -101,7 +101,7 @@ extension AppState {
                 if let scan = inventory.scan { spectrumScans[url] = scan }
                 if inventory.opensInEDS { edsFiles.insert(url); edsBatch.append(url) }
                 if inventory.eelsSpectrumImage { eelsFiles.insert(url); eelsBatch.append(url) }
-                if let found = inventory.landing, landing == nil || found.richness > landing!.richness { landing = found }
+                if let found = inventory.landing, found.richness > (landing?.richness ?? Int.min) { landing = found }
             }
             presentRefusals(refused + refusals + (await tabs?.value ?? []))
             // One file per spectrum room: the batch's first, the one Open Files selects when it is first in the list (the room followed the
@@ -497,9 +497,10 @@ extension AppState {
         return (opened, canvas(for: opened), metadata, sem, databar)
     }
 
-    /// The pixels the canvas uploads, normalised over the image's finite range, and the histogram of the raw pixels.
+    /// The pixels the canvas uploads (an 8- or 16-bit image's at their own bit depth, #566), their range and the histogram of the
+    /// raw pixels.
     nonisolated static func canvas(for image: CalibratedImage) -> CanvasPixels {
-        CanvasPixels.make(width: image.width, height: image.height, pixels: image.pixels)
+        CanvasPixels.make(image: image)
     }
 
     /// "Opened Au_rings.dm4 — 2048 × 2048 px, 0.0123 nm/px" (a metre axis in nm, µm or mm: `DisplaySampling`).

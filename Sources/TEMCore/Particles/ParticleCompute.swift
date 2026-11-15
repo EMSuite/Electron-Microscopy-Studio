@@ -119,11 +119,16 @@ package nonisolated enum ParticleCompute {
                                 pixelSize: Double? = nil) throws -> ParticleReport {
         guard let range = range(pixels) else { throw ParticleError.noFiniteValues }
         let cut = try mask(pixels: pixels, width: width, height: height, range: range, settings: settings)
+        // A cancelled run (its file closed, #618) stops between stages and lets go of the image it took.
+        try Task.checkCancellation()
         let found = try Segmentation.label(cut.mask, width: width, height: height, connectivity: settings.connectivity)
+        try Task.checkCancellation()
         // scikit-image's `remove_small_objects(max_size=)` clears objects of at most max_size pixels: below the minimum is minimum − 1.
         let kept = try BinaryMorphology.removeSmallObjects(cut.mask, width: width, height: height, maxSize: settings.minimumArea - 1,
                                                            connectivity: settings.connectivity)
+        try Task.checkCancellation()
         let labels = try Segmentation.label(kept, width: width, height: height, connectivity: settings.connectivity)
+        try Task.checkCancellation()
         let objects = try Segmentation.objectMoments(labels).map { ParticleObject(moments: $0) }
         let density = try ObjectStatistics.arealDensity(labels: labels, pixelSize: pixelSize)
         var s = ParticleSummary()
@@ -183,8 +188,9 @@ package nonisolated enum ParticleFormat {
     /// The objects as CSV with provenance comment lines; lengths in the scale's unit beside the pixels.
     package static func csv(_ r: ParticleReport, scale: ParticleScale, fileName: String) -> String {
         let u = scale.isCalibrated ? scale.unit : "px"
-        let densityLine = scale.isCalibrated && r.summary.arealDensity != nil
-            ? "# areal density: \(String(format: "%.6g", r.summary.arealDensity!)) per \(scale.unit)^2, counted objects weighted by Miles-Lantuejoul's edge correction (ImagoKit ObjectStatistics.arealDensity)"
+        let density = scale.isCalibrated ? r.summary.arealDensity : nil
+        let densityLine = density != nil
+            ? "# areal density: \(String(format: "%.6g", density ?? 0)) per \(scale.unit)^2, counted objects weighted by Miles-Lantuejoul's edge correction (ImagoKit ObjectStatistics.arealDensity)"
             : "# areal density: none (the image is not calibrated)"
         var out = ["# macEM particles, file: \(CSVText.headerValue(fileName))",
                    "# threshold: \(r.settings.polarity.rawValue) objects, \(threshold(r)), smoothing sigma \(csvNumber(r.settings.sigma)) px, connectivity \(r.settings.connectivity.rawValue), minimum area \(r.settings.minimumArea) px (smaller objects removed: ImagoKit BinaryMorphology.removeSmallObjects)",

@@ -67,10 +67,16 @@ final class IndexingRoomState {
     /// Told of every file the room writes (`AppState` keeps it in the session record for the Results room and the report).
     @ObservationIgnored var onWritten: ((SEMExportedFile) -> Void)?
 
-    /// The save panel wrote the export to `url`.
+    /// The save panel wrote the export to `url`: the record goes to the session, and the bytes go (#619).
     func didWrite(to url: URL) {
         if let pendingRecord { onWritten?(pendingRecord.written(to: url, at: Date())) }
+        didFinishExport()
+    }
+
+    /// The save panel is done, written or not: the export's bytes are let go (a map PNG can be hundreds of MB), not kept until the next one.
+    func didFinishExport() {
         pendingRecord = nil
+        exportData = Data()
     }
 
     /// Makes the bytes of `kind` from the session and opens the save panel, or, with `directory` (the UI journeys' export folder), writes the
@@ -98,15 +104,17 @@ final class IndexingRoomState {
                 data = Data(result.csv(stepX: document.dataset.stepX, stepY: document.dataset.stepY).utf8)
             case .ang:
                 guard let map = try session.crystalMap() else { report("Nothing to export yet: the run has not started."); return }
-                let options = result.method == .dictionary ? IndexingResult.dictionaryAngOptions : IndexingResult.angOptions
+                var options = result.method == .dictionary ? IndexingResult.dictionaryAngOptions : IndexingResult.angOptions
+                options.acquisition = session.exportAcquisition(software: ExportSnapshot.provenance())
                 data = Data(try ANGWriter.text(of: map, options: options).utf8)
             case .ctf:
                 guard let map = try session.crystalMap() else { report("Nothing to export yet: the run has not started."); return }
                 let project = (document.fileName as NSString).deletingPathExtension
-                data = Data(try CTFWriter.text(of: IndexingResult.ctfColumns(map), project: project).utf8)
+                data = Data(try CTFWriter.text(of: IndexingResult.ctfColumns(map), project: project, author: ExportSnapshot.softwareName(),
+                                               acquisition: session.exportAcquisition(software: ExportSnapshot.provenance())).utf8)
             case .methodJSON:
                 guard let json = try session.methodJSON() else { report("Nothing to export yet: the run has not started."); return }
-                data = json
+                data = try ExportSnapshot.stampingProvenance(json)
             }
         } catch {
             report("Export failed: \(error.localizedDescription)"); return
@@ -178,8 +186,10 @@ enum IndexingInfoFormat {
     }
 
     /// "(0.4215, 0.2163, 0.5323) · mean of the file's"; "(0,4215; 0,2163; 0,5323) · …" where the decimal mark is a comma.
-    nonisolated static func projectionCentre(_ pc: SIMD3<Double>, locale: Locale = .autoupdatingCurrent) -> String {
-        triple(pc, locale: locale) + " · mean of the file's"
+    /// "(0.4215, 0.2163, 0.5323) · mean of the file's"; with `assumed`, the file states none and the centre is kikuchipy's default
+    /// (macEM#612), which the row says instead.
+    nonisolated static func projectionCentre(_ pc: SIMD3<Double>, assumed: Bool = false, locale: Locale = .autoupdatingCurrent) -> String {
+        triple(pc, locale: locale) + (assumed ? " · assumed (the file states none)" : " · mean of the file's")
     }
 
     /// The Calibration section's PC help, its count never grouped: "The mean of the file's 4125 projection centres, …" (a Bruker
@@ -198,7 +208,8 @@ enum IndexingInfoFormat {
     /// The Calibration section's tilts in the Patterns room's words (`EBSDBrowsing.calibrationRows`): "Sample tilt 70°", "Detector
     /// tilt 0°".
     nonisolated static func tiltRows(_ detector: EBSDDetectorGeometry, locale: Locale = .autoupdatingCurrent) -> [EBSDBrowsing.Row] {
-        [EBSDBrowsing.Row("Sample tilt", "\(UnitDisplay.number(detector.sampleTilt, locale: locale))°"),
+        [EBSDBrowsing.Row("Sample tilt", "\(UnitDisplay.number(detector.sampleTilt, locale: locale))°"
+                          + (detector.assumed.contains(.sampleTilt) ? " · assumed" : "")),
          EBSDBrowsing.Row("Detector tilt", "\(UnitDisplay.number(detector.tilt, locale: locale))°")]
     }
 

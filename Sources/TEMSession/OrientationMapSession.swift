@@ -116,9 +116,9 @@ package final class OrientationMapSession {
     package private(set) var layer = OrientationMapLayer.ipf(.z)
     /// The picture of `layer` once made; its version for the Metal view.
     package private(set) var raster: OrientationMapRaster?
-    /// A colour layer's picture as the Metal view takes it: RGBA bytes, the all-zero scalar plane beside them, and their version.
+    /// A colour layer's picture as the Metal view takes it: RGBA bytes and their version. The view's RGBA path reads no scalar plane, so
+    /// none is made (an all-zero one cost four bytes a pixel for nothing, #619).
     package private(set) var rasterRGBA: [UInt8]?
-    package private(set) var rasterPlane: [Float] = []
     package private(set) var rasterVersion = 0
     package private(set) var isDrawing = false
     /// Which point every grid cell holds (`OrientationMaps.pointIndexGrid`), −1 where none.
@@ -358,6 +358,7 @@ package final class OrientationMapSession {
         slipFiles = [:]
         document = nil; sources = []; isOpening = false; isDrawing = false
         raster = nil; rasterRGBA = nil; grid = []; keys = []
+        propertyPresentation.releaseCanvas()
         pinned = .origin; layer = .ipf(.z)
     }
 
@@ -444,19 +445,17 @@ package final class OrientationMapSession {
                 CanvasPixels.make(width: raster.columns, height: raster.rows, pixels: values.map(Float.init))
             }
             let rgba = raster.rgba8
-            let plane = [Float](repeating: 0, count: raster.rows * raster.columns)
-            let version = MetalImageView.contentVersion(of: plane, rgba: rgba, width: raster.columns, height: raster.rows)
-            await self?.land(raster, rgba: rgba, plane: plane, version: version, canvas: canvas, generation: gen)
+            let version = MetalImageView.contentVersion(of: [], rgba: rgba, width: raster.columns, height: raster.rows)
+            await self?.land(raster, rgba: rgba, version: version, canvas: canvas, generation: gen)
         }
         drawTask = task
         return Task { await task.value }
     }
 
-    private func land(_ raster: OrientationMapRaster, rgba: [UInt8]?, plane: [Float], version: Int, canvas: CanvasPixels?, generation gen: Int) {
+    private func land(_ raster: OrientationMapRaster, rgba: [UInt8]?, version: Int, canvas: CanvasPixels?, generation gen: Int) {
         guard gen == generation else { return }
         self.raster = raster
         rasterRGBA = rgba
-        rasterPlane = plane
         rasterVersion = version
         if let canvas { propertyPresentation.show(canvas) }
         isDrawing = false
@@ -622,6 +621,7 @@ package final class OrientationMapSession {
         updateSlip()
         followPinnedGrain()
         onEvent?(Self.segmentedLine(grains: result.table.count, settings: result.settings))
+        if let why = result.gndRefusal { onEvent?(why) }
         if case .derived(let d) = layer, !derivedLayers.contains(d) { layer = .derived(.grains) }
         if case .derived = layer { draw() }
     }

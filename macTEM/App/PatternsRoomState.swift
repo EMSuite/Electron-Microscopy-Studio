@@ -71,10 +71,16 @@ final class PatternsRoomState {
     /// Told of every file the room writes (`AppState` keeps it in the session record for the Results room and the report).
     @ObservationIgnored var onWritten: ((SEMExportedFile) -> Void)?
 
-    /// The save panel wrote the export to `url`.
+    /// The save panel wrote the export to `url`: the record goes to the session, and the bytes go (#619).
     func didWrite(to url: URL) {
         if let pendingRecord { onWritten?(pendingRecord.written(to: url, at: Date())) }
+        didFinishExport()
+    }
+
+    /// The save panel is done, written or not: the export's bytes are let go (a map PNG can be hundreds of MB), not kept until the next one.
+    func didFinishExport() {
         pendingRecord = nil
+        exportData = Data()
     }
 
     func requestImport() { importRequest &+= 1 }
@@ -207,7 +213,7 @@ final class PatternsRoomState {
     /// `fileName` as Title and macEM as Software, as the map PNG carries them.
     nonisolated static func mixPNG(rgba: [UInt8], width: Int, height: Int, fileName: String) -> Data? {
         guard let image = EDXMapRaster.cgImage(rgba: rgba, width: width, height: height) else { return nil }
-        return try? ImageExport.encodePNG(image, title: fileName, software: "macEM")
+        return try? ImageExport.encodePNG(image, title: fileName, software: ExportSnapshot.provenance())
     }
 
     static func mapName(_ choice: EBSDSession.MapChoice) -> String {
@@ -248,7 +254,7 @@ final class PatternsRoomState {
                                     fileName: fileName, source: "scan map \(map)", voltage: dataset.sem.beamEnergyKeV.map { $0 * 1000 },
                                     notes: ["\(dataset.format.rawValue)"])
         let display = ExportSnapshot.display(canvas: canvas, presentation: presentation)
-        return try ImageExport.render(source: ExportSource(image: image, software: "macEM"), display: display, marks: [],
+        return try ImageExport.render(source: ExportSource(image: image, software: ExportSnapshot.provenance()), display: display, marks: [],
                                       options: ImageExport.Options(scaleBar: presentation.showsScaleBar, marks: false)).png
     }
 
@@ -260,7 +266,7 @@ final class PatternsRoomState {
                                     fileName: fileName, source: "pattern row \(position.row) col \(position.column)", voltage: dataset.sem.beamEnergyKeV.map { $0 * 1000 },
                                     notes: ["\(dataset.format.rawValue)"])
         let display = ExportSnapshot.display(canvas: canvas, presentation: presentation)
-        return try ImageExport.render(source: ExportSource(image: image, software: "macEM"), display: display, marks: [],
+        return try ImageExport.render(source: ExportSource(image: image, software: ExportSnapshot.provenance()), display: display, marks: [],
                                       options: ImageExport.Options(scaleBar: false, marks: false)).png
     }
 }

@@ -192,8 +192,8 @@ sdss_ferrite_austenite.ang (both CC BY 4.0).
 SpectroKit (a Swift package the app is built with)
 ================================================================================
 
-The app links SpectroKit (https://github.com/mac4DSTEM/SpectroKit, tag 0.14.0, commit
-7df648ee378bd17512135a8270b8a5cb0a47571e), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only, for the EDS and EELS rooms: the spectrum image, line
+The app links SpectroKit (https://github.com/mac4DSTEM/SpectroKit, tag 0.14.2, commit
+024a368999c2f8d3864281771db01cdb81bfcf49), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only, for the EDS and EELS rooms: the spectrum image, line
 windows and maps, Auto ID, the pooled Cliff-Lorimer quantification, and the EELS alignment, thickness and edge fits. The app embeds its resource bundle
 `SpectroKit_SpectroEDX.bundle` in Contents/Resources: the NIST EPQ mass-absorption, line-weight, ionisation cross-section and Krause fluorescence-yield
 tables, with the terms and citations in SpectroKit's NOTICE, which applies to them here. For the EELS room it embeds `SpectroKit_SpectroEELS.bundle`: the
@@ -205,8 +205,8 @@ table eXSpy uses, values unchanged (SpectroKit's NOTICE). Its eXSpy/HyperSpy and
 FormatoKit (a Swift package the app is built with)
 ================================================================================
 
-The app links FormatoKit (https://github.com/mac4DSTEM/FormatoKit, tag 0.15.0, commit
-24f63c36eda72a7aacb167b218da7206aa1f8d01), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only, for its DM3/DM4, Velox EMD, TIFF
+The app links FormatoKit (https://github.com/mac4DSTEM/FormatoKit, tag 0.16.1, commit
+c35ff41887ff9a99188b574883c0608ea63a35c8), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only, for its DM3/DM4, Velox EMD, TIFF
 and MRC readers and its HDF5 layer, which SpectroKit held until 0.4.0, including the root-attribute file layer
 (`HDF5RootAttributes`) the session sidecar is written and read through since FormatoKit 0.5.0: it was this app's own HDF5 binding (an adapted
 copy of mac4DSTEM's BraggVectorEMDWriter binding), moved into the kit, and the app no longer carries a copy. Its own third-party notices
@@ -229,8 +229,8 @@ Both texts ship in the application bundle at `Contents/Resources/Licenses/` with
 DiffractoKit (a Swift package the app is built with)
 ================================================================================
 
-The app links DiffractoKit (https://github.com/mac4DSTEM/DiffractoKit, tag 0.11.0, commit
-8ce71cff3a1df943ad9617fad325199a154edefa), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only, for crystal structures, the CIF
+The app links DiffractoKit (https://github.com/mac4DSTEM/DiffractoKit, tag 0.15.1, commit
+76ea90dc889551f547b4708b754b6f2a69e9a942), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only, for crystal structures, the CIF
 import, kinematic reflection lists, ring and ellipse calibration and the indexing of a measured |q|. Its scattering table and lattice conventions are py4DSTEM's (GPL-3.0); pymatgen (MIT) was
 its oracle and none of its code is copied. Its own third-party notices are in its NOTICE.
 
@@ -238,8 +238,8 @@ its oracle and none of its code is copied. Its own third-party notices are in it
 ImagoKit (a Swift package the app is built with)
 ================================================================================
 
-The app links ImagoKit (https://github.com/mac4DSTEM/ImagoKit, tag 0.9.2, commit
-8454f1de245ad0f47fed5c1be8e99aeb728f87aa), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only, for the exact-length 2D FFT, the
+The app links ImagoKit (https://github.com/mac4DSTEM/ImagoKit, tag 0.10.1, commit
+268c8e5b7d75f68d79b990386099e05a5cfd2283), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only, for the exact-length 2D FFT, the
 centred power spectrum, the radial profile, the spot spacing, the masked inverse FFT, the HRTEM filters, line profiles and the
 histogram. Its references are NumPy, SciPy and scikit-image; none of their code is copied. Its own notices are in its NOTICE.
 
@@ -247,8 +247,8 @@ histogram. Its references are NumPy, SciPy and scikit-image; none of their code 
 MacEMUI (a Swift package the app is built with)
 ================================================================================
 
-The app links MacEMUI (https://github.com/mac4DSTEM/MacEMUI, tag 0.9.0, commit
-bb7941e3e0ea5808731764dbc65ef5b61b13fa7f), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only: the window shell, the
+The app links MacEMUI (https://github.com/mac4DSTEM/MacEMUI, tag 0.11.0, commit
+0e2dad42b8bd8c78014ec9499f997ddfe97831e0), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only: the window shell, the
 inspector, the controls, the Metal image view, the EDS room and the agent door macEM shares with mac4DSTEM.
 
 ================================================================================

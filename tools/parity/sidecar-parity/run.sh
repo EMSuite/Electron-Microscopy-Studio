@@ -301,7 +301,7 @@ source_mutant SessionLineage.swift cascade-not-run \
   $'        nodes.remove(at: index)\n        return .deleted'
 source_mutant SessionLineage.swift cascade-one-level-only \
   'h5py cascade lineage node ids|h5py chain lineage node ids' \
-  'if citations[edge.step] == 0, let at = position[edge.step], nodes[at].removed != nil { work.append(edge.step) }' ''
+  'if cited == 1, let input = position[edge.step], nodes[input].removed != nil { work.append(edge.step) }' ''
 # 37-38. a second removal of a kept node overwrites the first date; a removed node is edited by a replace.
 source_mutant SessionLineage.swift removed-date-overwritten \
   'h5py kept s2 removed' \
@@ -438,7 +438,7 @@ source_mutant SessionMarks.swift marks-samples-not-recorded \
   'if mark.kind == .profile, let samples { results["samples"] = String(samples) }' ''
 source_mutant SessionMarks.swift marks-lineage-text-not-kept \
   'swift marks lineage text aniso' \
-  'calibrationDiffers: calibrationDiffers, lineageText: lineageText)' 'calibrationDiffers: calibrationDiffers, lineageText: "")'
+  'lineageText: lineageText, sourceText: sourceText)' 'lineageText: "", sourceText: sourceText)'
 source_mutant SessionMarks.swift marks-kept-count-not-counted \
   'swift marks kept restore-three-kinds-and-kept' \
   'guard let mark else { kept += 1; continue }' 'guard let mark else { kept += 0; continue }'

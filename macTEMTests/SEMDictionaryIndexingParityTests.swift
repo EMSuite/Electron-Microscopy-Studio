@@ -279,7 +279,7 @@ nonisolated final class SEMDictionaryIndexingParityTests: XCTestCase {
             for j in 0 ..< pixels { corrected[i * pixels + j] = Double(c[j]) }
         }
         let start = Date()
-        let r = try await DictionaryIndexing.indexAsync(experimental: corrected, navigationShape: [rows, columns], master: d.master,
+        let r = try await DictionaryIndexing.indexAsync(experimental: try StoredPatterns(doubles: corrected, pixels: pixels), navigationShape: [rows, columns], master: d.master,
                                                         rotations: d.rotations, detector: d.detector, options: .init(keepN: 5))
         print("F9: \(rows * columns) patterns against \(d.rotations.count) in \(Date().timeIntervalSince(start)) s")
         let refIndices = try ref.array("ncc_simulation_indices").values, refScores = try ref.array("ncc_scores")

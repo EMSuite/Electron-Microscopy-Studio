@@ -214,7 +214,11 @@ enum SEMSessionLedger {
             fields.append(SEMSessionField("Mean \(result.scoreTitle)", "\(UnitDisplay.number(mean, digits: 4, locale: locale)) over the indexed points"))
         }
         fields.append(SEMSessionField("Patterns", run.source.title))
-        if let pc = run.projectionCenter { fields.append(SEMSessionField("PC", IndexingInfoFormat.projectionCentre(pc, locale: locale))) }
+        if let pc = run.projectionCenter {
+            fields.append(SEMSessionField("PC", IndexingInfoFormat.projectionCentre(pc, assumed: session.detectorAssumed.contains(.projectionCenter),
+                                                                                      locale: locale)))
+        }
+        if let assumed = session.detectorAssumedText { fields.append(SEMSessionField("Assumed", assumed)) }
         if result.method == .dictionary, !run.dictionaryPlans.isEmpty {
             fields += dictionaryFields(run.dictionaryPlans, locale: locale)
         } else if result.method == .hough {
@@ -370,7 +374,11 @@ enum SEMSessionLedger {
     /// Every file a SEM room wrote, in order, with its picture when it is one.
     static func exportRows(_ record: SEMSessionRecord) -> [SEMSessionRow] {
         record.exports.enumerated().map { index, export in
-            let figure = export.png.flatMap { SEMReportFigure(png: $0, caption: "", file: export.file) }
+            // The picture as kept, sized as written (a large export is kept smaller: `SEMSessionRecord.wrote`).
+            let figure = export.png.flatMap { SEMReportFigure(png: $0, caption: "", file: export.file) }.map { kept in
+                SEMReportFigure(png: kept.png, pixelWidth: export.pixelWidth ?? kept.pixelWidth, pixelHeight: export.pixelHeight ?? kept.pixelHeight,
+                                caption: kept.caption, file: kept.file)
+            }
             var value = export.what
             if let figure { value += ", \(figure.pixelWidth) × \(figure.pixelHeight) px" }
             return SEMSessionRow(id: "export:\(index)", kind: .export, label: export.file?.lastPathComponent ?? export.what, value: value,
