@@ -741,8 +741,11 @@ struct IndexingResultsTable: View {
 
     /// What the rows are made from: the run as it has landed and the order on screen.
     private struct RowsRequest: Equatable {
-        var key: Key?
-        var order: [KeyPathComparator<IndexingResult.Row>]
+        let key: Key?
+        let order: [KeyPathComparator<IndexingResult.Row>]
+
+        // Written out so the fields read as used (the synthesised one hides them from the unused-code scan).
+        static func == (a: Self, b: Self) -> Bool { a.key == b.key && a.order == b.order }
     }
 
     private func refresh() async {
