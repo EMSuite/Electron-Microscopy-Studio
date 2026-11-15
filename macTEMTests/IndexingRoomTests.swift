@@ -194,7 +194,7 @@ nonisolated final class IndexingRoomTests: XCTestCase {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("IndexingRoomTests-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: directory) }
         var reports: [String] = []
-        for kind in IndexingExportKind.allCases { state.export(kind, from: indexing, directory: directory) { reports.append($0) } }
+        for kind in IndexingExportKind.allCases { await state.export(kind, from: indexing, directory: directory) { reports.append($0) } }
         XCTAssertEqual(reports, ["Exported patterns_v2 indexed IPF-Z.png", "Exported patterns_v2 indexing results.csv",
                                  "Exported patterns_v2 indexed.ang", "Exported patterns_v2 indexed.ctf", "Exported patterns_v2 indexing method.json"])
 
@@ -267,7 +267,7 @@ nonisolated final class IndexingRoomTests: XCTestCase {
         XCTAssertEqual(canvas.rawRange, lowest...highest)
         XCTAssertEqual(canvas.normalized.filter { $0 < 0 }.count, result.pointCount - indexed, "a point not indexed is masked")
         reports = []
-        state.export(.mapPNG, from: indexing, directory: directory) { reports.append($0) }
+        await state.export(.mapPNG, from: indexing, directory: directory) { reports.append($0) }
         XCTAssertEqual(reports, ["Exported patterns_v2 indexed Confidence index.png"])
         indexing.setLayer(.euler)
         XCTAssertFalse(indexing.showsScalarMap)

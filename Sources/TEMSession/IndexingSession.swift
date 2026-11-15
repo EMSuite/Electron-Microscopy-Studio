@@ -1227,15 +1227,35 @@ package final class IndexingSession {
     /// The run on screen as orix's crystal map (`IndexingResult.crystalMap`, the rows it reached on the scan's steps): what the .ang
     /// and .ctf exports write. nil before a row has landed.
     package func crystalMap() throws -> CrystalMap? {
-        guard let result, let dataset = patterns.document?.dataset else { return nil }
-        let steps = (dy: dataset.stepY, dx: dataset.stepX)
-        switch result.method {
-        case .hough:
-            guard let runPlan else { return nil }
-            return try result.crystalMap(indexer: runPlan.indexer, steps: steps, scanUnit: dataset.scanUnit)
-        case .dictionary:
-            return try result.crystalMap(steps: steps, scanUnit: dataset.scanUnit)
+        try crystalMapRecipe()?.make()
+    }
+
+    /// What `crystalMap()` reads, as values: the map is built from it off the main actor (#251: an export's map is O(points)).
+    package nonisolated struct CrystalMapRecipe: Sendable {
+        let result: IndexingResult
+        /// The Hough run's indexer; nil for a dictionary run.
+        let indexer: HoughIndexer?
+        let steps: (dy: Double, dx: Double)
+        let scanUnit: String
+
+        /// The run's crystal map (`IndexingResult.crystalMap`); nil before a row has landed.
+        package func make() throws -> CrystalMap? {
+            switch result.method {
+            case .hough:
+                guard let indexer else { return nil }
+                return try result.crystalMap(indexer: indexer, steps: steps, scanUnit: scanUnit)
+            case .dictionary:
+                return try result.crystalMap(steps: steps, scanUnit: scanUnit)
+            }
         }
+    }
+
+    /// The recipe of the run on screen's crystal map; nil before a run (or a Hough run before its plan).
+    package func crystalMapRecipe() -> CrystalMapRecipe? {
+        guard let result, let dataset = patterns.document?.dataset else { return nil }
+        let indexer = runPlan?.indexer
+        if result.method == .hough, indexer == nil { return nil }
+        return CrystalMapRecipe(result: result, indexer: indexer, steps: (dy: dataset.stepY, dx: dataset.stepX), scanUnit: dataset.scanUnit)
     }
 
     /// What the .ang and .ctf headers state about the run on screen (macEM#616): the pattern centre it used (Hough: its indexer's;

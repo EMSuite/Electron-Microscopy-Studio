@@ -199,7 +199,7 @@ nonisolated final class IndexingDictionaryRoomTests: XCTestCase {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("IndexingDictionaryRoomTests-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: directory) }
         var reports: [String] = []
-        for kind in IndexingExportKind.allCases { state.export(kind, from: indexing, directory: directory) { reports.append($0) } }
+        for kind in IndexingExportKind.allCases { await state.export(kind, from: indexing, directory: directory) { reports.append($0) } }
         XCTAssertEqual(reports, ["Exported patterns_v2 indexed OSM.png", "Exported patterns_v2 indexing results.csv",
                                  "Exported patterns_v2 indexed.ang", "Exported patterns_v2 indexed.ctf", "Exported patterns_v2 indexing method.json"])
         let xmap = try XCTUnwrap(try indexing.crystalMap())
