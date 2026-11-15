@@ -281,14 +281,18 @@ enum RoomExports {
     }
 
     /// The Maps room's: the file of `kind` (the histogram the Histogram tab counts) to the room's save panel or into a UI journey's
-    /// export folder, with the room's line in the status line.
-    static func maps(_ kind: MapsExportKind, appState: AppState) {
+    /// export folder, with the room's line in the status line. The figures are drawn off the main actor (#251); the task ends when the
+    /// file is written.
+    @discardableResult
+    static func maps(_ kind: MapsExportKind, appState: AppState) -> Task<Void, Never> {
         let room = appState.mapsRoom
-        switch kind {
-        case .map: room.exportMap(from: appState.maps, directory: appState.exportDirectory) { appState.statusText = $0 }
-        case .grains: room.exportGrains(from: appState.maps, directory: appState.exportDirectory) { appState.statusText = $0 }
-        case .histogram: room.exportHistogram(from: appState.maps, directory: appState.exportDirectory) { appState.statusText = $0 }
-        case .texture: room.exportTexture(from: appState.maps, directory: appState.exportDirectory) { appState.statusText = $0 }
+        return Task {
+            switch kind {
+            case .map: await room.exportMap(from: appState.maps, directory: appState.exportDirectory) { appState.statusText = $0 }
+            case .grains: room.exportGrains(from: appState.maps, directory: appState.exportDirectory) { appState.statusText = $0 }
+            case .histogram: room.exportHistogram(from: appState.maps, directory: appState.exportDirectory) { appState.statusText = $0 }
+            case .texture: await room.exportTexture(from: appState.maps, directory: appState.exportDirectory) { appState.statusText = $0 }
+            }
         }
     }
 }

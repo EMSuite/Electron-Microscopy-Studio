@@ -52,11 +52,11 @@ nonisolated final class HeldExportsTests: XCTestCase {
         await session.open(url: Self.sdss).value
         try await waitUntil("the map to be drawn", seconds: 30) { !session.isBusy && session.raster != nil }
         let state = MapsRoomState()
-        state.exportMap(from: session) { _ in }
+        await state.exportMap(from: session) { _ in }
         XCTAssertFalse(state.exportData.isEmpty, "the panel's bytes")
         state.didWrite(to: URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("map.png"))
         XCTAssertTrue(state.exportData.isEmpty, "let go once written")
-        state.exportMap(from: session) { _ in }
+        await state.exportMap(from: session) { _ in }
         state.didFinishExport()
         XCTAssertTrue(state.exportData.isEmpty, "and when the panel closes without writing")
     }

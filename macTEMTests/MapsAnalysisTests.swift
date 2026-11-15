@@ -296,7 +296,7 @@ nonisolated final class MapsAnalysisTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: dir) }
         var reports: [String] = []
         state.exportGrains(from: session, directory: dir) { reports.append($0) }
-        state.exportTexture(from: session, directory: dir) { reports.append($0) }
+        await state.exportTexture(from: session, directory: dir) { reports.append($0) }
         XCTAssertEqual(reports.count, 2)
         XCTAssertEqual(reports.first, "Exported ebsd-sdss-ferrite-austenite grains.csv")
         let csv = try String(contentsOf: dir.appendingPathComponent("ebsd-sdss-ferrite-austenite grains.csv"), encoding: .utf8)
@@ -308,7 +308,7 @@ nonisolated final class MapsAnalysisTests: XCTestCase {
         // The map figure of a derived layer carries the boundaries and its range.
         await session.setLayer(.derived(.grains)).value
         reports = []
-        state.exportMap(from: session, directory: dir) { reports.append($0) }
+        await state.exportMap(from: session, directory: dir) { reports.append($0) }
         XCTAssertEqual(reports, ["Exported ebsd-sdss-ferrite-austenite map Grains.png"])
     }
 
