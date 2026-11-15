@@ -38,11 +38,15 @@ struct KikuchiOverlayLayer: View {
         return PatternsSimulationSection.greyImage(values.map(Double.init), width: pattern.simulatedColumns, height: pattern.simulatedRows)
     }
 
+    /// The kinematical simulation's grey image, made once per simulated pattern (#271), not on every body or draw.
+    @State private var picture = SimulatedPictureMemo()
+
     var body: some View {
         let rect = CGRect(origin: .zero, size: size)
         let accent = Color.accentColor
+        let simulatedPicture = settings.kinematical ? picture.image(for: pattern) : nil
         Canvas { context, _ in
-            if settings.kinematical, let simulated = Self.simulatedImage(pattern) {
+            if let simulated = simulatedPicture {
                 // The kinematical simulation under the lines, over the experimental pattern, at the Blend opacity: the detector's
                 // pixel corners mapped as the pane maps them, one image pixel per detector pixel without smoothing.
                 let a = geometry.panePoint(of: ImagePoint(x: -0.5, y: -0.5))
@@ -264,4 +268,23 @@ struct OverlayIdentifiers {
         line: "indexing.overlay.line",
         edge: "indexing.overlay.edge",
         zoneAxis: "indexing.overlay.zoneAxis")
+}
+
+/// The last simulated pattern's grey image (`KikuchiOverlayLayer.simulatedImage`), kept by the layer so a body pass or a draw reuses it
+/// (#271). Asking with the same pattern costs nothing: an array compared with itself is equal at its buffer, before any element.
+final class SimulatedPictureMemo {
+    private var source: [Float]?
+    private var rows = 0, columns = 0
+    private var picture: CGImage?
+
+    func image(for pattern: KikuchiOverlay.Pattern) -> CGImage? {
+        guard let values = pattern.simulated else { return nil }
+        if values != source || pattern.simulatedRows != rows || pattern.simulatedColumns != columns {
+            source = values
+            rows = pattern.simulatedRows
+            columns = pattern.simulatedColumns
+            picture = KikuchiOverlayLayer.simulatedImage(pattern)
+        }
+        return picture
+    }
 }

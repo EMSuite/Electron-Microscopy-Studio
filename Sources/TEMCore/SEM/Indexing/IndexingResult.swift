@@ -110,8 +110,13 @@ package nonisolated struct IndexingResult: Sendable {
     package let method: IndexingMethod
     /// A dictionary run's metric (the score's name); nil for Hough.
     package let metric: DictionaryIndexing.Metric?
-    /// One per scan point in map order; nil until its row has landed.
+    /// One per scan point in map order; nil until its row has landed. Written only through `put(_:at:)`, which keeps the counts.
     package private(set) var solutions: [HoughIndexer.Solution?]
+    /// The points reached, the points indexed and the points indexed as each phase (in `phases` order), kept as the rows land (#252):
+    /// the room's status line and inspector read them on every progress tick, where counting the scan each time was O(n).
+    package private(set) var reachedCount = 0
+    package private(set) var indexedCount = 0
+    package private(set) var countsByPhase: [Int]
     /// The rows landed (they land in order: a stopped run keeps rows 0..<rowsDone).
     package private(set) var rowsDone = 0
     /// A dictionary run's matches of the rows landed, kikuchipy's result (keep_n per point, best first); with several phases the merged
@@ -142,12 +147,28 @@ package nonisolated struct IndexingResult: Sendable {
         solutions = [HoughIndexer.Solution?](repeating: nil, count: max(scanRows, 0) * max(scanColumns, 0))
         similarity = [Float](repeating: .nan, count: solutions.count)
         phaseSimulationIndices = metric != nil && phases.count > 1 ? Array(repeating: [], count: phases.count) : []
+        countsByPhase = [Int](repeating: 0, count: phases.count)
+    }
+
+    /// Writes point `i`'s solution and moves the counts from the one it replaces.
+    private mutating func put(_ new: HoughIndexer.Solution?, at i: Int) {
+        count(solutions[i], by: -1)
+        solutions[i] = new
+        count(new, by: 1)
+    }
+
+    private mutating func count(_ solution: HoughIndexer.Solution?, by step: Int) {
+        guard let solution else { return }
+        reachedCount += step
+        guard solution.phase >= 0 else { return }
+        indexedCount += step
+        if countsByPhase.indices.contains(solution.phase) { countsByPhase[solution.phase] += step }
     }
 
     /// Lands scan row `row`'s solutions; a row of the wrong length or outside the scan, or on a dictionary run, is dropped.
     package mutating func land(_ row: [HoughIndexer.Solution], at index: Int) {
         guard method == .hough, index >= 0, index < scanRows, row.count == scanColumns else { return }
-        for c in 0..<scanColumns { solutions[index * scanColumns + c] = row[c] }
+        for c in 0..<scanColumns { put(row[c], at: index * scanColumns + c) }
         rowsDone = max(rowsDone, index + 1)
     }
 
@@ -170,7 +191,7 @@ package nonisolated struct IndexingResult: Sendable {
             s.confidence = indexed ? scores[k] : 0
             s.fit = .nan
             s.patternQuality = .nan
-            solutions[start + k] = s
+            put(s, at: start + k)
         }
         append(block, rows: rows)
         rowsDone = rows.upperBound
@@ -205,7 +226,7 @@ package nonisolated struct IndexingResult: Sendable {
             s.confidence = indexed ? best.scores[k * keep] : 0
             s.fit = .nan
             s.patternQuality = .nan
-            solutions[start + k] = s
+            put(s, at: start + k)
         }
         append(best, rows: rows)
         for (i, block) in blocks.enumerated() { phaseSimulationIndices[i] += block.simulationIndices }
@@ -233,7 +254,7 @@ package nonisolated struct IndexingResult: Sendable {
               block.projectionCenters.isEmpty || block.projectionCenters.count == block.solutions.count else { return }
         let start = rows.lowerBound * scanColumns
         for k in block.solutions.indices {
-            solutions[start + k] = block.solutions[k]
+            put(block.solutions[k], at: start + k)
             evaluations[start + k] = block.evaluations[k]
         }
         if !block.projectionCenters.isEmpty {
@@ -335,15 +356,6 @@ package nonisolated struct IndexingResult: Sendable {
 
     package var isComplete: Bool { rowsDone >= scanRows }
     package var pointCount: Int { scanRows * scanColumns }
-    package var reachedCount: Int { solutions.reduce(0) { $0 + ($1 == nil ? 0 : 1) } }
-    package var indexedCount: Int { solutions.reduce(0) { $0 + (($1?.phase ?? -1) >= 0 ? 1 : 0) } }
-
-    /// Points indexed as each phase, in `phases` order.
-    package var countsByPhase: [Int] {
-        var counts = [Int](repeating: 0, count: phases.count)
-        for case let s? in solutions where phases.indices.contains(s.phase) { counts[s.phase] += 1 }
-        return counts
-    }
 
     package func solution(at position: EBSDPosition) -> HoughIndexer.Solution? {
         guard position.isInside(rows: scanRows, columns: scanColumns) else { return nil }
@@ -655,14 +667,17 @@ package nonisolated enum IndexingRaster {
 
     /// Repaints scan rows `rows` of `rgba` with a pointwise layer (its points' colours are their own, so only the rows that landed
     /// change); a point reached with no colour on the layer (not indexed) is black.
-    package static func paint(_ rgba: inout [UInt8], result: IndexingResult, palette: IndexingPalette, backdrop: [Float]?, rows: Range<Int>) {
+    /// `backdropRange` is the backdrop's range (`backdropRange(_:count:)`), worked out once per backdrop by the caller (#252); nil
+    /// works it out here.
+    package static func paint(_ rgba: inout [UInt8], result: IndexingResult, palette: IndexingPalette, backdrop: [Float]?, rows: Range<Int>,
+                              backdropRange: ClosedRange<Float>?? = nil) {
         let columns = result.scanColumns
         let lo = max(rows.lowerBound, 0), hi = min(rows.upperBound, result.scanRows)
         guard rgba.count == result.pointCount * 4, lo < hi else { return }
         let start = lo * columns, end = hi * columns
         let slice = Array(result.solutions[start..<end])
         let colors = palette.pointColors(slice)
-        let means = meanRange(backdrop, count: result.pointCount)
+        let means = backdropRange ?? meanRange(backdrop, count: result.pointCount)
         for (k, solution) in slice.enumerated() {
             let i = start + k
             if solution != nil {
@@ -702,6 +717,9 @@ package nonisolated enum IndexingRaster {
     }
 
     private static func byte(_ v: Double) -> UInt8 { CheckedConversion.unitByte(v) }
+
+    /// The finite range of the backdrop's means over `count` points; nil without a backdrop of that size or a finite mean.
+    package static func backdropRange(_ means: [Float]?, count: Int) -> ClosedRange<Float>? { meanRange(means, count: count) }
 
     private static func meanRange(_ means: [Float]?, count: Int) -> ClosedRange<Float>? {
         guard let means, means.count == count else { return nil }

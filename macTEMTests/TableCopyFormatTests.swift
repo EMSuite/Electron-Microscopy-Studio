@@ -159,7 +159,7 @@ nonisolated final class TableCopyFormatTests: XCTestCase {
         XCTAssertTrue(table.contains(".onCopyCommand(perform: session.selectedGrains.isEmpty ? nil : { copied(unit: unit, places: places) })"))
         XCTAssertTrue(table.contains("let picked = rows.filter { session.selectedGrains.contains($0.id) }"), "the rows in the table's order")
         XCTAssertTrue(table.contains("return [NSItemProvider(object: GrainTableFormat.copyText(picked, unit: unit, slip: session.slip, places: places) as NSString)]"))
-        XCTAssertTrue(table.contains("TableColumn(\"Schmid\") { row in Text(GrainTableFormat.schmid(row, slip: session.slip)).monospacedDigit() }"))
+        XCTAssertTrue(table.contains("TableColumn(\"Schmid\") { row in Text(GrainTableFormat.schmid(row, byGrain: session.schmidByGrain)).monospacedDigit() }"))
         for cell in ["Text(MapsRoomFormat.length($0.diameter, places: places))", "Text(MapsRoomFormat.angle($0.phi1))",
                      "Text(MapsRoomFormat.angle($0.capitalPhi))", "Text(MapsRoomFormat.angle($0.phi2))",
                      "Text(MapsRoomFormat.angle($0.gosDegrees, digits: 2))"] {
@@ -167,7 +167,7 @@ nonisolated final class TableCopyFormatTests: XCTestCase {
         }
         let format = try String(contentsOf: URL(fileURLWithPath: #filePath).resolvingSymlinksInPath().deletingLastPathComponent()
             .deletingLastPathComponent().appendingPathComponent("macTEM/App/TableCopyFormat.swift"), encoding: .utf8)
-        XCTAssertTrue(format.contains("rows.map { cells($0, slip: slip, places: places, locale: locale) }"))
+        XCTAssertTrue(format.contains("rows.map { cells($0, schmidByGrain: byGrain, places: places, locale: locale) }"))
     }
 
     // MARK: The EELS results table

@@ -370,7 +370,7 @@ private struct IndexingLegend: View {
         if let range = presentation.canvas?.rawRange {
             let span = Double(range.upperBound - range.lowerBound)
             let fractions = presentation.displayFractions
-            let masked = IndexingRaster.maskedWords(result, layer: session.layer)
+            let masked = session.mapMaskedWords
             VStack(alignment: .trailing, spacing: 3) {
                 Colorbar(colormap: presentation.colormap, low: Double(range.lowerBound) + Double(fractions.low) * span,
                          high: Double(range.lowerBound) + Double(fractions.high) * span, unitLabel: result.scalarTitle(session.layer),
