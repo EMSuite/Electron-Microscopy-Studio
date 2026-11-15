@@ -44,7 +44,7 @@ BUILD_ARGS=()
 
 echo "== App Store archive ($(git -C "$ROOT" rev-parse --short HEAD))"
 # ARCHS=arm64 on the command line, as tools/release.sh: the project's setting does not reach the package targets.
-# MACEM_STORE_BUILD=YES is the one switch the store build flips: the Sparkle updater (#104) compiles only without it.
+# MACEM_STORE_BUILD=YES is the one switch the store build flips: the Sparkle updater (#583) compiles only without it.
 xcodebuild archive -project "$ROOT/macTEM.xcodeproj" -scheme macTEM -configuration Release \
   -destination 'generic/platform=macOS' -archivePath "$ARCHIVE" ARCHS=arm64 \
   -allowProvisioningUpdates CODE_SIGN_STYLE=Automatic DEVELOPMENT_TEAM="$TEAM" MACEM_STORE_BUILD=YES \
@@ -75,6 +75,9 @@ assert_mactem_store_entitlements "$OUT/store-entitlements.plist"
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :ITSAppUsesNonExemptEncryption' "$APP/Contents/Info.plist" 2>/dev/null)" == false ]] \
   || { echo "Info.plist does not answer the export-compliance question." >&2; exit 1; }
 [[ ! -d "$APP/Contents/Frameworks/Sparkle.framework" ]] || { echo "Sparkle is in the store build." >&2; exit 1; }
+! /usr/libexec/PlistBuddy -c 'Print :SUFeedURL' "$APP/Contents/Info.plist" >/dev/null 2>&1 \
+  || { echo "The store build's Info.plist names an update feed (it read Info-Direct.plist)." >&2; exit 1; }
+otool -L "$APP/Contents/MacOS/macEM" | grep -q Sparkle && { echo "The store executable still links Sparkle." >&2; exit 1; }
 VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist")"
 [[ "$VERSION" == "$EXPECTED" ]] || { echo "The built app says $VERSION but the tag is $TAG." >&2; exit 1; }
 echo "macEM $VERSION: $PKG"

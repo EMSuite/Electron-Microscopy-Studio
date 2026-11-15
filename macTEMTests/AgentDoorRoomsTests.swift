@@ -8,6 +8,7 @@
 
 import Foundation
 import ShellAgentDoor
+import ShellEDXModel
 import TEMSession
 import XCTest
 @testable import macTEM

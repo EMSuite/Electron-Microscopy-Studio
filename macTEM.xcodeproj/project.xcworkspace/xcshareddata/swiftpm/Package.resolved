@@ -15,8 +15,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/mac4DSTEM/FormatoKit",
       "state" : {
-        "revision" : "c35ff41887ff9a99188b574883c0608ea63a35c8",
-        "version" : "0.16.1"
+        "revision" : "20c61674a4f1924b2fb98b6dda3d41572f6661b0",
+        "version" : "0.17.0"
       }
     },
     {
@@ -35,6 +35,15 @@
       "state" : {
         "revision" : "0e2dad42b8bd8c78014ec9499f997ddfe97831e0",
         "version" : "0.11.0"
+      }
+    },
+    {
+      "identity" : "sparkle",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/sparkle-project/Sparkle",
+      "state" : {
+        "revision" : "ab7d71291238df6e0492143b120c9b696a35f603",
+        "version" : "2.10.1"
       }
     },
     {

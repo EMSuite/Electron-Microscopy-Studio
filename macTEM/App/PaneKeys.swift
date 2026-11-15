@@ -281,6 +281,9 @@ struct ImageRoomKeys {
     var angleInProgress: Bool
     let cancelAngle: () -> Void
     var writer: any PaneTextWriter = SystemPaneTextWriter()
+    /// The owner whose image ⌫'s Edit > Undo puts the mark back on, and the window's undo manager (#325); nil registers no undo.
+    var session: ImageSession?
+    var undoManager: UndoManager?
 
     var state: ImageKeyState {
         ImageKeyState(markSelected: measurements.mark(measurements.selection) != nil, angleInProgress: angleInProgress)
@@ -312,7 +315,7 @@ struct ImageRoomKeys {
     private func perform(_ action: PaneKeyAction) {
         switch action {
         case .deleteMark:
-            if let id = measurements.selection { measurements.remove(id) }
+            if let id = measurements.selection { MarkUndo.remove([id], in: measurements, session: session, undoManager: undoManager) }
         case .copyMark:
             if let text = copyText() { writer.write(text) }
         case .cancelAngle:
@@ -335,14 +338,18 @@ struct ImageRoomKeys {
 /// The Image room's root: focusable, key-pressed, and the owner of Edit > Copy and Delete for the room.
 struct ImageKeyedRoom: ViewModifier {
     let image: CalibratedImage
+    /// The image's owner, for Edit > Undo of a removed mark.
+    let session: ImageSession
     let measurements: ImageMeasurements
     @Binding var angleArm: AngleArm?
+    @Environment(\.undoManager) private var undoManager
 
     func body(content: Content) -> some View {
         let x = image.x, y = image.y
         let arm = $angleArm
         let keys = ImageRoomKeys(measurements: measurements, label: { MarkFormat.value($0, x: x, y: y) },
-                                 angleInProgress: arm.wrappedValue != nil, cancelAngle: { arm.wrappedValue = nil })
+                                 angleInProgress: arm.wrappedValue != nil, cancelAngle: { arm.wrappedValue = nil },
+                                 session: session, undoManager: undoManager)
         return content
             .focusable()
             .focusEffectDisabled()   // DEVIATION as `FFTKeyedRoom`'s, named there
