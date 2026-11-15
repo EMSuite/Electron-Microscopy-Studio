@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- THE WEBSITE DOWNLOAD'S Info.plist (#583): Info.plist, line for line, plus the four Sparkle keys at the end. The build picks
+	     this file when MACEM_STORE_BUILD is NO (every build but the App Store's); the store build reads Info.plist and carries
+	     no updater. SoftwareUpdateTests checks that the two differ by exactly those keys, so edit Info.plist and copy the change here. -->
+	<!-- App Store export compliance (macTEM#101): macTEM makes no network connection and uses no non-exempt encryption. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>LSEnvironment</key>
+	<dict>
+		<key>MallocLargeCache</key>
+		<string>0</string>
+	</dict>
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>TEM image</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>dm4</string>
+				<string>dm3</string>
+				<string>tif</string>
+				<string>tiff</string>
+				<string>mrc</string>
+				<string>emd</string>
+				<string>img</string>
+				<string>map</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>EDS spectrum</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>msa</string>
+				<string>hspy</string>
+			</array>
+		</dict>
+		<!-- Related items: a vendor scan's pattern file and the map beside it (.up1/.up2 and .ang, .ebsp and .ctf) are read
+		     together by name, and the sandbox grants only the file the person picked. NSIsRelatedItemType lets the app read
+		     the other one (macTEM/App/RelatedFileAccess.swift); the extensions declared do not change. -->
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>EBSD pattern dataset</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>NSIsRelatedItemType</key>
+			<true/>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>h5</string>
+				<string>hdf5</string>
+				<string>h5oina</string>
+				<string>h5ebsd</string>
+				<string>ebsp</string>
+				<string>ctf</string>
+				<string>up1</string>
+				<string>up2</string>
+				<string>ang</string>
+				<string>dat</string>
+			</array>
+		</dict>
+		<!-- Related items: an EDAX .spd or .lsd reads its energy axis from the .spc of its name beside it (and the map
+		     reads its .ipr, the line scan its .csv, below). The extensions declared do not change. -->
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>SEM-EDS map</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>NSIsRelatedItemType</key>
+			<true/>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>bcf</string>
+				<string>spd</string>
+				<string>lsd</string>
+				<string>pts</string>
+				<string>asw</string>
+				<string>spx</string>
+				<string>spc</string>
+				<string>eds</string>
+			</array>
+		</dict>
+		<!-- Companion files that macTEM never opens on their own: an EDAX map's .ipr (its pixel size) and a line scan's .csv
+		     (its distances). NSIsRelatedItemType lets the sandboxed app read the one beside the file the person picked
+		     (macTEM/App/RelatedFileAccess.swift). Role and rank None: this claims nothing, so macTEM stays out of the Open
+		     With menu of every CSV file. -->
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>SEM-EDS companion file</string>
+			<key>CFBundleTypeRole</key>
+			<string>None</string>
+			<key>LSHandlerRank</key>
+			<string>None</string>
+			<key>NSIsRelatedItemType</key>
+			<true/>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>ipr</string>
+				<string>csv</string>
+			</array>
+		</dict>
+	</array>
+	<!-- Sparkle 2 (App/SoftwareUpdate.swift). The feed is on the suite's website; the key is the public half of the EdDSA pair
+	     whose private half stays in Paul's login keychain and signs each DMG (tools/appcast.sh), the same pair mac4DSTEM's feed
+	     uses. The installer launcher is the sandboxed app's way to install. No SUEnableAutomaticChecks: Sparkle asks the person
+	     once, on the second launch, before it checks by itself. No system profile is sent. -->
+	<key>SUFeedURL</key>
+	<string>https://mac4dstem.com/appcast/macem.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>j4qRIz2RC40tuHy7FRngpvq0OHuJWLjAT7v/Mtx49qE=</string>
+	<key>SUEnableInstallerLauncherService</key>
+	<true/>
+	<key>SUEnableSystemProfiling</key>
+	<false/>
+</dict>
+</plist>
