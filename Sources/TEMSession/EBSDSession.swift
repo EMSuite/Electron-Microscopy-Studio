@@ -264,7 +264,7 @@ package final class EBSDSession {
                 let shown = await self?.landProcessed(result, with: pipeline, lambda: chosenLambda, failure: nil,
                                                       seconds: Date().timeIntervalSince(started), generation: gen, processRun: runID,
                                                       unusable: unusable)
-                await shown??.value
+                await shown?.value
             } catch {
                 let words = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
                 _ = await self?.landProcessed(nil, with: pipeline, lambda: nil, failure: words, seconds: 0, generation: gen, processRun: runID)
