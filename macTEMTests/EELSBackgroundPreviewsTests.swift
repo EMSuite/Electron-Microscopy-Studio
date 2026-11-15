@@ -24,7 +24,9 @@ nonisolated final class EELSBackgroundPreviewsTests: XCTestCase {
         let first = previews.curve(of: core, windows: windows)
         for _ in 0..<10 { _ = previews.curve(of: core, windows: windows) }
         XCTAssertEqual(previews.fits, 1, "a zoom or a pan frame fits nothing")
-        XCTAssertEqual(first, EELSBackgroundFit.extrapolation(of: core, windows: windows, over: 400...520))
+        // Bit patterns, so the NaN outside the windows compares equal to itself.
+        XCTAssertEqual(first?.map(\.bitPattern),
+                       EELSBackgroundFit.extrapolation(of: core, windows: windows, over: 400...520)?.map(\.bitPattern))
         XCTAssertNotNil(first)
         let moved = EELSEdgeWindows(background: 405...450, signal: 460...520)
         _ = previews.curve(of: core, windows: moved)
