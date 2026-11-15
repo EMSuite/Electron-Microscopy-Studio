@@ -68,7 +68,7 @@ nonisolated final class SEMSessionLedgerTests: XCTestCase {
 
         // File › Export Session Report…, as Markdown, into the journey folder.
         state.resultsRoom.reportFormat = .markdown
-        ExportPanels.exportSessionReport(appState: state)
+        await ExportPanels.exportSessionReport(appState: state)?.value
         let name = "patterns_v2 session report.md"
         XCTAssertTrue(state.statusText.hasPrefix("Exported \(name) — "), state.statusText)
         let text = try String(contentsOf: directory.appendingPathComponent(name), encoding: .utf8)
@@ -82,7 +82,7 @@ nonisolated final class SEMSessionLedgerTests: XCTestCase {
 
         // The PDF of the same session draws the exported bytes.
         state.resultsRoom.reportFormat = .pdf
-        ExportPanels.exportSessionReport(appState: state)
+        await ExportPanels.exportSessionReport(appState: state)?.value
         let pdf = try Data(contentsOf: directory.appendingPathComponent("patterns_v2 session report.pdf"))
         XCTAssertEqual(Array(pdf.prefix(5)), Array("%PDF-".utf8))
     }
