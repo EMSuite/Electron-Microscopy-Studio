@@ -718,7 +718,8 @@ package final class OpenItems {
         for other in items where other.id != id { remove(other, selectionPreferred: nil) }
     }
 
-    /// Told after every selection change (the sidebar's click, the next/previous commands): the spectrum rooms follow the selected file through it.
+    /// Told after every selection change (the sidebar's click, the next/previous commands, a close that moves the selection to another
+    /// file): the spectrum rooms follow the selected file through it.
     /// A callback, not an observation: the rooms must follow whether or not a view is watching the selection.
     @ObservationIgnored package var onSelect: ((OpenItem) -> Void)?
 
@@ -854,6 +855,8 @@ package final class OpenItems {
         selected = successor
         successor?.lastSelected = tick()
         evictToBudget()
+        // The selection moved: the spectrum rooms follow it as they follow a click (#622).
+        if let successor { onSelect?(successor) }
     }
 
     private func tick() -> Int {
