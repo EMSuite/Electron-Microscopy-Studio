@@ -678,18 +678,20 @@ struct IndexingResultsTable: View {
             .accessibilityIdentifier("indexing.results")
         }
         .padding(8)
-        .onChange(of: key, initial: true) { refresh() }
-        .onChange(of: sortOrder) { rows.sort(using: sortOrder) }
+        // The rows of every point reached, built and sorted off the main actor as the run lands them or the order changes (#623).
+        .task(id: RowsRequest(key: key, order: sortOrder)) { await refresh() }
         .onChange(of: selection) { _, picked in
             if personPicked, !picked.isEmpty { tableFocused = true }   // as the EELS edges table (294de6a)
             personPicked = false
         }
         .onChange(of: selection) { old, new in
-            guard let id = IndexingTableFormat.pinTarget(old: old, new: new), let row = rows.first(where: { $0.id == id }),
-                  row.position != session.patterns.pinned else { return }
-            session.pin(row.position)
+            // A row's id is its point's index in map order: its position without a search of the rows (#623).
+            guard let id = IndexingTableFormat.pinTarget(old: old, new: new), session.result?.hasRow(id) == true else { return }
+            let position = EBSDPosition(row: id / dataset.scanColumns, column: id % dataset.scanColumns)
+            guard position != session.patterns.pinned else { return }
+            session.pin(position)
         }
-        .modifier(SelectsThePickedRow(patterns: session.patterns, columns: dataset.scanColumns, rows: rows, selection: $selection))
+        .modifier(SelectsThePickedRow(patterns: session.patterns, columns: dataset.scanColumns, result: session.result, selection: $selection))
     }
 
     /// A Hough result's columns (CI, fit, matched bands, pattern quality) or a dictionary result's (the score, the simulation index, the
@@ -737,8 +739,19 @@ struct IndexingResultsTable: View {
         }
     }
 
-    private func refresh() {
-        rows = (session.result?.rows ?? []).sorted(using: sortOrder)
+    /// What the rows are made from: the run as it has landed and the order on screen.
+    private struct RowsRequest: Equatable {
+        var key: Key?
+        var order: [KeyPathComparator<IndexingResult.Row>]
+    }
+
+    private func refresh() async {
+        guard let result = session.result else { rows = []; return }
+        // The comparators are read-only values copied for the sort; the run is a Sendable value.
+        nonisolated(unsafe) let order = sortOrder
+        let made = await offMainActor { result.rows.sorted(using: order) }
+        guard !Task.isCancelled else { return }
+        rows = made
     }
 
     /// ⌘C: the selected rows as TSV, in the table's order (the sort on screen), under the column titles.
@@ -757,7 +770,8 @@ struct IndexingResultsTable: View {
 private struct SelectsThePickedRow: ViewModifier {
     let patterns: EBSDSession
     let columns: Int
-    let rows: [IndexingResult.Row]
+    /// The run on screen: whether the picked point has a row, without a search of the rows (#623).
+    let result: IndexingResult?
     @Binding var selection: Set<IndexingResult.Row.ID>
 
     static let rest = Duration.milliseconds(120)
@@ -767,7 +781,7 @@ private struct SelectsThePickedRow: ViewModifier {
             guard (try? await Task.sleep(for: Self.rest)) != nil else { return }   // cancelled: the pick moved on
             let pinned = patterns.pinned
             let id = pinned.row * columns + pinned.column
-            if !selection.contains(id), rows.contains(where: { $0.id == id }) { selection = [id] }
+            if !selection.contains(id), result?.hasRow(id) == true { selection = [id] }
         }
     }
 }

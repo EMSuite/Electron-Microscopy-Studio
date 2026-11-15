@@ -514,6 +514,11 @@ package nonisolated struct IndexingResult: Sendable {
 
     /// The reached points, in map order. Not indexed: phase "not indexed", the Euler angles and fit NaN, CI (or score) 0. A dictionary
     /// run's row carries the score as its CI, its simulation index and its OSM, and no fit, bands or pattern quality.
+    /// Whether point `id` (its index in map order) has a row: reached by the run. O(1), for a pick on a table of every point (#623).
+    package func hasRow(_ id: Int) -> Bool {
+        solutions.indices.contains(id) && solutions[id] != nil
+    }
+
     package var rows: [Row] {
         var out: [Row] = []
         out.reserveCapacity(rowsDone * scanColumns)
