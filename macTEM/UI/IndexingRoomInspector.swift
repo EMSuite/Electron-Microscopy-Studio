@@ -640,7 +640,7 @@ private struct IndexingExportSection: View {
     }
 
     private func export(_ kind: IndexingExportKind) {
-        state.export(kind, from: session, directory: appState.exportDirectory, report: { appState.statusText = $0 })
+        Task { await state.export(kind, from: session, directory: appState.exportDirectory, report: { appState.statusText = $0 }) }
     }
 }
 
