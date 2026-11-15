@@ -573,6 +573,6 @@ nonisolated final class IndexingRefineTests: XCTestCase {
         XCTAssertTrue(inspector.contains("InspectorValueRow(\"PC std\", deviation)"))
         let room = squeezed(try source("macTEM/UI/IndexingRoom.swift"))
         XCTAssertTrue(room.contains("return Key(run: session.shownRun?.id, rowsDone: landed,"), "the Results table's key names the run")
-        XCTAssertTrue(room.contains(".onChange(of: key, initial: true) { refresh() }"))
+        XCTAssertTrue(room.contains(".task(id: RowsRequest(key: key, order: sortOrder)) { await refresh() }"))
     }
 }
