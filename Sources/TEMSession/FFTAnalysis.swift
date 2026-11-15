@@ -149,7 +149,8 @@ package nonisolated final class FFTSpectrumProduct: Sendable {
     package let spacingY: Double
     package let unitsX: String
     package let unitsY: String
-    /// `SpectrumDisplay`'s values normalised over their finite range (NaN drawn masked); `rawRange` is that range and
+    /// `SpectrumDisplay`'s values as 16-bit levels over their finite range (`CanvasPixels.displayLevels`, NaN drawn masked; two
+    /// bytes a pixel, not four, macEM#579); `rawRange` is that range and
     /// `histogram` the histogram of the finite values (the Spectrum Display section).
     package let canvas: CanvasPixels
     package let defaultWindow: SpectrumDisplay.Window?
@@ -309,7 +310,9 @@ private nonisolated enum FFTWork {
         return FFTSpectrumProduct(
             key: key, width: display.width, height: display.height, spacingX: spacingX, spacingY: spacingY,
             unitsX: unitsX, unitsY: unitsY,
-            canvas: canvas(display.values, width: display.width, height: display.height, histogram: true),
+            canvas: CanvasPixels.displayLevels(display.values, width: display.width, height: display.height,
+                                               contentVersion: FFTProductVersion.next(),
+                                               histogram: IntensityHistogram.compute(display.values)),
             defaultWindow: display.defaultWindow, profile: profile,
             region: source.map { canvas($0.pixels, width: $0.width, height: $0.height, histogram: false) })
     }

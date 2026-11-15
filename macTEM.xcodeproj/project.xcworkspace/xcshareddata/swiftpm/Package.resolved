@@ -24,8 +24,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/mac4DSTEM/ImagoKit",
       "state" : {
-        "revision" : "e0481ce67a7c0fdba0a81b2502a41dd0ec9aa7d2",
-        "version" : "0.10.0"
+        "revision" : "268c8e5b7d75f68d79b990386099e05a5cfd2283",
+        "version" : "0.10.1"
       }
     },
     {

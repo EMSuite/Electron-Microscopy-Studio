@@ -82,22 +82,22 @@ nonisolated final class SpectrumDisplayTests: XCTestCase {
     }
 
     /// The DC bin (h/2, w/2) — on an odd size too — and every bin whose power is exactly zero are NaN, never −∞; their
-    /// neighbours are numbers. A 16 × 8 image of identical rows has power only on the centre row. Red under: the DC drawn
-    /// (it is the brightest bin); zero power left to the log (−∞ is not NaN).
+    /// neighbours are numbers. Zero power is planted in the power array itself: whether a transform gives exact zeros or Float32
+    /// residue for a noise-free image depends on the transform (ImagoKit#97), not on this rule. Red under: the DC drawn (it is
+    /// the brightest bin); zero power left to the log (−∞ is not NaN).
     func testTheDCAndZeroPowerBinsAreNaN() throws {
-        // Identical rows: the transform is zero off the centre row — checked, not assumed.
         let w = 16, h = 8
-        let rows = image(w, h) { _, c in 100 + 10 * cos(2 * .pi * Double(3 * c) / Double(w)) }
-        let spectrum = try PowerSpectrum.compute(rows.micrograph)
-        for r in 0..<h where r != h / 2 { for c in 0..<w {
-            XCTAssertEqual(spectrum.power.float32Values[r * w + c], 0, "premise: bin (\(r), \(c)) has no power")
-        } }
-        XCTAssertGreaterThan(spectrum.power.float32Values[(h / 2) * w + w / 2], 0, "premise: the DC has power")
-        let d = SpectrumDisplay.make(spectrum)
+        var power = [Float](repeating: 0, count: w * h)                    // no power off the centre row
+        for c in 0..<w { power[(h / 2) * w + c] = 1 }                       // the centre row: small numbers
+        power[(h / 2) * w + w / 2] = Float(100 * w * h) * Float(100 * w * h) // the DC
+        power[(h / 2) * w + w / 2 + 3] = 25 * Float(w * h) * Float(w * h)    // a cosine of amplitude 10: (A/2 · W·H)²
+        power[(h / 2) * w + w / 2 - 3] = power[(h / 2) * w + w / 2 + 3]
+        let d = SpectrumDisplay.make(power: power, width: w, height: h)
         for r in 0..<h { for c in 0..<w where r != h / 2 {
             XCTAssertTrue(d.values[r * w + c].isNaN, "zero power at (\(r), \(c)) is NaN, not \(d.values[r * w + c])")
         } }
         XCTAssertTrue(d.values[(h / 2) * w + w / 2].isNaN, "the DC")
+        XCTAssertFalse(d.values[(h / 2) * w + 1].isNaN, "a neighbour with power is a number")
         XCTAssertEqual(d.values[(h / 2) * w + w / 2 + 3], Float(2 * log10(5.0)), accuracy: 1e-4, "the peak is a number")
         XCTAssertEqual(d.values[(h / 2) * w + w / 2 - 3], Float(2 * log10(5.0)), accuracy: 1e-4)
 

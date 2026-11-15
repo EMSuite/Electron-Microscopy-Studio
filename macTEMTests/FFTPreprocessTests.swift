@@ -103,13 +103,20 @@ nonisolated final class FFTPreprocessTests: XCTestCase {
     // MARK: Find spots
 
     static func lattice(period: Double = 16, size: Int = 256) throws -> CalibratedImage {
+        // Half a grey level of deterministic noise: a real micrograph's off-lattice bins hold power, not rounding residue
+        // (a noise-free plant's empty bins are zero or Float32 residue depending on the transform, ImagoKit#97).
         var px = [Float](repeating: 0, count: size * size)
-        for y in 0..<size { for x in 0..<size { px[y * size + x] = Float(1000 + 300 * cos(2 * .pi * Double(x) / period) + 300 * cos(2 * .pi * Double(y) / period)) } }
+        var state: UInt64 = 0x2545_F491_4F6C_DD1D
+        for y in 0..<size { for x in 0..<size {
+            state = state &* 6_364_136_223_846_793_005 &+ 1_442_695_040_888_963_407
+            let noise = Double(state >> 40) / Double(1 << 24) - 0.5
+            px[y * size + x] = Float(1000 + 300 * cos(2 * .pi * Double(x) / period) + 300 * cos(2 * .pi * Double(y) / period) + noise)
+        } }
         let axis = AxisCalibration(scale: 0.1, unit: "nm")
         return CalibratedImage(width: size, height: size, pixels: px, x: axis, y: axis, fileName: "lattice.dm4", source: "test", voltage: nil)
     }
 
-    /// On a planted square lattice (16 px, noise-free) the finder returns the two reflections of the half plane, strongest first, and nothing
+    /// On a planted square lattice (16 px, half a grey level of noise) the finder returns the two reflections of the half plane, strongest first, and nothing
     /// else: not the centre, not a mirror. Red under: the centre kept; both of a mirror pair; a threshold that lets sidelobes in.
     func testTheFinderFindsThePlantedReflectionsAndNothingElse() async throws {
         let image = try Self.lattice()

@@ -1032,8 +1032,7 @@ nonisolated final class FFTAnalysisTests: XCTestCase {
         XCTAssertEqual(product.unitsY, "1/nm")
         XCTAssertEqual(product.canvas.width, 64)
         XCTAssertEqual(product.canvas.height, 64)
-        XCTAssertEqual(product.canvas.normalized, FloatImage(width: 64, height: 64, pixels: display.values).normalized(),
-                       "element for element")
+        assertDisplayLevels(product.canvas, FloatImage(width: 64, height: 64, pixels: display.values).normalized())
         XCTAssertEqual(product.canvas.rawRange, finite(display.values))
         XCTAssertEqual(product.canvas.histogram, IntensityHistogram.compute(display.values))
         XCTAssertEqual(product.defaultWindow, display.defaultWindow)
@@ -1054,6 +1053,37 @@ nonisolated final class FFTAnalysisTests: XCTestCase {
         XCTAssertNil(region.histogram)
     }
 
+    /// The spectrum canvas is the display values at 16 bits (macEM#579): two bytes a pixel, each within half a level (1/65534 of
+    /// the range) of the Float32 display value, masked where that is masked. Red before: a Float32 normalised canvas.
+    private func assertDisplayLevels(_ canvas: CanvasPixels, _ want: [Float], file: StaticString = #filePath, line: UInt = #line) {
+        guard case .uint16? = canvas.native else { return XCTFail("a Float32 canvas, not 16-bit levels", file: file, line: line) }
+        XCTAssertTrue(canvas.values.isEmpty, "no Float32 copy beside the levels", file: file, line: line)
+        let got = canvas.normalized
+        XCTAssertEqual(got.count, want.count, file: file, line: line)
+        let invalid = FloatImage.invalidDisplayValue
+        var worst: Float = 0
+        for (g, w) in zip(got, want) {
+            if w == invalid { XCTAssertEqual(g, invalid, file: file, line: line); continue }
+            worst = max(worst, abs(g - w))
+        }
+        XCTAssertLessThanOrEqual(worst, 0.5 / 65_534 + 1e-6, file: file, line: line)
+    }
+
+    /// A masked (NaN) display value stays masked through the levels, and a constant or empty one draws. Red before: no levels.
+    func testDisplayLevelsKeepTheMaskAndTheRange() {
+        let canvas = CanvasPixels.displayLevels([.nan, -2, 0, 3, .infinity], width: 5, height: 1, contentVersion: 1, histogram: nil)
+        guard case .uint16(let levels)? = canvas.native else { return XCTFail("not 16-bit levels") }
+        XCTAssertEqual(levels, [0, 1, 26_215, 65_535, 0])
+        XCTAssertEqual(canvas.rawRange, -2...3, "the window and histogram read the values' own units")
+        XCTAssertEqual(canvas.normalized[0], FloatImage.invalidDisplayValue)
+        XCTAssertEqual(canvas.normalized[3], 1)
+        let flat = CanvasPixels.displayLevels([4, 4], width: 2, height: 1, contentVersion: 2, histogram: nil)
+        XCTAssertEqual(flat.normalized, [0, 0])
+        let none = CanvasPixels.displayLevels([.nan], width: 1, height: 1, contentVersion: 3, histogram: nil)
+        XCTAssertNil(none.rawRange)
+        XCTAssertEqual(none.normalized, [FloatImage.invalidDisplayValue])
+    }
+
     /// The whole image: any shape, no crop. Red under: the width and height swapped; a crop made up for the whole image.
     func testTheLiveSpectrumOfTheWholeImageIsTheCores() async throws {
         let image = Self.plant()
@@ -1064,7 +1094,7 @@ nonisolated final class FFTAnalysisTests: XCTestCase {
         XCTAssertEqual(product.height, 64)
         XCTAssertEqual(product.canvas.width, 96)
         XCTAssertEqual(product.canvas.height, 64)
-        XCTAssertEqual(product.canvas.normalized, FloatImage(width: 96, height: 64, pixels: display.values).normalized())
+        assertDisplayLevels(product.canvas, FloatImage(width: 96, height: 64, pixels: display.values).normalized())
         // The whole image unprocessed is the file's own pixels: no second copy (red before: a full-size normalised array, 12 Nov alite).
         XCTAssertNil(product.region)
         let smoothed = try await FFTCompute.live.spectrum(image, FFTSpectrumKey(contentVersion: 5, crop: nil, preprocess: FFTPreprocess(window: .hann)))
