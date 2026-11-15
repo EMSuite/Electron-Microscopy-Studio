@@ -250,7 +250,7 @@ struct MapPane: View {
                 guard SEMMapPointer.isOnImage(value.location, geometry: geometry) else { return }
                 toggle(SEMMapPointer.position(at: value.location, geometry: geometry))
             }, including: mode == .panAndGrab ? .all : .subviews)
-            .border(Color.white.opacity(0.08))
+            .border(.separator)
             .zoomPan(zoomModel, box: box, onHover: { phase in hovered(phase, geometry: geometry) })
             .zoomPanWheel(zoomModel, box: box)
             .zoomCommandTarget(zoomModel, isTarget: true)

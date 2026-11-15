@@ -293,7 +293,7 @@ struct IndexingMapPane: View {
             .coordinateSpace(.named(SEMMapPointer.space))
             .clipped()
             .contentShape(Rectangle())
-            .border(Color.white.opacity(0.08))
+            .border(.separator)
             .zoomPan(zoomModel, box: box, onHover: { phase in hovered(phase, geometry: geometry) })
             .zoomPanWheel(zoomModel, box: box)
             .zoomCommandTarget(zoomModel, isTarget: true)
@@ -538,7 +538,7 @@ struct IndexedPatternPane: View {
             .frame(width: box.width, height: box.height)
             .clipped()
             .contentShape(Rectangle())   // the image and the overlay take no hits: the pane itself pans, zooms and fits
-            .border(Color.white.opacity(0.08))
+            .border(.separator)
             .zoomPan(zoomModel, box: box)
             .zoomPanWheel(zoomModel, box: box)
 
@@ -842,7 +842,7 @@ struct IndexingBestMatchPane: View {
             .frame(width: box.width, height: box.height)
             .clipped()
             .contentShape(Rectangle())
-            .border(Color.white.opacity(0.08))
+            .border(.separator)
             .zoomPan(zoomModel, box: box)
             .zoomPanWheel(zoomModel, box: box)
         }
