@@ -12,14 +12,13 @@ import TEMSession
 import XCTest
 @testable import macTEM
 
-@MainActor
-final class AgentDoorRoomsTests: XCTestCase {
-    private var door: AgentDoor!
-    private var defaultsSuite = ""
+nonisolated final class AgentDoorRoomsTests: XCTestCase {
+    @MainActor private var door: AgentDoor!
+    @MainActor private var defaultsSuite = ""
     private let session = URLSession(configuration: .ephemeral)
-    private var keep: [AppState] = []
+    @MainActor private var keep: [AppState] = []
 
-    override func setUp() async throws {
+    @MainActor override func setUp() async throws {
         defaultsSuite = "agent-door-rooms-tests-\(UUID().uuidString)"
         door = AgentDoor(appName: "macEM", appVersion: "test", preferredPort: 0, defaults: try XCTUnwrap(UserDefaults(suiteName: defaultsSuite)))
         door.register(MacTEMAgentDoor.allTools)
@@ -28,19 +27,19 @@ final class AgentDoorRoomsTests: XCTestCase {
         try await waitUntil("the door to open", seconds: 5) { self.isListening }
     }
 
-    override func tearDown() async throws {
+    @MainActor override func tearDown() async throws {
         door?.setEnabled(false)
         door = nil
         keep = []
         UserDefaults().removePersistentDomain(forName: defaultsSuite)
     }
 
-    private var isListening: Bool {
+    @MainActor private var isListening: Bool {
         if case .listening = door.status { return true }
         return false
     }
 
-    private func call(_ name: String, _ arguments: [String: Any] = [:]) async throws -> (refused: Bool, text: String, image: Bool) {
+    @MainActor private func call(_ name: String, _ arguments: [String: Any] = [:]) async throws -> (refused: Bool, text: String, image: Bool) {
         guard case .listening(let port) = door.status else { throw XCTSkip("door not open") }
         var request = URLRequest(url: try XCTUnwrap(URL(string: "http://127.0.0.1:\(port)/mcp")))
         request.httpMethod = "POST"
@@ -56,7 +55,7 @@ final class AgentDoorRoomsTests: XCTestCase {
         return (result["isError"] as? Bool ?? false, (content?["text"] as? String) ?? "", content?["type"] as? String == "image")
     }
 
-    private func window() -> AppState {
+    @MainActor private func window() -> AppState {
         let state = AppState(launch: LaunchOptions(arguments: []))
         keep.append(state)
         door.enroll(state) { [weak state] in state.map { MacTEMAgentDoor.summary(of: $0) } ?? [:] }
@@ -64,7 +63,7 @@ final class AgentDoorRoomsTests: XCTestCase {
     }
 
     /// Mutation: select_room going around `roomUnavailableReason`, or leaving no Output line - red.
-    func testSelectRoomMovesTheWindowOrSaysWhyNot() async throws {
+    @MainActor func testSelectRoomMovesTheWindowOrSaysWhyNot() async throws {
         let state = window()
         let refused = try await call("select_room", ["room": "edx"])
         XCTAssertTrue(refused.refused, "an empty window has no spectrum image for the EDS room")
@@ -80,7 +79,7 @@ final class AgentDoorRoomsTests: XCTestCase {
     }
 
     /// Mutation: the EDS tools not registered, their acting calls leaving no Output line, or get_eds_maps drawing nothing - red.
-    func testTheEDSToolsPickAndTheMapsAreDrawn() async throws {
+    @MainActor func testTheEDSToolsPickAndTheMapsAreDrawn() async throws {
         let state = window()
         await state.edx.bind(DemoDocuments.edx()).value
         try await waitUntil("the EDS room to settle", seconds: 60) { !state.edx.isBusy }
@@ -97,7 +96,7 @@ final class AgentDoorRoomsTests: XCTestCase {
     }
 
     /// With Settings > Agents' second switch off, an acting tool is refused and nothing moves. Mutation: select_room not marked acts - red.
-    func testActingToolsWaitForTheSecondSwitch() async throws {
+    @MainActor func testActingToolsWaitForTheSecondSwitch() async throws {
         door.runsAllowed = false
         let state = window()
         await state.edx.bind(DemoDocuments.edx()).value
@@ -106,7 +105,7 @@ final class AgentDoorRoomsTests: XCTestCase {
         XCTAssertEqual(state.navigation.workspaceArea, .image)
     }
 
-    nonisolated func testTheAgentLineNamesTheToolAndItsArguments() {
+    func testTheAgentLineNamesTheToolAndItsArguments() {
         XCTAssertEqual(MacTEMAgentDoor.agentLine("EDS room action", ["action": "quantify"]), "An agent used EDS room action (action quantify).")
         XCTAssertEqual(MacTEMAgentDoor.agentLine("EDS room settings", ["region": "whole", "add": "Fe, Ni"]),
                        "An agent used EDS room settings (add Fe, Ni; region whole).")
