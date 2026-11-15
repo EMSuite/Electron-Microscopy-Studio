@@ -128,6 +128,16 @@ nonisolated final class PatternsRoomTests: XCTestCase {
         // The virtual images (P1-07): the pass landed the whole detector's sum and the 5 x 5 tiles; the map follows the choice; the mix needs three tiles.
         XCTAssertEqual(session.virtualGrid, VirtualBSEGrid(5))
         XCTAssertEqual(session.virtualImages?.count, 26)
+        // The canvases the tiles pane and the map draw were made with the pass, off the main actor (#256), from the same pixels.
+        // Red before: no canvases kept; the pane made 26 of them on every body pass.
+        let scanColumns = DemoDocuments.Truth.ebsdScanColumns, scanRows = DemoDocuments.Truth.ebsdScanRows
+        for tile in session.virtualGrid.tiles {
+            let image = try XCTUnwrap(session.tileImage(tile))
+            XCTAssertEqual(session.tileCanvas(tile), CanvasPixels.make(width: scanColumns, height: scanRows, pixels: image), "tile \(tile.label)")
+        }
+        XCTAssertEqual(session.mapCanvas(for: .bse), CanvasPixels.make(width: scanColumns, height: scanRows, pixels: try XCTUnwrap(session.virtualImages?.first)))
+        XCTAssertEqual(session.meanCanvas, CanvasPixels.make(width: scanColumns, height: scanRows, pixels: try XCTUnwrap(session.meanIntensities)))
+        XCTAssertEqual(session.mapPresentation.canvas, session.meanCanvas, "the map shows the mean's canvas as made")
         let meanCanvas = session.mapPresentation.canvas?.contentVersion
         session.showMap(.bse)
         XCTAssertNotEqual(session.mapPresentation.canvas?.contentVersion, meanCanvas, "the BSE sum is another picture")
@@ -137,9 +147,9 @@ nonisolated final class PatternsRoomTests: XCTestCase {
         session.showMap(.tile(tile))
         XCTAssertEqual(session.mapValue(at: .origin)?.label, "r2 c1")
         XCTAssertFalse(session.hasMix)
-        session.setMixTile(tile, channel: 0); session.setMixTile(VirtualBSETile(row: 2, column: 2), channel: 1)
+        await session.setMixTile(tile, channel: 0).value; await session.setMixTile(VirtualBSETile(row: 2, column: 2), channel: 1).value
         XCTAssertFalse(session.hasMix)
-        session.setMixTile(VirtualBSETile(row: 2, column: 3), channel: 2)
+        await session.setMixTile(VirtualBSETile(row: 2, column: 3), channel: 2).value
         XCTAssertTrue(session.hasMix)
         XCTAssertEqual(session.mapChoice, .mix)
         XCTAssertEqual(session.mixRGBA?.count, 30 * 40 * 4)
@@ -327,7 +337,7 @@ nonisolated final class PatternsRoomTests: XCTestCase {
         try await waitUntil("the map pass to end", seconds: 20) { !session.isMapping }
         state.export(.mapPNG, from: session, directory: dir) { reports.append($0) }
         XCTAssertEqual(reports.last, "Exported Demo EBSD map mean.png")
-        for (channel, column) in [1, 2, 3].enumerated() { session.setMixTile(VirtualBSETile(row: 2, column: column), channel: channel) }
+        for (channel, column) in [1, 2, 3].enumerated() { await session.setMixTile(VirtualBSETile(row: 2, column: column), channel: channel).value }
         state.export(.mapPNG, from: session, directory: dir) { reports.append($0) }
         XCTAssertEqual(reports.last, "Exported Demo EBSD map mix.png")
         let mix = try Data(contentsOf: dir.appendingPathComponent("Demo EBSD map mix.png"))
