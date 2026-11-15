@@ -174,10 +174,28 @@ nonisolated final class StoreDeclarationTests: XCTestCase {
             XCTAssertEqual(value as? Bool, true, "\(key) is not on")
         }
 
+        // Every configuration signs with macTEM.entitlements in the store build (MACEM_STORE_BUILD = YES, an empty suffix) and with
+        // macTEM-Direct.entitlements in the website download (#583), through the one flavour suffix.
         let project = try String(contentsOf: root.appendingPathComponent("macTEM.xcodeproj/project.pbxproj"), encoding: .utf8)
         let signed = project.components(separatedBy: "CODE_SIGN_ENTITLEMENTS = ").count - 1
-        let withThisFile = project.components(separatedBy: "CODE_SIGN_ENTITLEMENTS = macTEM/macTEM.entitlements;").count - 1
+        let flavoured = "CODE_SIGN_ENTITLEMENTS = \"macTEM/macTEM$(MACEM_FLAVOUR_SUFFIX_$(MACEM_STORE_BUILD)).entitlements\";"
+        let withThisFile = project.components(separatedBy: flavoured).count - 1
         XCTAssertGreaterThan(signed, 0, "no configuration signs with an entitlements file")
-        XCTAssertEqual(signed, withThisFile, "a configuration signs with an entitlements file other than macTEM/macTEM.entitlements")
+        XCTAssertEqual(signed, withThisFile, "a configuration signs with an entitlements file other than the flavour's")
+        XCTAssertTrue(project.contains("MACEM_FLAVOUR_SUFFIX_YES = \"\";"),
+                      "the store build's suffix is empty, so it signs with macTEM/macTEM.entitlements")
+    }
+
+    /// The website download's entitlements (#583) are the store's four plus exactly what Sparkle needs: the outgoing connection for the
+    /// update feed and the mach-lookup exception for its installer services. Mutation: any other key added - red.
+    func testTheDownloadsEntitlementsAddOnlySparklesTwo() throws {
+        func keys(_ name: String) throws -> Set<String> {
+            let data = try Data(contentsOf: root.appendingPathComponent("macTEM/\(name)"))
+            return Set(try XCTUnwrap(PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any]).keys)
+        }
+        let store = try keys("macTEM.entitlements"), direct = try keys("macTEM-Direct.entitlements")
+        XCTAssertEqual(direct.subtracting(store), ["com.apple.security.network.client",
+                                                   "com.apple.security.temporary-exception.mach-lookup.global-name"])
+        XCTAssertTrue(store.isSubset(of: direct))
     }
 }
