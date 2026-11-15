@@ -71,13 +71,14 @@ final class SoftwareUpdate {
         isRunning = true
         let updater = controller.updater
         observations = [
-            updater.observe(\.canCheckForUpdates, options: [.initial, .new]) { [weak self] updater, _ in
-                let value = updater.canCheckForUpdates
+            // The change's own value, not the updater's main-actor property: KVO calls back in a Sendable closure.
+            updater.observe(\.canCheckForUpdates, options: [.initial, .new]) { [weak self] _, change in
+                guard let value = change.newValue else { return }
                 Task { @MainActor in self?.canCheck = value }
             },
             // The second-launch answer arrives here too, so the Settings switch shows it.
-            updater.observe(\.automaticallyChecksForUpdates, options: [.initial, .new]) { [weak self] updater, _ in
-                let value = updater.automaticallyChecksForUpdates
+            updater.observe(\.automaticallyChecksForUpdates, options: [.initial, .new]) { [weak self] _, change in
+                guard let value = change.newValue else { return }
                 Task { @MainActor in self?.automaticallyChecks = value }
             },
         ]
