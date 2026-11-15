@@ -605,7 +605,8 @@ nonisolated enum MapsFigure {
         return made
     }
 
-    private static let keyPictures = NSCache<NSString, CGImage>()
+    // NSCache is thread-safe (Apple documents it so), which the compiler cannot see through its non-Sendable type.
+    nonisolated(unsafe) private static let keyPictures = NSCache<NSString, CGImage>()
 
     /// An IPF colour key as an image: its premultiplied RGBA, transparent outside the sector.
     static func cgImage(_ key: IPFKeyImage, interpolate: Bool = false) -> CGImage? {
