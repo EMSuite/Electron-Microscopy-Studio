@@ -249,7 +249,7 @@ struct ScanMapPane: View {
             .coordinateSpace(.named(SEMMapPointer.space))
             .clipped()
             .contentShape(Rectangle())
-            .border(Color.white.opacity(0.08))
+            .border(.separator)
             .zoomPan(zoomModel, box: box, onHover: { phase in hovered(phase, geometry: geometry) })
             .zoomPanWheel(zoomModel, box: box)
             .zoomCommandTarget(zoomModel, isTarget: true)
@@ -375,7 +375,7 @@ struct LivePatternPane: View {
                 let q = geometry.imagePoint(atPanePoint: location)
                 if let tile = DetectorGridOverlay.tile(at: q, grid: session.virtualGrid, dataset: dataset) { session.showMap(.tile(tile)) }
             }
-            .border(Color.white.opacity(0.08))
+            .border(.separator)
             .zoomPan(zoomModel, box: box, onHover: { phase in hovered(phase, geometry: geometry, canvas: presentation.canvas) })
             .zoomPanWheel(zoomModel, box: box)
 

@@ -267,8 +267,7 @@ package final class EBSDSession {
                                                       unusable: unusable)
                 await shown?.value
             } catch {
-                let words = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-                _ = await self?.landProcessed(nil, with: pipeline, lambda: nil, failure: words, seconds: 0, generation: gen, processRun: runID)
+                _ = await self?.landProcessed(nil, with: pipeline, lambda: nil, failure: error, seconds: 0, generation: gen, processRun: runID)
             }
         }
         processTask = task
@@ -290,7 +289,7 @@ package final class EBSDSession {
 
     /// Lands a run; returns the task that shows its pattern, if any.
     @discardableResult
-    private func landProcessed(_ result: EBSDMemoryPatterns?, with run: PatternPipeline, lambda: Double?, failure: String?, seconds: Double,
+    private func landProcessed(_ result: EBSDMemoryPatterns?, with run: PatternPipeline, lambda: Double?, failure: (any Error)?, seconds: Double,
                                generation gen: Int, processRun runID: Int, unusable: [EBSDPosition] = []) -> Task<Void, Never>? {
         guard gen == generation, runID == processRun, isProcessing else { return nil }
         isProcessing = false
@@ -309,7 +308,7 @@ package final class EBSDSession {
             setPatternDisplay(.processed)
             return patternTask
         } else if let failure {
-            onEvent?("Error: \(failure)")
+            surface(failure)
         }
         return nil
     }
@@ -738,8 +737,7 @@ package final class EBSDSession {
             } catch is CancellationError {
                 return
             } catch {
-                let words = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-                await self?.landQuality(nil, nil, failure: words, generation: gen, run: run)
+                await self?.landQuality(nil, nil, failure: error, generation: gen, run: run)
             }
         }
     }
@@ -757,7 +755,14 @@ package final class EBSDSession {
         qualityProgress = f
     }
 
-    private func landQuality(_ iq: CanvasPixels?, _ adp: CanvasPixels?, failure: String?, generation gen: Int, run: Int,
+    /// A failed Process or quality pass: on the status line, and in the alert the other rooms show a failed pass in (#628), where it
+    /// is not missed. A stopped pass never reaches here (its run or generation is no longer the newest).
+    private func surface(_ failure: any Error) {
+        onEvent?("Error: \(ErrorDetail.text(failure))")
+        onFailure?(failure)
+    }
+
+    private func landQuality(_ iq: CanvasPixels?, _ adp: CanvasPixels?, failure: (any Error)?, generation gen: Int, run: Int,
                              ofProcessed: Bool = false) {
         guard gen == generation, run == qualityRun else { return }
         isQualityMapping = false
@@ -768,7 +773,7 @@ package final class EBSDSession {
             qualityProgress = 1
             remakeMap()
         } else if let failure {
-            onEvent?("Error: \(failure)")
+            surface(failure)
         }
     }
 
