@@ -149,12 +149,13 @@ nonisolated final class IndexingDictionaryRoomTests: XCTestCase {
         XCTAssertEqual(dictionary.bestSimulationIndices.map { sampled[$0] }, solutions.map(\.quaternion))
 
         // The map: IPF-Z of the best rotation; the score layer; Hough's layers are not offered.
+        await indexing.mapSettled()   // the map is drawn off the main actor (#252)
         let rgba = try XCTUnwrap(indexing.mapRGBA)
         let colour = IPFColorKeyTSL(PointGroup.oh, direction: SIMD3(0, 0, 1)).color(of: [solutions[100].quaternion])[0]
         for c in 0..<3 { XCTAssertEqual(Double(rgba[100 * 4 + c]), (colour[c] * 255).rounded(), accuracy: 1, "channel \(c)") }
-        indexing.setLayer(.fit)
+        await indexing.setLayer(.fit).value
         XCTAssertEqual(indexing.layer, .ipfZ, "a dictionary result has no fit")
-        indexing.setLayer(.score)
+        await indexing.setLayer(.score).value
         XCTAssertEqual(indexing.layer, .score)
         let range = try XCTUnwrap(indexing.mapPresentation.canvas?.rawRange, "the score layer is drawn through the Map Display")
         let lowest = try XCTUnwrap(dictionary.bestScores.min()), highest = try XCTUnwrap(dictionary.bestScores.max())
@@ -164,7 +165,7 @@ nonisolated final class IndexingDictionaryRoomTests: XCTestCase {
         // The orientation similarity map: kikuchipy's of the run's matches (every kept match, the four nearest neighbours), as a layer.
         let osm = try dictionary.orientationSimilarityMap().maps[0]
         XCTAssertEqual(result.similarity, osm)
-        indexing.setLayer(.osm)
+        await indexing.setLayer(.osm).value
         XCTAssertEqual(indexing.layer, .osm)
         let osmRange = try XCTUnwrap(indexing.mapPresentation.canvas?.rawRange)
         let osmLowest = try XCTUnwrap(osm.min()), osmHighest = try XCTUnwrap(osm.max())
@@ -188,7 +189,7 @@ nonisolated final class IndexingDictionaryRoomTests: XCTestCase {
 
         // The best match: the pinned point's best orientation simulated on the run's detector.
         indexing.pin(position)
-        for _ in 0..<4000 where indexing.bestMatchPosition != position { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("indexing.bestMatchPosition == position", seconds: 20) { indexing.bestMatchPosition == position }
         XCTAssertEqual(indexing.bestMatchPosition, position)
         let canvas = try XCTUnwrap(indexing.bestMatchPresentation.canvas)
         XCTAssertEqual([canvas.width, canvas.height], [60, 60])
@@ -199,7 +200,7 @@ nonisolated final class IndexingDictionaryRoomTests: XCTestCase {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("IndexingDictionaryRoomTests-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: directory) }
         var reports: [String] = []
-        for kind in IndexingExportKind.allCases { state.export(kind, from: indexing, directory: directory) { reports.append($0) } }
+        for kind in IndexingExportKind.allCases { await state.export(kind, from: indexing, directory: directory) { reports.append($0) } }
         XCTAssertEqual(reports, ["Exported patterns_v2 indexed OSM.png", "Exported patterns_v2 indexing results.csv",
                                  "Exported patterns_v2 indexed.ang", "Exported patterns_v2 indexed.ctf", "Exported patterns_v2 indexing method.json"])
         let xmap = try XCTUnwrap(try indexing.crystalMap())
@@ -258,7 +259,7 @@ nonisolated final class IndexingDictionaryRoomTests: XCTestCase {
         let (_, indexing) = try await openNickel()
         indexing.setMethod(.dictionary)
         indexing.editDictionarySettings { $0.resolution = 10 }
-        for _ in 0..<4000 where indexing.dictionarySize == nil { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("indexing.dictionarySize != nil", seconds: 20) { indexing.dictionarySize != nil }
         let single = try XCTUnwrap(indexing.dictionarySize)
         let singleChunks = try XCTUnwrap(indexing.dictionaryChunking).chunks
         await indexing.index().value
@@ -273,7 +274,7 @@ nonisolated final class IndexingDictionaryRoomTests: XCTestCase {
                        "the latest master pattern opened of the phase's space group")
         XCTAssertNil(indexing.refusal, indexing.refusal ?? "")
         XCTAssertTrue(indexing.verbHelp.contains("patterns with Dictionary (ni, Al)"), indexing.verbHelp)
-        for _ in 0..<4000 where indexing.dictionarySize == nil { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("indexing.dictionarySize != nil", seconds: 20) { indexing.dictionarySize != nil }
         XCTAssertEqual(indexing.dictionarySize, 2 * single, "one dictionary per phase")
         XCTAssertEqual(indexing.dictionaryChunking?.chunks, 2 * singleChunks)
 
@@ -308,14 +309,14 @@ nonisolated final class IndexingDictionaryRoomTests: XCTestCase {
         XCTAssertEqual(two.similarity, one.similarity.map { 2 * $0 }, "each shared match counted in both dictionaries")
 
         // The layers, the status line, the best match read the merged map.
-        indexing.setLayer(.score)
+        await indexing.setLayer(.score).value
         let range = try XCTUnwrap(indexing.mapPresentation.canvas?.rawRange)
         XCTAssertEqual(range, Float(try XCTUnwrap(d1.bestScores.min()))...Float(try XCTUnwrap(d1.bestScores.max())))
         let position = EBSDPosition(row: 10, column: 20)
         let line = try XCTUnwrap(indexing.readout(at: position))
         XCTAssertTrue(line.hasPrefix("row 10 · col 20 · ni · φ₁"), line)
         indexing.pin(position)
-        for _ in 0..<4000 where indexing.bestMatchPosition != position { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("indexing.bestMatchPosition == position", seconds: 20) { indexing.bestMatchPosition == position }
         XCTAssertEqual(indexing.bestMatchPosition, position)
         XCTAssertEqual(indexing.bestMatchPresentation.canvas.map { [$0.width, $0.height] }, [60, 60])
 

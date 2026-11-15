@@ -60,7 +60,7 @@ package nonisolated enum EELSDeadStretch {
 
 /// One edge's background and signal windows in absolute energy, as the room draws and drags them. The defaults are the kit's (`EdgeWindows.defaults`: its
 /// documented constants are the only copy of the rules); the kit's fit takes them as `EdgeWindows` (`kit`).
-package nonisolated struct EELSEdgeWindows: Equatable, Sendable {
+package nonisolated struct EELSEdgeWindows: Hashable, Sendable {
     package var background: ClosedRange<Double>
     package var signal: ClosedRange<Double>
 

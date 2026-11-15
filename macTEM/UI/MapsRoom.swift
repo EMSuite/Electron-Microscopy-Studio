@@ -250,7 +250,7 @@ struct MapPane: View {
                 guard SEMMapPointer.isOnImage(value.location, geometry: geometry) else { return }
                 toggle(SEMMapPointer.position(at: value.location, geometry: geometry))
             }, including: mode == .panAndGrab ? .all : .subviews)
-            .border(Color.white.opacity(0.08))
+            .border(.separator)
             .zoomPan(zoomModel, box: box, onHover: { phase in hovered(phase, geometry: geometry) })
             .zoomPanWheel(zoomModel, box: box)
             .zoomCommandTarget(zoomModel, isTarget: true)
@@ -428,7 +428,7 @@ struct MapsKeyPane: View {
         return VStack(alignment: .leading, spacing: 4) {
             Text(verbatim: "\(key.name) · \(key.pointGroup) · IPF-\(direction.rawValue.uppercased())").font(.caption).lineLimit(1)
             ZStack(alignment: .topLeading) {
-                if let image = MapsFigure.cgImage(key.image) {
+                if let image = MapsFigure.keyPicture(key) {
                     Image(decorative: image, scale: 1)
                         .resizable()
                         .interpolation(.high)
@@ -453,7 +453,7 @@ struct MapsKeyPane: View {
 
     private var phaseLegend: some View {
         let map = session.map
-        let ids = map?.phaseIDs ?? []
+        let counts = session.phasePointCounts
         return VStack(alignment: .leading, spacing: 6) {
             ForEach(map?.phasesInData.entries ?? [], id: \.id) { entry in
                 let rgb = entry.phase.colorRGB ?? .zero
@@ -462,7 +462,7 @@ struct MapsKeyPane: View {
                         .frame(width: LayoutPolicy.mapsPhaseSwatchSize, height: LayoutPolicy.mapsPhaseSwatchSize)
                         .overlay(Rectangle().stroke(Color.secondary.opacity(0.5), lineWidth: 0.5))
                     Text(verbatim: "\(MapsRoomFormat.phaseName(entry.phase, id: entry.id)) · "
-                         + MapsRoomFormat.phasePoints(entry.phase, count: ids.filter { $0 == entry.id }.count, missing: UnitDisplay.noValue))
+                         + MapsRoomFormat.phasePoints(entry.phase, count: counts[entry.id] ?? 0, missing: UnitDisplay.noValue))
                         .font(.callout.monospacedDigit())
                 }
                 .accessibilityElement(children: .combine)

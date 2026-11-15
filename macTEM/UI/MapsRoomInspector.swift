@@ -98,7 +98,7 @@ struct MapsExportSection: View {
         InspectorSection("Export", startsExpanded: false) {
             InspectorActionRow {
                 Button("Map PNG…") {
-                    state.exportMap(from: session, directory: appState.exportDirectory, report: { appState.statusText = $0 })
+                    Task { await state.exportMap(from: session, directory: appState.exportDirectory, report: { appState.statusText = $0 }) }
                 }
                 .disabled(session.raster == nil)
                 .help("The map on screen as a PNG figure: whole pixels per point, a scale bar, and the colour key or phase legend beside it")
@@ -122,7 +122,7 @@ struct MapsExportSection: View {
             }
             InspectorActionRow {
                 Button("Texture PNG…") {
-                    state.exportTexture(from: session, directory: appState.exportDirectory, report: { appState.statusText = $0 })
+                    Task { await state.exportTexture(from: session, directory: appState.exportDirectory, report: { appState.statusText = $0 }) }
                 }
                 .disabled(session.texture == nil)
                 .help("The pole figures, the IPF-Z density and the ODF sections of the texture phase as one figure, each with its colour bar")

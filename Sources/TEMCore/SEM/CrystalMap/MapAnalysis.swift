@@ -110,6 +110,14 @@ package nonisolated struct GrainSlip: Sendable, Equatable {
     package let grain: Int
     package let planes: [Plane]
     package var maximumSchmid: Double { planes.map(\.schmid).max() ?? .nan }
+
+    /// Each grain's `maximumSchmid` by grain number, the first entry of a grain listed twice: a table looks a grain up in it per cell
+    /// (#271), where a search of the list per cell is O(rows × grains).
+    package static func maximumSchmidByGrain(_ slip: [GrainSlip]) -> [Int: Double] {
+        var byGrain: [Int: Double] = [:]
+        for entry in slip where byGrain[entry.grain] == nil { byGrain[entry.grain] = entry.maximumSchmid }
+        return byGrain
+    }
 }
 
 package nonisolated struct MapAnalysis: Sendable {
@@ -538,7 +546,8 @@ package nonisolated struct MapTexture: Sendable {
     /// The pole figures (stereographic, upper hemisphere, 1° bins smoothed at `sigma`°), the IPF-Z density in the colour key's
     /// sector and the ODF sections of phase `phaseID`, each as a `size`-pixel raster (the ODF at its 5° nodes). A sigma of +∞, or
     /// one whose kernel passes `PoleDensityFunction.maximumKernelRadius` on either grid, is refused before any figure is made; 0,
-    /// a negative sigma (−∞ too) and NaN smooth nothing, as scipy's filter skips them.
+    /// a negative sigma (−∞ too) and NaN smooth nothing, as scipy's filter skips them. Throws `CancellationError` between figures
+    /// once its task is cancelled.
     package static func compute(_ map: CrystalMap, phaseID: Int, size: Int = 181, sigma: Double = 5,
                                 odfHalfWidth: Double = OrientationDensity.defaultHalfWidthDegrees) throws -> MapTexture {
         guard let phase = map.phases[id: phaseID], let group = phase.pointGroup else {
@@ -548,6 +557,9 @@ package nonisolated struct MapTexture: Sendable {
             throw MapAnalysis.Refusal.grains("The texture's smoothing sigma must be a finite number of degrees, at most 512°.")
         }
         let orientations = try map.points(ofPhases: [phase.name]).orientations()
+        // Each figure is seconds of work on a large map: a cancelled texture (a close, a new map, ⌘.) stops between figures instead of
+        // holding the map and its buffers until the last one is made (#713).
+        try Task.checkCancellation()
         let lattice: CrystalLattice
         if let l = phase.lattice, l.count == 6, l.allSatisfy({ $0.isFinite && $0 > 0 }) {
             lattice = CrystalLattice(a: l[0], b: l[1], c: l[2], alpha: l[3], beta: l[4], gamma: l[5])
@@ -556,11 +568,13 @@ package nonisolated struct MapTexture: Sendable {
         }
         var poles: [Figure] = []
         for family in families(for: group) {
+            try Task.checkCancellation()
             let vectors = try PoleFigures.poles(family: family.indices, lattice: lattice, group: group)
             let density = PoleFigures.poleFigure(orientations, poles: vectors, sigma: sigma)
             poles.append(Figure(title: family.title, raster: TextureRaster.stereographic(density, size: size), maximum: density.maximum,
                                 poles: vectors))
         }
+        try Task.checkCancellation()
         let key = DirectionColorKeyTSL(group)
         let ipf = PoleFigures.inversePoleFigure(orientations, laue: group.laue, sigma: sigma)
         let extent = key.sector.stereographicExtent ?? (-1...1, -1...1)
@@ -569,7 +583,8 @@ package nonisolated struct MapTexture: Sendable {
         let picked = odfSampleIndices(count: orientations.count)
         let sample = picked.count == orientations.count ? orientations
             : Orientations(quaternions: picked.map { orientations.quaternions[$0] }, symmetry: orientations.symmetry)
-        let odf = sections(for: group).map { phi2 -> Figure in
+        let odf = try sections(for: group).map { phi2 -> Figure in
+            try Task.checkCancellation()
             let s = OrientationDensity.section(sample, phi2Degrees: phi2, halfWidthDegrees: odfHalfWidth)
             return Figure(title: "φ₂ = \(Int(phi2.rounded()))°", raster: TextureRaster.section(s), maximum: s.maximum)
         }

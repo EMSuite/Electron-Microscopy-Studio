@@ -64,7 +64,7 @@ nonisolated final class EBSDMeanPassTests: XCTestCase {
         XCTAssertTrue(session.isComputingMean)
         XCTAssertTrue(session.isBusy)
         await firstPattern.value
-        for _ in 0..<6000 where session.isMapping || session.isComputingMean { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("!(session.isMapping || session.isComputingMean)", seconds: 30) { !(session.isMapping || session.isComputingMean) }
         XCTAssertFalse(session.isBusy)
         XCTAssertNotNil(session.meanIntensities)
         XCTAssertEqual(counted.rowReads, demo.dataset.scanRows, "one pass over the scan for the map and the mean")
@@ -90,7 +90,7 @@ nonisolated final class EBSDMeanPassTests: XCTestCase {
         // In the map's pass: held inside its first row, stopped.
         gated.hold()
         let firstPattern = session.bind(EBSDSession.Document(fileName: demo.fileName, url: nil, dataset: demo.dataset, access: gated))
-        for _ in 0..<2000 where gated.rowReads == 0 { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("gated.rowReads != 0", seconds: 10) { gated.rowReads != 0 }
         XCTAssertEqual(gated.rowReads, 1, "the map's pass is inside its first row, and nothing else reads the scan")
         XCTAssertTrue(session.isComputingMean)
         session.stop()

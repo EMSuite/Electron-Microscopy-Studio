@@ -128,7 +128,7 @@ private struct IndexingCompareTile: View {
             .coordinateSpace(.named(SEMMapPointer.space))
             .clipped()
             .contentShape(Rectangle())
-            .border(Color.white.opacity(0.08))
+            .border(.separator)
             .zoomPan(zoomModel, box: box, onHover: { phase in hovered(phase, geometry: geometry) })
             .zoomPanWheel(zoomModel, box: box)
 
