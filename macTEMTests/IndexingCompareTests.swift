@@ -37,7 +37,7 @@ nonisolated final class IndexingCompareTests: XCTestCase {
     @MainActor private func pickDictionary(_ indexing: IndexingSession) async throws {
         indexing.setMethod(.dictionary)
         indexing.editDictionarySettings { $0.resolution = 10 }
-        for _ in 0..<6000 where indexing.masterPatterns.isEmpty || indexing.dictionarySize == nil { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("!(indexing.masterPatterns.isEmpty || indexing.dictionarySize == nil)", seconds: 30) { !(indexing.masterPatterns.isEmpty || indexing.dictionarySize == nil) }
         XCTAssertNil(indexing.refusal, indexing.refusal ?? "")
     }
 

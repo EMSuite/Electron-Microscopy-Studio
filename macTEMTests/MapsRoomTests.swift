@@ -155,7 +155,7 @@ nonisolated final class MapsRoomTests: XCTestCase {
         let state = AppState(launch: LaunchOptions(arguments: []))
         await state.open(urls: [Self.sdss])?.value
         XCTAssertEqual(state.navigation.workspaceArea, .maps)
-        for _ in 0..<4000 where state.maps.raster == nil { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("state.maps.raster != nil", seconds: 20) { state.maps.raster != nil }
         XCTAssertEqual(state.maps.fileName, "ebsd-sdss-ferrite-austenite.ang")
         XCTAssertEqual(state.maps.document?.source, .mapFile)
         XCTAssertEqual(state.maps.layer, .ipf(.z))
@@ -179,7 +179,7 @@ nonisolated final class MapsRoomTests: XCTestCase {
         await session.setLayer(.property("iq")).value
         XCTAssertNil(session.rasterRGBA)
         XCTAssertEqual(session.propertyPresentation.canvas?.width, 117)
-        for _ in 0..<4000 where session.keys.isEmpty { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("!session.keys.isEmpty", seconds: 20) { !session.keys.isEmpty }
         XCTAssertEqual(session.keys.map(\.name), ["austenite/austenite", "ferrite/ferrite"])
         XCTAssertEqual(session.keys.map(\.pointGroup), ["432", "432"])
 
