@@ -733,6 +733,7 @@ package final class IndexingSession {
         let task = Task.detached(priority: .userInitiated) { [weak self] in
             if let previous { await previous.value }
             overlap.enter(); defer { overlap.leave() }
+            let interval = Signposts.begin("sem.index.hough"); defer { Signposts.end(interval) }
             do {
                 let built = try cached ?? IndexingProbe(source: source, settings: settings)
                 let plan = try IndexingPlan(probe: built, phases: phases, settings: settings, detector: detector)
@@ -807,6 +808,7 @@ package final class IndexingSession {
             defer { chunkSink.finish() }
             if let previous { await previous.value }
             overlap.enter(); defer { overlap.leave() }
+            let interval = Signposts.begin("sem.index.dictionary"); defer { Signposts.end(interval) }
             do {
                 var byKey = cached
                 for (phase, key) in zip(on, keys) where byKey[key] == nil {

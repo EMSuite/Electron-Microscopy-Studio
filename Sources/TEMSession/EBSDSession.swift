@@ -236,6 +236,7 @@ package final class EBSDSession {
         let previous = processTask
         let task = Task.detached(priority: .userInitiated) { [weak self] in
             if let previous { await previous.value }
+            let interval = Signposts.begin("sem.process"); defer { Signposts.end(interval) }
             let started = Date()
             // Stop cancels this task, and the handler raises the flag the pipeline asks: NLPAR asks it on worker threads that run no
             // task, where `Task.isCancelled` is always false.
@@ -625,6 +626,7 @@ package final class EBSDSession {
         let rects = [DetectorRect(top: 0, bottom: dataset.patternRows, left: 0, right: dataset.patternColumns)]
             + virtualGrid.rects(patternRows: dataset.patternRows, patternColumns: dataset.patternColumns)
         mapTask = Task.detached(priority: .userInitiated) { [weak self] in
+            let interval = Signposts.begin("sem.map"); defer { Signposts.end(interval) }
             do {
                 let pass = try VirtualBSEImaging.imagesAndPatternSum(access, rects: rects, sumsPatterns: sumsPatterns, progress: { f in
                     Task { @MainActor in self?.landMapProgress(f, mapGeneration: gen) }
@@ -662,6 +664,7 @@ package final class EBSDSession {
         qualityRun += 1
         let run = qualityRun
         qualityTask = Task.detached(priority: .userInitiated) { [weak self] in
+            let interval = Signposts.begin("sem.quality"); defer { Signposts.end(interval) }
             do {
                 let maps = try await PatternQuality.maps(of: access, progress: { f in
                     Task { @MainActor in self?.landQualityProgress(f, generation: gen) }
