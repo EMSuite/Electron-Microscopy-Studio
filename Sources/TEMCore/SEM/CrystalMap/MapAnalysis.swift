@@ -110,6 +110,14 @@ package nonisolated struct GrainSlip: Sendable, Equatable {
     package let grain: Int
     package let planes: [Plane]
     package var maximumSchmid: Double { planes.map(\.schmid).max() ?? .nan }
+
+    /// Each grain's `maximumSchmid` by grain number, the first entry of a grain listed twice: a table looks a grain up in it per cell
+    /// (#271), where a search of the list per cell is O(rows × grains).
+    package static func maximumSchmidByGrain(_ slip: [GrainSlip]) -> [Int: Double] {
+        var byGrain: [Int: Double] = [:]
+        for entry in slip where byGrain[entry.grain] == nil { byGrain[entry.grain] = entry.maximumSchmid }
+        return byGrain
+    }
 }
 
 package nonisolated struct MapAnalysis: Sendable {

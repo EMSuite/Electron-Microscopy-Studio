@@ -38,8 +38,8 @@ nonisolated final class SEMSessionLedgerTests: XCTestCase {
         await state.indexing.index().value
         let result = try XCTUnwrap(state.indexing.result)
         var reports: [String] = []
-        state.indexingRoom.export(.mapPNG, from: state.indexing, directory: directory) { reports.append($0) }
-        state.indexingRoom.export(.ang, from: state.indexing, directory: directory) { reports.append($0) }
+        await state.indexingRoom.export(.mapPNG, from: state.indexing, directory: directory) { reports.append($0) }
+        await state.indexingRoom.export(.ang, from: state.indexing, directory: directory) { reports.append($0) }
         XCTAssertEqual(reports, ["Exported patterns_v2 indexed IPF-Z.png", "Exported patterns_v2 indexed.ang"])
 
         let rows = SEMSessionLedger.rows(of: state)

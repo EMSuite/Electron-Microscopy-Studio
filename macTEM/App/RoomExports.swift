@@ -277,20 +277,25 @@ enum RoomExports {
     }
 
     /// The Indexing room's: the bytes of `kind` from the run on screen, to the room's save panel or into a UI journey's export
-    /// folder, with the room's line in the status line.
-    static func indexing(_ kind: IndexingExportKind, appState: AppState) {
-        appState.indexingRoom.export(kind, from: appState.indexing, directory: appState.exportDirectory) { appState.statusText = $0 }
+    /// folder, with the room's line in the status line. The bytes are made off the main actor (#251); the task ends when the file is written.
+    @discardableResult
+    static func indexing(_ kind: IndexingExportKind, appState: AppState) -> Task<Void, Never> {
+        Task { await appState.indexingRoom.export(kind, from: appState.indexing, directory: appState.exportDirectory) { appState.statusText = $0 } }
     }
 
     /// The Maps room's: the file of `kind` (the histogram the Histogram tab counts) to the room's save panel or into a UI journey's
-    /// export folder, with the room's line in the status line.
-    static func maps(_ kind: MapsExportKind, appState: AppState) {
+    /// export folder, with the room's line in the status line. The figures are drawn off the main actor (#251); the task ends when the
+    /// file is written.
+    @discardableResult
+    static func maps(_ kind: MapsExportKind, appState: AppState) -> Task<Void, Never> {
         let room = appState.mapsRoom
-        switch kind {
-        case .map: room.exportMap(from: appState.maps, directory: appState.exportDirectory) { appState.statusText = $0 }
-        case .grains: room.exportGrains(from: appState.maps, directory: appState.exportDirectory) { appState.statusText = $0 }
-        case .histogram: room.exportHistogram(from: appState.maps, directory: appState.exportDirectory) { appState.statusText = $0 }
-        case .texture: room.exportTexture(from: appState.maps, directory: appState.exportDirectory) { appState.statusText = $0 }
+        return Task {
+            switch kind {
+            case .map: await room.exportMap(from: appState.maps, directory: appState.exportDirectory) { appState.statusText = $0 }
+            case .grains: room.exportGrains(from: appState.maps, directory: appState.exportDirectory) { appState.statusText = $0 }
+            case .histogram: room.exportHistogram(from: appState.maps, directory: appState.exportDirectory) { appState.statusText = $0 }
+            case .texture: await room.exportTexture(from: appState.maps, directory: appState.exportDirectory) { appState.statusText = $0 }
+            }
         }
     }
 }
