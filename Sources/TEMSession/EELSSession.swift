@@ -84,6 +84,8 @@ package final class EELSSession {
     package private(set) var fitToNotice: String?
     // The Deconvolve stage
     package private(set) var deconvolutionChoice: EELSDeconvolutionChoice = .off
+    /// Fourier-ratio's zero-loss FWHM in eV when the person typed one (#74); nil: the kit estimates it from the first pixel's low loss.
+    package private(set) var zeroLossFWHM: Double?
     /// What the stage made last (kept, dimmed as stale, when its inputs change); nil until it ran.
     package private(set) var deconvolution: EELSDeconvolutionResult?
     @ObservationIgnored private var deconvolutionSignature = ""
@@ -257,7 +259,7 @@ package final class EELSSession {
     }
     /// What a deconvolution made now would be made from: the cubes, the threshold (it cuts the zero-loss peaks and Fourier-ratio's I₀) and the method.
     /// λ and the beam energy enter no deconvolution.
-    private var currentDeconvolutionSignature: String { "\(inputVersion)|\(threshold)|\(deconvolutionChoice)" }
+    private var currentDeconvolutionSignature: String { "\(inputVersion)|\(threshold)|\(deconvolutionChoice)|\(zeroLossFWHM.map { "\($0)" } ?? "estimated")" }
     /// The stages in order; Deconvolve is listed only when a method is chosen.
     package var stages: [(stage: EELSStage, state: EELSStageState)] {
         var out: [(stage: EELSStage, state: EELSStageState)] = [(.align, alignState), (.thickness, thicknessState)]
@@ -498,7 +500,7 @@ package final class EELSSession {
         alignChoice = EELSAlignChoice(); alignedWith = nil; alignNotice = nil
         pickedEdges = []; model = nil; modelComposition = nil; regionModel = nil; regionComposition = nil; modelTiles = []; modelSignature = ""
         fitModel = .exactNNLS; fitOnlyElements = []; modelDeconvolution = nil; fitToEV = nil; fitToNotice = nil; regionQuality = nil
-        deconvolutionChoice = .off; deconvolution = nil; deconvolutionSignature = ""; deconvolutionNotice = nil
+        deconvolutionChoice = .off; deconvolution = nil; deconvolutionSignature = ""; deconvolutionNotice = nil; zeroLossFWHM = nil
         typedConvergenceMrad = nil; typedCollectionMrad = nil
         map = nil; tiles = []; unavailableReasons = []; failure = nil
         resetRegions()
@@ -517,13 +519,24 @@ package final class EELSSession {
         plot = nil; wholeMapPlot = nil; fitUsed = nil; alignmentShiftTile = nil
         deadTask?.cancel(); coreDeadStretches = []; editedWindows = [:]; references = []; modelReferenceNames = []
         fitModel = .exactNNLS; fitOnlyElements = []; modelDeconvolution = nil; fitToEV = nil; fitToNotice = nil; regionQuality = nil
-        deconvolutionChoice = .off; deconvolution = nil; deconvolutionSignature = ""; deconvolutionNotice = nil
+        deconvolutionChoice = .off; deconvolution = nil; deconvolutionSignature = ""; deconvolutionNotice = nil; zeroLossFWHM = nil
         alignChoice = EELSAlignChoice(); alignedWith = nil; alignNotice = nil
         source = nil; sourceURL = nil; alignment = nil; alignmentTile = nil; pickedEdges = []; model = nil; modelComposition = nil; regionModel = nil; regionComposition = nil; modelTiles = []; modelSignature = ""; map = nil; tiles = []; unavailableReasons = []; failure = nil
         resetRegions()
     }
 
     // MARK: Choices
+
+    /// Fourier-ratio's zero-loss FWHM (#74): a typed width in eV, or nil to let the kit estimate it. A width that is not a positive number is refused
+    /// with a sentence and the old one kept. Deconvolve is then stale until it runs again.
+    package func setZeroLossFWHM(_ eV: Double?) {
+        if let eV, !(eV.isFinite && eV > 0) {
+            deconvolutionNotice = "The zero-loss FWHM must be a positive width in eV."
+            return
+        }
+        deconvolutionNotice = nil
+        zeroLossFWHM = eV
+    }
 
     package func setThreshold(_ new: EELSThresholdChoice) {
         guard new != threshold else { return }
@@ -903,6 +916,7 @@ package final class EELSSession {
         generation += 1
         let gen = generation
         let choice = deconvolutionChoice, low = hasLowLoss ? workingLowLoss : nil, core = workingCoreLoss, map = thicknessState == .current ? map : nil, threshold = threshold
+        let fwhm = zeroLossFWHM
         let signature = currentDeconvolutionSignature
         failure = nil
         isComputing = true
@@ -915,7 +929,7 @@ package final class EELSSession {
             do {
                 let interval = Signposts.begin("eels.deconvolve"); defer { Signposts.end(interval) }
                 let gate = ProgressGate()
-                let result = try EELSDeconvolveCompute.run(choice, low: low, core: core, map: map, threshold: threshold, progress: { f in
+                let result = try EELSDeconvolveCompute.run(choice, low: low, core: core, map: map, threshold: threshold, fwhmEV: fwhm, progress: { f in
                     guard gate.shouldReport(f) else { return }
                     Task { @MainActor in self?.landProgress(f, generation: gen) }
                 })
