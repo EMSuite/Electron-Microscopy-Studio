@@ -399,6 +399,10 @@ package nonisolated enum SessionSave {
         }
         do { try SessionSidecarFile.write(source: request.source, lineage: request.lineage, to: url) }
         catch let refusal as SessionSidecarFile.Refusal { throw .file(refusal) }
-        catch { throw .file(.cannotWrite(operation: "writing the file", detail: "\(error)")) }
+        catch {
+            // A Cocoa or POSIX permission error is told by its code (#628) and carries the system's words for it.
+            let detail = PermissionDenial.isDenied(error) ? "\(PermissionDenial.deniedWords): \(error)" : "\(error)"
+            throw .file(.cannotWrite(operation: "writing the file", detail: detail))
+        }
     }
 }
