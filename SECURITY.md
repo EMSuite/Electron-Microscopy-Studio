@@ -2,7 +2,7 @@
 
 macEM is a desktop application that reads microscopy files you choose. It runs in the macOS App Sandbox and has no telemetry or
 analytics. The App Store build connects to no other computer; the website download connects only to fetch its signed update
-feed (Sparkle, mac4dstem.com), sending no system profile, and Check for Updates can be turned off in Settings. Its one listener is the agent door (Settings > Agents, off by default): on
+feed (Sparkle, mac4dstem.com), sending no system profile; its automatic check can be turned off in Settings. Its one listener is the agent door (Settings > Agents, off by default): on
 this Mac's loopback address only, for an AI agent you run on the same Mac, and only requests carrying its token. It reads and writes only the files you pick; security-scoped
 bookmarks let it reopen them.
 
