@@ -75,6 +75,7 @@ private struct FFTRegionSection: View {
     let session: ImageSession
     private var image: CalibratedImage { session.imageOrBlank }
     let analysis: FFTAnalysis
+    @Environment(\.undoManager) private var undoManager
 
     var body: some View {
         let region = analysis.region
@@ -288,7 +289,7 @@ private struct FFTSpotsSection: View {
                 InspectorNote("Yellow ring: a measured spot; blue: the selected one; dashed: not measured. ⚠ marks a spot with another peak close by.")
                 notes(for: spots)
                 InspectorActionRow {
-                    Button("Remove All") { analysis.removeAllSpots() }
+                    Button("Remove All") { FFTSpotUndo.remove(spots.map(\.id), in: analysis, undoManager: undoManager) }
                 }
             }
             if let spectrum {
@@ -328,6 +329,7 @@ private struct FFTSpotsList: View {
     let spots: [FFTSpot]
     let selection: FFTSpot.ID?
     let analysis: FFTAnalysis
+    @Environment(\.undoManager) private var undoManager
     @FocusState private var hasFocus: Bool
 
     private static let rowSpacing: CGFloat = 2
@@ -342,7 +344,7 @@ private struct FFTSpotsList: View {
         .focusable()
         .focused($hasFocus)
         .simultaneousGesture(TapGesture().onEnded { hasFocus = true })
-        .onDeleteCommand { if let selection { analysis.removeSpot(selection) } }
+        .onDeleteCommand { if let selection { FFTSpotUndo.remove([selection], in: analysis, undoManager: undoManager) } }
         .onCopyCommand { copyProviders() }
         .onMoveCommand { move($0) }
     }
@@ -374,6 +376,7 @@ private struct FFTSpotRow: View {
     /// The angle to the reference spot (the first measured one); nil for the reference itself and for a spot with none.
     let angle: FFTSpotAngles.Angle?
     let analysis: FFTAnalysis
+    @Environment(\.undoManager) private var undoManager
 
     /// The numbers and the glyph differ in width; fixed slots keep the columns of In Mask and Remove in line across rows.
     private static let numberWidth: CGFloat = 20
@@ -397,7 +400,7 @@ private struct FFTSpotRow: View {
                 .toggleStyle(.checkbox)
                 .disabled(spot.measured == nil)
                 .help(spot.measured == nil ? "Only a measured spot can be in the mask" : "Pass this spot in the masked inverse")
-            Button("Remove", systemImage: "xmark") { analysis.removeSpot(spot.id) }
+            Button("Remove", systemImage: "xmark") { FFTSpotUndo.remove([spot.id], in: analysis, undoManager: undoManager) }
                 .labelStyle(.iconOnly)
                 .buttonStyle(.borderless)
                 .help("Remove")
