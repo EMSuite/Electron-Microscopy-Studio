@@ -267,6 +267,15 @@ struct FFTSourceViewControl: View {
     }
 
     var body: some View {
+        // The pop-up is as wide as its longest item ("Masked Inverse (none in mask)"); in the narrowest inspector it gives way and
+        // truncates rather than push the row past the edge (InspectorRow: "the control adapts instead").
+        ViewThatFits(in: .horizontal) {
+            picker.fixedSize()
+            picker
+        }
+    }
+
+    private var picker: some View {
         Picker("View", selection: Binding(get: { analysis.sourceView }, set: { analysis.setSourceView($0) })) {
             ForEach(Self.entries(for: analysis), id: \.view) { entry in
                 Text(entry.title).tag(entry.view).disabled(!entry.isEnabled)
@@ -274,7 +283,6 @@ struct FFTSourceViewControl: View {
         }
         .pickerStyle(.menu)
         .labelsHidden()
-        .fixedSize()
         .help("What the left pane shows: the file, or a product made from it")
         .accessibilityLabel("View")
         .accessibilityIdentifier("fft.view")
