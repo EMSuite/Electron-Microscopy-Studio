@@ -294,8 +294,8 @@ private struct EELSMapTileHost: View {
             .task(id: key) {
                 guard !members.isEmpty else { image = nil; return }
                 let count = w * h
-                let made: CGImage? = await Task.detached(priority: .userInitiated) { EDXMapRaster.cgImage(rgba: MapRaster.mix(layers, count: count), width: w, height: h) }.value
-                // A newer key cancelled this render while it ran (the detached work does not see it): it lands nothing over the newer one.
+                let made: CGImage? = await offMainActor { EDXMapRaster.cgImage(rgba: MapRaster.mix(layers, count: count), width: w, height: h) }
+                // A newer key cancelled this render while it ran: it lands nothing over the newer one.
                 guard !Task.isCancelled else { return }
                 image = made
             }
@@ -318,7 +318,7 @@ private struct EELSMapTileHost: View {
             .task(id: "\(tile.id)-\(tile.version)-\(coloring.hashValue)-\(adjustment.hashValue)-\(filtered ? filter.rawValue : "raw")") {
                 let raw = tile, coloring = coloring, adjustment = adjustment, w = tile.width, h = tile.height
                 let mode = EELSMapScale.mode(forTileID: tile.id)
-                let made: CGImage? = await Task.detached(priority: .userInitiated) {
+                let made: CGImage? = await offMainActor {
                     let values = EELSMapDisplay.shownValues(raw, filter: filter)
                     // NaN (a pixel the kit refused) stays at the bottom of the scale; a stale tile is drawn as it was. A map whose pixels are all one value has no range:
                     // it is drawn at the middle of a neutral grey ramp (never the white of a diverging scale's centre) and the tile's detail names the value.
@@ -327,7 +327,7 @@ private struct EELSMapTileHost: View {
                     }
                     let scaled = EELSMapScale.scaled(values, mode: mode)
                     return EDXMapRaster.cgImage(rgba: MapRaster.rgba(values: scaled.values, coloring: coloring, upper: 1, adjustment: adjustment), width: w, height: h)
-                }.value
+                }
                 // Every slider tick starts a render: one cancelled by a newer tick while it ran lands nothing, so the tile never ends on an
                 // earlier tick's window.
                 guard !Task.isCancelled else { return }
@@ -377,7 +377,7 @@ private struct EELSMapPopover: View {
             .formStyle(.grouped).scrollContentBackground(.hidden).fixedSize(horizontal: false, vertical: true)
             .task(id: "\(tile.id)-\(tile.version)") {
                 let values = tile.values, mode = EELSMapScale.mode(forTileID: tile.id)
-                let made: Shown? = await Task.detached(priority: .userInitiated) { Self.histogram(values: values, mode: mode) }.value
+                let made: Shown? = await offMainActor { Self.histogram(values: values, mode: mode) }
                 // A newer tile version's histogram is on its way: this one, cancelled while it ran, lands nothing.
                 guard !Task.isCancelled else { return }
                 shown = made

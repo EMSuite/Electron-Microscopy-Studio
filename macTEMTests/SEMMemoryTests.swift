@@ -170,7 +170,10 @@ nonisolated final class SEMMemoryTests: XCTestCase {
 
         for strategy in [EBSDPatternReader.RecordStrategy.read, .mapped] {
             let reader = try EBSDPatternReader(dataset, strategy: strategy)
-            let source = IndexingSource(stored: reader, pipeline: .roomDefault, background: nil)
+            // The room's stages without the static background: the room hands it the mean of a map pass, which this measure leaves out.
+            var pipeline = PatternPipeline.roomDefault
+            pipeline.staticStage.isOn = false
+            let source = IndexingSource(stored: reader, pipeline: pipeline, background: nil)
             let probe = try IndexingProbe(source: source, settings: .roomDefault)
             let plan = try IndexingPlan(probe: probe, phases: [nickel], settings: .roomDefault, detector: dataset.detector)
             // The first row warms the indexer's per-thread work buffers; the measure starts after it.

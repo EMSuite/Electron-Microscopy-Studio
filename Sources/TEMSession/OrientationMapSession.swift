@@ -441,6 +441,9 @@ package final class OrientationMapSession {
             } else {
                 raster = OrientationMaps.raster(layer, of: map)
             }
+            // A newer draw, a new map or a close cancelled this one while its raster was made: the rest of the work is skipped (#622).
+            // The draw that replaced it lands and ends `isDrawing`; a close ends it itself.
+            guard !Task.isCancelled else { return }
             let canvas = raster.values.map { values in
                 CanvasPixels.make(width: raster.columns, height: raster.rows, pixels: values.map(Float.init))
             }
@@ -770,6 +773,9 @@ package final class OrientationMapSession {
         textureFailure = nil
         textureTask?.cancel()
         let map = document.map
+        // The map this texture belongs to: a new map, even one from a file of the same name, or the same map from another source, is
+        // a new generation (#622).
+        let gen = mapGeneration
         let task = Task { [weak self] in
             var made: MapTexture?
             var failure = ""
@@ -778,7 +784,7 @@ package final class OrientationMapSession {
             } catch {
                 failure = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
             }
-            guard let self, !Task.isCancelled, self.texturePhaseID == id, self.document?.fileName == document.fileName else { return }
+            guard let self, !Task.isCancelled, self.texturePhaseID == id, self.mapGeneration == gen else { return }
             self.texture = made
             self.isTexturing = false
             // The texture's own sentence (a phase without a point group, orientations that cannot be read) says why.

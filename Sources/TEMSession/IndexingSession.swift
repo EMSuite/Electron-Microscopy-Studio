@@ -197,6 +197,8 @@ package final class IndexingSession {
     }
 
     @ObservationIgnored var runTask: Task<Void, Never>?
+    /// The runs working at once (#622): a run waits for the one it replaced to end before it starts, so this stays at one.
+    @ObservationIgnored package let runOverlap = RunOverlap()
     @ObservationIgnored private var patternTask: Task<Void, Never>?
     /// Bumped by every dataset bound or closed (a pattern or a key that lands for another dataset is dropped) and by every run (a row
     /// that lands for an earlier run is dropped).
@@ -694,9 +696,12 @@ package final class IndexingSession {
         let cached = probe?.key == key ? probe?.probe.reading(source) : nil
         let phases = self.phases, settings = self.settings, detector = document.dataset.detector
         let rows = document.dataset.scanRows, columns = document.dataset.scanColumns
-        runTask?.cancel()
+        // The run replaced is stopped, and this one starts only when it has ended (#622): two runs never share the cores.
+        let previous = runTask
+        previous?.cancel()
         runGeneration += 1
         let run = runGeneration
+        let overlap = runOverlap
         runs[.hough] = IndexingRun(id: run, result: IndexingResult(scanRows: rows, scanColumns: columns, phases: inputs.phases), inputs: inputs,
                                    source: source.kind, projectionCenter: IndexingPlan.meanProjectionCenter(detector))
         isIndexing = true; runningMethod = .hough; progress = 0; chunksDone = 0; chunksTotal = 0
@@ -709,6 +714,8 @@ package final class IndexingSession {
         onEvent?("Indexing \(rows * columns) patterns with Hough (\(inputs.phases.map(\.name).joined(separator: ", ")))…")
         let started = Date()
         let task = Task.detached(priority: .userInitiated) { [weak self] in
+            if let previous { await previous.value }
+            overlap.enter(); defer { overlap.leave() }
             let interval = Signposts.begin("sem.index.hough"); defer { Signposts.end(interval) }
             do {
                 let built = try cached ?? IndexingProbe(source: source, settings: settings)
@@ -756,9 +763,11 @@ package final class IndexingSession {
         let phases = self.phases, settings = dictionarySettings, detector = document.dataset.detector
         let beam = document.dataset.sem.beamEnergyKeV
         let rows = document.dataset.scanRows, columns = document.dataset.scanColumns
-        runTask?.cancel()
+        let previous = runTask
+        previous?.cancel()
         runGeneration += 1
         let run = runGeneration
+        let overlap = runOverlap
         runs[.dictionary] = IndexingRun(id: run, result: IndexingResult(scanRows: rows, scanColumns: columns, phases: inputs.phases,
                                                                         metric: settings.metric),
                                         inputs: inputs, source: source.kind, projectionCenter: IndexingPlan.meanProjectionCenter(detector))
@@ -780,6 +789,8 @@ package final class IndexingSession {
         let started = Date()
         let task = Task.detached(priority: .userInitiated) { [weak self] in
             defer { chunkSink.finish() }
+            if let previous { await previous.value }
+            overlap.enter(); defer { overlap.leave() }
             let interval = Signposts.begin("sem.index.dictionary"); defer { Signposts.end(interval) }
             do {
                 var byKey = cached
