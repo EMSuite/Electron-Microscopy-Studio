@@ -47,8 +47,11 @@ package final class EBSDSession {
     /// The navigation map's pass: running, and how far (0...1).
     package private(set) var isMapping = false
     package private(set) var mapProgress = 0.0
-    /// The mean intensity of every pattern in map order (`EBSDBrowsing.meanIntensityMap`), once the pass has landed.
-    package private(set) var meanIntensities: [Float]?
+    /// The mean intensity of every pattern in map order (`EBSDBrowsing.meanIntensityMap`), once the pass has landed: the pixels of
+    /// `meanCanvas`, which the pass's task makes off the main actor (#256).
+    package var meanIntensities: [Float]? { meanCanvas?.values }
+    /// The mean map's canvas (its range, version and histogram), made with the pass; its pixels are `meanIntensities`, shared.
+    package private(set) var meanCanvas: CanvasPixels?
     /// Why the map could not be made (the reader's sentence); nil while it is being made or once it has landed.
     package private(set) var mapFailure: String?
 
@@ -57,8 +60,11 @@ package final class EBSDSession {
     /// The detector grid the pass cuts the patterns into (`VirtualBSEGrid`); changing it runs the pass again.
     package private(set) var virtualGrid = VirtualBSEGrid(5)
     /// The sum images the pass landed: index 0 the whole detector (the virtual BSE), then `virtualGrid.tiles` in order; each
-    /// `scanRows * scanColumns` long. nil until the pass lands.
-    package private(set) var virtualImages: [[Float]]?
+    /// `scanRows * scanColumns` long. nil until the pass lands. The pixels of `virtualCanvases`, shared.
+    package var virtualImages: [[Float]]? { virtualCanvases?.map(\.values) }
+    /// The canvases of the sum images, in `virtualImages`' order, made in the pass's task off the main actor (#256): the tiles pane
+    /// draws them as they are, and building 26 canvases at scan size on every body pass stalled the room.
+    package private(set) var virtualCanvases: [CanvasPixels]?
     /// What the scan map draws.
     package enum MapChoice: Sendable, Hashable {
         /// The mean intensity of every pattern (the navigator).
@@ -82,8 +88,11 @@ package final class EBSDSession {
     package private(set) var mixVersion = 0
     /// The quality maps (north star F3), made by their own pass the first time one is picked: image quality and average dot product in
     /// map order, nil until that pass lands.
-    package private(set) var imageQualityMap: [Float]?
-    package private(set) var dotProductMap: [Float]?
+    package var imageQualityMap: [Float]? { imageQualityCanvas?.values }
+    package var dotProductMap: [Float]? { dotProductCanvas?.values }
+    /// Their canvases, made in the quality pass's task off the main actor (#256).
+    package private(set) var imageQualityCanvas: CanvasPixels?
+    package private(set) var dotProductCanvas: CanvasPixels?
     /// Whether the landed quality maps were computed on the processed scan (the room's last Process run) rather than the patterns as
     /// stored (macEM#192): a run that lands remakes them from its patterns.
     package private(set) var qualityOfProcessed = false
@@ -356,6 +365,8 @@ package final class EBSDSession {
     @ObservationIgnored private var qualityTask: Task<Void, Never>?
     /// The quality pass in flight: a pass replaced by a newer one (a Process run landed) never lands.
     @ObservationIgnored private var qualityRun = 0
+    /// The colour mix asked for last: a mix made for an older pick lands nothing.
+    @ObservationIgnored private var mixRun = 0
     @ObservationIgnored private var patternTask: Task<Void, Never>?
     @ObservationIgnored private var processTask: Task<Void, Never>?
     @ObservationIgnored private var meanTask: Task<Void, Never>?
@@ -432,6 +443,24 @@ package final class EBSDSession {
         }
     }
 
+    /// The canvas of the tile image of `tile`, once landed (made with the pass, off the main actor).
+    package func tileCanvas(_ tile: VirtualBSETile) -> CanvasPixels? {
+        guard let virtualCanvases else { return nil }
+        let k = virtualGrid.index(of: tile) + 1
+        return k < virtualCanvases.count ? virtualCanvases[k] : nil
+    }
+
+    /// The canvas the scan map draws for `choice` (the mean map's under the colour mix), once its pass has landed.
+    package func mapCanvas(for choice: MapChoice) -> CanvasPixels? {
+        switch choice {
+        case .mean, .mix: meanCanvas
+        case .bse: virtualCanvases?.first
+        case .tile(let tile): tileCanvas(tile)
+        case .imageQuality: imageQualityCanvas
+        case .dotProduct: dotProductCanvas
+        }
+    }
+
     /// The tile image of `tile`, once landed.
     package func tileImage(_ tile: VirtualBSETile) -> [Float]? {
         guard let virtualImages else { return nil }
@@ -443,7 +472,7 @@ package final class EBSDSession {
     package func setVirtualGrid(_ grid: VirtualBSEGrid) {
         guard grid != virtualGrid, let document else { virtualGrid = grid; return }
         virtualGrid = grid
-        virtualImages = nil
+        virtualCanvases = nil
         mixTiles = [nil, nil, nil]
         mixRGBA = nil
         if case .tile = mapChoice { mapChoice = .mean }
@@ -460,40 +489,59 @@ package final class EBSDSession {
         remakeMap()
     }
 
-    /// Picks `tile` (nil: none) for `channel` of the colour mix (0 red, 1 green, 2 blue); the map shows the mix once all three are picked.
-    package func setMixTile(_ tile: VirtualBSETile?, channel: Int) {
-        guard (0..<3).contains(channel) else { return }
+    /// Picks `tile` (nil: none) for `channel` of the colour mix (0 red, 1 green, 2 blue); the map shows the mix once all three are picked
+    /// and the mix is made (off the main actor, #256). The returned task ends when the mix has landed.
+    @discardableResult
+    package func setMixTile(_ tile: VirtualBSETile?, channel: Int) -> Task<Void, Never> {
+        guard (0..<3).contains(channel) else { return Task {} }
         mixTiles[channel] = tile
-        remakeMix()
-        if mixRGBA != nil { mapChoice = .mix }
-        remakeMap()
+        return remakeMix(showing: true)
     }
 
     /// Whether the colour mix can be drawn: three tiles picked and the pass landed.
     package var hasMix: Bool { mixRGBA != nil }
 
-    private func remakeMix() {
+    /// Makes the colour mix of `mixTiles` off the main actor (each channel's median makes it a sort per channel); it lands unless a newer
+    /// pick, grid or dataset came first, and with `showing` the map then shows it. Without three tiles and the pass there is no mix.
+    @discardableResult
+    private func remakeMix(showing: Bool = false) -> Task<Void, Never> {
+        mixRun += 1
+        let run = mixRun, gen = mapGeneration
         guard let r = mixTiles[0], let g = mixTiles[1], let b = mixTiles[2],
-              let red = tileImage(r), let green = tileImage(g), let blue = tileImage(b) else { mixRGBA = nil; return }
+              let red = tileImage(r), let green = tileImage(g), let blue = tileImage(b) else {
+            mixRGBA = nil
+            remakeMap()
+            return Task {}
+        }
+        return Task { [weak self] in
+            let rgba = await Self.mixRGBA(red: red, green: green, blue: blue)
+            guard let self, run == self.mixRun, gen == self.mapGeneration else { return }
+            self.mixRGBA = rgba
+            if rgba != nil {
+                self.mixVersion &+= 1
+                if showing { self.mapChoice = .mix }
+            }
+            self.remakeMap()
+        }
+    }
+
+    /// The colour mix as RGBA bytes (kikuchipy's `get_rgb_image`, `VirtualBSEImaging.rgb`), opaque; nil when it cannot be made.
+    @concurrent
+    nonisolated private static func mixRGBA(red: [Float], green: [Float], blue: [Float]) async -> [UInt8]? {
         let rgb = VirtualBSEImaging.rgb(red: red, green: green, blue: blue)
-        guard !rgb.isEmpty else { mixRGBA = nil; return }
+        guard !rgb.isEmpty else { return nil }
         var rgba = [UInt8](repeating: 255, count: red.count * 4)
         for i in 0..<red.count {
             rgba[4 * i] = rgb[3 * i]; rgba[4 * i + 1] = rgb[3 * i + 1]; rgba[4 * i + 2] = rgb[3 * i + 2]
         }
-        mixRGBA = rgba
-        mixVersion &+= 1
+        return rgba
     }
 
-    /// The map's canvas for `mapChoice`: the mean map, a sum image, or (for the mix, drawn from `mixRGBA`) the mean map's canvas underneath.
+    /// Shows the map's canvas for `mapChoice`: the mean map, a sum image, or (for the mix, drawn from `mixRGBA`) the mean map's canvas
+    /// underneath. Every canvas was made off the main actor with its pass (#256); this only hands it to the view.
     private func remakeMap() {
-        guard let dataset = document?.dataset else { return }
-        let pixels: [Float]?
-        switch mapChoice {
-        case .mean, .mix: pixels = meanIntensities
-        case .bse, .tile, .imageQuality, .dotProduct: pixels = chosenImage
-        }
-        if let pixels { mapPresentation.show(CanvasPixels.make(width: dataset.scanColumns, height: dataset.scanRows, pixels: pixels)) }
+        guard document != nil, let canvas = mapCanvas(for: mapChoice) else { return }
+        mapPresentation.show(canvas)
     }
 
     // MARK: Opening
@@ -539,9 +587,9 @@ package final class EBSDSession {
         self.document = document
         cache = [:]; cacheOrder = []; cacheBytes = 0
         pinned = .origin
-        patternPosition = nil; meanIntensities = nil; mapFailure = nil; mapProgress = 0
-        virtualImages = nil; mixTiles = [nil, nil, nil]; mixRGBA = nil; mapChoice = .mean
-        qualityTask?.cancel(); imageQualityMap = nil; dotProductMap = nil; isQualityMapping = false; qualityProgress = 0
+        patternPosition = nil; meanCanvas = nil; mapFailure = nil; mapProgress = 0
+        virtualCanvases = nil; mixTiles = [nil, nil, nil]; mixRGBA = nil; mapChoice = .mean
+        qualityTask?.cancel(); imageQualityCanvas = nil; dotProductCanvas = nil; isQualityMapping = false; qualityProgress = 0
         resetOverlay()
         resetProcessing()
         onEvent?("Opened \(document.fileName) — \(EBSDBrowsing.capsuleDetail(document.dataset)), step \(UnitDisplay.number(document.dataset.stepX)) \(EBSDBrowsing.unitLabel(document.dataset.scanUnit))")
@@ -597,9 +645,9 @@ package final class EBSDSession {
         openTask?.cancel(); mapTask?.cancel(); patternTask?.cancel()
         isOpening = false; isMapping = false
         document = nil; cache = [:]; cacheOrder = []; cacheBytes = 0
-        meanIntensities = nil; mapFailure = nil; patternPosition = nil; pinned = .origin
-        virtualImages = nil; mixTiles = [nil, nil, nil]; mixRGBA = nil; mapChoice = .mean
-        qualityTask?.cancel(); imageQualityMap = nil; dotProductMap = nil; isQualityMapping = false; qualityProgress = 0; showsTiles = false
+        meanCanvas = nil; mapFailure = nil; patternPosition = nil; pinned = .origin
+        virtualCanvases = nil; mixTiles = [nil, nil, nil]; mixRGBA = nil; mapChoice = .mean
+        qualityTask?.cancel(); imageQualityCanvas = nil; dotProductCanvas = nil; isQualityMapping = false; qualityProgress = 0; showsTiles = false
         processTask?.cancel(); meanTask?.cancel()
         processed = nil; processedWith = nil; isProcessing = false; processProgress = 0; nlparLambda = nil
         scanMeanBackground = nil; isComputingMean = false; meanRidesMap = false; patternIsProcessed = false; previewFailure = nil
@@ -634,6 +682,10 @@ package final class EBSDSession {
                 let pixels = Double(max(dataset.patternPixels, 1))
                 let mean = sums[0].map { Float($0 / pixels) }
                 let images = sums.map { $0.map(Float.init) }
+                // The canvases the map and the tiles pane draw, made here off the main actor (#256); each shares its image's pixels.
+                let w = dataset.scanColumns, h = dataset.scanRows
+                let meanCanvas = CanvasPixels.make(width: w, height: h, pixels: mean)
+                let canvases = images.map { CanvasPixels.make(width: w, height: h, pixels: $0) }
                 var scanMean: FormatoArray?
                 var meanFailure: String?
                 if let patternSum = pass.patternSum {
@@ -643,10 +695,10 @@ package final class EBSDSession {
                         meanFailure = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
                     }
                 }
-                await self?.landMap(mean, images: images, scanMean: scanMean, meanFailure: meanFailure, failure: nil, mapGeneration: gen)
+                await self?.landMap(meanCanvas, canvases: canvases, scanMean: scanMean, meanFailure: meanFailure, failure: nil, mapGeneration: gen)
             } catch {
                 let words = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-                await self?.landMap(nil, images: nil, scanMean: nil, meanFailure: nil, failure: words, mapGeneration: gen)
+                await self?.landMap(nil, canvases: nil, scanMean: nil, meanFailure: nil, failure: words, mapGeneration: gen)
             }
         }
     }
@@ -666,7 +718,11 @@ package final class EBSDSession {
                 let maps = try await PatternQuality.maps(of: access, progress: { f in
                     Task { @MainActor in self?.landQualityProgress(f, generation: gen) }
                 })
-                await self?.landQuality(maps.imageQuality.map(Float.init), maps.dotProduct.map(Float.init), failure: nil, generation: gen,
+                // Their canvases, made here off the main actor (#256).
+                let w = access.dataset.scanColumns, h = access.dataset.scanRows
+                let iq = CanvasPixels.make(width: w, height: h, pixels: maps.imageQuality.map(Float.init))
+                let adp = CanvasPixels.make(width: w, height: h, pixels: maps.dotProduct.map(Float.init))
+                await self?.landQuality(iq, adp, failure: nil, generation: gen,
                                         run: run, ofProcessed: ofProcessed)
             } catch is CancellationError {
                 return
@@ -680,7 +736,7 @@ package final class EBSDSession {
     /// A Process run landed: quality maps made from other patterns are dropped, and made again from the run's when one is on the map.
     private func remakeQualityFromProcessed() {
         guard imageQualityMap != nil || isQualityMapping else { return }
-        qualityTask?.cancel(); imageQualityMap = nil; dotProductMap = nil; isQualityMapping = false; qualityProgress = 0
+        qualityTask?.cancel(); imageQualityCanvas = nil; dotProductCanvas = nil; isQualityMapping = false; qualityProgress = 0
         if mapChoice == .imageQuality || mapChoice == .dotProduct, let document { startQuality(document) }
         remakeMap()
     }
@@ -690,13 +746,13 @@ package final class EBSDSession {
         qualityProgress = f
     }
 
-    private func landQuality(_ iq: [Float]?, _ adp: [Float]?, failure: String?, generation gen: Int, run: Int,
+    private func landQuality(_ iq: CanvasPixels?, _ adp: CanvasPixels?, failure: String?, generation gen: Int, run: Int,
                              ofProcessed: Bool = false) {
         guard gen == generation, run == qualityRun else { return }
         isQualityMapping = false
         if let iq, let adp {
-            imageQualityMap = iq
-            dotProductMap = adp
+            imageQualityCanvas = iq
+            dotProductCanvas = adp
             qualityOfProcessed = ofProcessed
             qualityProgress = 1
             remakeMap()
@@ -712,14 +768,14 @@ package final class EBSDSession {
 
     /// The map's pass landed (or failed); the scan's mean that rode on it lands with it (or `meanFailure` says why it could not be made),
     /// or stops computing when the pass failed (the map's error says why). A stopped mean (`stop()` lowered `meanRidesMap`) does not land.
-    private func landMap(_ map: [Float]?, images: [[Float]]?, scanMean: FormatoArray?, meanFailure: String?, failure: String?,
+    private func landMap(_ map: CanvasPixels?, canvases: [CanvasPixels]?, scanMean: FormatoArray?, meanFailure: String?, failure: String?,
                          mapGeneration gen: Int) {
         guard gen == mapGeneration else { return }
         isMapping = false
         mapProgress = map == nil ? mapProgress : 1
-        if let map, let images {
-            meanIntensities = map
-            virtualImages = images
+        if let map, let canvases {
+            meanCanvas = map
+            virtualCanvases = canvases
             remakeMix()
             remakeMap()
         } else if let failure {
@@ -756,8 +812,10 @@ package final class EBSDSession {
 
     // MARK: The pattern
 
-    /// Shows the pattern at `position`, raw or through the pipeline (`patternDisplay`): a cached raw pattern shown raw lands at once, else
-    /// the read and the processing run in a task that the next request cancels. The returned task ends when the pattern is on screen.
+    /// Shows the pattern at `position`, raw or through the pipeline (`patternDisplay`): the read, the processing and the canvas run in a
+    /// task off the main actor that the next request cancels (#256: a full-size pattern's canvas is a million pixels normalised, hashed
+    /// and binned, too much for every pick on the main actor); a cached raw pattern only has its canvas made. The returned task ends
+    /// when the pattern is on screen.
     @discardableResult
     private func showPattern(at position: EBSDPosition) -> Task<Void, Never> {
         patternTask?.cancel()
@@ -769,28 +827,20 @@ package final class EBSDSession {
         // The scan's own run when it is current: the only way to see NLPAR, which needs the neighbours.
         if patternDisplay == .processed, let processed, processedWith == self.pipeline,
            let one = try? processed.pattern(row: position.row, column: position.column) {
-            patternPresentation.show(Self.canvas(one))
-            patternPosition = position
-            patternIsProcessed = true
             previewFailure = nil
-            return Task {}
+            return landPattern(one, at: position, isProcessed: true)
         }
         let cached = cache[index]
         if cached != nil { touch(index) }
-        if let cached, pipeline == nil {
-            patternPresentation.show(Self.canvas(cached))
-            patternPosition = position
-            patternIsProcessed = false
-            return Task {}
-        }
+        if let cached, pipeline == nil { return landPattern(cached, at: position, isProcessed: false) }
         let gen = generation
         let access = document.access
         let task = Task { [weak self] in
             do {
-                let (raw, shown) = try await Self.readPattern(access, position: position, cached: cached, pipeline: pipeline, background: background)
+                let (raw, canvas) = try await Self.readPattern(access, position: position, cached: cached, pipeline: pipeline, background: background)
                 guard let self, !Task.isCancelled, gen == self.generation else { return }
                 if cached == nil { self.remember(raw, at: index) }
-                self.patternPresentation.show(Self.canvas(shown))
+                self.patternPresentation.show(canvas)
                 self.patternPosition = position
                 self.patternIsProcessed = pipeline != nil
             } catch {
@@ -810,14 +860,37 @@ package final class EBSDSession {
         return task
     }
 
+    /// Shows `pattern`, already in hand, at `position` once its canvas is made off the main actor, unless a newer pattern was asked for.
+    private func landPattern(_ pattern: FormatoArray, at position: EBSDPosition, isProcessed: Bool) -> Task<Void, Never> {
+        let gen = generation
+        let task = Task { [weak self] in
+            let canvas = await Self.makeCanvas(pattern)
+            guard let self, !Task.isCancelled, gen == self.generation else { return }
+            self.patternPresentation.show(canvas)
+            self.patternPosition = position
+            self.patternIsProcessed = isProcessed
+        }
+        patternTask = task
+        return task
+    }
+
+    /// The pattern at `position` as read (to cache) and the canvas of what is shown: the read, the pipeline and the canvas off the main
+    /// actor.
     @concurrent
     nonisolated private static func readPattern(_ access: any EBSDPatternAccess, position: EBSDPosition, cached: FormatoArray?,
-                                                pipeline: PatternPipeline?, background: FormatoArray?) async throws -> (raw: FormatoArray, shown: FormatoArray) {
+                                                pipeline: PatternPipeline?, background: FormatoArray?) async throws -> (raw: FormatoArray, canvas: CanvasPixels) {
         let raw = try cached ?? access.pattern(row: position.row, column: position.column)
         try Task.checkCancellation()
-        guard let pipeline else { return (raw, raw) }
+        guard let pipeline else { return (raw, canvas(raw)) }
         let dataset = access.dataset
-        return (raw, try pipeline.apply(raw, rows: dataset.patternRows, columns: dataset.patternColumns, background: background))
+        let shown = try pipeline.apply(raw, rows: dataset.patternRows, columns: dataset.patternColumns, background: background)
+        try Task.checkCancellation()
+        return (raw, canvas(shown))
+    }
+
+    @concurrent
+    nonisolated private static func makeCanvas(_ pattern: FormatoArray) async -> CanvasPixels {
+        canvas(pattern)
     }
 
     nonisolated private static func canvas(_ pattern: FormatoArray) -> CanvasPixels {
