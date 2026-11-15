@@ -825,7 +825,13 @@ nonisolated final class EELSRoomTests: XCTestCase {
         XCTAssertTrue(inspector.contains("EELSRoomFormat.processingNote("))
         XCTAssertFalse(inspector.contains(".pickerStyle(.segmented)"), "no centred pill")
         XCTAssertTrue(inspector.contains("EELSReferencesBlock(session: session)"))
-        for label in ["From region", "Import…", "Remove"] { XCTAssertTrue(inspector.contains("\"\(label)\""), label) }
+        for label in ["From Region", "Import…", "Remove"] { XCTAssertTrue(inspector.contains("\"\(label)\""), label) }
+        // control-placement §3 (#629): no pull-down menu of actions; the edge is a row, the action a plain button.
+        XCTAssertFalse(inspector.contains("Menu(\""), "no pull-down menu of actions")
+        XCTAssertTrue(inspector.contains("InspectorRow(\"Edge\")"))
+        XCTAssertEqual(EELSReferenceEdge.index(0, count: 0), nil, "no edge picked: From Region is off")
+        XCTAssertEqual(EELSReferenceEdge.index(2, count: 3), 2)
+        XCTAssertEqual(EELSReferenceEdge.index(2, count: 1), 0, "a choice past a removed edge falls back to the first")
         XCTAssertEqual(EELSRoomFormat.processingNote(align: .current, alignmentReadout: "offset -1 → 0 eV, 9 of 10 channels kept", coreAligned: true),
                        "Aligned: offset -1 → 0 eV, 9 of 10 channels kept The core loss is aligned with it.")
         XCTAssertEqual(EELSRoomFormat.processingNote(align: .notRun, alignmentReadout: nil, coreAligned: false),
