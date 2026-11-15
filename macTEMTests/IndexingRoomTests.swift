@@ -347,6 +347,23 @@ nonisolated final class IndexingRoomTests: XCTestCase {
         XCTAssertNil(read, "the stopped run's plan let go of the first processed scan")
     }
 
+    /// Stop and Index again at once (#622): the stopped run ends before the new one starts, so two runs never index at the same time,
+    /// and the run that stays is the new one, complete. Red under: the new run starting while the stopped one still builds its plan
+    /// (the `await previous.value` dropped), when both are working at once (peak 2).
+    @MainActor func testARunStartedOverAStoppedOneWaitsForItToEnd() async throws {
+        let (patterns, indexing) = try await openNickel()
+        await patterns.process().value
+        let first = indexing.index()
+        indexing.stop()
+        let second = indexing.index()
+        await second.value
+        await first.value
+        XCTAssertEqual(indexing.runOverlap.peak, 1, "one run at a time")
+        XCTAssertEqual(indexing.runOverlap.live, 0, "both runs ended")
+        XCTAssertEqual(indexing.result?.isComplete, true, "the new run indexed the whole scan")
+        XCTAssertFalse(indexing.wasStopped, "the run shown is the new one, not the stopped one")
+    }
+
     /// The room's band detector, kept between pattern draws and runs, keeps no patterns either (#427). A run hands the room the
     /// detector it built, and a pattern drawn keeps its own; asked again with the same settings, it reads the patterns current then,
     /// and a second run indexes each point as the first did. Then Patterns edits a stage and processes again while the Indexing room

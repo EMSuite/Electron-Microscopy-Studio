@@ -370,6 +370,25 @@ nonisolated final class OpenItemsTests: XCTestCase {
         XCTAssertEqual(items.items.count, 0)
     }
 
+    /// Closing the selected file moves the selection, and the app is told as it is told of a click, so the spectrum rooms follow (#622).
+    /// Closing another file, or the last one, tells nothing. Red before: `remove` moved the selection without `onSelect`.
+    @MainActor func testClosingTheSelectedItemTellsTheAppOfTheNewSelection() async throws {
+        let fake = FakeReader()
+        let items = makeItems(fake)
+        items.open(urls: [Self.a, Self.b, Self.c])
+        await items.settled()
+        let a = try item(items, Self.a), b = try item(items, Self.b), c = try item(items, Self.c)
+        items.select(b.id)
+        var told: [URL] = []
+        items.onSelect = { told.append($0.url) }
+        items.close(b.id)
+        XCTAssertEqual(told, [Self.c], "the next file, as selected")
+        items.close(a.id)
+        XCTAssertEqual(told, [Self.c], "closing another file leaves the selection and tells nothing")
+        items.close(c.id)
+        XCTAssertEqual(told, [Self.c], "nothing is left to select")
+    }
+
     /// Red under: stepping clamped at the ends (`min(max(current + delta, 0), items.count - 1)`) instead of wrapping.
     @MainActor func testPreviousAndNextWrapAround() async throws {
         let fake = FakeReader()

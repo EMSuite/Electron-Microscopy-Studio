@@ -111,9 +111,13 @@ extension IndexingSession {
     func refineDictionaryRun() -> Task<Void, Never>? {
         guard refineStageRefusal == nil, let base = runs[.dictionary], let plan = refinePlan(of: base) else { return nil }
         let settings = refineSettings
-        runTask?.cancel()
+        // The run replaced is stopped, and the refinement starts only when it has ended (#622). After Index → Refine that run is the
+        // Dictionary run, which is landing its last rows and ends as soon as this returns.
+        let previous = runTask
+        previous?.cancel()
         runGeneration += 1
         let run = runGeneration
+        let overlap = runOverlap
         var refined = IndexingRun(id: run, result: IndexingResult(refining: base.result), inputs: base.inputs, source: base.source,
                                   projectionCenter: base.projectionCenter)
         refined.dictionaryPlans = base.dictionaryPlans
@@ -131,6 +135,8 @@ extension IndexingSession {
             // Stop cancels this task; the handler raises the flag the solver asks on its worker threads (no task runs there, so
             // `Task.isCancelled` stays false: CancellationFlag.swift).
             let stopped = CancellationFlag()
+            if let previous { await previous.value }
+            overlap.enter(); defer { overlap.leave() }
             do {
                 let master = try EBSDRefinement.Master(plan.master.master, energy: plan.energy)
                 for rows in blocks {
