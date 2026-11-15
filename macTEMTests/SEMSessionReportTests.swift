@@ -244,7 +244,9 @@ nonisolated final class SEMSessionReportTests: XCTestCase {
             for field in SEMReferenceVersions.builtWith {
                 XCTAssertEqual(resolved[field.name.lowercased()], field.value, "\(field.name) in \(path): update SEMReferenceVersions.builtWith with the kit")
             }
-            XCTAssertEqual(Set(resolved.keys), Set(SEMReferenceVersions.builtWith.map { $0.name.lowercased() }), "every package the app is built with is listed")
+            // Sparkle is the website download's updater (#583), not part of any analysis, so the report does not name it.
+            XCTAssertEqual(Set(resolved.keys).subtracting(["sparkle"]), Set(SEMReferenceVersions.builtWith.map { $0.name.lowercased() }),
+                           "every package the app is built with is listed")
         }
     }
 }
