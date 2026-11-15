@@ -295,6 +295,7 @@ private struct FFTSpotsSection: View {
                 FFTSpotFinderRows(analysis: analysis)
                 InspectorActionRow {
                     Button("Find Spots") { analysis.findSpots() }
+                        .disabled(analysis.isFindingSpots)
                         .help("Put the strongest reflections of the transform on it, each measured as a click would be")
                         .accessibilityIdentifier("fft.spots.find")
                 }

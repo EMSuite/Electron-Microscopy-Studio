@@ -137,25 +137,35 @@ nonisolated enum GrainTableFormat {
         ["Grain", "Phase", "Points", "ECD \(unit)", "φ₁ °", "Φ °", "φ₂ °", "GOS °", "Schmid", "Neighbours"]
     }
 
-    /// The grain's largest Schmid factor for the Slip section's systems (`slip`), three decimals; a dash for a grain they leave out.
-    static func schmid(_ row: GrainRow, slip: [GrainSlip], locale: Locale = .autoupdatingCurrent) -> String {
-        MapsRoomFormat.fraction(slip.first { $0.grain == row.id }?.maximumSchmid ?? .nan, locale: locale)
+    /// Each grain's largest Schmid factor for the Slip section's systems, by grain number (the first entry of a grain listed twice):
+    /// looked up per cell, where a search of `slip` per cell made a table render O(rows × grains) (#271).
+    static func schmidByGrain(_ slip: [GrainSlip]) -> [Int: Double] { GrainSlip.maximumSchmidByGrain(slip) }
+
+    /// The grain's largest Schmid factor (`schmidByGrain`), three decimals; a dash for a grain the systems leave out.
+    static func schmid(_ row: GrainRow, byGrain: [Int: Double], locale: Locale = .autoupdatingCurrent) -> String {
+        MapsRoomFormat.fraction(byGrain[row.id] ?? .nan, locale: locale)
     }
 
     /// A grain's cells in `titles` order: its number, phase, points and neighbours as they are (never grouped), the diameter at the
     /// table's `places` decimals (`MapsRoomFormat.lengthPlaces`), the mean orientation's Euler angles to one decimal, GOS to two, the
     /// largest Schmid factor to three.
     static func cells(_ row: GrainRow, slip: [GrainSlip], places: Int = 2, locale: Locale = .autoupdatingCurrent) -> [String] {
+        cells(row, schmidByGrain: schmidByGrain(slip), places: places, locale: locale)
+    }
+
+    /// The same, with the Schmid factors already by grain (`schmidByGrain`, made once for a whole copy).
+    static func cells(_ row: GrainRow, schmidByGrain byGrain: [Int: Double], places: Int = 2, locale: Locale = .autoupdatingCurrent) -> [String] {
         ["\(row.id)", row.phaseName, "\(row.points)", MapsRoomFormat.length(row.diameter, places: places, locale: locale),
          MapsRoomFormat.angle(row.euler.x, locale: locale), MapsRoomFormat.angle(row.euler.y, locale: locale),
          MapsRoomFormat.angle(row.euler.z, locale: locale), MapsRoomFormat.angle(row.gosDegrees, digits: 2, locale: locale),
-         schmid(row, slip: slip, locale: locale), "\(row.neighbours)"]
+         schmid(row, byGrain: byGrain, locale: locale), "\(row.neighbours)"]
     }
 
     /// ⌘C's text for `rows` (in the order given: the table's); "" for no rows.
     static func copyText(_ rows: [GrainRow], unit: String, slip: [GrainSlip], places: Int = 2,
                          locale: Locale = .autoupdatingCurrent) -> String {
-        TableCopyText.text(titles: titles(unit: unit), rows: rows.map { cells($0, slip: slip, places: places, locale: locale) })
+        let byGrain = schmidByGrain(slip)
+        return TableCopyText.text(titles: titles(unit: unit), rows: rows.map { cells($0, schmidByGrain: byGrain, places: places, locale: locale) })
     }
 }
 

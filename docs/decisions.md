@@ -423,6 +423,20 @@ the unit tests read docs/architecture.md, docs/parity.md and docs/sem/north-star
 **What would reverse it.** A break between two PRs that each passed alone reaching a tag, or the nightly turning red on
 main often enough that a per-merge run is cheaper than finding the culprit.
 
+## 2026-11-15 — The File menu lists only the room on screen's exports
+
+**What.** File lists the exports of the room in front and nothing else, flat after a divider: the Image room its Export
+Image… (⇧⌘E) and Export Profile…, the FFT room its three (Export Transform… ⌥⌘E first), the Results room Export Results…
+(⇧⌥⌘E) and Export Session Report…, the EDS, Patterns, Indexing and Maps rooms their own items and Export Session Report…
+(`FixedExports.listed(in:)`, `ExportCommands`). Each item keeps its key and is still enabled only where it can act.
+
+**Why.** The seven Image, FFT and Results items were listed in every room, greyed outside their own, beside the room's items;
+mac4DSTEM's File menu lists the current room's items flat, and Paul picked the same (2026-11-15, #631). A key only works while its item is listed, which is the
+room where it was enabled anyway.
+
+**Reverse it.** Drop the `if fixed.contains(…)` checks in `ExportCommands` (every fixed item listed again, greyed outside its
+room), or group them in an Export submenu.
+
 ## 2026-11-15 — The download's updater shares mac4DSTEM's feed host and signing key
 
 **What.** The website download gets Sparkle 2 (#583), built as mac4DSTEM builds it (one `MACEM_STORE_BUILD` switch,
