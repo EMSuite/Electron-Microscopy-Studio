@@ -260,11 +260,14 @@ package final class EBSDSession {
                 } onCancel: {
                     stopped.raise()
                 }
-                await self?.landProcessed(result, with: pipeline, lambda: chosenLambda, failure: nil, seconds: Date().timeIntervalSince(started),
-                                          generation: gen, processRun: runID, unusable: unusable)
+                // The run ends once its pattern is on screen: the pane's canvas is made off the main actor (#256).
+                let shown = await self?.landProcessed(result, with: pipeline, lambda: chosenLambda, failure: nil,
+                                                      seconds: Date().timeIntervalSince(started), generation: gen, processRun: runID,
+                                                      unusable: unusable)
+                await shown??.value
             } catch {
                 let words = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-                await self?.landProcessed(nil, with: pipeline, lambda: nil, failure: words, seconds: 0, generation: gen, processRun: runID)
+                _ = await self?.landProcessed(nil, with: pipeline, lambda: nil, failure: words, seconds: 0, generation: gen, processRun: runID)
             }
         }
         processTask = task
@@ -284,9 +287,11 @@ package final class EBSDSession {
         processProgress = f
     }
 
+    /// Lands a run; returns the task that shows its pattern, if any.
+    @discardableResult
     private func landProcessed(_ result: EBSDMemoryPatterns?, with run: PatternPipeline, lambda: Double?, failure: String?, seconds: Double,
-                               generation gen: Int, processRun runID: Int, unusable: [EBSDPosition] = []) {
-        guard gen == generation, runID == processRun, isProcessing else { return }
+                               generation gen: Int, processRun runID: Int, unusable: [EBSDPosition] = []) -> Task<Void, Never>? {
+        guard gen == generation, runID == processRun, isProcessing else { return nil }
         isProcessing = false
         if let result {
             processed = result
@@ -299,10 +304,13 @@ package final class EBSDSession {
             onEvent?("Processed \(result.dataset.patternCount) patterns in \(SessionEventFormat.fixed(seconds, 1)) s · \(SessionEventFormat.fixed(mb, 1)) MB in memory"
                 + nlpar + Self.unusableWords(unusable))
             // Already showing Processed: re-draw, so the pane trades the one-pattern preview for the run (the whole-scan stages show).
-            if patternDisplay == .processed { showPattern(at: pinned) } else { setPatternDisplay(.processed) }
+            if patternDisplay == .processed { return showPattern(at: pinned) }
+            setPatternDisplay(.processed)
+            return patternTask
         } else if let failure {
             onEvent?("Error: \(failure)")
         }
+        return nil
     }
 
     /// The scan's mean in its own pass, when the source is switched to it after the map's pass (or the patterns cannot be summed, which
