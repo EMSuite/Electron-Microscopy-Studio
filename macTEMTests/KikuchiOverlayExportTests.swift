@@ -122,7 +122,7 @@ nonisolated final class KikuchiOverlayExportTests: XCTestCase {
         XCTAssertEqual(picture.phase, "ni")
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("overlay-kinematical-\(UUID().uuidString)")
         var reports: [String] = []
-        PatternsRoomState().export(.overlayPNG, from: session, directory: dir) { reports.append($0) }
+        await PatternsRoomState().export(.overlayPNG, from: session, directory: dir) { reports.append($0) }
         XCTAssertTrue(reports.last?.hasPrefix("Exported ") == true, reports.last ?? "")
         settings.kinematical = false
         session.setOverlaySettings(settings)
@@ -146,7 +146,7 @@ nonisolated final class KikuchiOverlayExportTests: XCTestCase {
         XCTAssertTrue(session.isMakingOverlayMaster)
         XCTAssertNil(session.overlayMasterPicture)
         var reports: [String] = []
-        PatternsRoomState().export(.overlayPNG, from: session, directory: FileManager.default.temporaryDirectory) { reports.append($0) }
+        await PatternsRoomState().export(.overlayPNG, from: session, directory: FileManager.default.temporaryDirectory) { reports.append($0) }
         XCTAssertEqual(reports, ["Nothing to export yet: the kinematical simulation is still being made."])
 
         await session.overlayMastersReady().value
