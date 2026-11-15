@@ -136,7 +136,12 @@ package final class OrientationMapSession {
     // MARK: Analysis (P5-04)
 
     /// The grain analysis once Segment has run on this map; nil before.
-    package private(set) var analysis: MapAnalysis?
+    package private(set) var analysis: MapAnalysis? {
+        didSet { histogramMemo = [:] }
+    }
+    /// The histograms of `analysis` asked for so far (#271): each is binned once per analysis, not on every body pass of the
+    /// Histogram tab. Not observed: filling it changes nothing a view shows.
+    @ObservationIgnored private var histogramMemo: [MapAnalysis.HistogramKind: AngleHistogram] = [:]
     package private(set) var isSegmenting = false
     /// The settings the next Segment uses.
     package private(set) var analysisSettings = MapAnalysisSettings()
@@ -147,7 +152,12 @@ package final class OrientationMapSession {
     /// The sample axis of the uniaxial load the Schmid factors are for.
     package private(set) var loadDirection = SampleDirection.x
     /// Every grain's slip under the load, once segmented.
-    package private(set) var slip: [GrainSlip] = []
+    package private(set) var slip: [GrainSlip] = [] {
+        didSet { schmidByGrain = GrainSlip.maximumSchmidByGrain(slip) }
+    }
+    /// Each grain's largest Schmid factor under the load, by grain number (`GrainSlip.maximumSchmidByGrain`), made when `slip` is:
+    /// the Grains table's Schmid column looks a grain up here (#271).
+    package private(set) var schmidByGrain: [Int: Double] = [:]
     /// The grain the table and the map's outline show (its number on the grain map).
     package private(set) var selectedGrain: Int?
     /// Every grain selected (⌘-click on the map, several rows of the Grains table): their outlines show on the map and their mean
@@ -789,6 +799,19 @@ package final class OrientationMapSession {
         textureTask = task
         return task
     }
+
+    /// The histogram of `kind` for the analysis shown (`MapAnalysis.histogram`, 40 bins), binned once per analysis; nil before Segment.
+    package func histogram(_ kind: MapAnalysis.HistogramKind) -> AngleHistogram? {
+        guard let analysis else { return nil }
+        if let made = histogramMemo[kind] { return made }
+        let made = analysis.histogram(kind)
+        histogramMemo[kind] = made
+        return made
+    }
+
+    /// The points of each phase id in the map shown, counted once when the map was read (`Document.phaseCounts`): the phase legend
+    /// reads them (#271) instead of counting every point per phase on every body pass.
+    package var phasePointCounts: [Int: Int] { document?.phaseCounts ?? [:] }
 
     /// How many points of the map are not indexed (`Document.notIndexedCount`).
     package var notIndexedCount: Int { document?.notIndexedCount ?? 0 }

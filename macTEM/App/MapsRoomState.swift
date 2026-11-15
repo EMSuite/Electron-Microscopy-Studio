@@ -96,7 +96,7 @@ final class MapsRoomState {
         let kind = histogramKind
         let unit = kind == .grainSize ? analysis.scanUnit : "deg"
         let name = (document.fileName as NSString).deletingPathExtension + " histogram " + kind.rawValue
-        let csv = MapsRoomFormat.histogramCSV(kind, histogram: analysis.histogram(kind), unit: unit)
+        let csv = MapsRoomFormat.histogramCSV(kind, histogram: session.histogram(kind) ?? analysis.histogram(kind), unit: unit)
         let methods: [SEMMethod] = switch kind {
         case .kam: [.orientationMap, .kam]
         case .gos: [.orientationMap, .grains, .gos]
@@ -594,6 +594,18 @@ nonisolated enum MapsFigure {
                        bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue), provider: provider, decode: nil,
                        shouldInterpolate: interpolate, intent: .defaultIntent)
     }
+
+    /// The Maps room's key of `key`'s phase as an image, made once per point group and size (#271): the key is a function of the Laue
+    /// group alone, and rebuilding it on every body pass was linear work for nothing.
+    static func keyPicture(_ key: OrientationMapSession.PhaseKey) -> CGImage? {
+        let name = "\(key.pointGroup) \(key.image.width)x\(key.image.height)" as NSString
+        if let cached = keyPictures.object(forKey: name) { return cached }
+        guard let made = cgImage(key.image) else { return nil }
+        keyPictures.setObject(made, forKey: name)
+        return made
+    }
+
+    private static let keyPictures = NSCache<NSString, CGImage>()
 
     /// An IPF colour key as an image: its premultiplied RGBA, transparent outside the sector.
     static func cgImage(_ key: IPFKeyImage, interpolate: Bool = false) -> CGImage? {
