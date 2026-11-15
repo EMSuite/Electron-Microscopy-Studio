@@ -488,6 +488,21 @@ nonisolated final class FFTRoomWiringTests: XCTestCase {
                       "the Masked Inverse section's own guard is the owner's predicate")
     }
 
+    /// The View picker is the Display section's first row and the source pane's header holds no control
+    /// (control-placement §1 and §2, #629). Red under: the picker put back in the header, or dropped from the inspector.
+    func testTheViewPickerIsTheDisplaySectionsFirstRowNotTheHeaders() throws {
+        let inspector = try Self.squeezedUI("FFTRoomInspector.swift")
+        XCTAssertTrue(inspector.contains("InspectorSection(\"Display\") { // What the source pane shows, first"), "Display opens with the View row")
+        XCTAssertTrue(inspector.contains("InspectorRow(\"View\") { FFTSourceViewControl(analysis: analysis) }"), "the View row draws the picker")
+        let pane = try Self.squeezedUI("FFTSourceImagePane.swift")
+        let header = try XCTUnwrap(pane.range(of: "private func header(")).upperBound
+        let title = try XCTUnwrap(pane.range(of: "private var title: some View", range: header..<pane.endIndex)).lowerBound
+        let body = pane[header..<title]
+        XCTAssertFalse(body.contains("FFTSourceViewControl"), "the header holds no picker")
+        XCTAssertFalse(body.contains("Picker("), "the header holds no picker")
+        XCTAssertTrue(body.contains("FFTFilteringIndicator(analysis: analysis)"), "the header keeps the filtering spinner")
+    }
+
     /// A source file of macTEM/UI with its whitespace squeezed to single spaces (and a trailing space, so a line's end matches).
     static func squeezedUI(_ name: String) throws -> String {
         let ui = URL(fileURLWithPath: #filePath).resolvingSymlinksInPath()

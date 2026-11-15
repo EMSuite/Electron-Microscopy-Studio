@@ -26,8 +26,8 @@
 //  region itself). Arrows nudge the region one pixel (⇧ ten) and Delete clears it while this pane was pressed last — the
 //  keys are the room's, one keyed container (App/PaneKeys.swift), not this overlay's.
 //
-//  SKILL NOTES (swiftui-macos): observation.md "Observation Scope Narrowing" — the View menu and its availability read
-//  their own slice in `FFTSourceViewControl`, and a product is read only while its view is shown, so the pane is not
+//  SKILL NOTES (swiftui-macos): observation.md "Observation Scope Narrowing" — the filtering spinner reads its own slice
+//  in `FFTFilteringIndicator`, and a product is read only while its view is shown, so the pane is not
 //  re-evaluated by a spectrum landing while the file is shown; performance.md "@State for Animated and Gestured Values" —
 //  the drag's grab and start crop are `@State`, written twice per drag, and the region itself (what drives the live
 //  transform) is the only per-sample write to the owner; accessibility.md — the pane is one container with a label and a
@@ -251,10 +251,11 @@ nonisolated struct FFTSourceLayer {
     }
 }
 
-// MARK: - The View menu
+// MARK: - The View picker and the filtering indicator
 
-/// The header's borderless menu and its filtering indicator. Reads its own slice of the owner (the views' availability
-/// and whether a filter runs), so the pane around it is not re-evaluated by them.
+/// The inspector's View row (Display section): which product the source pane shows. Reads its own slice of the owner
+/// (the views' availability), so the inspector around it is not re-evaluated by them. It moved out of the pane's header
+/// (control-placement §1: a header above a pane holds words only, #629).
 struct FFTSourceViewControl: View {
     let analysis: FFTAnalysis
 
@@ -266,21 +267,27 @@ struct FFTSourceViewControl: View {
     }
 
     var body: some View {
-        HStack(spacing: 4) {
-            if analysis.isFiltering {
-                ProgressView().controlSize(.small).help("Filtering…").accessibilityLabel("Filtering")
+        Picker("View", selection: Binding(get: { analysis.sourceView }, set: { analysis.setSourceView($0) })) {
+            ForEach(Self.entries(for: analysis), id: \.view) { entry in
+                Text(entry.title).tag(entry.view).disabled(!entry.isEnabled)
             }
-            Picker("View", selection: Binding(get: { analysis.sourceView }, set: { analysis.setSourceView($0) })) {
-                ForEach(Self.entries(for: analysis), id: \.view) { entry in
-                    Text(entry.title).tag(entry.view).disabled(!entry.isEnabled)
-                }
-            }
-            .pickerStyle(.menu)
-            .buttonStyle(.borderless)
-            .labelsHidden()
-            .fixedSize()
-            .accessibilityLabel("View")
-            .accessibilityIdentifier("fft.view")
+        }
+        .pickerStyle(.menu)
+        .labelsHidden()
+        .fixedSize()
+        .help("What the left pane shows: the file, or a product made from it")
+        .accessibilityLabel("View")
+        .accessibilityIdentifier("fft.view")
+    }
+}
+
+/// The source pane header's status: a small spinner while a filter runs (words and status only in a header, §1).
+struct FFTFilteringIndicator: View {
+    let analysis: FFTAnalysis
+
+    var body: some View {
+        if analysis.isFiltering {
+            ProgressView().controlSize(.small).help("Filtering…").accessibilityLabel("Filtering")
         }
     }
 }
@@ -419,20 +426,20 @@ struct FFTSourceImagePane: View {
     // MARK: Header
 
     /// Single-line on purpose (the constraint-loop rule: nothing inside a split may change its own minimum). Two
-    /// layouts, the first that fits wins: the title, the View menu and the size, or the title (which truncates) and the
-    /// menu — the menu is the one control here and never goes.
+    /// layouts, the first that fits wins: the title, the filtering spinner and the size, or the title (which truncates)
+    /// and the spinner. Words and status only: the View picker is the inspector's Display row (#629).
     private func header(_ layer: FFTSourceLayer?) -> some View {
         ViewThatFits(in: .horizontal) {
             HStack(spacing: 8) {
                 title
                 Spacer(minLength: 8)
-                FFTSourceViewControl(analysis: analysis)
+                FFTFilteringIndicator(analysis: analysis)
                 size(layer)
             }
             HStack(spacing: 8) {
                 title
                 Spacer(minLength: 8)
-                FFTSourceViewControl(analysis: analysis)
+                FFTFilteringIndicator(analysis: analysis)
             }
         }
         .frame(height: LayoutPolicy.paneHeaderHeight)
