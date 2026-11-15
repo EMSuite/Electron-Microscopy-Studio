@@ -708,6 +708,7 @@ package final class IndexingSession {
         onEvent?("Indexing \(rows * columns) patterns with Hough (\(inputs.phases.map(\.name).joined(separator: ", ")))…")
         let started = Date()
         let task = Task.detached(priority: .userInitiated) { [weak self] in
+            let interval = Signposts.begin("sem.index.hough"); defer { Signposts.end(interval) }
             do {
                 let built = try cached ?? IndexingProbe(source: source, settings: settings)
                 let plan = try IndexingPlan(probe: built, phases: phases, settings: settings, detector: detector)
@@ -778,6 +779,7 @@ package final class IndexingSession {
         let started = Date()
         let task = Task.detached(priority: .userInitiated) { [weak self] in
             defer { chunkSink.finish() }
+            let interval = Signposts.begin("sem.index.dictionary"); defer { Signposts.end(interval) }
             do {
                 var byKey = cached
                 for (phase, key) in zip(on, keys) where byKey[key] == nil {

@@ -588,6 +588,7 @@ package final class OrientationMapSession {
         isSegmenting = true
         onEvent?("Segmenting grains…")
         let task = Task { [weak self] in
+            let interval = Signposts.begin("maps.segment"); defer { Signposts.end(interval) }
             do {
                 let result = try await MapAnalysis.runAsync(map, settings: settings)
                 self?.segmentEnded(generation: gen, result: result, failure: nil)

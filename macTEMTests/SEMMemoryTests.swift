@@ -74,12 +74,12 @@ nonisolated final class SEMMemoryTests: XCTestCase {
     }
 
     /// The dataset whose patterns are the bare records of `url` (EDAX's layout), the file order the map order.
-    private static func dataset(_ url: URL) -> EBSDDataset {
+    private static func dataset(_ url: URL, projectionCenters: [SIMD3<Double>] = []) -> EBSDDataset {
         let source = EBSDPatternSource(url: url, layout: .records(offset: 0, recordBytes: pixels, patternOffset: 0),
                                        fileShape: [patternCount, side, side], dataType: .uint8)
         return EBSDDataset(format: .edaxBinary, manufacturer: "planted", version: "", scanGroup: "", scanGroups: [], scanRows: scanRows,
                            scanColumns: scanColumns, patternRows: side, patternColumns: side, dataType: .uint8, stepY: 1, stepX: 1,
-                           detector: EBSDDetectorGeometry(rows: side, columns: side, projectionCenters: []), patterns: source)
+                           detector: EBSDDetectorGeometry(rows: side, columns: side, projectionCenters: projectionCenters), patterns: source)
     }
 
     /// The map's pass with the mean riding on it, as the session runs it at the open (the whole detector and the 5 x 5 grid), over the
@@ -155,6 +155,36 @@ nonisolated final class SEMMemoryTests: XCTestCase {
             XCTAssertEqual(background.shape, [Self.side, Self.side])
             let values = [UInt8](background.bytes)
             XCTAssertEqual(meanPixels.map { values[$0] }, expectedMean, "\(strategy): the mean")
+        }
+    }
+
+    /// The Hough run's row loop as the Indexing room runs it (`IndexingPlan.indexRow`, one scan row read and indexed at a time) over
+    /// the file read and mapped: once the plan is built, the footprint, sampled after every row, grows by a few rows, not by the scan.
+    /// The measure starts after the first row. Only the first rows are indexed (indexing every planted pattern would take minutes); a run that read the scan, or kept every
+    /// row it read, grows by the scan or by a row per row.
+    func testTheHoughRowLoopGrowsTheFootprintByAFewRowsNotTheScan() async throws {
+        let url = try plantedRecordFile()
+        let dataset = Self.dataset(url, projectionCenters: [SIMD3(0.5, 0.5, 0.5)])
+        let nickel = IndexingPhase(name: "Ni", spaceGroup: 225, lattice: [3.52, 3.52, 3.52, 90, 90, 90], source: .preset)
+        let rowsIndexed = 6
+
+        for strategy in [EBSDPatternReader.RecordStrategy.read, .mapped] {
+            let reader = try EBSDPatternReader(dataset, strategy: strategy)
+            let source = IndexingSource(stored: reader, pipeline: .roomDefault, background: nil)
+            let probe = try IndexingProbe(source: source, settings: .roomDefault)
+            let plan = try IndexingPlan(probe: probe, phases: [nickel], settings: .roomDefault, detector: dataset.detector)
+            // The first row warms the indexer's per-thread work buffers; the measure starts after it.
+            var solutions = try await plan.indexRow(0).count
+            let before = ImageStackTests.footprint()
+            XCTAssertGreaterThan(before, 0, "the footprint can be read")
+            var peak = before
+            for row in 1..<rowsIndexed {
+                solutions += try await plan.indexRow(row).count
+                peak = max(peak, ImageStackTests.footprint())
+            }
+            XCTAssertEqual(solutions, rowsIndexed * Self.scanColumns, "\(strategy): one solution per pattern indexed")
+            XCTAssertLessThan(peak - before, Self.rowAllowance,
+                              "\(strategy): the Hough row loop grew the footprint by \(peak - before) bytes; the scan is \(Self.storedBytes) as stored")
         }
     }
 }
