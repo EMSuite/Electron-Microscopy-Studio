@@ -552,7 +552,7 @@ struct FFTSourceImagePane: View {
                 }
                 .clipped()
                 .contentShape(Rectangle())
-                .border(Color.white.opacity(0.08))
+                .border(.separator)
                 .zoomPan(zoomModel, box: box)
                 .zoomPanWheel(zoomModel, box: box)
                 .contextMenu { contextMenu }

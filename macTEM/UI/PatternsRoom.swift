@@ -249,7 +249,7 @@ struct ScanMapPane: View {
             .coordinateSpace(.named(SEMMapPointer.space))
             .clipped()
             .contentShape(Rectangle())
-            .border(Color.white.opacity(0.08))
+            .border(.separator)
             .zoomPan(zoomModel, box: box, onHover: { phase in hovered(phase, geometry: geometry) })
             .zoomPanWheel(zoomModel, box: box)
             .zoomCommandTarget(zoomModel, isTarget: true)
@@ -375,7 +375,7 @@ struct LivePatternPane: View {
                 let q = geometry.imagePoint(atPanePoint: location)
                 if let tile = DetectorGridOverlay.tile(at: q, grid: session.virtualGrid, dataset: dataset) { session.showMap(.tile(tile)) }
             }
-            .border(Color.white.opacity(0.08))
+            .border(.separator)
             .zoomPan(zoomModel, box: box, onHover: { phase in hovered(phase, geometry: geometry, canvas: presentation.canvas) })
             .zoomPanWheel(zoomModel, box: box)
 
@@ -480,12 +480,12 @@ struct VirtualTilesPane: View {
     var body: some View {
         let columns = session.virtualGrid.columns
         ScrollView {
-            if let images = session.virtualImages {
+            if let canvases = session.virtualCanvases, let bse = canvases.first {
                 let tiles = session.virtualGrid.tiles
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(minimum: 60), spacing: 8), count: max(columns, 1) + 1), spacing: 8) {
-                    tileCell(title: "BSE", image: images[0], choice: .bse)
+                    tileCell(title: "BSE", canvas: bse, choice: .bse)
                     ForEach(tiles) { tile in
-                        if let image = session.tileImage(tile) { tileCell(title: tile.label, image: image, choice: .tile(tile)) }
+                        if let canvas = session.tileCanvas(tile) { tileCell(title: tile.label, canvas: canvas, choice: .tile(tile)) }
                     }
                 }
                 .padding(8)
@@ -497,8 +497,8 @@ struct VirtualTilesPane: View {
         .accessibilityIdentifier("patterns.tiles.pane")
     }
 
-    private func tileCell(title: String, image: [Float], choice: EBSDSession.MapChoice) -> some View {
-        let canvas = CanvasPixels.make(width: dataset.scanColumns, height: dataset.scanRows, pixels: image)
+    /// One tile of the pane: its canvas was made with the map's pass, off the main actor (#256), so a body pass only draws it.
+    private func tileCell(title: String, canvas: CanvasPixels, choice: EBSDSession.MapChoice) -> some View {
         let selected = session.mapChoice == choice
         return VStack(spacing: 3) {
             MetalImageView(pixels: canvas.values, width: canvas.width, height: canvas.height, contentVersion: canvas.contentVersion, colormap: .gray, pixelScale: canvas.scale)

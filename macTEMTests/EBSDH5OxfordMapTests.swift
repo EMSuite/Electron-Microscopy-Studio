@@ -156,7 +156,7 @@ nonisolated final class EBSDH5OxfordMapTests: XCTestCase {
         let state = AppState(launch: LaunchOptions(arguments: []))
         await state.open(urls: [Self.map])?.value
         XCTAssertEqual(state.navigation.workspaceArea, .maps)
-        for _ in 0..<4000 where state.maps.raster == nil { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("state.maps.raster != nil", seconds: 20) { state.maps.raster != nil }
         XCTAssertEqual(state.maps.fileName, "ebsd-oxford-map.h5oina")
         XCTAssertEqual(state.maps.document?.source, .mapFile)
         XCTAssertEqual(state.maps.document?.format, ".h5oina (Oxford Instruments)")

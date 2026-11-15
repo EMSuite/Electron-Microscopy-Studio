@@ -128,7 +128,7 @@ nonisolated final class SEMRoomsPickWiringTests: XCTestCase {
         let indexing = try code("macTEM/UI/IndexingRoom.swift")
         XCTAssertEqual(indexing.components(separatedBy: ".onChange(of: session.patterns.pinned)").count - 1, 1, "once, in IndexingKeyedRoom")
         XCTAssertTrue(indexing.contains("return .handled } .onChange(of: session.patterns.pinned) { if followsThePick { session.showPattern() } }"), "the upper panes' container shows the pattern; the Compare maps' one only takes the keys")
-        XCTAssertTrue(indexing.contains(".modifier(SelectsThePickedRow(patterns: session.patterns, columns: dataset.scanColumns, rows: rows, selection: $selection))"))
+        XCTAssertTrue(indexing.contains(".modifier(SelectsThePickedRow(patterns: session.patterns, columns: dataset.scanColumns, result: session.result, selection: $selection))"))
         XCTAssertTrue(indexing.contains("content.task(id: patterns.pinned) { guard (try? await Task.sleep(for: Self.rest)) != nil else { return }"))
     }
 

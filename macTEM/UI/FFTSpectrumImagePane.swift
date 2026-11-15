@@ -591,7 +591,7 @@ struct FFTSpectrumImagePane: View {
                 .overlay { FFTSpectrumMarks(analysis: analysis, spectrum: spectrum, geometry: geometry) }
                 .clipped()
                 .contentShape(Rectangle())
-                .border(Color.white.opacity(0.08))
+                .border(.separator)
                 .zoomPan(zoomModel, box: box)
                 .zoomPanWheel(zoomModel, box: box)
                 // Simultaneous, so ZoomPan's drag (its 10 pt threshold) still pans.

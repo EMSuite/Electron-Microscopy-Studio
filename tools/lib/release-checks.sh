@@ -22,7 +22,7 @@
 # The store check reads only the com.apple.security.* keys: automatic signing adds com.apple.application-identifier and
 # com.apple.developer.team-identifier from the profile. They are the four of macTEM/macTEM.entitlements (AppStoreReleaseTests
 # holds the two lists together); the store listing promises no connection to other computers (docs/app-store/app-privacy.txt),
-# so a network client entitlement fails here, and network.server is the agent door's loopback listener. The Developer ID build signs with the same file and is not held to the exact set.
+# so a network client entitlement fails here, and network.server is the agent door's loopback listener. The Developer ID build signs with macTEM-Direct.entitlements (these plus the updater's network client and installer exception, #583) and is not held to the exact set.
 
 # Fails unless $1 is a Mach-O holding arm64 and nothing else.
 assert_mactem_arm64_only() {  # <Mach-O>

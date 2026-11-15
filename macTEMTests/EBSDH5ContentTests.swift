@@ -84,7 +84,7 @@ nonisolated final class EBSDH5ContentTests: XCTestCase {
         let state = AppState(launch: LaunchOptions(arguments: []))
         await state.open(urls: [Self.fixture("ebsd-orix-map.h5")])?.value
         XCTAssertEqual(state.navigation.workspaceArea, .maps)
-        for _ in 0..<4000 where state.maps.raster == nil { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("state.maps.raster != nil", seconds: 20) { state.maps.raster != nil }
         XCTAssertEqual(state.maps.fileName, "ebsd-orix-map.h5")
         XCTAssertEqual(state.maps.document?.format, ".h5 (orix)")
         XCTAssertNil(state.errorMessage)
