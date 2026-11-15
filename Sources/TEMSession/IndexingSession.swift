@@ -283,6 +283,7 @@ package final class IndexingSession {
     /// The dataset was closed: the room goes back to its door.
     package func close() {
         reset()
+        mapPresentation.releaseCanvas(); patternPresentation.releaseCanvas(); bestMatchPresentation.releaseCanvas()
     }
 
     /// Everything of the dataset goes; the master patterns opened and the orientations sampled stay (they are not the dataset's).
@@ -1237,9 +1238,38 @@ package final class IndexingSession {
         }
     }
 
+    /// What the .ang and .ctf headers state about the run on screen (macEM#616): the pattern centre it used (Hough: its indexer's;
+    /// Dictionary: the mean of its detector's), the file's working distance, magnification and beam energy, the detector's sample tilt,
+    /// and `software`. nil before a run.
+    package func exportAcquisition(software: String?) -> CrystalMapAcquisition? {
+        guard let result, let dataset = patterns.document?.dataset else { return nil }
+        var pc: SIMD3<Double>?
+        switch result.method {
+        case .hough:
+            pc = runPlan?.projectionCenter
+        case .dictionary:
+            let centres = dictionaryPlans.first?.detector.projectionCenters ?? []
+            if !centres.isEmpty { pc = centres.reduce(.zero, +) / Double(centres.count) }
+        }
+        return CrystalMapAcquisition(dataset: dataset, projectionCenterBruker: pc, software: software)
+    }
+
     /// The method record of the run on screen (every input, in pyEBSDindex's, kikuchipy's and orix's names); nil before a run has its plan.
     /// A refinement's is its Dictionary run's with the refinement under "refinement" (D-SEM-109).
     package func methodJSON() throws -> Data? {
+        guard let data = try methodRecord() else { return nil }
+        // The detector values the file did not state, so the record says the result rests on kikuchipy's defaults (macEM#612).
+        guard !detectorAssumed.isEmpty, var object = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { return data }
+        object["assumed"] = detectorAssumed.sorted().map(\.title)
+        return try JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted, .sortedKeys])
+    }
+
+    /// The detector values the open file did not state (`EBSDDetectorGeometry.assumed`).
+    package var detectorAssumed: Set<EBSDDetectorGeometry.Assumed> { patterns.document?.dataset.detector.assumed ?? [] }
+    /// Those values in words, nil when the file stated every one.
+    package var detectorAssumedText: String? { patterns.document?.dataset.detector.assumedText }
+
+    private func methodRecord() throws -> Data? {
         guard let result, let document = patterns.document else { return nil }
         switch result.method {
         case .hough:

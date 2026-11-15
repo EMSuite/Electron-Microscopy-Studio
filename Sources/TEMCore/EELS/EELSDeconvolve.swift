@@ -91,6 +91,12 @@ package nonisolated struct EELSDeconvolutionResult: Sendable {
     package let threshold: EELSThresholdChoice
 
     package var unavailableCount: Int { unavailable.filter { $0 != nil }.count }
+    /// The same result without its deconvolved cubes: what a fit keeps to say how it was made (its footer, notes and method JSON), so a
+    /// stage run again does not leave a second GB-scale cube behind with the fit (#619).
+    package var withoutCubes: EELSDeconvolutionResult {
+        EELSDeconvolutionResult(choice: choice, lowLoss: nil, coreLoss: nil, unavailable: unavailable, fftSize: fftSize, fwhmEV: fwhmEV,
+                                taperedChannels: taperedChannels, methodName: methodName, thresholdText: thresholdText, threshold: threshold)
+    }
     /// The pixels the kit answered (the rest are zeros in its image and must not be summed or fitted).
     package var answered: PixelMask { unavailable.map { $0 == nil } }
 }
@@ -235,8 +241,8 @@ package nonisolated enum EELSDeconvolveCompute {
         }
         guard !order.isEmpty else { return nil }
         let total = counts.values.reduce(0, +)
-        let parts = order.enumerated().sorted { (counts[$0.element]!, -$0.offset) > (counts[$1.element]!, -$1.offset) }
-            .map { "\(counts[$0.element]!): \(words($0.element))" }
+        let parts = order.enumerated().sorted { (counts[$0.element, default: 0], -$0.offset) > (counts[$1.element, default: 0], -$1.offset) }
+            .map { "\(counts[$0.element, default: 0]): \(words($0.element))" }
         return "\(total) px unanswered (" + parts.joined(separator: "; ") + ")"
     }
 }

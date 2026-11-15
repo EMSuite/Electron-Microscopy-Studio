@@ -28,12 +28,13 @@ nonisolated final class MasterPatternParityTests: XCTestCase {
         try XCTUnwrap(ref.values["readings"] as? [String: [String: Any]])
     }
 
-    private func sha256(_ values: [Float], as type: FormatoDataType) -> String {
+    /// The SHA-256 of the values as held: the stored bytes themselves (#620), so a uint8 file's hash is that of its uint8 values.
+    private func sha256(_ values: MasterPatternValues, as type: FormatoDataType) -> String {
         var data = Data()
-        switch type {
-        case .uint8: data = Data(values.map { UInt8($0) })
-        case .float32: values.withUnsafeBufferPointer { data = Data(buffer: $0) }
-        default: XCTFail("unexpected type \(type)")
+        switch (type, values.storage) {
+        case (.uint8, .uint8(let a)): data = Data(a)
+        case (.float32, .float32(let a)): a.withUnsafeBufferPointer { data = Data(buffer: $0) }
+        default: XCTFail("\(type) held as \(values.storage)")
         }
         return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
     }

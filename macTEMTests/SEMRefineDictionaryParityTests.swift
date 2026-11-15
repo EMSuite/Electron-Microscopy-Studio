@@ -31,7 +31,7 @@ nonisolated final class SEMRefineDictionaryParityTests: XCTestCase {
         let p = try ref.array("patterns")
         let count = p.values.count / pixels
         XCTAssertEqual(count, 36)
-        let patterns = EBSDRefinement.Patterns(count: count, pixels: pixels, values: p.values.map { Float($0) }, isFloat32: false)
+        let patterns = try EBSDRefinement.Patterns(count: count, pixels: pixels, values: p.values.map { Float($0) }, isFloat32: false)
 
         // The dictionary result: the best match of each point in the data, the identity and index -1 where the mask left it out.
         let inData = try ref.array("navigation_mask").values.map { $0 == 0 }

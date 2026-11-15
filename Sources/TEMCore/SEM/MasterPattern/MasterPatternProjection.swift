@@ -194,13 +194,15 @@ package nonisolated enum MasterPatternProjection {
     /// the master pattern's pixels, and the bilinear interpolation of the upper (z ≥ 0) or lower hemisphere
     /// (`_get_lambert_interpolation_parameters` with EMsoft's edge clamps, `_get_pixel_from_master_pattern`).
     @inline(__always)
-    static func sample(_ q: SIMD4<Double>, _ dc: SIMD3<Double>, upper: UnsafeBufferPointer<Float>, lower: UnsafeBufferPointer<Float>,
+    package static func sample(_ q: SIMD4<Double>, _ dc: SIMD3<Double>, upper: UnsafeBufferPointer<Float>, lower: UnsafeBufferPointer<Float>,
                        side: Int, scale: Double) -> Double {
         let v = rotate(q, dc)
         let l = lambert(v)
         let sqrtPiHalf = (Double.pi / 2).squareRoot()
         // `scale * _vector2lambert(v) / SQRT_PI_HALF`, then the int32 casts (truncation towards zero).
         let i = scale * l.y / sqrtPiHalf, j = scale * l.x / sqrtPiHalf
+        // A direction that is not a number (a pattern centre with z = 0, a NaN rotation) has no pixel: NaN, not a trap in the casts.
+        guard i.isFinite, j.isFinite else { return .nan }
         var nii = Int(i + scale)
         var nij = Int(j + scale)
         var niip = nii + 1, nijp = nij + 1
@@ -234,7 +236,7 @@ package nonisolated enum MasterPatternProjection {
         guard centres == 1 || centres == rotations.count else { throw Error.centreCount(centres: centres, rotations: rotations.count) }
         let pixels = detector.rows * detector.columns
         guard pixels > 0 else { throw Error.emptyDetector }
-        let (upperSlice, lowerSlice) = try master.hemispheres(energy: energy)
+        let (upper, lower) = try master.hemispheres(energy: energy)
         if rotations.isEmpty { return Patterns(count: 0, rows: detector.rows, columns: detector.columns, outputType: output, values: []) }
         let cosines = directionCosines(detector: detector)
         let rescale = output.formatoType != master.dataType
@@ -242,11 +244,11 @@ package nonisolated enum MasterPatternProjection {
         let side = master.side
         let scale = Double(side - 1) / 2
         var values = [Double](repeating: 0, count: rotations.count * pixels)
-        let upper = Array(upperSlice), lower = Array(lowerSlice)
         upper.withUnsafeBufferPointer { up in
             lower.withUnsafeBufferPointer { lo in
                 values.withUnsafeMutableBufferPointer { out in
-                    let shared = SharedBuffers(upper: up, lower: lo, out: out.baseAddress!)
+                    guard let base = out.baseAddress else { return }   // no rotation or no pixel: nothing to project
+                    let shared = SharedBuffers(upper: up, lower: lo, out: base)
                     DispatchQueue.concurrentPerform(iterations: rotations.count) { n in
                         let upperRows = shared.upper, lowerRows = shared.lower, base = shared.out
                         let dc = cosines[centres == 1 ? 0 : n]

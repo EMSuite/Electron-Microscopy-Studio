@@ -21,8 +21,8 @@ import ShellEDXModel
 import ShellSpectroscopy
 
 struct ImageRoomParticlesSection: View {
-    let image: CalibratedImage
     let item: OpenItem
+    private var image: CalibratedImage { item.session.imageOrBlank }
     let rawRange: ClosedRange<Float>?
     /// The CSV the save panel writes: made when Export CSV… is pressed and dropped when the panel is done, so the body builds none.
     @State private var exportDocument: EDXExportFile?
@@ -253,8 +253,9 @@ struct ParticleOverlay: View {
             let made: CGImage? = await offMainActor {
                 var rgba = [UInt8](repeating: 0, count: w * h * 4)
                 for (i, on) in mask.enumerated() where on { rgba[4 * i] = 255; rgba[4 * i + 1] = 60; rgba[4 * i + 2] = 60; rgba[4 * i + 3] = 110 }
-                guard let provider = CGDataProvider(data: Data(rgba) as CFData) else { return nil as CGImage? }
-                return CGImage(width: w, height: h, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: w * 4, space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                guard let provider = CGDataProvider(data: Data(rgba) as CFData),
+                      let sRGB = CGColorSpace(name: CGColorSpace.sRGB) else { return nil as CGImage? }
+                return CGImage(width: w, height: h, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: w * 4, space: sRGB,
                                bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue), provider: provider, decode: nil,
                                shouldInterpolate: false, intent: .defaultIntent)
             }

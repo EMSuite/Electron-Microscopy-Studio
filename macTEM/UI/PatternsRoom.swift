@@ -95,7 +95,9 @@ struct PatternsRoom: View {
             case .success(let url):
                 appState.statusText = "Exported \(url.lastPathComponent)"
                 state.didWrite(to: url)
-            case .failure(let error): appState.present(error)
+            case .failure(let error):
+                state.didFinishExport()
+                appState.present(error)
             }
         }
         .accessibilityElement(children: .contain)
@@ -202,8 +204,8 @@ struct ScanMapPane: View {
         case .bse: "Scan map · BSE (whole detector)"
         case .tile(let tile): "Scan map · tile \(tile.label)"
         case .mix: "Scan map · colour mix " + session.mixTiles.compactMap { $0?.label }.joined(separator: " + ")
-        case .imageQuality: "Scan map · image quality (raw patterns)"
-        case .dotProduct: "Scan map · average dot product (raw patterns)"
+        case .imageQuality: "Scan map · image quality " + EBSDSession.qualitySourceWords(ofProcessed: session.qualityOfProcessed)
+        case .dotProduct: "Scan map · average dot product " + EBSDSession.qualitySourceWords(ofProcessed: session.qualityOfProcessed)
         }
     }
 
@@ -218,7 +220,8 @@ struct ScanMapPane: View {
             ZStack {
                 if session.mapChoice == .mix, let rgba = session.mixRGBA {
                     // The colour mix: packed RGBA through the view's RGBA pipeline (the Display section's colormap and window do not apply).
-                    MetalImageView(pixels: [Float](repeating: 0, count: dataset.scanRows * dataset.scanColumns), width: dataset.scanColumns, height: dataset.scanRows,
+                    // No scalar plane: the RGBA path reads none (#619).
+                    MetalImageView(pixels: [], width: dataset.scanColumns, height: dataset.scanRows,
                                    contentVersion: session.mixVersion, rgba: rgba)
                         .displayTransform(transform)
                         .frame(width: box.width, height: box.height)

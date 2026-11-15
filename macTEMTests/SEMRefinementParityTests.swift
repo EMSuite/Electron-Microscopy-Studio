@@ -113,7 +113,7 @@ nonisolated final class SEMRefinementParityTests: XCTestCase {
         let p = try ref.array("patterns")
         let pixels = shape[0] * shape[1]
         let count = p.values.count / pixels
-        let patterns = EBSDRefinement.Patterns(count: count, pixels: pixels, values: p.values.map { Float($0) }, isFloat32: false)
+        let patterns = try EBSDRefinement.Patterns(count: count, pixels: pixels, values: p.values.map { Float($0) }, isFloat32: false)
         let starts = Self.triples(try ref.array("start_euler").values)
         return Block(ref: ref, patterns: patterns, detector: detector, master: master, starts: starts, count: count)
     }

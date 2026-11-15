@@ -80,6 +80,25 @@ package nonisolated struct DictionaryIndexingSettings: Sendable, Equatable, Coda
     package static let resolutionRange = 1.0...15.0
     package static let keepRange = 1...50
 
+    /// What a kept match costs in the result: its score, its simulation index and its rotation (8 + 8 + 32 bytes).
+    package static let bytesPerKeptMatch = 48
+    /// The most the kept matches of one phase's run may hold: 1 GiB, which keeps kikuchipy's default of 20 matches (`keep_n=20`) on a
+    /// scan of a million points; more would cost GBs for as long as the result is shown (#621: 50 matches at 1 M points is 2.4 GB).
+    package static let keptMatchesBudget = 1 << 30
+
+    /// The most matches a scan of `points` points may keep within `keptMatchesBudget`.
+    package static func mostKept(points: Int) -> Int {
+        max(1, keptMatchesBudget / max(1, points * bytesPerKeptMatch))
+    }
+
+    /// Why these settings keep too many matches for a scan of `points` points, with what to change; nil when they fit.
+    package func keptMatchesRefusal(points: Int) -> String? {
+        let most = Self.mostKept(points: points)
+        guard keep > most else { return nil }
+        let gb = Double(points) * Double(keep) * Double(Self.bytesPerKeptMatch) / 1e9
+        return "Keeping \(keep) matches at each of \(points) points needs \(String(format: "%.1f", gb)) GB; keep at most \(most)."
+    }
+
     /// Why these settings cannot run, in the room's words; nil when they can.
     package var refusal: String? {
         guard resolution.isFinite, Self.resolutionRange.contains(resolution) else { return "The angular resolution runs from 1° to 15°." }
@@ -177,7 +196,8 @@ package nonisolated struct DictionaryIndexingPlan: Sendable {
     /// Scan rows per block (the last may hold fewer).
     package let rowsPerBlock: Int
 
-    /// The experimental patterns of one block stay within this many bytes as float64 (D-SEM-92); the dictionary's chunks are then
+    /// The experimental patterns of one block stay within this many bytes as float64 (D-SEM-92), the size of their prepared copy (the
+    /// block itself is held at its stored type, #620); the dictionary's chunks are then
     /// `DictionaryIndexing`'s own memory budget. The demo scan (4125 patterns of 60 × 60) is one block.
     package static let blockBudget = 128 << 20
 
@@ -263,7 +283,8 @@ package nonisolated struct DictionaryIndexingPlan: Sendable {
     @concurrent package static func sample(resolution: Double, pointGroup: PointGroup) async throws -> [SIMD4<Double>] {
         do {
             return try await OrientationSampling.fundamentalSample(resolution: resolution, pointGroup: pointGroup).map(\.q)
-        } catch is OrientationSampling.Error {
+        } catch let error as OrientationSampling.Error {
+            if case .tooManyRotations = error { throw IndexingRefusal(error.sentence) }
             throw IndexingRefusal("The orientations cannot be sampled at \(resolution)°.")
         }
     }
@@ -294,6 +315,7 @@ package nonisolated struct DictionaryIndexingPlan: Sendable {
             throw IndexingRefusal("The file states no projection centre, which dictionary indexing needs.")
         }
         guard !rotations.isEmpty else { throw IndexingRefusal("The dictionary holds no orientation.") }
+        if let why = settings.keptMatchesRefusal(points: source.scanRows * source.scanColumns) { throw IndexingRefusal(why) }
         guard case .success(let energy) = Self.energy(master: master.master, beamEnergy: beamEnergy) else {
             throw IndexingRefusal("The master pattern holds no energy for the scan.")
         }
@@ -384,23 +406,35 @@ package nonisolated struct DictionaryIndexingPlan: Sendable {
         blocks.map { Self.chunking(points: $0.count * source.scanColumns, keptPixels: keptPixels, dictionary: rotations.count, options: options).chunks }
     }
 
-    /// The experimental patterns of scan rows `rows`, read through the room's source, row after row. Off the caller's actor.
-    @concurrent package func readBlock(_ rows: Range<Int>) async throws -> [Double] {
-        var experimental: [Double] = []
-        experimental.reserveCapacity(rows.count * source.scanColumns * source.patternRows * source.patternColumns)
+    /// The experimental patterns of scan rows `rows`, read through the room's source, row after row, at the type they are indexed in
+    /// (the file's without a processing stage, float32 through one; #620). Off the caller's actor.
+    @concurrent package func readBlock(_ rows: Range<Int>) async throws -> StoredPatterns {
+        // Each row appended as it is read, so the block is never held twice.
+        let pixels = source.patternRows * source.patternColumns
+        var type = source.pipeline?.outputType(source.storedType) ?? source.storedType
+        var bytes = Data()
+        var count = 0
         for row in rows {
             try Task.checkCancellation()
-            for pattern in try source.patterns(row: row) { experimental.append(contentsOf: pattern) }
+            let part = try source.storedPatterns(row: row)
+            if count == 0 {
+                type = part.dataType
+                bytes.reserveCapacity(rows.count * part.byteCount)
+            } else if part.dataType != type {
+                throw StoredPatterns.Error.mixedTypes(type, part.dataType)
+            }
+            bytes.append(part.bytes)
+            count += part.count
         }
-        return experimental
+        return try StoredPatterns(dataType: type, count: count, pixels: pixels, bytes: bytes)
     }
 
     /// Indexes the scan rows `rows` against the dictionary (projected chunk by chunk); `experimental` holds their patterns as
     /// `readBlock` reads them (a run against several phases reads a block once for every phase), nil reads them here. `progress`
     /// hears of each chunk merged. A cancelled task stops before the next chunk. Off the caller's actor.
-    @concurrent package func indexBlock(_ rows: Range<Int>, experimental: [Double]? = nil,
+    @concurrent package func indexBlock(_ rows: Range<Int>, experimental: StoredPatterns? = nil,
                                         progress: DictionaryIndexing.Progress? = nil) async throws -> DictionaryIndexing.Result {
-        let patterns: [Double]
+        let patterns: StoredPatterns
         if let experimental { patterns = experimental } else { patterns = try await readBlock(rows) }
         return try await DictionaryIndexing.indexAsync(experimental: patterns, navigationShape: [rows.count, source.scanColumns],
                                                        master: master.master, rotations: rotations, detector: detector, energy: energy,

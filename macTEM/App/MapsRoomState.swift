@@ -38,10 +38,16 @@ final class MapsRoomState {
     /// Told of every file the room writes (`AppState` keeps it in the session record for the Results room and the report).
     @ObservationIgnored var onWritten: ((SEMExportedFile) -> Void)?
 
-    /// The save panel wrote the export to `url`.
+    /// The save panel wrote the export to `url`: the record goes to the session, and the bytes go (#619).
     func didWrite(to url: URL) {
         if let pendingRecord { onWritten?(pendingRecord.written(to: url, at: Date())) }
+        didFinishExport()
+    }
+
+    /// The save panel is done, written or not: the export's bytes are let go (a map PNG can be hundreds of MB), not kept until the next one.
+    func didFinishExport() {
         pendingRecord = nil
+        exportData = Data()
     }
 
     func requestImport() { importRequest &+= 1 }
@@ -439,7 +445,7 @@ nonisolated enum MapsRoomFormat {
     static func textureCaption(_ texture: MapTexture, odf: Bool) -> String {
         let points = UnitDisplay.count(texture.points, "point", "points")
         if odf {
-            let used = texture.odfPoints == texture.points ? "all \(points)" : "\(texture.odfPoints) of \(points) (every \((texture.points + texture.odfPoints - 1) / max(texture.odfPoints, 1))th)"
+            let used = texture.odfPoints == texture.points ? "all \(points)" : "\(texture.odfPoints) of \(points) (a seeded random sample)"
             return "\(texture.phaseName): ODF φ₂ sections from \(used), de la Vallée Poussin kernel 10°, multiples of random."
         }
         return "\(texture.phaseName): \(points), upper hemisphere, 1° bins smoothed 5°, multiples of random. IPF-Z in the colour key's sector."
@@ -715,7 +721,7 @@ nonisolated enum MapsFigure {
     /// A figure as PNG bytes through the app's one encoder (`ImageExport.encodePNG`), the file's name as its Title and macEM as
     /// its Software, as the Patterns room's map PNG carries them.
     private static func encoded(_ image: CGImage, fileName: String) throws -> Data {
-        guard let png = try? ImageExport.encodePNG(image, title: fileName, software: "macEM") else {
+        guard let png = try? ImageExport.encodePNG(image, title: fileName, software: ExportSnapshot.provenance()) else {
             throw Failure(text: "The figure could not be encoded.")
         }
         return png

@@ -85,7 +85,7 @@ package nonisolated struct HoughReflectorLibrary: Sendable {
     package init(name: String, spaceGroup: Int, lattice: [Double], reflectors: [[Int]]? = nil,
                  earlyExitBands: Int = 10, angleTolerance: Double = 2.0) throws {
         guard (1...230).contains(spaceGroup) else { throw Error.spaceGroup(spaceGroup) }
-        guard lattice.count == 6, lattice[0] > 0, lattice[1] > 0, lattice[2] > 0 else { throw Error.lattice }
+        guard lattice.count == 6, lattice.allSatisfy(\.isFinite), lattice[0] > 0, lattice[1] > 0, lattice[2] > 0 else { throw Error.lattice }
         let laue = Self.laueCode(spaceGroup: spaceGroup)
         let symmetry = Self.laueRotations(laue)
         guard !symmetry.isEmpty else { throw Error.spaceGroup(spaceGroup) }
@@ -135,7 +135,7 @@ package nonisolated struct HoughReflectorLibrary: Sendable {
             sizes.append(unique.count)
         }
         var starts: [Int] = [0]
-        for s in sizes.dropLast() { starts.append(starts.last! + s) }
+        for s in sizes.dropLast() { starts.append(starts[starts.count - 1] + s) }   // `starts` begins with 0
         poles = complete
         familySize = sizes
         familyStart = starts
@@ -250,15 +250,15 @@ package nonisolated struct HoughReflectorLibrary: Sendable {
     static func uniqueHKL(_ poles: [SIMD3<Double>]) -> [SIMD3<Double>] {
         guard poles.count > 1 else { return poles }
         let ints = poles.map { p in (0..<3).map { Int(p[$0].rounded(.toNearestOrEven)) } }
-        let mn = ints.flatMap { $0 }.min()!
+        let mn = ints.flatMap { $0 }.min() ?? 0   // more than one pole (guarded above), so never empty
         let shifted = ints.map { $0.map { $0 - mn } }
-        let basis = shifted.flatMap { $0 }.max()! + 1
+        let basis = (shifted.flatMap { $0 }.max() ?? 0) + 1
         var first: [Int: Int] = [:]
         for (i, s) in shifted.enumerated() {
             let k = s[0] + basis * s[1] + basis * basis * s[2]
             if first[k] == nil { first[k] = i }
         }
-        return first.keys.sorted().map { poles[first[$0]!] }
+        return first.sorted { $0.key < $1.key }.map { poles[$0.value] }
     }
 
     /// `_calc_pole_dot_int`: the cosine between two plane normals given in hkl, through the reciprocal metric tensor.
@@ -363,7 +363,7 @@ package nonisolated struct HoughReflectorLibrary: Sendable {
             let ca = cos(p[3] * r), cb = cos(p[4] * r), cg = cos(p[5] * r)
             let sa = sin(p[3] * r), sb = sin(p[4] * r), sg = sin(p[5] * r), tg = tan(p[5] * r)
             let det = (a * b * c) * (a * b * c) * (1 - ca * ca - cb * cb - cg * cg + 2 * ca * cb * cg)
-            guard det > 0, sg != 0 else { throw Error.lattice }
+            guard det > 0, det.isFinite, sg != 0 else { throw Error.lattice }
             let volume = det.squareRoot()
             // Symmetric, so the transpose pyEBSDindex takes changes nothing.
             var rmt = Matrix3([(b * c * sa) * (b * c * sa), a * b * c * c * (ca * cb - cg), a * b * b * c * (cg * ca - cb),

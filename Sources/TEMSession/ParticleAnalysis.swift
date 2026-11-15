@@ -1,7 +1,7 @@
 //
 //  ParticleAnalysis.swift
 //  Role: the Particles view's owner for one open file (design section 4): the settings, the live mask preview, and the report of
-//        the last Show Objects. Never swapped when the item goes cold: it holds no pixels of the image, only labels and numbers.
+//        the last Show Objects. Never swapped when the item goes cold; its mask preview (a byte a pixel) goes with the item's pixels (`releasePixels`, #617).
 //
 //  Nothing here makes a number. `TEMCore/Particles/ParticleCompute` is ImagoKit's smoothing, labelling and moments with the
 //  settings; this owner decides WHEN to ask: the preview and the report each run in a detached task and land only if no newer
@@ -71,8 +71,10 @@ package final class ParticleAnalysis {
         previewTask?.cancel()
         previewGeneration += 1
         let gen = previewGeneration
-        let settings = settings, pixels = image.pixels, w = image.width, h = image.height
+        let settings = settings, w = image.width, h = image.height
         let t = Task.detached(priority: .userInitiated) { [weak self] in
+            // Float32 for this computation only, made off the main actor (#566).
+            let pixels = image.pixels
             guard let range = ParticleCompute.range(pixels), let cut = try? ParticleCompute.mask(pixels: pixels, width: w, height: h, range: range, settings: settings) else { return }
             if Task.isCancelled { return }
             await self?.landPreview(cut.mask, width: w, height: h, generation: gen)
@@ -95,14 +97,14 @@ package final class ParticleAnalysis {
         let gen = runGeneration
         isComputing = true
         failure = nil
-        let settings = settings, pixels = image.pixels, w = image.width, h = image.height
+        let settings = settings, w = image.width, h = image.height
         // The density is per the scale's unit squared, and only for a calibrated image with square pixels.
         let scale = ParticleCompute.scale(of: image)
         let pixelSize = scale.isCalibrated ? scale.perPixel : nil
         let t = Task.detached(priority: .userInitiated) { [weak self] in
             do {
                 let interval = Signposts.begin("particles.analyse"); defer { Signposts.end(interval) }
-                let report = try ParticleCompute.analyse(pixels: pixels, width: w, height: h, settings: settings, pixelSize: pixelSize)
+                let report = try ParticleCompute.analyse(pixels: image.pixels, width: w, height: h, settings: settings, pixelSize: pixelSize)
                 if Task.isCancelled { return }
                 await self?.land(report, failure: nil, generation: gen)
             } catch {
@@ -130,6 +132,16 @@ package final class ParticleAnalysis {
     package func reset() {
         task?.cancel(); previewTask?.cancel(); runGeneration += 1; previewGeneration += 1
         report = nil; maskPreview = nil; failure = nil; isComputing = false; showsObjects = false; selectedLabel = nil
+    }
+
+    /// The item's pixels go (closed, or gone cold): the mask preview with them, and a preview or a Show Objects run being computed
+    /// stops at its next stage and lands nothing, so neither keeps the image it took (#618). The report stays (numbers and outlines
+    /// for the same file); the switch stays, so the preview is made again when the image is back.
+    package func releasePixels() {
+        previewTask?.cancel(); previewTask = nil; previewGeneration += 1
+        task?.cancel(); task = nil; runGeneration += 1
+        isComputing = false
+        maskPreview = nil
     }
 
     /// Returns when no run is in flight.

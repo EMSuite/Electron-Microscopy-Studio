@@ -165,6 +165,32 @@ package nonisolated struct IndexingSource: Sendable {
         }
     }
 
+    /// One scan row of indexed patterns at the type they are indexed in (#620): the row as stored when no stage is on, else each
+    /// pattern through the pipeline on every core (`ScanRowWork`), in its column's place, the values `patterns(row:)` gives.
+    package func storedPatterns(row: Int) throws -> StoredPatterns {
+        let access = try readable()
+        let dataset = access.dataset
+        let slab = try access.row(row)
+        guard let pipeline else {
+            return try StoredPatterns(dataType: slab.dataType, count: dataset.scanColumns, pixels: dataset.patternPixels, bytes: slab.bytes)
+        }
+        let size = dataset.patternPixels * slab.dataType.byteSize
+        let bytes = slab.bytes, base = bytes.startIndex   // a slab may be a slice of a larger buffer: index from its start
+        let background = background
+        let processed = try ScanRowWork.map(columns: dataset.scanColumns) { (column: Int) throws -> StoredPatterns in
+            let one = try FormatoArray(dataType: slab.dataType, shape: [dataset.patternRows, dataset.patternColumns],
+                                       bytes: bytes.subdata(in: (base + column * size)..<(base + (column + 1) * size)))
+            do {
+                let out = try pipeline.apply(one, rows: dataset.patternRows, columns: dataset.patternColumns, background: background)
+                return try StoredPatterns(dataType: out.dataType, count: 1, pixels: out.count, bytes: out.bytes)
+            } catch let refusal as PatternPipeline.Refusal {
+                throw refusal.at(row: row, column: column)
+            }
+        }
+        return try StoredPatterns(joining: processed, pixels: patternRows * patternColumns,
+                                  emptyType: pipeline.outputType(dataset.dataType))
+    }
+
     /// The indexed pattern at one scan position.
     package func pattern(row: Int, column: Int) throws -> [Double] {
         let access = try readable()

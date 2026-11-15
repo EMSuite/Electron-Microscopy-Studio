@@ -99,7 +99,7 @@ nonisolated final class IndexingRefineTests: XCTestCase {
         XCTAssertFalse(base.isRefined)
         let settings = IndexingRefineSettings(target: .orientation, trustAngle: 1)
         let refine = { (rows: Range<Int>) throws -> IndexingRefinedBlock in
-            try IndexingRefinement.refine(base, rows: rows, experimental: Array(patterns[(rows.lowerBound * 6 * pixels)..<(rows.upperBound * 6 * pixels)]),
+            try IndexingRefinement.refine(base, rows: rows, experimental: try StoredPatterns(doubles: Array(patterns[(rows.lowerBound * 6 * pixels)..<(rows.upperBound * 6 * pixels)]), pixels: pixels),
                                           isFloat32: false, detector: detector, master: master, signalMask: nil, settings: settings)
         }
         let second = try refine(3..<6)
@@ -115,7 +115,7 @@ nonisolated final class IndexingRefineTests: XCTestCase {
         XCTAssertEqual(points.count, 34)
         var values: [Float] = []
         for i in points { values += patterns[(i * pixels)..<((i + 1) * pixels)].map { Float($0) } }
-        let one = try EBSDRefinement.refineOrientations(EBSDRefinement.Patterns(count: 34, pixels: pixels, values: values, isFloat32: false),
+        let one = try EBSDRefinement.refineOrientations(try EBSDRefinement.Patterns(count: 34, pixels: pixels, values: values, isFloat32: false),
                                                         starts: EBSDRefinement.startingEuler(rotations: points.map { base.solutions[$0]?.quaternion ?? .zero }),
                                                         detector: detector, master: master, settings: settings.solver(signalMask: nil))
         for (k, i) in points.enumerated() {
@@ -178,7 +178,7 @@ nonisolated final class IndexingRefineTests: XCTestCase {
         // Refine · PC: each point's own PC (Bruker) kept in map order, none where not refined; the orientation held; the CSV's columns.
         let masked = try XCTUnwrap((0..<36).first { !inData[$0] })
         let pcRows = 0..<(masked / 6 + 1)
-        let pcBlock = try IndexingRefinement.refine(base, rows: pcRows, experimental: Array(patterns[0..<(pcRows.upperBound * 6 * pixels)]),
+        let pcBlock = try IndexingRefinement.refine(base, rows: pcRows, experimental: try StoredPatterns(doubles: Array(patterns[0..<(pcRows.upperBound * 6 * pixels)]), pixels: pixels),
                                                     isFloat32: false, detector: detector, master: master, signalMask: nil,
                                                     settings: IndexingRefineSettings(target: .projectionCenter, trustPC: 0.01))
         XCTAssertEqual(pcBlock.projectionCenters.count, pcRows.count * 6)
@@ -201,17 +201,19 @@ nonisolated final class IndexingRefineTests: XCTestCase {
         for (k, v) in [pcHere.x, pcHere.y, pcHere.z].enumerated() { XCTAssertEqual(Double(here[12 + k]) ?? .nan, v, accuracy: 1e-5) }
         XCTAssertEqual(pcCSV[1 + masked].split(separator: ",", omittingEmptySubsequences: false).suffix(3).map(String.init), ["", "", ""])
 
-        // A solver error names the scan point, not the pattern's place in its block.
+        // A flat pattern does not stop the block (#607): kikuchipy's NCC is NaN there and it carries on, so that point's score is
+        // NaN (drawn as not indexed) and its neighbours are refined.
         let flatRow = 3
         let flatPoint = try XCTUnwrap(((flatRow * 6)..<(flatRow * 6 + 6)).first { inData[$0] })
         var flat = Array(patterns[(flatRow * 6 * pixels)..<((flatRow + 1) * 6 * pixels)])
         let k = flatPoint - flatRow * 6
         for j in (k * pixels)..<((k + 1) * pixels) { flat[j] = 7 }
-        XCTAssertThrowsError(try IndexingRefinement.refine(base, rows: flatRow..<(flatRow + 1), experimental: flat, isFloat32: false,
-                                                           detector: detector, master: master, signalMask: nil, settings: settings)) { error in
-            XCTAssertEqual((error as? LocalizedError)?.errorDescription,
-                           "The pattern at row \(flatRow), column \(flatPoint % 6) is flat, so it cannot be compared.")
-        }
+        let flatBlock = try IndexingRefinement.refine(base, rows: flatRow..<(flatRow + 1), experimental: try StoredPatterns(doubles: flat, pixels: pixels), isFloat32: false,
+                                                      detector: detector, master: master, signalMask: nil, settings: settings)
+        XCTAssertTrue(flatBlock.solutions[k].confidence.isNaN, "the flat pattern's score")
+        XCTAssertEqual(flatBlock.evaluations[k], 0)
+        let neighbour = try XCTUnwrap(((flatRow * 6)..<(flatRow * 6 + 6)).first { inData[$0] && $0 != flatPoint }) - flatRow * 6
+        XCTAssertTrue(flatBlock.solutions[neighbour].confidence.isFinite, "a neighbour is refined")
 
         // The method's references: the kikuchipy paper as the repo records it.
         let references = SEMMethod.patternRefinement.references
