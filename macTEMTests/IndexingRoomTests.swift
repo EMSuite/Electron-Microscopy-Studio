@@ -118,6 +118,7 @@ nonisolated final class IndexingRoomTests: XCTestCase {
         XCTAssertEqual(result.countsByPhase, [indexed])
 
         // The map: one RGBA pixel per point; an indexed point carries orix's IPF-Z colour of its orientation.
+        await indexing.mapSettled()   // the map is drawn off the main actor (#252)
         let rgba = try XCTUnwrap(indexing.mapRGBA)
         XCTAssertEqual(rgba.count, result.pointCount * 4)
         let first = try XCTUnwrap((0..<solutions.count).first { solutions[$0].phase >= 0 })
@@ -194,7 +195,7 @@ nonisolated final class IndexingRoomTests: XCTestCase {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("IndexingRoomTests-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: directory) }
         var reports: [String] = []
-        for kind in IndexingExportKind.allCases { state.export(kind, from: indexing, directory: directory) { reports.append($0) } }
+        for kind in IndexingExportKind.allCases { await state.export(kind, from: indexing, directory: directory) { reports.append($0) } }
         XCTAssertEqual(reports, ["Exported patterns_v2 indexed IPF-Z.png", "Exported patterns_v2 indexing results.csv",
                                  "Exported patterns_v2 indexed.ang", "Exported patterns_v2 indexed.ctf", "Exported patterns_v2 indexing method.json"])
 
@@ -256,7 +257,7 @@ nonisolated final class IndexingRoomTests: XCTestCase {
         // A scalar layer is its values through the Map Display (D-SEM-96): the canvas spans the indexed points' CI, the points not
         // indexed are masked; its PNG is the pane's picture. The Euler layer is orix's Euler colour key of the orientation.
         XCTAssertFalse(indexing.isStale)
-        indexing.setLayer(.confidence)
+        await indexing.setLayer(.confidence).value
         XCTAssertFalse(indexing.isStale)
         XCTAssertTrue(indexing.showsScalarMap)
         XCTAssertNil(indexing.mapRGBA, "a scalar layer is not painted as RGBA")
@@ -267,9 +268,9 @@ nonisolated final class IndexingRoomTests: XCTestCase {
         XCTAssertEqual(canvas.rawRange, lowest...highest)
         XCTAssertEqual(canvas.normalized.filter { $0 < 0 }.count, result.pointCount - indexed, "a point not indexed is masked")
         reports = []
-        state.export(.mapPNG, from: indexing, directory: directory) { reports.append($0) }
+        await state.export(.mapPNG, from: indexing, directory: directory) { reports.append($0) }
         XCTAssertEqual(reports, ["Exported patterns_v2 indexed Confidence index.png"])
-        indexing.setLayer(.euler)
+        await indexing.setLayer(.euler).value
         XCTAssertFalse(indexing.showsScalarMap)
         let euler = try XCTUnwrap(indexing.mapRGBA)
         let eulerColour = EulerColorKey(PointGroup.oh).color(of: [solutions[first].quaternion])[0]
@@ -345,6 +346,23 @@ nonisolated final class IndexingRoomTests: XCTestCase {
         await indexing.showPattern().value
         XCTAssertNil(indexing.patternFailure)
         XCTAssertNil(read, "the stopped run's plan let go of the first processed scan")
+    }
+
+    /// Stop and Index again at once (#622): the stopped run ends before the new one starts, so two runs never index at the same time,
+    /// and the run that stays is the new one, complete. Red under: the new run starting while the stopped one still builds its plan
+    /// (the `await previous.value` dropped), when both are working at once (peak 2).
+    @MainActor func testARunStartedOverAStoppedOneWaitsForItToEnd() async throws {
+        let (patterns, indexing) = try await openNickel()
+        await patterns.process().value
+        let first = indexing.index()
+        indexing.stop()
+        let second = indexing.index()
+        await second.value
+        await first.value
+        XCTAssertEqual(indexing.runOverlap.peak, 1, "one run at a time")
+        XCTAssertEqual(indexing.runOverlap.live, 0, "both runs ended")
+        XCTAssertEqual(indexing.result?.isComplete, true, "the new run indexed the whole scan")
+        XCTAssertFalse(indexing.wasStopped, "the run shown is the new one, not the stopped one")
     }
 
     /// The room's band detector, kept between pattern draws and runs, keeps no patterns either (#427). A run hands the room the

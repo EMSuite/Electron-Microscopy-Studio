@@ -275,6 +275,35 @@ nonisolated final class MapsAnalysisTests: XCTestCase {
         XCTAssertTrue(session.grainBoundaryEdges.isEmpty)
     }
 
+    /// What the Maps room's views read per body pass is made once (#271): the phase legend's counts, each histogram per analysis and
+    /// the Schmid column's factors by grain equal what the views worked out before, point by point and row by row. Red before: the
+    /// members were absent.
+    @MainActor func testTheRoomsPerBodyNumbersAreMadeOnce() async throws {
+        let session = OrientationMapSession()
+        await session.open(url: Self.sdss).value
+        let map = try XCTUnwrap(session.map)
+        for entry in map.phasesInData.entries {
+            XCTAssertEqual(session.phasePointCounts[entry.id] ?? 0, map.phaseIDs.filter { $0 == entry.id }.count, "phase \(entry.id)")
+        }
+        XCTAssertNil(session.histogram(.kam), "no histogram before Segment")
+        session.setAnalysisSettings(Self.defdap)
+        await session.segment().value
+        let analysis = try XCTUnwrap(session.analysis)
+        for kind in MapAnalysis.HistogramKind.allCases {
+            XCTAssertEqual(session.histogram(kind), analysis.histogram(kind), "\(kind)")
+            XCTAssertEqual(session.histogram(kind), analysis.histogram(kind), "\(kind), asked again")
+        }
+        XCTAssertFalse(session.slip.isEmpty, "the default slip systems give every grain its factors")
+        for entry in session.slip {
+            let first = try XCTUnwrap(session.slip.first { $0.grain == entry.grain })
+            XCTAssertEqual(session.schmidByGrain[entry.grain].map { $0.isNaN ? -1 : $0 }, first.maximumSchmid.isNaN ? -1 : first.maximumSchmid)
+        }
+        session.close()
+        XCTAssertNil(session.histogram(.gos))
+        XCTAssertTrue(session.schmidByGrain.isEmpty)
+        XCTAssertTrue(session.phasePointCounts.isEmpty)
+    }
+
     @MainActor func testSegmentIsTheMapsRoomsVerb() async throws {
         let state = AppState(launch: LaunchOptions(arguments: []))
         state.navigation.workspaceArea = .maps
@@ -296,7 +325,7 @@ nonisolated final class MapsAnalysisTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: dir) }
         var reports: [String] = []
         state.exportGrains(from: session, directory: dir) { reports.append($0) }
-        state.exportTexture(from: session, directory: dir) { reports.append($0) }
+        await state.exportTexture(from: session, directory: dir) { reports.append($0) }
         XCTAssertEqual(reports.count, 2)
         XCTAssertEqual(reports.first, "Exported ebsd-sdss-ferrite-austenite grains.csv")
         let csv = try String(contentsOf: dir.appendingPathComponent("ebsd-sdss-ferrite-austenite grains.csv"), encoding: .utf8)
@@ -308,7 +337,7 @@ nonisolated final class MapsAnalysisTests: XCTestCase {
         // The map figure of a derived layer carries the boundaries and its range.
         await session.setLayer(.derived(.grains)).value
         reports = []
-        state.exportMap(from: session, directory: dir) { reports.append($0) }
+        await state.exportMap(from: session, directory: dir) { reports.append($0) }
         XCTAssertEqual(reports, ["Exported ebsd-sdss-ferrite-austenite map Grains.png"])
     }
 

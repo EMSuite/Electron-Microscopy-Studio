@@ -136,7 +136,12 @@ package final class OrientationMapSession {
     // MARK: Analysis (P5-04)
 
     /// The grain analysis once Segment has run on this map; nil before.
-    package private(set) var analysis: MapAnalysis?
+    package private(set) var analysis: MapAnalysis? {
+        didSet { histogramMemo = [:] }
+    }
+    /// The histograms of `analysis` asked for so far (#271): each is binned once per analysis, not on every body pass of the
+    /// Histogram tab. Not observed: filling it changes nothing a view shows.
+    @ObservationIgnored private var histogramMemo: [MapAnalysis.HistogramKind: AngleHistogram] = [:]
     package private(set) var isSegmenting = false
     /// The settings the next Segment uses.
     package private(set) var analysisSettings = MapAnalysisSettings()
@@ -147,7 +152,12 @@ package final class OrientationMapSession {
     /// The sample axis of the uniaxial load the Schmid factors are for.
     package private(set) var loadDirection = SampleDirection.x
     /// Every grain's slip under the load, once segmented.
-    package private(set) var slip: [GrainSlip] = []
+    package private(set) var slip: [GrainSlip] = [] {
+        didSet { schmidByGrain = GrainSlip.maximumSchmidByGrain(slip) }
+    }
+    /// Each grain's largest Schmid factor under the load, by grain number (`GrainSlip.maximumSchmidByGrain`), made when `slip` is:
+    /// the Grains table's Schmid column looks a grain up here (#271).
+    package private(set) var schmidByGrain: [Int: Double] = [:]
     /// The grain the table and the map's outline show (its number on the grain map).
     package private(set) var selectedGrain: Int?
     /// Every grain selected (⌘-click on the map, several rows of the Grains table): their outlines show on the map and their mean
@@ -441,6 +451,9 @@ package final class OrientationMapSession {
             } else {
                 raster = OrientationMaps.raster(layer, of: map)
             }
+            // A newer draw, a new map or a close cancelled this one while its raster was made: the rest of the work is skipped (#622).
+            // The draw that replaced it lands and ends `isDrawing`; a close ends it itself.
+            guard !Task.isCancelled else { return }
             let canvas = raster.values.map { values in
                 CanvasPixels.make(width: raster.columns, height: raster.rows, pixels: values.map(Float.init))
             }
@@ -587,6 +600,7 @@ package final class OrientationMapSession {
         isSegmenting = true
         onEvent?("Segmenting grains…")
         let task = Task { [weak self] in
+            let interval = Signposts.begin("maps.segment"); defer { Signposts.end(interval) }
             do {
                 let result = try await MapAnalysis.runAsync(map, settings: settings)
                 self?.segmentEnded(generation: gen, result: result, failure: nil)
@@ -769,6 +783,9 @@ package final class OrientationMapSession {
         textureFailure = nil
         textureTask?.cancel()
         let map = document.map
+        // The map this texture belongs to: a new map, even one from a file of the same name, or the same map from another source, is
+        // a new generation (#622).
+        let gen = mapGeneration
         let task = Task { [weak self] in
             var made: MapTexture?
             var failure = ""
@@ -777,7 +794,7 @@ package final class OrientationMapSession {
             } catch {
                 failure = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
             }
-            guard let self, !Task.isCancelled, self.texturePhaseID == id, self.document?.fileName == document.fileName else { return }
+            guard let self, !Task.isCancelled, self.texturePhaseID == id, self.mapGeneration == gen else { return }
             self.texture = made
             self.isTexturing = false
             // The texture's own sentence (a phase without a point group, orientations that cannot be read) says why.
@@ -789,6 +806,19 @@ package final class OrientationMapSession {
         textureTask = task
         return task
     }
+
+    /// The histogram of `kind` for the analysis shown (`MapAnalysis.histogram`, 40 bins), binned once per analysis; nil before Segment.
+    package func histogram(_ kind: MapAnalysis.HistogramKind) -> AngleHistogram? {
+        guard let analysis else { return nil }
+        if let made = histogramMemo[kind] { return made }
+        let made = analysis.histogram(kind)
+        histogramMemo[kind] = made
+        return made
+    }
+
+    /// The points of each phase id in the map shown, counted once when the map was read (`Document.phaseCounts`): the phase legend
+    /// reads them (#271) instead of counting every point per phase on every body pass.
+    package var phasePointCounts: [Int: Int] { document?.phaseCounts ?? [:] }
 
     /// How many points of the map are not indexed (`Document.notIndexedCount`).
     package var notIndexedCount: Int { document?.notIndexedCount ?? 0 }

@@ -131,6 +131,18 @@ package final class IndexingSession {
     /// navigator before a run; nil while the map shows a scalar layer.
     package private(set) var mapRGBA: [UInt8]?
     package private(set) var mapVersion = 0
+    /// What the masked grey of the scalar layer shown stands for (`IndexingRaster.maskedWords`), worked out with its canvas off the
+    /// main actor (#252); nil for a pointwise layer or when no point is grey.
+    package private(set) var mapMaskedWords: String?
+    /// The whole-map draw in flight (#252: made off the main actor), and the request it answers: a newer request lands instead.
+    @ObservationIgnored private var mapDraw: Task<Void, Never>?
+    @ObservationIgnored private var mapDrawRun = 0
+    @ObservationIgnored private var isDrawingMap = false
+    /// Rows that landed while the draw was in flight: a pointwise draw paints them in as it lands; a scalar layer draws again.
+    @ObservationIgnored private var rowsLandedDuringDraw: Range<Int>?
+    @ObservationIgnored private var redrawsAfterDraw = false
+    /// The backdrop's range, worked out once per backdrop (the Patterns room's mean map) rather than on every landed row.
+    @ObservationIgnored private var backdropRangeMemo: (means: [Float], range: ClosedRange<Float>?)?
     /// A scalar layer's values (CI, Fit, Bands, PQ, Score, OSM) as the image rooms draw a picture (D-SEM-96): its colormap, window,
     /// gamma and scale bar are the inspector's Map Display; a point without a value is masked. Viridis first (matplotlib's default,
     /// which orix's `CrystalMap.plot` draws a property with): its masked grey is no value's colour, where on Gray it reads as a value
@@ -197,6 +209,8 @@ package final class IndexingSession {
     }
 
     @ObservationIgnored var runTask: Task<Void, Never>?
+    /// The runs working at once (#622): a run waits for the one it replaced to end before it starts, so this stays at one.
+    @ObservationIgnored package let runOverlap = RunOverlap()
     @ObservationIgnored private var patternTask: Task<Void, Never>?
     /// Bumped by every dataset bound or closed (a pattern or a key that lands for another dataset is dropped) and by every run (a row
     /// that lands for an earlier run is dropped).
@@ -295,6 +309,8 @@ package final class IndexingSession {
         isIndexing = false; progress = 0; chunksDone = 0; chunksTotal = 0; chunkPhase = nil
         showsCompare = false; comparison = nil; comparePictures = nil; compareTask = nil; compareKey = nil
         mapRGBA = nil; palette = nil; probe = nil; shownKey = nil; shownRaw = []
+        mapDrawRun += 1; mapDraw = nil; isDrawingMap = false; rowsLandedDuringDraw = nil; redrawsAfterDraw = false; mapMaskedWords = nil
+        backdropRangeMemo = nil
         mapPresentation.resetWindow()
         patternPosition = nil; detectedBands = []; patternFailure = nil; patternShape = (rows: 0, columns: 0)
         bestMatchPosition = nil; bestMatchFailure = nil; bestMatchKey = nil
@@ -562,14 +578,17 @@ package final class IndexingSession {
     }
 
     /// Shows layer `new` of the result. A scalar layer's window goes back to its full range (each layer has its own units); the
-    /// colormap and the gamma stay, as the Patterns room's map keeps them from map to map.
-    package func setLayer(_ new: IndexingLayer) {
-        guard new != layer, availableLayers.contains(new) else { return }
+    /// colormap and the gamma stay, as the Patterns room's map keeps them from map to map. The returned task ends when the layer's
+    /// map has landed.
+    @discardableResult
+    package func setLayer(_ new: IndexingLayer) -> Task<Void, Never> {
+        guard new != layer, availableLayers.contains(new) else { return Task {} }
         layer = new
         palette = result.map { IndexingPalette(layer: new, phases: $0.phases) }
         if !new.isPointwise { mapPresentation.resetWindow() }
-        refreshMap()
+        let drawn = refreshMap()
         refreshComparison()
+        return drawn
     }
 
     /// Another run came on screen (a Method pick, or the run in flight ended under another method): its layers, map, Bands families,
@@ -694,9 +713,12 @@ package final class IndexingSession {
         let cached = probe?.key == key ? probe?.probe.reading(source) : nil
         let phases = self.phases, settings = self.settings, detector = document.dataset.detector
         let rows = document.dataset.scanRows, columns = document.dataset.scanColumns
-        runTask?.cancel()
+        // The run replaced is stopped, and this one starts only when it has ended (#622): two runs never share the cores.
+        let previous = runTask
+        previous?.cancel()
         runGeneration += 1
         let run = runGeneration
+        let overlap = runOverlap
         runs[.hough] = IndexingRun(id: run, result: IndexingResult(scanRows: rows, scanColumns: columns, phases: inputs.phases), inputs: inputs,
                                    source: source.kind, projectionCenter: IndexingPlan.meanProjectionCenter(detector))
         isIndexing = true; runningMethod = .hough; progress = 0; chunksDone = 0; chunksTotal = 0
@@ -709,6 +731,9 @@ package final class IndexingSession {
         onEvent?("Indexing \(rows * columns) patterns with Hough (\(inputs.phases.map(\.name).joined(separator: ", ")))…")
         let started = Date()
         let task = Task.detached(priority: .userInitiated) { [weak self] in
+            if let previous { await previous.value }
+            overlap.enter(); defer { overlap.leave() }
+            let interval = Signposts.begin("sem.index.hough"); defer { Signposts.end(interval) }
             do {
                 let built = try cached ?? IndexingProbe(source: source, settings: settings)
                 let plan = try IndexingPlan(probe: built, phases: phases, settings: settings, detector: detector)
@@ -755,9 +780,11 @@ package final class IndexingSession {
         let phases = self.phases, settings = dictionarySettings, detector = document.dataset.detector
         let beam = document.dataset.sem.beamEnergyKeV
         let rows = document.dataset.scanRows, columns = document.dataset.scanColumns
-        runTask?.cancel()
+        let previous = runTask
+        previous?.cancel()
         runGeneration += 1
         let run = runGeneration
+        let overlap = runOverlap
         runs[.dictionary] = IndexingRun(id: run, result: IndexingResult(scanRows: rows, scanColumns: columns, phases: inputs.phases,
                                                                         metric: settings.metric),
                                         inputs: inputs, source: source.kind, projectionCenter: IndexingPlan.meanProjectionCenter(detector))
@@ -779,6 +806,9 @@ package final class IndexingSession {
         let started = Date()
         let task = Task.detached(priority: .userInitiated) { [weak self] in
             defer { chunkSink.finish() }
+            if let previous { await previous.value }
+            overlap.enter(); defer { overlap.leave() }
+            let interval = Signposts.begin("sem.index.dictionary"); defer { Signposts.end(interval) }
             do {
                 var byKey = cached
                 for (phase, key) in zip(on, keys) where byKey[key] == nil {
@@ -962,35 +992,118 @@ package final class IndexingSession {
 
     // MARK: - The map
 
+    /// What a whole-map draw makes, off the main actor.
+    nonisolated private enum MapDrawing: Sendable {
+        case scalar(CanvasPixels, masked: String?)
+        case rgba([UInt8])
+    }
+
     /// Repaints the whole map: the result on its layer (a pointwise one over the dimmed navigator, a scalar one as its values through
-    /// `mapPresentation`), or the navigator alone before a run.
-    package func refreshMap() {
+    /// `mapPresentation`), or the navigator alone before a run. The picture is made off the main actor (#252: IPF colours, or the
+    /// canvas's normalising, hash and histogram, of every point) and lands unless a newer draw was asked for; the returned task ends
+    /// when it has landed.
+    @discardableResult
+    package func refreshMap() -> Task<Void, Never> {
+        mapDrawRun += 1
+        let run = mapDrawRun
+        rowsLandedDuringDraw = nil
+        redrawsAfterDraw = false
         guard let dataset = patterns.dataset else {
             mapRGBA = nil
-            return
+            mapMaskedWords = nil
+            isDrawingMap = false
+            mapDraw = nil
+            return Task {}
         }
+        let means = patterns.meanIntensities
+        let layer = self.layer
+        let work: @Sendable () -> MapDrawing
         if let result, !layer.isPointwise {
-            mapRGBA = nil
-            mapPresentation.show(CanvasPixels.make(width: result.scanColumns, height: result.scanRows,
-                                                   pixels: IndexingRaster.scalarPixels(result, layer: layer)))
+            work = {
+                .scalar(CanvasPixels.make(width: result.scanColumns, height: result.scanRows,
+                                          pixels: IndexingRaster.scalarPixels(result, layer: layer)),
+                        masked: IndexingRaster.maskedWords(result, layer: layer))
+            }
         } else if let result {
             let palette = self.palette.flatMap { $0.layer == layer ? $0 : nil } ?? IndexingPalette(layer: layer, phases: result.phases)
             self.palette = palette
-            mapRGBA = IndexingRaster.rgba(result, palette: palette, backdrop: patterns.meanIntensities)
+            work = { .rgba(IndexingRaster.rgba(result, palette: palette, backdrop: means)) }
         } else {
-            mapRGBA = IndexingRaster.backdrop(scanRows: dataset.scanRows, scanColumns: dataset.scanColumns, means: patterns.meanIntensities)
+            let rows = dataset.scanRows, columns = dataset.scanColumns
+            work = { .rgba(IndexingRaster.backdrop(scanRows: rows, scanColumns: columns, means: means)) }
         }
-        mapVersion &+= 1
+        isDrawingMap = true
+        let task = Task { [weak self] in
+            let drawn = await Self.drawMap(work)
+            guard let self, run == self.mapDrawRun else { return }
+            self.landMap(drawn)
+        }
+        mapDraw = task
+        return task
     }
 
-    /// Landed rows: a pointwise layer repaints those rows, a scalar layer (its range moves) the whole map.
+    @concurrent
+    nonisolated private static func drawMap(_ work: @Sendable () -> MapDrawing) async -> MapDrawing {
+        work()
+    }
+
+    /// A whole-map draw landed: rows that landed while it was made are painted in (pointwise) or drawn again (scalar).
+    private func landMap(_ drawn: MapDrawing) {
+        isDrawingMap = false
+        mapDraw = nil
+        let landed = rowsLandedDuringDraw, again = redrawsAfterDraw
+        rowsLandedDuringDraw = nil
+        redrawsAfterDraw = false
+        switch drawn {
+        case .scalar(let canvas, let masked):
+            mapRGBA = nil
+            mapMaskedWords = masked
+            mapPresentation.show(canvas)
+            mapVersion &+= 1
+            if again { refreshMap() }
+        case .rgba(var rgba):
+            mapMaskedWords = nil
+            if let landed, let result, let palette, palette.layer == layer, layer.isPointwise, rgba.count == result.pointCount * 4 {
+                IndexingRaster.paint(&rgba, result: result, palette: palette, backdrop: patterns.meanIntensities, rows: landed,
+                                     backdropRange: backdropRange(result.pointCount))
+            }
+            mapRGBA = rgba
+            mapVersion &+= 1
+        }
+    }
+
+    /// Waits until no whole-map draw is in flight (one landing can start another): what the tests read the map after.
+    package func mapSettled() async {
+        while isDrawingMap, let mapDraw { await mapDraw.value }
+    }
+
+    /// The backdrop's range for `count` points, worked out once per backdrop (an array compared with itself is equal at its buffer).
+    private func backdropRange(_ count: Int) -> ClosedRange<Float>? {
+        let means = patterns.meanIntensities ?? []
+        if let memo = backdropRangeMemo, memo.means == means { return memo.range }
+        let range = IndexingRaster.backdropRange(means.isEmpty ? nil : means, count: count)
+        backdropRangeMemo = (means, range)
+        return range
+    }
+
+    /// Landed rows: a pointwise layer repaints those rows on the map shown; a scalar layer (its range moves) draws the whole map again,
+    /// off the main actor and at most one draw behind (#252). While a draw is in flight the rows wait for it.
     func repaint(rows: Range<Int>) {
+        if isDrawingMap {
+            if layer.isPointwise {
+                rowsLandedDuringDraw = rowsLandedDuringDraw.map { min($0.lowerBound, rows.lowerBound)..<max($0.upperBound, rows.upperBound) } ?? rows
+            } else {
+                redrawsAfterDraw = true
+            }
+            return
+        }
         guard let result, let palette, palette.layer == layer, layer.isPointwise, var rgba = mapRGBA, rgba.count == result.pointCount * 4 else {
             refreshMap()
             return
         }
         mapRGBA = nil
-        IndexingRaster.paint(&rgba, result: result, palette: palette, backdrop: patterns.meanIntensities, rows: rows)
+        IndexingRaster.paint(&rgba, result: result, palette: palette, backdrop: patterns.meanIntensities, rows: rows,
+                             backdropRange: backdropRange(result.pointCount))
         mapRGBA = rgba
         mapVersion &+= 1
     }
@@ -1216,15 +1329,35 @@ package final class IndexingSession {
     /// The run on screen as orix's crystal map (`IndexingResult.crystalMap`, the rows it reached on the scan's steps): what the .ang
     /// and .ctf exports write. nil before a row has landed.
     package func crystalMap() throws -> CrystalMap? {
-        guard let result, let dataset = patterns.document?.dataset else { return nil }
-        let steps = (dy: dataset.stepY, dx: dataset.stepX)
-        switch result.method {
-        case .hough:
-            guard let runPlan else { return nil }
-            return try result.crystalMap(indexer: runPlan.indexer, steps: steps, scanUnit: dataset.scanUnit)
-        case .dictionary:
-            return try result.crystalMap(steps: steps, scanUnit: dataset.scanUnit)
+        try crystalMapRecipe()?.make()
+    }
+
+    /// What `crystalMap()` reads, as values: the map is built from it off the main actor (#251: an export's map is O(points)).
+    package nonisolated struct CrystalMapRecipe: Sendable {
+        let result: IndexingResult
+        /// The Hough run's indexer; nil for a dictionary run.
+        let indexer: HoughIndexer?
+        let steps: (dy: Double, dx: Double)
+        let scanUnit: String
+
+        /// The run's crystal map (`IndexingResult.crystalMap`); nil before a row has landed.
+        package func make() throws -> CrystalMap? {
+            switch result.method {
+            case .hough:
+                guard let indexer else { return nil }
+                return try result.crystalMap(indexer: indexer, steps: steps, scanUnit: scanUnit)
+            case .dictionary:
+                return try result.crystalMap(steps: steps, scanUnit: scanUnit)
+            }
         }
+    }
+
+    /// The recipe of the run on screen's crystal map; nil before a run (or a Hough run before its plan).
+    package func crystalMapRecipe() -> CrystalMapRecipe? {
+        guard let result, let dataset = patterns.document?.dataset else { return nil }
+        let indexer = runPlan?.indexer
+        if result.method == .hough, indexer == nil { return nil }
+        return CrystalMapRecipe(result: result, indexer: indexer, steps: (dy: dataset.stepY, dx: dataset.stepX), scanUnit: dataset.scanUnit)
     }
 
     /// What the .ang and .ctf headers state about the run on screen (macEM#616): the pattern centre it used (Hough: its indexer's;
