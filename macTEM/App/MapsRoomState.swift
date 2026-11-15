@@ -53,25 +53,38 @@ final class MapsRoomState {
     func requestImport() { importRequest &+= 1 }
 
     /// Makes the map figure of the shown layer and opens the save panel, or, with `directory` (the UI journeys' export folder), writes it
-    /// there; says why when there is nothing to write.
-    @MainActor func exportMap(from session: OrientationMapSession, directory: URL? = nil, report: (String) -> Void) {
+    /// there; says why when there is nothing to write. The figure is drawn off the main actor (#251) from what the session shows when the
+    /// export is asked for; the record is of that moment too.
+    @MainActor func exportMap(from session: OrientationMapSession, directory: URL? = nil, report: (String) -> Void) async {
         guard let document = session.document, let raster = session.raster else {
             report("Nothing to export yet: the map has not landed."); return
         }
-        let name = (document.fileName as NSString).deletingPathExtension + " map " + session.layer.title
+        let layer = session.layer
+        let name = (document.fileName as NSString).deletingPathExtension + " map " + layer.title
+        let display = session.propertyPresentation.canvas.map { ExportSnapshot.display(canvas: $0, presentation: session.propertyPresentation) }
+        let figure = MapsFigure.MapInput(raster: raster, layer: layer, map: document.map, keys: session.keys, display: display,
+                                         fileName: document.fileName,
+                                         boundaries: session.showsBoundaries ? (session.grainBoundaryEdges, session.phaseBoundaryEdges) : ([], []),
+                                         grainCount: session.analysis?.table.count)
+        let fields = MapsRoomFormat.recordFields(of: layer, session: session), methods = MapsRoomFormat.methods(of: layer)
         let data: Data
         do {
-            data = try MapsFigure.png(raster: raster, layer: session.layer, map: document.map, keys: session.keys,
-                                      presentation: session.propertyPresentation, fileName: document.fileName,
-                                      boundaries: session.showsBoundaries ? (session.grainBoundaryEdges, session.phaseBoundaryEdges) : ([], []),
-                                      grainCount: session.analysis?.table.count)
+            data = try await Self.mapPNG(figure)
         } catch {
             report("Export failed: \(error.localizedDescription)"); return
         }
-        let record = SEMExportedFile(room: "Maps", what: "Map PNG", source: document.fileName,
-                                     fields: MapsRoomFormat.recordFields(of: session.layer, session: session),
-                                     methods: MapsRoomFormat.methods(of: session.layer), png: data)
+        let record = SEMExportedFile(room: "Maps", what: "Map PNG", source: document.fileName, fields: fields, methods: methods, png: data)
         write(data, name: name, type: .png, record: record, directory: directory, report: report)
+    }
+
+    /// The map figure's PNG, off the main actor: up to 4096 px wide.
+    @concurrent nonisolated static func mapPNG(_ figure: MapsFigure.MapInput) async throws -> Data {
+        try MapsFigure.png(figure)
+    }
+
+    /// The texture figure's PNG, off the main actor.
+    @concurrent nonisolated static func texturePNG(_ texture: MapTexture, fileName: String) async throws -> Data {
+        try MapsFigure.texturePNG(texture, fileName: fileName)
     }
 
     /// The grain table as CSV (`MapsRoomFormat.grainsCSV`), to the save panel or the journeys' folder.
@@ -96,7 +109,7 @@ final class MapsRoomState {
         let kind = histogramKind
         let unit = kind == .grainSize ? analysis.scanUnit : "deg"
         let name = (document.fileName as NSString).deletingPathExtension + " histogram " + kind.rawValue
-        let csv = MapsRoomFormat.histogramCSV(kind, histogram: analysis.histogram(kind), unit: unit)
+        let csv = MapsRoomFormat.histogramCSV(kind, histogram: session.histogram(kind) ?? analysis.histogram(kind), unit: unit)
         let methods: [SEMMethod] = switch kind {
         case .kam: [.orientationMap, .kam]
         case .gos: [.orientationMap, .grains, .gos]
@@ -108,14 +121,14 @@ final class MapsRoomState {
         write(Data(csv.utf8), name: name, type: .commaSeparatedText, record: record, directory: directory, report: report)
     }
 
-    /// The pole figures, the IPF density and the ODF sections of the texture shown, as one PNG.
-    @MainActor func exportTexture(from session: OrientationMapSession, directory: URL? = nil, report: (String) -> Void) {
+    /// The pole figures, the IPF density and the ODF sections of the texture shown, as one PNG, drawn off the main actor (#251).
+    @MainActor func exportTexture(from session: OrientationMapSession, directory: URL? = nil, report: (String) -> Void) async {
         guard let document = session.document, let texture = session.texture else {
             report("Nothing to export yet: the texture has not landed."); return
         }
         let name = (document.fileName as NSString).deletingPathExtension + " texture " + texture.phaseName.replacingOccurrences(of: "/", with: "-")
         do {
-            let data = try MapsFigure.texturePNG(texture, fileName: document.fileName)
+            let data = try await Self.texturePNG(texture, fileName: document.fileName)
             let figures = texture.poleFigures.map(\.title) + (texture.inversePoleFigure.map { [$0.title] } ?? []) + texture.odfSections.map(\.title)
             let record = SEMExportedFile(room: "Maps", what: "Texture PNG", source: document.fileName,
                                          fields: [SEMSessionField("Phase", texture.phaseName), SEMSessionField("Points", "\(texture.points)"),
@@ -595,6 +608,19 @@ nonisolated enum MapsFigure {
                        shouldInterpolate: interpolate, intent: .defaultIntent)
     }
 
+    /// The Maps room's key of `key`'s phase as an image, made once per point group and size (#271): the key is a function of the Laue
+    /// group alone, and rebuilding it on every body pass was linear work for nothing.
+    static func keyPicture(_ key: OrientationMapSession.PhaseKey) -> CGImage? {
+        let name = "\(key.pointGroup) \(key.image.width)x\(key.image.height)" as NSString
+        if let cached = keyPictures.object(forKey: name) { return cached }
+        guard let made = cgImage(key.image) else { return nil }
+        keyPictures.setObject(made, forKey: name)
+        return made
+    }
+
+    // NSCache is thread-safe (Apple documents it so), which the compiler cannot see through its non-Sendable type.
+    nonisolated(unsafe) private static let keyPictures = NSCache<NSString, CGImage>()
+
     /// An IPF colour key as an image: its premultiplied RGBA, transparent outside the sector.
     static func cgImage(_ key: IPFKeyImage, interpolate: Bool = false) -> CGImage? {
         cgImage(premultipliedRGBA: key.premultipliedRGBA8, width: key.width, height: key.height, interpolate: interpolate)
@@ -605,10 +631,33 @@ nonisolated enum MapsFigure {
         raster.rgba8.flatMap { cgImage(premultipliedRGBA: $0, width: raster.columns, height: raster.rows) }
     }
 
+    /// What the map figure draws, read from the session on the main actor (#251): the property layer's display as
+    /// `ExportSnapshot.display` takes it, nil when the layer has no canvas.
+    struct MapInput: Sendable {
+        let raster: OrientationMapRaster
+        let layer: OrientationMapLayer
+        let map: CrystalMap
+        let keys: [OrientationMapSession.PhaseKey]
+        let display: ImageExport.Display?
+        let fileName: String
+        var boundaries: (grain: [(SIMD2<Double>, SIMD2<Double>)], phase: [(SIMD2<Double>, SIMD2<Double>)]) = ([], [])
+        var grainCount: Int? = nil
+    }
+
     @MainActor static func png(raster: OrientationMapRaster, layer: OrientationMapLayer, map: CrystalMap, keys: [OrientationMapSession.PhaseKey],
                                presentation: ImagePresentation, fileName: String,
                                boundaries: (grain: [(SIMD2<Double>, SIMD2<Double>)], phase: [(SIMD2<Double>, SIMD2<Double>)]) = ([], []),
                                grainCount: Int? = nil) throws -> Data {
+        let display = presentation.canvas.map { ExportSnapshot.display(canvas: $0, presentation: presentation) }
+        return try png(MapInput(raster: raster, layer: layer, map: map, keys: keys, display: display, fileName: fileName,
+                                boundaries: boundaries, grainCount: grainCount))
+    }
+
+    /// The map figure: the map at `scale` pixels per point with the boundaries the pane shows, the scale bar under it, the legend
+    /// beside it. Nonisolated: drawn with Core Graphics and Core Text.
+    static func png(_ input: MapInput) throws -> Data {
+        let raster = input.raster, layer = input.layer, map = input.map, keys = input.keys, fileName = input.fileName
+        let boundaries = input.boundaries, grainCount = input.grainCount
         let s = scale(columns: raster.columns)
         let mapW = raster.columns * s, mapH = raster.rows * s
         let margin = 16, legendW = 220, barRoom = 36
@@ -629,8 +678,8 @@ nonisolated enum MapsFigure {
         let picture: CGImage?
         if layer.isColour {
             picture = mapImage(raster)
-        } else if let canvas = presentation.canvas {
-            picture = propertyImage(canvas: canvas, presentation: presentation)
+        } else if let display = input.display {
+            picture = propertyImage(display)
         } else {
             picture = nil
         }
@@ -818,15 +867,14 @@ nonisolated enum MapsFigure {
     }
 
     /// A property layer through the pane's colormap, window and gamma (`ExportSnapshot.display`, the Image room's exporter's mapping).
-    @MainActor static func propertyImage(canvas: CanvasPixels, presentation: ImagePresentation) -> CGImage? {
-        let display = ExportSnapshot.display(canvas: canvas, presentation: presentation)
+    static func propertyImage(_ display: ImageExport.Display) -> CGImage? {
         guard let mapping = DisplayMapping(low: display.low, high: display.high, gamma: display.gamma, lut: display.lut) else { return nil }
-        var rgba = [UInt8](repeating: 255, count: canvas.width * canvas.height * 4)
+        var rgba = [UInt8](repeating: 255, count: display.width * display.height * 4)
         for (i, v) in display.normalized.enumerated() {
             let (r, g, b) = mapping.rgb(v)
             rgba[4 * i] = r; rgba[4 * i + 1] = g; rgba[4 * i + 2] = b
         }
-        return cgImage(premultipliedRGBA: rgba, width: canvas.width, height: canvas.height)
+        return cgImage(premultipliedRGBA: rgba, width: display.width, height: display.height)
     }
 
     /// Draws `image` into `rect` of the flipped context, upright.
