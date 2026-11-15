@@ -20,7 +20,7 @@ extension MacTEMAgentDoor {
     static var allTools: [AgentTool] { tools + roomTools + edsTools }
 
     /// The EDS room's tools on the window's `EDXSession`, each acting one leaving its Output line.
-    static let edsTools: [AgentTool] = EDXAgentTools.tools { ($0 as? AppState)?.edx }.map(said) + [edsMapsTool]
+    static let edsTools: [AgentTool] = EDXAgentTools.tools { ($0 as? AppState)?.edx }.map { said($0) } + [edsMapsTool]
 
     static let roomTools: [AgentTool] = [
         AgentTool(name: "select_room", title: "Select room",
