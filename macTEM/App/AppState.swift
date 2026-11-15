@@ -324,10 +324,13 @@ final class AppState {
         return indexing.staleness(ofRun: run, method: method)
     }
 
-    /// What the shared EDS room's views ask of this window: the status line, the error sheet, a UI journey's export folder.
+    /// What the shared EDS room's views ask of this window: the status line, the error sheet, a UI journey's export folder, the app's Open.
     var edxActions: EDXRoomActions {
+        // The room's own Open goes through the app's one Open, as the EELS, Patterns, Indexing and Maps rooms' buttons do (#318): the file
+        // gets its Open Files and Results rows, and Open Recent remembers it.
         EDXRoomActions(report: { [weak self] in self?.statusText = $0 }, present: { [weak self] in self?.present($0) },
-                       exportDirectory: { [weak self] in self?.exportDirectory })
+                       exportDirectory: { [weak self] in self?.exportDirectory },
+                       open: { [weak self] url in _ = self?.open(urls: [url]) })
     }
 
     /// The alert and the status line for `error`: its sentence, and for a system error its domain, code and underlying error
