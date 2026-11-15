@@ -750,8 +750,8 @@ struct IndexingResultsTable: View {
 
     private func refresh() async {
         guard let result = session.result else { rows = []; return }
-        // The comparators are read-only values copied for the sort; the run is a Sendable value.
-        nonisolated(unsafe) let order = sortOrder
+        // The comparators and the run are Sendable values, copied for the sort.
+        let order = sortOrder
         let made = await offMainActor { result.rows.sorted(using: order) }
         guard !Task.isCancelled else { return }
         rows = made
