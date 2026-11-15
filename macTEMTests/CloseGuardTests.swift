@@ -147,7 +147,7 @@ nonisolated final class CloseGuardTests: XCTestCase {
         let url = try XCTUnwrap(DemoDocuments.Shipped.nickelEBSD.url, "DemoData/ is not in the bundle")
         let state = AppState()
         await state.open(urls: [url])?.value
-        for _ in 0..<4000 where !state.ebsd.hasDataset { try await Task.sleep(for: .milliseconds(5)) }
+        try await waitUntil("state.ebsd.hasDataset", seconds: 20) { state.ebsd.hasDataset }
         for _ in 0..<12_000 where state.ebsd.isBusy || state.maps.isBusy { try await Task.sleep(for: .milliseconds(5)) }
         XCTAssertTrue(state.ebsd.hasDataset)
         XCTAssertFalse(state.busyRooms.contains("Indexing"), "nothing runs yet")
