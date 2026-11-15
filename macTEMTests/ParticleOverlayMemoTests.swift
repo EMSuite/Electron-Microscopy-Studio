@@ -8,6 +8,7 @@
 import XCTest
 import ImagoCore
 import ShellMetal
+import SwiftUI
 import TEMCore
 @testable import macTEM
 
