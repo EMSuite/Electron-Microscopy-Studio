@@ -118,6 +118,7 @@ nonisolated final class IndexingRoomTests: XCTestCase {
         XCTAssertEqual(result.countsByPhase, [indexed])
 
         // The map: one RGBA pixel per point; an indexed point carries orix's IPF-Z colour of its orientation.
+        await indexing.mapSettled()   // the map is drawn off the main actor (#252)
         let rgba = try XCTUnwrap(indexing.mapRGBA)
         XCTAssertEqual(rgba.count, result.pointCount * 4)
         let first = try XCTUnwrap((0..<solutions.count).first { solutions[$0].phase >= 0 })
@@ -256,7 +257,7 @@ nonisolated final class IndexingRoomTests: XCTestCase {
         // A scalar layer is its values through the Map Display (D-SEM-96): the canvas spans the indexed points' CI, the points not
         // indexed are masked; its PNG is the pane's picture. The Euler layer is orix's Euler colour key of the orientation.
         XCTAssertFalse(indexing.isStale)
-        indexing.setLayer(.confidence)
+        await indexing.setLayer(.confidence).value
         XCTAssertFalse(indexing.isStale)
         XCTAssertTrue(indexing.showsScalarMap)
         XCTAssertNil(indexing.mapRGBA, "a scalar layer is not painted as RGBA")
@@ -269,7 +270,7 @@ nonisolated final class IndexingRoomTests: XCTestCase {
         reports = []
         state.export(.mapPNG, from: indexing, directory: directory) { reports.append($0) }
         XCTAssertEqual(reports, ["Exported patterns_v2 indexed Confidence index.png"])
-        indexing.setLayer(.euler)
+        await indexing.setLayer(.euler).value
         XCTAssertFalse(indexing.showsScalarMap)
         let euler = try XCTUnwrap(indexing.mapRGBA)
         let eulerColour = EulerColorKey(PointGroup.oh).color(of: [solutions[first].quaternion])[0]
