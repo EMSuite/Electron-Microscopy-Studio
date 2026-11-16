@@ -278,6 +278,28 @@ package final class DiffractionAnalysis {
         rings = []; spots = []; lastAdded = nil; clearCalibration(); failure = nil
     }
 
+    /// The rings, the spots and the scale a ring set, as one value: what Edit > Undo of a removal puts back (#325). A typed scale, the
+    /// centre and the crystal are not marks and are never touched by it.
+    package nonisolated struct Marks: Equatable, Sendable {
+        package var rings: [MeasuredRing]
+        package var spots: [MeasuredSpot]
+        package var ringCalibration: DiffractionCalibration?
+        package var calibratedFamily: String?
+    }
+
+    package var marks: Marks {
+        Marks(rings: rings, spots: spots, ringCalibration: ringCalibration, calibratedFamily: calibratedFamily)
+    }
+
+    /// Puts `marks` back as they were, ids and the ring's scale with them; a fit still running is stopped (its ring would land on marks it
+    /// was not asked for).
+    package func restore(_ marks: Marks) {
+        stop()
+        rings = marks.rings; spots = marks.spots
+        ringCalibration = marks.ringCalibration; calibratedFamily = marks.calibratedFamily
+        lastAdded = nil; failure = nil
+    }
+
     // MARK: The readout
 
     /// Everything the rows are made from. The rows are made again only when one of these differs from the last time, so a render the results did
