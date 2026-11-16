@@ -476,17 +476,25 @@ struct VirtualTilesPane: View {
     /// One tile of the pane: its canvas was made with the map's pass, off the main actor (#256), so a body pass only draws it.
     private func tileCell(title: String, canvas: CanvasPixels, choice: EBSDSession.MapChoice) -> some View {
         let selected = session.mapChoice == choice
-        return VStack(spacing: 3) {
-            MetalImageView(pixels: canvas.values, width: canvas.width, height: canvas.height, contentVersion: canvas.contentVersion, colormap: .gray, pixelScale: canvas.scale)
-                .aspectRatio(CGFloat(dataset.scanColumns) / CGFloat(dataset.scanRows), contentMode: .fit)
-                .overlay(Rectangle().stroke(selected ? Color.accentColor : Color.white.opacity(0.15), lineWidth: selected ? 2 : 1))
-            Text(title).font(.caption.monospacedDigit()).foregroundStyle(selected ? Color.accentColor : .secondary)
+        // A button, so the tile takes a click, the keyboard and VoiceOver's action alike (#629: a tap gesture took only the click).
+        return Button { session.showMap(choice) } label: {
+            VStack(spacing: 3) {
+                MetalImageView(pixels: canvas.values, width: canvas.width, height: canvas.height, contentVersion: canvas.contentVersion, colormap: .gray, pixelScale: canvas.scale)
+                    .aspectRatio(CGFloat(dataset.scanColumns) / CGFloat(dataset.scanRows), contentMode: .fit)
+                    .overlay(Rectangle().stroke(selected ? Color.accentColor : Color.white.opacity(0.15), lineWidth: selected ? 2 : 1))
+                    // The picture is an NSView: it must not take the click from the button around it.
+                    .allowsHitTesting(false)
+                Text(title).font(.caption.monospacedDigit()).foregroundStyle(selected ? Color.accentColor : .secondary)
+            }
+            .contentShape(Rectangle())
         }
-        .contentShape(Rectangle())
-        .onTapGesture { session.showMap(choice) }
+        .buttonStyle(.plain)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Tile \(title)")
+        // `children: .ignore` makes the tile a new element, which loses the button's role (the drive saw AXUnknown): say it again.
         .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
+        // The new element has no press either (the drive's AXPress did nothing): give it the button's action.
+        .accessibilityAction { session.showMap(choice) }
         .accessibilityIdentifier("patterns.tile.\(title.replacingOccurrences(of: " ", with: "-"))")
     }
 }

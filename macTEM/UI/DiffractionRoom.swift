@@ -196,6 +196,9 @@ private struct DiffractionPatternPane: View {
                     pinchStart = nil
                 })
             // The wheel zooms about the pattern's centre (the view is centred on it); the application-wide monitor stays gone.
+            // DEPARTURE from control-placement §6 (#629): the pattern has its own zoom, not the shared container, because the view is
+            // centred on the beam (rings and spots are read about it), so a zoom about the pointer or a pan would move what is measured
+            // off centre. The wheel, pinch, double-click (Ring tool) and View > Zoom (`DiffractionZoomCommands`) act as elsewhere.
             .onScrollWheel { event in
                 guard event.delta != 0 else { return }
                 view.zoom(by: Double(ScrollZoom.factor(delta: event.delta, isPrecise: event.isPrecise)), image: image)
