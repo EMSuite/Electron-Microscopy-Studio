@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import SpectroEELS
 import TEMCore
 import TEMSession
 import XCTest
