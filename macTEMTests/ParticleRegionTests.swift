@@ -77,10 +77,11 @@ nonisolated final class ParticleRegionTests: XCTestCase {
         var s = ParticleSettings()
         s.method = .otsu
         let whole = try ParticleCompute.analyse(pixels: pixels, width: w, height: h, settings: s)
-        XCTAssertGreaterThan(whole.thresholdValue, 10)
+        // The whole image's level parts {0, 10} from 1000 (the bin of 10, 9.77); the region's parts 0 from 10 (the bin of 0).
+        XCTAssertGreaterThan(whole.thresholdValue, 9)
         s.region = PixelCrop(row: 0, col: 0, height: h, width: 10)
         let inside = try ParticleCompute.analyse(pixels: pixels, width: w, height: h, settings: s)
-        XCTAssertLessThan(inside.thresholdValue, 10)
+        XCTAssertLessThan(inside.thresholdValue, 1)
         let cut = try ParticleCompute.mask(pixels: pixels, width: w, height: h, range: 0...1000, settings: s)
         XCTAssertFalse((0..<h).contains { r in (10..<w).contains { cut.mask[r * w + $0] } }, "the preview's mask is empty outside the region")
     }

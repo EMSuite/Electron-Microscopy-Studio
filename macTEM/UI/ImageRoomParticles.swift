@@ -80,7 +80,7 @@ struct ImageRoomParticlesSection: View {
                 .accessibilityValue(UnitDisplay.count(settings.minimumArea, "square pixel", "square pixels"))
                 .accessibilityIdentifier("particles.minimumArea")
             }
-            ParticleRegionRows(analysis: analysis, image: image)
+            ParticleRegionRows(analysis: analysis, imageWidth: image.width, imageHeight: image.height)
             InspectorRow("Tint mask") {
                 Toggle("Tint mask", isOn: Binding(get: { analysis.previewsMask }, set: { analysis.setPreviewsMask($0) }))
                     .labelsHidden().toggleStyle(.switch)
@@ -291,10 +291,12 @@ struct ParticleOverlay: View {
 /// ImageJ's rectangle selection) and Whole Image (clears it). The drag itself is `ParticleRegionOverlay`'s.
 struct ParticleRegionRows: View {
     let analysis: ParticleAnalysis
-    let image: CalibratedImage
+    /// The image's size only, never the image: a view holds no file's pixels (PixelOwnershipTests).
+    let imageWidth: Int
+    let imageHeight: Int
 
     var body: some View {
-        let region = ParticleRegion.clamped(analysis.settings.region, width: image.width, height: image.height)
+        let region = ParticleRegion.clamped(analysis.settings.region, width: imageWidth, height: imageHeight)
         let drawing = analysis.isDrawingRegion
         InspectorRow("Region") {
             Text(ParticleRegion.text(region)).monospacedDigit()
