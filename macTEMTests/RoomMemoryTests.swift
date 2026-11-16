@@ -103,6 +103,7 @@ nonisolated final class RoomMemoryTests: XCTestCase {
         let back = try await conditionHolds(within: 5) { Self.settledFootprint() - before < stored / 2 }
         let after = Self.settledFootprint()
         let held = Self.parts().minus(partsBefore)
+        print("RoomMemoryTests image rooms: \(after - before) bytes over the baseline after the close (allowed \(stored / 2)); \(held.words)")
         XCTAssertGreaterThan(open - before, stored, "the measure sees the open image (\(open - before) bytes over the baseline)")
         XCTAssertTrue(back, "after the close the footprint is \(after - before) bytes over the baseline; the image is \(stored) bytes as stored; "
                       + "of it over their baselines (bytes): \(held.words) (#713: names which one holds it)")
@@ -129,13 +130,54 @@ nonisolated final class RoomMemoryTests: XCTestCase {
         var anonymous = 0
         var compressed = 0
         var graphics = 0
+        /// Dirty and compressed bytes by the VM regions' tag (`mach_vm_region_recurse`): which allocator's regions hold the pages
+        /// (malloc's tiny, small, medium or large ones, or another tag), where `task_vm_info` only says resident or compressed (#713).
+        var byTag: [UInt32: Int] = [:]
         func minus(_ other: Parts) -> Parts {
-            Parts(malloc: malloc - other.malloc, metal: metal - other.metal, reserved: reserved - other.reserved, anonymous: anonymous - other.anonymous,
-                  compressed: compressed - other.compressed, graphics: graphics - other.graphics)
+            var tags = byTag
+            for (tag, bytes) in other.byTag { tags[tag, default: 0] -= bytes }
+            return Parts(malloc: malloc - other.malloc, metal: metal - other.metal, reserved: reserved - other.reserved,
+                         anonymous: anonymous - other.anonymous, compressed: compressed - other.compressed, graphics: graphics - other.graphics,
+                         byTag: tags)
         }
         var words: String {
-            "malloc \(malloc) (zones reserve \(reserved)), Metal \(metal), VM internal \(anonymous), compressed \(compressed), graphics \(graphics)"
+            let tags = byTag.filter { abs($0.value) >= 1 << 20 }.sorted { abs($0.value) > abs($1.value) }.prefix(6)
+                .map { "\(RoomMemoryTests.tagName($0.key)) \($0.value)" }.joined(separator: ", ")
+            return "malloc \(malloc) (zones reserve \(reserved)), Metal \(metal), VM internal \(anonymous), compressed \(compressed), graphics \(graphics)"
+                + "; by VM tag (dirty + compressed, 1 MB or more): " + (tags.isEmpty ? "none" : tags)
         }
+    }
+
+    /// A VM tag's name (mach/vm_statistics.h), its number otherwise.
+    nonisolated static func tagName(_ tag: UInt32) -> String {
+        let names: [UInt32: String] = [1: "malloc", 2: "malloc small", 3: "malloc large", 4: "malloc huge", 7: "realloc", 8: "malloc tiny",
+                                       9: "malloc large reusable", 10: "malloc large reused", 11: "malloc nano", 12: "malloc medium",
+                                       13: "malloc proba guard", 30: "Swift runtime", 33: "IOKit", 35: "stack", 36: "guard", 70: "IOAccelerator",
+                                       71: "CoreGraphics image", 89: "image IO", 98: "Accelerate"]
+        return names[tag] ?? "tag \(tag)"
+    }
+
+    /// Dirty plus compressed bytes of every region of the task, summed by its tag.
+    nonisolated static func bytesByTag() -> [UInt32: Int] {
+        var out: [UInt32: Int] = [:]
+        var address: mach_vm_address_t = 0
+        var depth: natural_t = 0
+        let page = Int(getpagesize())
+        while true {
+            var size: mach_vm_size_t = 0
+            var info = vm_region_submap_info_data_64_t()
+            var count = mach_msg_type_number_t(MemoryLayout<vm_region_submap_info_data_64_t>.size / MemoryLayout<natural_t>.size)
+            let kr = withUnsafeMutablePointer(to: &info) {
+                $0.withMemoryRebound(to: Int32.self, capacity: Int(count)) {
+                    mach_vm_region_recurse(mach_task_self_, &address, &size, &depth, $0, &count)
+                }
+            }
+            guard kr == KERN_SUCCESS else { break }
+            if info.is_submap != 0 { depth += 1; continue }
+            out[info.user_tag, default: 0] += (Int(info.pages_dirtied) + Int(info.pages_swapped_out)) * page
+            address += size
+        }
+        return out
     }
 
     private static func parts() -> Parts {
@@ -153,7 +195,20 @@ nonisolated final class RoomMemoryTests: XCTestCase {
             parts.compressed = Int(info.compressed)
             parts.graphics = Int(info.ledger_tag_graphics_footprint)
         }
+        parts.byTag = bytesByTag()
         return parts
+    }
+
+    /// The tag probe sees malloc: a 64 MB buffer touched shows under a malloc tag while it lives. Red under: a probe that reads nothing.
+    func testTheTagProbeSeesALargeBuffer() {
+        let before = Self.bytesByTag()
+        let count = 64 << 20
+        let buffer = UnsafeMutableRawPointer.allocate(byteCount: count, alignment: 16384)
+        defer { buffer.deallocate() }
+        memset(buffer, 1, count)
+        let after = Self.bytesByTag()
+        let grown = after.reduce(0) { $0 + $1.value - (before[$1.key] ?? 0) }
+        XCTAssertGreaterThan(grown, count / 2, "the probe sees the touched buffer: \(after.map { "\(Self.tagName($0.key))" })")
     }
 
     // MARK: - The spectrum and SEM rooms
@@ -228,6 +283,8 @@ nonisolated final class RoomMemoryTests: XCTestCase {
             XCTAssertGreaterThan(open - before, seen, "\(name): the measure sees the open file (\(open - before) bytes over the baseline)")
         }
         let held = Self.parts().minus(partsBefore)
+        // Logged on every run, so a green run shows the margin and the holders too (#713).
+        print("RoomMemoryTests \(name): \(after - before) bytes over the baseline after the close (allowed \(allowed)); \(held.words)")
         XCTAssertTrue(back, "\(name): after the close the footprint is \(after - before) bytes over the baseline (\(open - before) while "
                       + "open); allowed \(allowed); of it over their baselines (bytes): \(held.words) (#713)")
     }

@@ -119,9 +119,9 @@ nonisolated final class OrientationMapDoorTests: XCTestCase {
         let folder = try scratchFolder()
         let text = try write("x\n", as: "x.txt", in: folder)
         let textRefusal = await refusal(of: text)
-        XCTAssertEqual(textRefusal, "x.txt is not an orientation map (.ang, .ctf, .h5oina or orix's .h5).")
+        XCTAssertEqual(textRefusal, "x.txt is not an orientation map (.ang, .ctf, .h5oina or .h5).")
         let bare = try write(Self.tslANG(grid: "SqrGrid"), as: "scan", in: folder)
         let bareRefusal = await refusal(of: bare)
-        XCTAssertEqual(bareRefusal, "scan is not an orientation map (.ang, .ctf, .h5oina or orix's .h5).")
+        XCTAssertEqual(bareRefusal, "scan is not an orientation map (.ang, .ctf, .h5oina or .h5).")
     }
 }

@@ -247,8 +247,8 @@ package final class OrientationMapSession {
         return task
     }
 
-    /// The map in an `.ang` (orix's reader port), a `.ctf`, an Oxford `.h5oina` that holds no patterns, or orix's own `.h5`
-    /// (`EBSDH5Reader.readMap`).
+    /// The map in an `.ang` (orix's reader port), a `.ctf`, an Oxford `.h5oina` that holds no patterns, or an `.h5` from orix, Bruker
+    /// Esprit, EDAX OIM or EMsoft without patterns (`EBSDH5Reader.readMap`).
     @concurrent
     nonisolated package static func read(_ url: URL) async throws -> Document {
         let scoped = url.startAccessingSecurityScopedResource()
@@ -268,20 +268,23 @@ package final class OrientationMapSession {
                 throw MapReadError(text: "\(url.lastPathComponent): \(refusal.reason)")
             }
         case let ext where EBSDOpening.h5Extensions.contains(ext):
-            // An Oxford H5OINA without patterns, AZtec's map export (#513), or orix's own HDF5 file (#514): routing sends it here;
-            // its refusals come out in its words.
+            // An Oxford H5OINA without patterns, AZtec's map export (#513), orix's own HDF5 file, a Bruker or EDAX file saved without
+            // patterns, or EMsoft's dictionary indexing file (#514): routing sends it here; its refusals come out in its words.
             do {
                 let found = try EBSDH5Reader.readMap(url: url)
                 let format = switch found.layout {
                 case .oxford: Self.h5oinaFormat
                 case .orix: Self.orixFormat
+                case .bruker: Self.brukerFormat
+                case .edax: Self.edaxFormat
+                case .emsoft: Self.emsoftFormat
                 }
                 return Document(fileName: url.lastPathComponent, url: url, map: found.map, source: .mapFile, format: format)
             } catch let refusal as EBSDReadError {
                 throw MapReadError(text: refusal.text)
             }
         default:
-            throw MapReadError(text: "\(url.lastPathComponent) is not an orientation map (.ang, .ctf, .h5oina or orix's .h5).")
+            throw MapReadError(text: "\(url.lastPathComponent) is not an orientation map (.ang, .ctf, .h5oina or .h5).")
         }
     }
 
@@ -289,6 +292,10 @@ package final class OrientationMapSession {
     package nonisolated static let h5oinaFormat = ".h5oina (Oxford Instruments)"
     /// The format a map in orix's own HDF5 file is shown with.
     package nonisolated static let orixFormat = ".h5 (orix)"
+    /// The formats of the h5ebsd maps saved without patterns (#514).
+    package nonisolated static let brukerFormat = ".h5 (Bruker Esprit)"
+    package nonisolated static let edaxFormat = ".h5 (EDAX OIM)"
+    package nonisolated static let emsoftFormat = ".h5 (EMsoft)"
 
     nonisolated static func angFormat(_ vendor: ANGMap.Vendor) -> String {
         switch vendor {

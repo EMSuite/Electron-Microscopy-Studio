@@ -147,8 +147,14 @@ enum MacTEMAgentDoor {
         let options = ExportSnapshot.options(scaleBar: snapshot.defaults.scaleBar, marks: snapshot.defaults.marks,
                                              offersMarks: snapshot.defaults.offersMarks)
         do {
-            let rendered = try ImageExport.render(source: snapshot.source, display: snapshot.display, marks: snapshot.marks, options: options)
-            return .png(smaller(rendered.png, side: pictureSide * scale) ?? rendered.png)
+            // A picture that fits is the export itself, byte for byte (its Description included); a larger one is drawn and scaled to
+            // the asked size before the one encode: never the full-size PNG decoded and shrunk again (#640).
+            if max(snapshot.display.width, snapshot.display.height) <= pictureSide * scale {
+                return .png(try ImageExport.render(source: snapshot.source, display: snapshot.display, marks: snapshot.marks, options: options).png)
+            }
+            let picture = try ImageExport.picture(source: snapshot.source, display: snapshot.display, marks: snapshot.marks,
+                                                  options: options, longestSide: pictureSide * scale)
+            return .png(try ImageExport.encodePNG(picture))
         } catch {
             return .refusal(status: 500, message: "The image could not be drawn: \(error.localizedDescription)")
         }

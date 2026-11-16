@@ -297,14 +297,16 @@ private nonisolated enum FFTWork {
         let source: Micrograph? = key.crop == nil && key.preprocess.isNone ? nil : try prepared(image, key)
         try Task.checkCancellation()            // the file closed: stop between stages (#618)
         do {                                    // the core's arrays go out of scope here, before the canvases exist
+            // The widened pixels are a temporary handed to the kit, which frees them after the transform's row step; the
+            // display then takes the power's own storage for its values (#686: the 375 MP alite image peaked at 5.15 GiB).
             let spectrum = key.preprocess.isNone || source == nil ? try PowerSpectrum.compute(image.micrograph, crop: key.crop)
                                                                   : try PowerSpectrum.compute(source!, crop: nil)
-            display = SpectrumDisplay.make(spectrum)
             profile = try? RadialProfile.compute(spectrum)       // the kit throws where the copy answered nil: the same refusals
             spacingX = spectrum.spacingX
             spacingY = spectrum.spacingY
             unitsX = spectrum.unitsX
             unitsY = spectrum.unitsY
+            display = SpectrumDisplay.make(consume spectrum)
         }
         try Task.checkCancellation()
         return FFTSpectrumProduct(

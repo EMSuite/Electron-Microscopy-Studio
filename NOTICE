@@ -238,8 +238,8 @@ its oracle and none of its code is copied. Its own third-party notices are in it
 ImagoKit (a Swift package the app is built with)
 ================================================================================
 
-The app links ImagoKit (https://github.com/mac4DSTEM/ImagoKit, tag 0.10.1, commit
-268c8e5b7d75f68d79b990386099e05a5cfd2283), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only, for the exact-length 2D FFT, the
+The app links ImagoKit (https://github.com/mac4DSTEM/ImagoKit, tag 0.11.0, commit
+4af4d49816d6d0fa55975faba48c403a2ac9240f), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only, for the exact-length 2D FFT, the
 centred power spectrum, the radial profile, the spot spacing, the masked inverse FFT, the HRTEM filters, line profiles and the
 histogram. Its references are NumPy, SciPy and scikit-image; none of their code is copied. Its own notices are in its NOTICE.
 
