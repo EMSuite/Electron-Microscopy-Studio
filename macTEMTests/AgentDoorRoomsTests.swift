@@ -66,11 +66,16 @@ nonisolated final class AgentDoorRoomsTests: XCTestCase {
     /// Mutation: select_room going around `roomUnavailableReason`, or leaving no Output line - red.
     @MainActor func testSelectRoomMovesTheWindowOrSaysWhyNot() async throws {
         let state = window()
+        // With nothing open every room is enterable; an orientation map alone leaves the EDS room without data.
+        let map = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .appendingPathComponent("Fixtures/ebsd-sdss-ferrite-austenite.ang")
+        await state.open(urls: [map])?.value
+        XCTAssertEqual(state.navigation.workspaceArea, .maps)
         let refused = try await call("select_room", ["room": "edx"])
-        XCTAssertTrue(refused.refused, "an empty window has no spectrum image for the EDS room")
+        XCTAssertTrue(refused.refused, "a window holding only a map has no spectrum image for the EDS room")
         let reason = try XCTUnwrap(state.roomUnavailableReason(.edx))
         XCTAssertTrue(refused.text.contains(reason), "the room bar's reason: \(refused.text)")
-        XCTAssertEqual(state.navigation.workspaceArea, .image)
+        XCTAssertEqual(state.navigation.workspaceArea, .maps)
 
         await state.edx.bind(DemoDocuments.edx()).value
         let moved = try await call("select_room", ["room": "edx"])
