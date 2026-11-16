@@ -91,7 +91,7 @@ struct ImageRoomDisplayRows: View {
                 // A render may carry its own bar in its pixels, where macTEM draws its own: why the bar started hidden.
                 if isRender { InspectorNote(ImagePresentation.renderScaleBarNote) }
             }
-            if let sem, sem.databarRows != nil { SEMDatabarPicker(sem: sem) }
+            if let sem, sem.databarRows != nil { SEMDatabarNote(sem: sem) }
         }
     }
 

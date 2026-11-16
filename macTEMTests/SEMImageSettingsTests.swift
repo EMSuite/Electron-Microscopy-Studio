@@ -1,10 +1,9 @@
 //
 //  SEMImageSettingsTests.swift
-//  The SEM image display's one stored switch (`SEMImageSettings`, #341): the vendor's databar is hidden unless the person chose
-//  to show it, the choice is kept under one key, and it is read from and written to the defaults the caller passes. Each test
-//  has defaults of its own, removed after it; none touches the app's.
-//  Red under: off by default, the choice not kept, another key (a choice made in an earlier version would be lost), the passed
-//  defaults ignored.
+//  The SEM image display's one stored switch (`SEMImageSettings`, #341; in Settings > Images since #626): the vendor's databar is
+//  hidden unless the person chose to show it, and the choice is kept under the key it has had since #341, so a choice made in an
+//  earlier version is read as it was. Each test has defaults of its own, removed after it; none touches the app's.
+//  Red under: shown by default, another key, the choice read as anything but a Boolean.
 //
 
 import XCTest
@@ -20,31 +19,15 @@ nonisolated final class SEMImageSettingsTests: XCTestCase {
         return defaults
     }
 
-    /// Nothing stored: the databar is hidden. A stored choice is read back, and removing it gives the default again.
-    func testTheDatabarIsHiddenUnlessThePersonChoseToShowIt() throws {
-        let defaults = try scratchDefaults()
-        XCTAssertNil(defaults.object(forKey: SEMImageSettings.cropDatabarKey), "setup: nothing is stored yet")
-        XCTAssertTrue(SEMImageSettings.cropDatabar(defaults), "on by default")
-        SEMImageSettings.setCropDatabar(false, defaults)
-        XCTAssertFalse(SEMImageSettings.cropDatabar(defaults))
-        SEMImageSettings.setCropDatabar(true, defaults)
-        XCTAssertTrue(SEMImageSettings.cropDatabar(defaults))
-        SEMImageSettings.setCropDatabar(false, defaults)
-        defaults.removeObject(forKey: SEMImageSettings.cropDatabarKey)
-        XCTAssertTrue(SEMImageSettings.cropDatabar(defaults), "no stored choice is the default again")
+    func testTheDatabarIsHiddenUnlessThePersonChoseToShowIt() {
+        XCTAssertTrue(SEMImageSettings.cropDatabarDefault, "hidden by default")
     }
 
-    /// The choice is a Boolean under `sem.cropDatabar`, in the defaults it was given and in no other.
-    func testTheChoiceIsKeptUnderItsKeyInTheDefaultsItWasGiven() throws {
+    /// The key is the one #341 wrote, a Boolean: what an earlier build stored is what `@AppStorage` reads.
+    func testTheChoiceIsKeptUnderItsKey() throws {
         XCTAssertEqual(SEMImageSettings.cropDatabarKey, "sem.cropDatabar")
-        let first = try scratchDefaults()
-        let second = try scratchDefaults()
-        SEMImageSettings.setCropDatabar(false, first)
-        XCTAssertEqual(first.object(forKey: "sem.cropDatabar") as? Bool, false)
-        XCTAssertNil(second.object(forKey: "sem.cropDatabar"), "another store is not written")
-        XCTAssertTrue(SEMImageSettings.cropDatabar(second))
-        // A value another build wrote under the key is read: off stays off.
-        second.set(false, forKey: "sem.cropDatabar")
-        XCTAssertFalse(SEMImageSettings.cropDatabar(second))
+        let defaults = try scratchDefaults()
+        defaults.set(false, forKey: "sem.cropDatabar")
+        XCTAssertEqual(defaults.object(forKey: SEMImageSettings.cropDatabarKey) as? Bool, false)
     }
 }
