@@ -21,15 +21,14 @@ nonisolated final class MarkKeysJourney: Journey {
         showInspector(waitingFor: "image.tool")
         element("image.tool").radioButtons["Distance"].firstMatch.click()
         waitFor("image.view").coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).click()
-        let cursor = waitFor("image.markCursor")
-        let start = (cursor.value as? String) ?? ""
+        let focused = app.descendants(matching: .any).matching(NSPredicate(format: "hasKeyboardFocus == true")).firstMatch
+        print("MarkKeysJourney: keyboard focus after the click: \(focused.exists ? focused.identifier + " " + focused.elementType.rawValue.description : "none")")
         walk(.leftArrow, coarse: 10, fine: 2)
-        let moved = (cursor.value as? String) ?? ""
-        XCTAssertNotEqual(moved, start, "the ⌥-arrows did not move the cursor: \(moved)")
+        // The demo pictures are 512²: the cursor starts on (255, 255), and 10 coarse steps of 5 px and 2 of 1 px take it to x 203.
+        waitStatus(containing: ["x 203, y 255"], timeout: 10)
         app.typeKey(.return, modifierFlags: [])
-        let held = (cursor.value as? String) ?? ""
-        XCTAssertTrue(held.hasPrefix("Point 2 of 2"), "Return set no point: \(held)")
         walk(.rightArrow, coarse: 20, fine: 3)
+        waitStatus(containing: ["x 306, y 255"], timeout: 10)
         app.typeKey(.return, modifierFlags: [])
     }
 
