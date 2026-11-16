@@ -81,38 +81,14 @@ struct PatternsRoom: View {
             }
         }
         .onChange(of: state.importRequest) { showImporter = true }
-        .fileImporter(isPresented: $showImporter, allowedContentTypes: importTypes, allowsMultipleSelection: false) { result in
-            switch result {
-            case .success(let urls): if let url = urls.first { appState.open(urls: [url]) }
-            case .failure(let error): appState.present(error)
-            }
-        }
-        .fileExporter(isPresented: Binding(get: { state.exporting != nil }, set: { if !$0 { state.exporting = nil } }),
-                      document: PatternsExportFile(data: state.exportData),
-                      contentType: state.exporting?.contentType ?? .json,
-                      defaultFilename: (session.fileName as NSString).deletingPathExtension + (state.exporting?.suffix(position: state.exportPosition, map: state.exportMap) ?? "")) { result in
-            switch result {
-            case .success(let url):
-                appState.statusText = "Exported \(url.lastPathComponent)"
-                state.didWrite(to: url)
-            case .failure(let error):
-                state.didFinishExport()
-                appState.present(error)
-            }
-        }
+        .roomImporter(isPresented: $showImporter, types: importTypes)
+        .roomExporter(isPresented: Binding(get: { state.exporting != nil }, set: { if !$0 { state.exporting = nil } }),
+                      data: state.exportData, contentType: state.exporting?.contentType ?? .json,
+                      defaultFilename: (session.fileName as NSString).deletingPathExtension + (state.exporting?.suffix(position: state.exportPosition, map: state.exportMap) ?? ""),
+                      didWrite: { state.didWrite(to: $0) }, didFinish: { state.didFinishExport() })
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("patterns.room")
     }
-}
-
-/// A file the save panel writes: the bytes `PatternsRoomState.export` made (the pattern PNG or the metadata JSON).
-struct PatternsExportFile: FileDocument {
-    static var readableContentTypes: [UTType] { [.png, .json, .commaSeparatedText] }
-    var data: Data
-
-    init(data: Data) { self.data = data }
-    init(configuration: ReadConfiguration) throws { data = configuration.file.regularFileContents ?? Data() }
-    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper { FileWrapper(regularFileWithContents: data) }
 }
 
 // MARK: - The keys

@@ -102,38 +102,14 @@ struct IndexingRoom: View {
                 }
             }
         }
-        .fileImporter(isPresented: $showImporter, allowedContentTypes: importTypes, allowsMultipleSelection: false) { result in
-            switch result {
-            case .success(let urls): if let url = urls.first { appState.open(urls: [url]) }
-            case .failure(let error): appState.present(error)
-            }
-        }
-        .fileExporter(isPresented: Binding(get: { state.exporting != nil }, set: { if !$0 { state.exporting = nil } }),
-                      document: IndexingExportFile(data: state.exportData),
-                      contentType: state.exporting?.contentType ?? .json,
-                      defaultFilename: (session.patterns.fileName as NSString).deletingPathExtension + (state.exporting?.suffix(layer: state.exportLayer) ?? "")) { result in
-            switch result {
-            case .success(let url):
-                appState.statusText = "Exported \(url.lastPathComponent)"
-                state.didWrite(to: url)
-            case .failure(let error):
-                state.didFinishExport()
-                appState.present(error)
-            }
-        }
+        .roomImporter(isPresented: $showImporter, types: importTypes)
+        .roomExporter(isPresented: Binding(get: { state.exporting != nil }, set: { if !$0 { state.exporting = nil } }),
+                      data: state.exportData, contentType: state.exporting?.contentType ?? .json,
+                      defaultFilename: (session.patterns.fileName as NSString).deletingPathExtension + (state.exporting?.suffix(layer: state.exportLayer) ?? ""),
+                      didWrite: { state.didWrite(to: $0) }, didFinish: { state.didFinishExport() })
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("indexing.room")
     }
-}
-
-/// A file the save panel writes: the bytes `IndexingRoomState.export` made (the map PNG, the results CSV or the method JSON).
-struct IndexingExportFile: FileDocument {
-    static var readableContentTypes: [UTType] { [.png, .json, .commaSeparatedText] + [IndexingExportKind.ang, .ctf].map { $0.contentType } }
-    var data: Data
-
-    init(data: Data) { self.data = data }
-    init(configuration: ReadConfiguration) throws { data = configuration.file.regularFileContents ?? Data() }
-    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper { FileWrapper(regularFileWithContents: data) }
 }
 
 // MARK: - The keys

@@ -232,7 +232,7 @@ private struct DiffractionExportSection: View {
     let analysis: DiffractionAnalysis
     @Environment(AppState.self) private var appState
     @State private var exporting = false
-    @State private var document = CSVTextDocument(text: "")
+    @State private var document = RoomExportFile(text: "")
 
     var body: some View {
         InspectorSection("Export") {
@@ -256,17 +256,8 @@ private struct DiffractionExportSection: View {
                 appState.statusText = "Exported \(url.lastPathComponent)"
             } catch { appState.present(error) }
         } else {
-            document = CSVTextDocument(text: text)
+            document = RoomExportFile(text: text)
             exporting = true
         }
     }
-}
-
-/// A CSV as a document for `fileExporter`.
-struct CSVTextDocument: FileDocument {
-    static let readableContentTypes: [UTType] = [.commaSeparatedText]
-    var text: String
-    init(text: String) { self.text = text }
-    init(configuration: ReadConfiguration) throws { text = String(decoding: configuration.file.regularFileContents ?? Data(), as: UTF8.self) }
-    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper { FileWrapper(regularFileWithContents: Data(text.utf8)) }
 }

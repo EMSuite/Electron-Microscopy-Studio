@@ -93,36 +93,13 @@ struct MapsRoom: View {
             }
         }
         .onChange(of: state.importRequest) { showImporter = true }
-        .fileImporter(isPresented: $showImporter, allowedContentTypes: importTypes, allowsMultipleSelection: false) { result in
-            switch result {
-            case .success(let urls): if let url = urls.first { appState.open(urls: [url]) }
-            case .failure(let error): appState.present(error)
-            }
-        }
-        .fileExporter(isPresented: Binding(get: { state.isExporting }, set: { state.isExporting = $0 }),
-                      document: MapsExportFile(data: state.exportData), contentType: state.exportType, defaultFilename: state.exportName) { result in
-            switch result {
-            case .success(let url):
-                appState.statusText = "Exported \(url.lastPathComponent)"
-                state.didWrite(to: url)
-            case .failure(let error):
-                state.didFinishExport()
-                appState.present(error)
-            }
-        }
+        .roomImporter(isPresented: $showImporter, types: importTypes)
+        .roomExporter(isPresented: Binding(get: { state.isExporting }, set: { state.isExporting = $0 }),
+                      data: state.exportData, contentType: state.exportType, defaultFilename: state.exportName,
+                      didWrite: { state.didWrite(to: $0) }, didFinish: { state.didFinishExport() })
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("maps.room")
     }
-}
-
-/// The bytes the Maps room's save panel writes: a PNG figure or the grain table's CSV.
-struct MapsExportFile: FileDocument {
-    static var readableContentTypes: [UTType] { [.png, .commaSeparatedText] }
-    var data: Data
-
-    init(data: Data) { self.data = data }
-    init(configuration: ReadConfiguration) throws { data = configuration.file.regularFileContents ?? Data() }
-    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper { FileWrapper(regularFileWithContents: data) }
 }
 
 // MARK: - The keys

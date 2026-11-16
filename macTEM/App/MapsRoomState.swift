@@ -144,10 +144,8 @@ final class MapsRoomState {
     /// Writes to the journeys' folder (the record kept at once) or opens the save panel (the record kept once it has written).
     @MainActor private func write(_ data: Data, name: String, type: UTType, record: SEMExportedFile, directory: URL?, report: (String) -> Void) {
         if let directory {
-            let url = directory.appendingPathComponent(name).appendingPathExtension(type.preferredFilenameExtension ?? "png")
             do {
-                try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-                try data.write(to: url)
+                let url = try ExportDirectoryFile.write(data, named: name + "." + (type.preferredFilenameExtension ?? "png"), into: directory)
                 onWritten?(record.written(to: url, at: Date()))
                 report("Exported \(url.lastPathComponent)")
             } catch {

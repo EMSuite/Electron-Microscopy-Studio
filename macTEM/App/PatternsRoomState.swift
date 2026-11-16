@@ -197,10 +197,9 @@ final class PatternsRoomState {
                                    directory: URL?, report: (String) -> Void) {
         let record = makeRecord(data)
         if let directory {
-            let url = directory.appendingPathComponent(name).appendingPathExtension(kind.contentType.preferredFilenameExtension ?? "txt")
             do {
-                try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-                try data.write(to: url)
+                let url = try ExportDirectoryFile.write(data, named: name + "." + (kind.contentType.preferredFilenameExtension ?? "txt"),
+                                                        into: directory)
                 onWritten?(record.written(to: url, at: Date()))
                 report("Exported \(url.lastPathComponent)")
             } catch {
