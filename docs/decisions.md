@@ -450,3 +450,14 @@ and a second key would be a second secret to keep for no gain: an attacker with 
 
 **What would reverse it.** The apps getting separate websites, or one app's key having to be replaced without the other's.
 
+## 2026-11-16 — #514 part 2: Bruker, EDAX and EMsoft `.h5` maps without patterns read for 2.1.0
+
+**What.** The Bruker, EDAX and EMsoft map readers that part 2 left for the sweep land in 2.1.0
+(`EBSDH5Reader+VendorMaps.swift`): Bruker and EMsoft as orix 0.15.0 reads them, EDAX as orix reads the `.ang` OIM writes
+for the same scan, since no Python reader reads the EDAX `.h5` map. A Bruker or EDAX file with patterns now carries its
+map too, as an `.h5oina` does. The Bruker phases take distinct colours where orix paints them all blue.
+
+**Why.** Paul 2026-11-16: no known flaw ships in this stability release. A refusal that says "macEM does not read its
+orientation map yet" is a known flaw, even if the sweep found no such file.
+
+**What would reverse it.** A real Esprit, OIM or EMsoft file that these readers place differently from orix or MTEX.

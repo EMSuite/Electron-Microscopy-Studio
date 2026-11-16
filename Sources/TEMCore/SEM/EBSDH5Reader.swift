@@ -7,8 +7,8 @@
 //        grids, non-rectangular regions). The patterns themselves stay in the file and are read by map position (`EBSDPatternReader`).
 //        Parity: macTEMTests/EBSDH5ReaderTests.swift against ebsd-h5ebsd.truth.json (tools/parity/sem-readers/make_h5ebsd_fixtures.py).
 //        `content` says which room a file is for: the patterns for the Patterns room; a map without patterns (AZtec's H5OINA map
-//        export, #513; orix's own HDF5 file, #514) for the Maps room, read by `readMap`; a file of a known maker that holds neither
-//        (an EDS-only H5OINA; a Bruker or EDAX file saved without patterns, whose maps are not read yet) refused in a sentence.
+//        export, #513; orix's own HDF5 file; a Bruker or EDAX file saved without patterns; EMsoft's dictionary indexing file, #514)
+//        for the Maps room, read by `readMap`; a file of a known maker that holds neither (an EDS-only H5OINA) refused in a sentence.
 //        Every refusal names the file in words a user reads (`EBSDReadError.wrap`): no HDF5 paths, no quoted dataset names.
 //
 
@@ -52,6 +52,12 @@ package nonisolated enum EBSDH5Reader {
         /// orix's own HDF5 file (`orix.io.save`, orix 0.15.0's io/plugins/orix_hdf5.py): `manufacturer` orix and a `crystal_map`
         /// group; kikuchipy's dictionary indexing saves its maps so.
         case orix
+        /// Bruker Esprit's h5ebsd saved without RawPatterns (orix's bruker_h5ebsd.py; EBSDH5Reader+VendorMaps.swift).
+        case bruker
+        /// EDAX OIM Analysis's h5ebsd saved without Pattern (read as its `.ang` is).
+        case edax
+        /// EMsoft's dictionary indexing file, `manufacturer` EMEBSD... (orix's emsoft_h5ebsd.py).
+        case emsoft
     }
 
     /// Which room the HDF5 file at `url` is for, from its top group and the names in its first scan's `EBSD/Data` (one HDF5 open;
@@ -61,6 +67,10 @@ package nonisolated enum EBSDH5Reader {
         guard let reader = try? HDF5Reader(url: url), let top = try? TopGroup(reader) else { return nil }
         let name = url.lastPathComponent
         if top.manufacturer == "orix" { return (try? reader.kind(of: "/crystal_map")) == .group ? .map(.orix) : nil }
+        // orix's footprint for EMsoft: "EMEBSD" in the manufacturer (EMEBSDDictionaryIndexing.f90, EMEBSDDI.f90).
+        if top.isEMsoft {
+            return top.scanGroups.isEmpty ? .refused("\(name) is an EMsoft file that holds no EBSD map.") : .map(.emsoft)
+        }
         guard let format = format(ofManufacturer: top.manufacturer) else { return nil }
         guard let scan = top.scanGroups.first else {
             if format == .oxfordH5OINA, top.holdsEDS {
@@ -74,11 +84,9 @@ package nonisolated enum EBSDH5Reader {
         case .oxfordH5OINA:
             return holdsOxfordPatterns(data) ? .patterns(format) : .map(.oxford)
         case .brukerH5EBSD where data.name(for: "RawPatterns") == nil:
-            return .refused("\(name) is a Bruker Esprit file saved without its EBSD patterns. macEM does not read its orientation map "
-                            + "yet; the map exported as .ang or .ctf opens in the Maps room.")
+            return .map(.bruker)
         case .edaxH5EBSD where data.name(for: "Pattern") == nil:
-            return .refused("\(name) is an EDAX OIM file saved without its EBSD patterns. macEM does not read its orientation map yet; "
-                            + "the map exported as .ang opens in the Maps room.")
+            return .map(.edax)
         default:
             return .patterns(format)
         }
@@ -95,9 +103,13 @@ package nonisolated enum EBSDH5Reader {
         case .map(.orix):
             let map = try readOrixMap(url: url)
             return (map, .orix)
+        case .map(let layout):
+            let map = try readVendorMap(url: url, layout: layout)
+            return (map, layout)
         case .refused(let sentence): throw EBSDReadError(text: sentence)
         case .patterns: throw EBSDReadError(text: "\(name) holds EBSD patterns: it opens in the Patterns room, which shows its map.")
-        case nil: throw EBSDReadError(text: "\(name) is not an orientation map macEM reads (.ang, .ctf, .h5oina or orix's .h5).")
+        case nil: throw EBSDReadError(text: "\(name) is not an orientation map macEM reads (.ang, .ctf, .h5oina, or an .h5 from orix, "
+                                       + "Bruker Esprit, EDAX OIM or EMsoft).")
         }
     }
 
@@ -155,6 +167,8 @@ package nonisolated enum EBSDH5Reader {
         var version: String
         var scanGroups: [String]
         var holdsEDS = false
+        /// orix's EMsoft footprint, "EMEBSD" in the manufacturer; EMsoft writes no version.
+        var isEMsoft: Bool { manufacturer.contains("emebsd") }
 
         init(_ reader: HDF5Reader) throws {
             var manufacturer: String?, version: String?
@@ -172,7 +186,10 @@ package nonisolated enum EBSDH5Reader {
                 }
             }
             guard let manufacturer else { throw EBSDReadError(text: "it is not an EBSD file (it does not name the software that wrote it).") }
-            guard let version else { throw EBSDReadError(text: "it is not an EBSD file (it does not give its format version).") }
+            // EMsoft's dictionary indexing file gives no version; orix reads it by its manufacturer alone.
+            guard let version = version ?? (manufacturer.contains("emebsd") ? "" : nil) else {
+                throw EBSDReadError(text: "it is not an EBSD file (it does not give its format version).")
+            }
             self.manufacturer = manufacturer; self.version = version; self.scanGroups = groups; self.holdsEDS = eds
         }
     }
@@ -478,9 +495,12 @@ package nonisolated enum EBSDH5Reader {
         let wd = try header.double("WD")
         let sem = EBSDSEMHeader(beamEnergyKeV: kv, magnification: magnification, workingDistanceMM: wd)
         let background = try header.array("StaticBackground")
+        // The map beside the patterns, as orix reads it (kikuchipy 0.13.1 leaves it empty); a map that does not read never keeps the
+        // patterns from opening.
+        let map = (try? readBrukerMap(file, scan: scan)).flatMap { $0.pointCount == ny * nx ? $0 : nil }
         return EBSDDataset(format: .brukerH5EBSD, manufacturer: "", version: "", scanGroup: scan, scanGroups: [], scanRows: ny, scanColumns: nx,
                            patternRows: sy, patternColumns: sx, dataType: source.dataType, stepY: dy, stepX: dx, detector: detector,
-                           staticBackground: background, sem: sem, patterns: source)
+                           staticBackground: background, sem: sem, crystalMap: map, patterns: source)
     }
 
     /// `_bruker_roi_is_rectangular` and the index map of `get_data`: the region's rows and columns when every row and column index of
@@ -545,9 +565,12 @@ package nonisolated enum EBSDH5Reader {
         let magnification = try prias.double("Mag")
         let wd = try header.double("Working Distance")
         let sem = EBSDSEMHeader(magnification: magnification, workingDistanceMM: wd)
+        // The map beside the patterns, as its .ang reads (kikuchipy 0.13.1 leaves it empty); one that does not read never keeps the
+        // patterns from opening.
+        let map = (try? readEDAXMap(file, scan: scan)).flatMap { $0.pointCount == ny * nx ? $0 : nil }
         return EBSDDataset(format: .edaxH5EBSD, manufacturer: "", version: "", scanGroup: scan, scanGroups: [], scanRows: ny, scanColumns: nx,
                            patternRows: sy, patternColumns: sx, dataType: source.dataType, stepY: dy, stepX: dx, detector: detector, sem: sem,
-                           patterns: source)
+                           crystalMap: map, patterns: source)
     }
 
     // MARK: - Oxford Instruments H5OINA
