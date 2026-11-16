@@ -17,18 +17,16 @@ nonisolated final class MarkKeysJourney: Journey {
     }
 
     /// A Distance made with the keys alone: the pane is clicked once for the keyboard (a click is no mark), then ⌥-arrows and Return.
-    @MainActor private func makeADistanceWithTheKeys() {
+    /// `ends`: the status line's readout at each end, where the picture's size is known (the cursor starts on its centre).
+    @MainActor private func makeADistanceWithTheKeys(ends: (String, String)? = nil) {
         showInspector(waitingFor: "image.tool")
         element("image.tool").radioButtons["Distance"].firstMatch.click()
         waitFor("image.view").coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).click()
-        let focused = app.descendants(matching: .any).matching(NSPredicate(format: "hasKeyboardFocus == true")).firstMatch
-        print("MarkKeysJourney: keyboard focus after the click: \(focused.exists ? focused.identifier + " " + focused.elementType.rawValue.description : "none")")
         walk(.leftArrow, coarse: 10, fine: 2)
-        // The demo pictures are 512²: the cursor starts on (255, 255), and 10 coarse steps of 5 px and 2 of 1 px take it to x 203.
-        waitStatus(containing: ["x 203, y 255"], timeout: 10)
+        if let ends { waitStatus(containing: [ends.0], timeout: 10) }
         app.typeKey(.return, modifierFlags: [])
         walk(.rightArrow, coarse: 20, fine: 3)
-        waitStatus(containing: ["x 306, y 255"], timeout: 10)
+        if let ends { waitStatus(containing: [ends.1], timeout: 10) }
         app.typeKey(.return, modifierFlags: [])
     }
 
@@ -38,7 +36,9 @@ nonisolated final class MarkKeysJourney: Journey {
             XCTAssertTrue(app.staticTexts["Demo lattice"].firstMatch.waitForExistence(timeout: 30))
         }
         try step("⌥-arrows and Return make a Distance") {
-            makeADistanceWithTheKeys()
+            // The demo lattice is 512²: the cursor starts on (255, 255); 10 coarse steps of 5 px and 2 of 1 px take it to x 203, then
+            // 20 coarse and 3 fine to x 306.
+            makeADistanceWithTheKeys(ends: ("x 203, y 255", "x 306, y 255"))
             let value = waitValue("image.mark", timeout: 20) { !$0.isEmpty }
             let (length, unit) = try XCTUnwrap(Self.leading(value), "no number in \"\(value)\"")
             XCTAssertEqual(unit, "nm", "the lattice is calibrated: \"\(value)\"")

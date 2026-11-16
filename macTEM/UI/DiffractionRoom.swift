@@ -166,6 +166,9 @@ private struct DiffractionPatternPane: View {
     /// The spot cursor is drawn and the status line reads its pixel: a key or an action moved it, and the pointer has not moved over
     /// the pattern since.
     @State private var spotCursorShown = false
+    /// Where the pointer was last reported over the pattern: a report at the same place (a redraw re-reports a resting pointer) is no
+    /// move, so it leaves the spot cursor shown (`ImagePane.lastHover`).
+    @State private var lastHover: CGPoint?
 
     /// The Spot tool's twin on the image the owner holds now (read at each use, never held).
     private var spotActions: SpotCursorActions { SpotCursorActions(image: image, analysis: analysis) }
@@ -259,12 +262,15 @@ private struct DiffractionPatternPane: View {
             .onContinuousHover { phase in
                 switch phase {
                 case .active(let p):
+                    guard p != lastHover else { return }
+                    lastHover = p
                     // The pointer is back over the pattern: the cursor's square goes and the readout is the pointer's again.
                     if spotCursorShown { spotCursorShown = false }
                     let q = layout.pixel(at: p)
                     appState.diffractionRoom.readout = DiffractionReadoutText.text(column: q.column, row: q.row, centre: analysis.centre,
                                                                                     calibration: analysis.calibration(for: image))
                 case .ended:
+                    lastHover = nil
                     appState.diffractionRoom.readout = nil
                 }
             }

@@ -37,6 +37,9 @@ struct ImagePane: View {
     /// The keyboard and VoiceOver twin of the marks' gestures (UI/MarkCursor.swift): the cursor and the point Set point holds. Drawn
     /// once a key or an action has moved it (`MarkCursorMarker`).
     @State private var markCursor = MarkCursorState()
+    /// Where the pointer was last reported over the pane: a hover report at the same place (SwiftUI re-reports a resting pointer when
+    /// the pane redraws, as the cursor's square appears) is no move, so it leaves the cursor shown and the status line on its pixel.
+    @State private var lastHover: CGPoint?
 
     init(item: OpenItem) {
         self.item = item
@@ -112,6 +115,8 @@ struct ImagePane: View {
     private func hovered(_ phase: HoverPhase, box: CGSize) {
         switch phase {
         case .active(let p):
+            guard p != lastHover else { return }
+            lastHover = p
             // The pointer is back over the picture: the cursor's square goes and the readout is the pointer's again.
             if markCursor.shown { markCursor.shown = false }
             let geometry = MarkGeometry(transform: MetalDisplayTransform(paneSize: box, imageBox: box, zoom: zp.drawZoom, offset: zp.effectiveOffset),
@@ -121,6 +126,7 @@ struct ImagePane: View {
                                                                 particles: item.particles.showsObjects ? item.particles.report : nil,
                                                                 scale: ParticleCompute.scale(of: image))
         case .ended:
+            lastHover = nil
             appState.imageRoomTools.readout = nil
         }
     }
