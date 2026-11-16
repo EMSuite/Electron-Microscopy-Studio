@@ -33,10 +33,18 @@ struct ImagePane: View {
     @Environment(AppState.self) private var appState
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// An angle whose first arm is drawn: the marks overlay's gesture state, held here so Escape (the room's key) can drop it.
-    @State private var angleArm: AngleArm?
-    /// The keyboard and VoiceOver twin of the marks' gestures (UI/MarkCursor.swift): the cursor and the point Set point holds. Drawn
-    /// once a key or an action has moved it (`MarkCursorMarker`).
-    @State private var markCursor = MarkCursorState()
+    /// The angle's arm (the marks overlay's gesture state, held here so Escape, the room's key, can drop it) and the keyboard and
+    /// VoiceOver twin of the marks' gestures (UI/MarkCursor.swift): the cursor and the point Set point holds, drawn once a key or an
+    /// action has moved it (`MarkCursorMarker`). One object, so the keys' closures read them now (`MarkCursorModel`).
+    @State private var cursor = MarkCursorModel()
+    private var angleArm: AngleArm? {
+        get { cursor.arm }
+        nonmutating set { cursor.arm = newValue }
+    }
+    private var markCursor: MarkCursorState {
+        get { cursor.state }
+        nonmutating set { cursor.state = newValue }
+    }
     /// Where the pointer was last reported over the pane: a hover report at the same place (SwiftUI re-reports a resting pointer when
     /// the pane redraws, as the cursor's square appears) is no move, so it leaves the cursor shown and the status line on its pixel.
     @State private var lastHover: CGPoint?
@@ -88,8 +96,7 @@ struct ImagePane: View {
         .clipped()
         // The one keyed container of the room: Delete, ⌘C, Escape, Edit > Copy / Delete, a stack's frame keys and the mark cursor's
         // ⌥-arrows and Return (`PaneKeys.swift`). Escape drops an unfinished angle and a point the cursor holds.
-        .modifier(ImageKeyedRoom(item: item, items: appState.openItems, angleArm: $angleArm, markCursor: $markCursor,
-                                 kind: appState.imageRoomTools.tool.markKind, basis: markCursorBasis))
+        .modifier(ImageKeyedRoom(item: item, items: appState.openItems, cursor: cursor, basis: markCursorBasis))
         // A lone point the cursor holds belongs to the picture and the tool it was set with: another frame, a read of other pixels or
         // another tool drops it (`MarkCursorState.adopt`), so it never lands on another picture. An angle's arm keeps its rules.
         .onChange(of: markCursorScope, initial: true) { adoptMarkCursorScope() }
@@ -164,9 +171,9 @@ struct ImagePane: View {
 
     /// The picture or the tool changed (or the pane appeared): a point held for another is dropped, written only when it was.
     private func adoptMarkCursorScope() {
-        var cursor = markCursor
-        cursor.adopt(markCursorScope)
-        if cursor != markCursor { markCursor = cursor }
+        var now = markCursor
+        now.adopt(markCursorScope)
+        if now != markCursor { markCursor = now }
     }
 
     /// ZoomPan's own reset (its double-click), animated unless Reduce Motion is on.
@@ -276,7 +283,7 @@ struct ImagePane: View {
                                                                             zoom: zp.drawZoom, offset: zp.effectiveOffset),
                                            imageWidth: canvas.width, imageHeight: canvas.height),
                     measurements: item.measurements,
-                    angleArm: $angleArm,
+                    angleArm: cursor.armBinding,
                     tool: appState.imageRoomTools.tool,
                     label: { [x = image.x, y = image.y] in MarkFormat.value($0, x: x, y: y) })
                 // With a measuring tool the overlay takes every press, so the pane's double-click reset (ZoomPan, a
@@ -305,7 +312,7 @@ struct ImagePane: View {
                 geometry: MarkGeometry(transform: MetalDisplayTransform(paneSize: box, imageBox: box,
                                                                         zoom: zp.drawZoom, offset: zp.effectiveOffset),
                                        imageWidth: canvas.width, imageHeight: canvas.height),
-                state: $markCursor, angleArm: $angleArm))
+                cursor: cursor))
             .clipped()
             .contentShape(Rectangle())
             .border(.separator)

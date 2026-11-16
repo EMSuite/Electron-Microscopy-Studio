@@ -207,7 +207,21 @@ nonisolated struct MarkCursorScope: Equatable, Sendable {
     }
 }
 
-/// The Image room's cursor and the point Set point holds. The room keeps it beside its `AngleArm` (`ImagePane`); drawn nowhere.
+/// The Image room's cursor and its angle's arm, in one object the pane owns. The keys and the VoiceOver actions are closures SwiftUI
+/// keeps from an earlier update, and a `Binding` handed down through a view's `@Binding` reads that update's value there: the CI
+/// journey saw each ⌥-arrow start again from the cursor one key back (macEM#509). Read through this object they are always now's.
+@MainActor @Observable
+final class MarkCursorModel {
+    var state = MarkCursorState()
+    var arm: AngleArm?
+
+    /// The cursor as a binding that reads this object at each use.
+    var stateBinding: Binding<MarkCursorState> { Binding(get: { self.state }, set: { self.state = $0 }) }
+    /// The arm as a binding that reads this object at each use.
+    var armBinding: Binding<AngleArm?> { Binding(get: { self.arm }, set: { self.arm = $0 }) }
+}
+
+/// The Image room's cursor and the point Set point holds. The room keeps it beside its `AngleArm` (`MarkCursorModel`); drawn nowhere.
 nonisolated struct MarkCursorState: Equatable, Sendable {
     /// Where the cursor is; nil until it is moved (it starts at the picture's centre, `MarkCursor.resolved`).
     var position: MarkCursor.Pixel?
@@ -403,10 +417,13 @@ struct MarkCursorAccessibility: ViewModifier {
     let basis: MarkCursorBasis
     /// The marks' map, which places the element on the cursor's pixel at the pane's zoom.
     let geometry: MarkGeometry
-    @Binding var state: MarkCursorState
-    @Binding var angleArm: AngleArm?
+    /// The cursor and the arm, read at each use (`MarkCursorModel` says why not bindings).
+    let cursor: MarkCursorModel
     /// Where a refused mark is said (`SessionPanels.markRefused`), as for a drawn one.
     @Environment(AppState.self) private var appState
+
+    private var state: MarkCursorState { cursor.state }
+    private var angleArm: AngleArm? { cursor.arm }
 
     func body(content: Content) -> some View {
         content.overlay {
@@ -422,9 +439,9 @@ struct MarkCursorAccessibility: ViewModifier {
     }
 
     private func placeAtCentre(_ kind: ImageMark.Kind) {
-        var cursor = state
-        actions(kind).placeAtCentre(&cursor)
-        if cursor != state { state = cursor }
+        var now = state
+        actions(kind).placeAtCentre(&now)
+        if now != state { cursor.state = now }
     }
 
     private func element(_ kind: ImageMark.Kind) -> some View {
@@ -432,6 +449,7 @@ struct MarkCursorAccessibility: ViewModifier {
         let at = geometry.panePoint(of: MarkCursor.imagePoint(now.pixel(state)))
         let pointsSet = now.pointsSet(state, arm: angleArm)
         let appState = appState
+        let cursor = cursor
         return Color.clear
             .frame(width: MarkCursor.elementSide, height: MarkCursor.elementSide)
             .accessibilityElement()
@@ -440,14 +458,14 @@ struct MarkCursorAccessibility: ViewModifier {
             .accessibilityHint(now.hint)
             .accessibilityAction(named: MarkCursor.placeActionName) { placeAtCentre(kind) }
             // The coarse and the one-pixel moves (macEM#510).
-            .modifier(MarkCursorMoveActions(move: { step, fine in actions(kind).move(step, fine: fine, cursor: $state) }))
+            .modifier(MarkCursorMoveActions(move: { step, fine in actions(kind).move(step, fine: fine, cursor: cursor.stateBinding) }))
             .accessibilityAction(named: MarkCursorActions.setActionName) {
-                actions(kind).setPoint(cursor: $state, arm: $angleArm, refused: { SessionPanels.markRefused($0, .added, appState: appState) })
+                actions(kind).setPoint(cursor: cursor.stateBinding, arm: cursor.armBinding, refused: { SessionPanels.markRefused($0, .added, appState: appState) })
             }
             // Only while there is a point to drop, as Escape routes only then.
             .accessibilityActions {
                 if pointsSet > 0 {
-                    Button(MarkCursorActions.clearActionName) { actions(kind).clearPoints(cursor: $state, arm: $angleArm) }
+                    Button(MarkCursorActions.clearActionName) { actions(kind).clearPoints(cursor: cursor.stateBinding, arm: cursor.armBinding) }
                 }
             }
             .accessibilityIdentifier("image.markCursor")

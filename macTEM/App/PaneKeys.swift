@@ -467,12 +467,11 @@ enum PaneKeyTarget: Hashable {
 struct ImageKeyedRoom: ViewModifier {
     let item: OpenItem
     let items: OpenItems
-    @Binding var angleArm: AngleArm?
-    /// The mark cursor's state (UI/MarkCursor.swift): a point it holds is an unfinished mark too, which Escape drops with the arm.
-    @Binding var markCursor: MarkCursorState
-    /// The chosen tool's kind of mark; nil with Pan (the cursor's keys are off).
-    let kind: ImageMark.Kind?
-    /// The picture the cursor's points are set on.
+    /// The angle's arm and the mark cursor's state (UI/MarkCursor.swift), read at each key (`MarkCursorModel`): a point the cursor
+    /// holds is an unfinished mark too, which Escape drops with the arm.
+    let cursor: MarkCursorModel
+    /// The picture the cursor's points are set on. The tool's kind of mark is read from the app at each key (nil with Pan: the
+    /// cursor's keys are off).
     let basis: MarkCursorBasis
     @Environment(AppState.self) private var appState
     @Environment(\.undoManager) private var undoManager
@@ -482,15 +481,22 @@ struct ImageKeyedRoom: ViewModifier {
         // The session, never its image: a key closure SwiftUI keeps after the pane is gone keeps no pixels alive (#577).
         let session = item.session
         let state = appState
-        let keys = Self.keys(image: { session.imageOrBlank }, measurements: item.measurements, angleArm: $angleArm,
-                             markCursor: $markCursor, kind: kind, basis: basis, frames: StackFrameKeys.of(item, in: items),
-                             session: session, undoManager: undoManager,
-                             refused: { SessionPanels.markRefused($0, .added, appState: state) })
+        let cursor = cursor, measurements = item.measurements, basis = basis, undoManager = undoManager
+        let frames = StackFrameKeys.of(item, in: items)
+        // Built at each press, from owners read now: SwiftUI may answer a key with the closure of an earlier update, whose values
+        // (the cursor, a held point, the tool) are a key behind (the CI journey, macEM#509).
+        let now = {
+            Self.keys(image: { session.imageOrBlank }, measurements: measurements, angleArm: cursor.armBinding,
+                      markCursor: cursor.stateBinding, kind: state.imageRoomTools.tool.markKind, basis: basis, frames: frames,
+                      session: session, undoManager: undoManager,
+                      refused: { SessionPanels.markRefused($0, .added, appState: state) })
+        }
+        let keys = now()
         return content
             .focusable()
             .focusEffectDisabled()   // DEVIATION as `FFTKeyedRoom`'s, named there
             // A held arrow repeats (the frames, the cursor); ⌫, ⌘C and Return do not (`PaneKey.repeats`).
-            .onKeyPress(phases: [.down, .repeat]) { keys.handle($0) }
+            .onKeyPress(phases: [.down, .repeat]) { now().handle($0) }
             .onCopyCommand(perform: keys.canCopy ? { keys.copyProviders() } : nil)
             .onDeleteCommand(perform: keys.canDelete ? { _ = keys.handle(.delete) } : nil)
             .focused($focus, equals: .room)

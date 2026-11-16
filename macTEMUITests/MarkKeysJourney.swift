@@ -30,41 +30,6 @@ nonisolated final class MarkKeysJourney: Journey {
         app.typeKey(.return, modifierFlags: [])
     }
 
-    /// TEMPORARY (macEM#509): what each step of the keys does in the Image room, in one failure message (the job log shows no print).
-    @MainActor func testDiagnoseTheImageRoomKeys() throws {
-        launch(["--demo-fixture"])
-        XCTAssertTrue(app.staticTexts["Demo lattice"].firstMatch.waitForExistence(timeout: 30))
-        showInspector(waitingFor: "image.tool")
-        element("image.tool").radioButtons["Distance"].firstMatch.click()
-        var log: [String] = []
-        let bar = waitFor("status.bar")
-        let twin = element("image.markCursor")
-        func note(_ what: String) {
-            Thread.sleep(forTimeInterval: 1)
-            let focused = app.descendants(matching: .any).matching(NSPredicate(format: "hasKeyboardFocus == true")).firstMatch
-            let f = focused.exists ? "\(focused.elementType.rawValue)/\(focused.identifier)/\(focused.label)" : "none"
-            log.append("\(what): status \"\(bar.label) \((bar.value as? String) ?? "")\" twin \(twin.exists ? "\(twin.frame)" : "absent") focus \(f)")
-        }
-        note("chosen")
-        waitFor("image.view").coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).click()
-        note("clicked")
-        app.typeKey(.leftArrow, modifierFlags: [.option, .shift])
-        note("opt-shift-left")
-        app.typeKey(.leftArrow, modifierFlags: .option)
-        note("opt-left")
-        element("image.tool").hover()
-        note("pointer on the inspector")
-        app.typeKey(.leftArrow, modifierFlags: [.option, .shift])
-        note("opt-shift-left again")
-        waitFor("image.view").typeKey(.leftArrow, modifierFlags: [.option, .shift])
-        note("opt-shift-left typed on image.view")
-        app.typeKey(.return, modifierFlags: [])
-        note("return")
-        app.typeKey(.escape, modifierFlags: [])
-        note("escape")
-        XCTFail(log.joined(separator: " || "))
-    }
-
     @MainActor func testTheKeysMakeADistanceOnTheDemoLattice() throws {
         try step("launch with the demo image") {
             launch(["--demo-fixture"])

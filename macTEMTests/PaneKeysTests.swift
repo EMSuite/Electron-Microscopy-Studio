@@ -597,7 +597,8 @@ nonisolated final class PaneKeysTests: XCTestCase {
             XCTAssertEqual(fft.components(separatedBy: part).count - 1, 1, "the FFT container carries \(part)")
         }
         // The Image container repeats a held arrow too (a stack's frames, the cursor's ⌥-arrows), and holds the keyboard by value.
-        for part in common + [".onKeyPress(phases: [.down, .repeat]) { keys.handle($0) }", ".focused($focus, equals: .room)",
+        // Its keys are built at the press, from the owners then (a closure of an earlier update reads a key behind, macEM#509).
+        for part in common + [".onKeyPress(phases: [.down, .repeat]) { now().handle($0) }", ".focused($focus, equals: .room)",
                               ".defaultFocus($focus, .room)"] {
             XCTAssertEqual(image.components(separatedBy: part).count - 1, 1, "the Image container carries \(part)")
         }
