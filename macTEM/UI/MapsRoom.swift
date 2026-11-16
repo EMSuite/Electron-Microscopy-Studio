@@ -346,13 +346,42 @@ struct OrientationPane: View {
 
 // MARK: - The colour key
 
+/// Where an IPF key and its corner labels sit in the key cell (#725): the key between two label bands, a corner in the key's upper
+/// half labelled in the band above it, one in the lower half in the band below, so no label covers the key ("[1̄11]" sat on the
+/// triangle's top), and a margin either side for the corners on the key's left and right edges.
+struct MapsKeyLayout {
+    let imageWidth: Int
+    let imageHeight: Int
+
+    /// A label line's height (caption2) plus a gap: the band above and below the key.
+    static let band: CGFloat = 16
+
+    var keySize: CGSize {
+        CGSize(width: LayoutPolicy.mapsKeyWidth,
+               height: LayoutPolicy.mapsKeyWidth * CGFloat(imageHeight) / CGFloat(max(imageWidth, 1)))
+    }
+    var keyOrigin: CGPoint { CGPoint(x: LayoutPolicy.mapsKeyLabelInset, y: Self.band) }
+    var cellSize: CGSize {
+        CGSize(width: keySize.width + 2 * LayoutPolicy.mapsKeyLabelInset, height: keySize.height + 2 * Self.band)
+    }
+
+    /// The centre of the label of the corner at key-image pixel (`column`, `row`).
+    func labelCentre(column: Double, row: Double) -> CGPoint {
+        let x = keyOrigin.x + CGFloat(column) * keySize.width / CGFloat(max(imageWidth, 1))
+        let y = keyOrigin.y + CGFloat(row) * keySize.height / CGFloat(max(imageHeight, 1))
+        let upper = row < Double(imageHeight) / 2
+        return CGPoint(x: x, y: upper ? keyOrigin.y - Self.band / 2 : max(y, keyOrigin.y + keySize.height) + Self.band / 2)
+    }
+}
+
 /// The bottom pane: what the colours mean. An IPF layer: each indexed phase's TSL key in the stereographic projection with its corners
 /// labelled; Phase: each phase's colour, name and point count; a property: its name and range.
 struct MapsKeyPane: View {
     let session: OrientationMapSession
 
     var body: some View {
-        ScrollView(.horizontal) {
+        // Both axes: at the pane's smallest height a key and its labels scroll rather than being cut (#725).
+        ScrollView([.horizontal, .vertical]) {
             HStack(alignment: .top, spacing: 20) {
                 switch session.layer {
                 case .ipf(let direction):
@@ -400,8 +429,7 @@ struct MapsKeyPane: View {
     }
 
     private func keyCell(_ key: OrientationMapSession.PhaseKey, direction: SampleDirection) -> some View {
-        let height = LayoutPolicy.mapsKeyWidth * CGFloat(key.image.height) / CGFloat(max(key.image.width, 1))
-        let inset = LayoutPolicy.mapsKeyLabelInset
+        let layout = MapsKeyLayout(imageWidth: key.image.width, imageHeight: key.image.height)
         return VStack(alignment: .leading, spacing: 4) {
             Text(verbatim: "\(key.name) · \(key.pointGroup) · IPF-\(direction.rawValue.uppercased())").font(.caption).lineLimit(1)
             ZStack(alignment: .topLeading) {
@@ -409,18 +437,17 @@ struct MapsKeyPane: View {
                     Image(decorative: image, scale: 1)
                         .resizable()
                         .interpolation(.high)
-                        .frame(width: LayoutPolicy.mapsKeyWidth, height: height)
-                        .padding(.leading, inset)
+                        .frame(width: layout.keySize.width, height: layout.keySize.height)
+                        .offset(x: layout.keyOrigin.x, y: layout.keyOrigin.y)
                 }
                 ForEach(Array(key.labels.enumerated()), id: \.offset) { _, label in
                     Text(verbatim: label.text)
                         .font(.caption2.monospacedDigit())
                         .fixedSize()
-                        .position(x: inset + CGFloat(label.column) * LayoutPolicy.mapsKeyWidth / CGFloat(key.image.width),
-                                  y: CGFloat(label.row) * height / CGFloat(key.image.height) + 8)
+                        .position(layout.labelCentre(column: label.column, row: label.row))
                 }
             }
-            .frame(width: LayoutPolicy.mapsKeyWidth + 2 * inset, height: height + 16, alignment: .topLeading)
+            .frame(width: layout.cellSize.width, height: layout.cellSize.height, alignment: .topLeading)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(IPFKeySpeech.label(title: "Colour key of \(key.name), IPF-\(direction.rawValue.uppercased())",
