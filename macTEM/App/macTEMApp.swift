@@ -1,5 +1,6 @@
 // Adapted from mac4DSTEM (mac4DSTEM/App/mac4DSTEMApp.swift).
 import ShellLayout
+import TEMCore
 import ShellControls
 import SwiftUI
 import AppKit
@@ -341,7 +342,7 @@ struct macTEMApp: App {
     private static let isUITesting = LaunchOptions().isUITesting
 
     var body: some Scene {
-        WindowGroup("macEM", id: "image") {
+        WindowGroup(AppName.display, id: "image") {
             ImageWindow(menuRelay: menuRelay, windows: windows, recents: recents, lastSession: lastSession)
         }
             .handlesExternalEvents(matching: ["*"])

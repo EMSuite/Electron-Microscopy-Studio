@@ -34,6 +34,14 @@ nonisolated final class SettingsWindowTests: XCTestCase {
         XCTAssertTrue(window.contains("Toggle(\"Hide the SEM databar\", isOn: $cropsDatabar)"))
     }
 
+    /// Images holds the scroll wheel's Zoom · Pan, the shared row (control-placement §6), above the databar. Red before: no row.
+    func testImagesHoldsTheScrollWheelChoice() throws {
+        let window = squeezed(try source("macTEM/UI/SettingsWindow.swift"))
+        let wheel = try XCTUnwrap(window.range(of: "ScrollWheelSettingRow()"), "Settings > Images offers Zoom · Pan")
+        let databar = try XCTUnwrap(window.range(of: "Toggle(\"Hide the SEM databar\""))
+        XCTAssertLessThan(wheel.lowerBound, databar.lowerBound)
+    }
+
     /// No room holds the switch and no window keeps its own copy: the pane reads the key, the Display section only says which.
     func testNoRoomHoldsTheDatabarSwitch() throws {
         XCTAssertFalse(try source("macTEM/App/AppState.swift").contains("cropsDatabar"), "a window's own copy would not follow Settings")

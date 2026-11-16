@@ -99,7 +99,7 @@ package nonisolated enum FileRouting {
         }
         guard let last = kinds.last else { return "" }
         let head = kinds.dropLast().joined(separator: ", ")
-        return "macEM opens " + (head.isEmpty ? last : head + ", and " + last) + "."
+        return "\(AppName.display) opens " + (head.isEmpty ? last : head + ", and " + last) + "."
     }()
 
     /// What a drop on the window asks for: the files of an extension an Open routes (`accepted`, in the drop's order; a dragged web
@@ -135,7 +135,7 @@ package nonisolated enum FileRouting {
         // refused in the reader's words.
         if HyperSpySpectrumFile.isHyperSpyFile(path: path) {
             do { _ = try HyperSpySpectrumFile.header(path: path); return FileInventory(singleSpectrum: true) } catch {
-                return FileInventory(refusal: (error as? LocalizedError)?.errorDescription ?? "\(name) is not a spectrum macEM opens.")
+                return FileInventory(refusal: (error as? LocalizedError)?.errorDescription ?? "\(name) is not a spectrum \(AppName.display) opens.")
             }
         }
         // A vendor's EBSD file (EDAX `.up1`/`.up2`/`.ang`, Oxford `.ebsp`/`.ctf`): FormatoKit's sniff knows none of them; the pattern file's header
@@ -189,11 +189,11 @@ package nonisolated enum FileRouting {
             if !found.image, !found.edsSpectrumImage, !found.eelsSpectrumImage, !found.singleSpectrum { found.image = true }
             return found
         case .empad, .merlinMIB, .hdf5:
-            return FileInventory(refusal: "\(name) is a 4D dataset or an HDF5 file that is neither a Velox file nor an EBSD scan: macEM opens images, spectra and EBSD patterns; open it in mac4DSTEM.")
+            return FileInventory(refusal: "\(name) is a 4D dataset or an HDF5 file that is neither a Velox file nor an EBSD scan: \(AppName.display) opens images, spectra and EBSD patterns; open it in mac4DSTEM.")
         case .unknown:
             // A `.dat` whose `Setting.txt` is there but may not be read (the sandbox granted the file, not its folder) says so.
             if let why = NORDIFOpening.unreadableSettingsRefusal(url) { return FileInventory(refusal: why) }
-            return FileInventory(refusal: "\(name) is not a format macEM opens (or its extension and its first bytes disagree).")
+            return FileInventory(refusal: "\(name) is not a format \(AppName.display) opens (or its extension and its first bytes disagree).")
         }
     }
 
@@ -208,7 +208,7 @@ package nonisolated enum FileRouting {
         case ENOENT, ENOTDIR:
             return "\(name) is no longer where it was (moved, renamed or deleted)."
         case EACCES, EPERM:
-            return "macEM was not given access to \(name): open it with File > Open…, drop it on the window or open it from the Finder."
+            return "\(AppName.display) was not given access to \(name): open it with File > Open…, drop it on the window or open it from the Finder."
         default:
             return nil
         }

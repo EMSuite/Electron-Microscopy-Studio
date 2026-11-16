@@ -1,1 +1,1 @@
-macEM
+Electron Microscopy Studio

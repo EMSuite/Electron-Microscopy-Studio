@@ -266,7 +266,7 @@ package nonisolated struct CSRSpectrumImageBuilder {
         let pixels = ny.multipliedReportingOverflow(by: nx)
         guard ny >= 0, nx >= 0, !pixels.overflow, pixels.partialValue <= SEMEDSFile.largestArray, channels > 0,
               channels <= Int(UInt16.max) + 1 else {
-            throw SEMEDSReadError("A spectrum image of \(ny) x \(nx) pixels and \(channels) channels is not one macEM holds.")
+            throw SEMEDSReadError("A spectrum image of \(ny) x \(nx) pixels and \(channels) channels is not one \(AppName.display) holds.")
         }
         self.ny = ny; self.nx = nx; self.channels = channels
         rowOffsets = [0]

@@ -47,7 +47,7 @@ package nonisolated enum TIFFImageReader {
             case .notTIFF: "it is not a TIFF file."
             case .truncated: "the file ends before its image does."
             case .multiPage: "it holds more than one page, and they are not grey frames of one size; other image stacks are not read yet."
-            case .compressed(let scheme): "its pixels are compressed with \(TIFFImageReader.compressionName(scheme)), which macEM does not read yet."
+            case .compressed(let scheme): "its pixels are compressed with \(TIFFImageReader.compressionName(scheme)), which \(AppName.display) does not read yet."
             case .tiled: "its pixels are stored in tiles; only striped TIFF is read."
             case .unequalChannels:
                 "it is a colour image whose colours could not be read as one picture."

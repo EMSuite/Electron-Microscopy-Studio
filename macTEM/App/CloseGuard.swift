@@ -9,6 +9,7 @@
 //
 
 import Foundation
+import TEMCore
 import ShellEDXModel
 import TEMSession
 
@@ -61,7 +62,7 @@ nonisolated enum CloseGuard {
     }
 
     /// The quit question's title; its text is `question`'s.
-    static let quitTitle = "Quit macEM?"
+    static let quitTitle = "Quit \(AppName.display)?"
 
     /// The close question's buttons, first (Return) to last: Save to Session, Don't Save, Cancel; with no save offered, Cancel
     /// first, so Return never closes, then Close Anyway.

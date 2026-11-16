@@ -3,6 +3,10 @@
 <plist version="1.0">
 <dict>
 	<!-- App Store export compliance (macTEM#101): macTEM makes no network connection and uses no non-exempt encryption. -->
+	<!-- The menu bar's name (guideline 5.2.5): "Microscopy Studio" in the App Store build, whose .app and Finder name is
+	     "Electron Microscopy Studio" (PRODUCT_NAME, CFBundleDisplayName); "macEM" in the website download. Config/Version.xcconfig. -->
+	<key>CFBundleName</key>
+	<string>$(MACEM_MENU_NAME)</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>LSEnvironment</key>
