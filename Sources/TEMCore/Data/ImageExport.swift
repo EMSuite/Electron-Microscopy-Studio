@@ -170,6 +170,41 @@ package nonisolated enum ImageExport {
     /// and a 1024-byte `lut` (a caller bug otherwise: a precondition).
     package static func render(source: ExportSource, display: Display, marks: [Mark], options: Options,
                                provenance: Provenance? = nil) throws -> Rendered {
+        let drawn = try draw(source: source, display: display, marks: marks, options: options)
+        let width = display.width, height = display.height
+        let description = metadata(source: source, display: display, marks: marks, options: options, plan: drawn.plan,
+                                   layout: drawn.layout, overlayScale: drawn.overlayScale, provenance: provenance)
+        let png = try encodePNG(drawn.image, title: source.fileName, software: source.software, description: description)
+        return Rendered(png: png, width: width, height: height, bar: drawn.plan, barLeftOut: drawn.barLeftOut)
+    }
+
+    /// The export's picture with its longest side at most `longestSide` pixels, drawn once and scaled before any encoding, so a
+    /// small preview (the agent door's `get_image`) never encodes the full-size PNG (#640: 374 ms of main-thread CPU for a 2048²
+    /// image, then decoded and scaled again). A picture already within `longestSide` comes back as drawn.
+    package static func picture(source: ExportSource, display: Display, marks: [Mark], options: Options,
+                                longestSide: Int) throws -> CGImage {
+        let image = try draw(source: source, display: display, marks: marks, options: options).image
+        let side = max(image.width, image.height)
+        guard longestSide >= 1, side > longestSide else { return image }
+        let factor = Double(longestSide) / Double(side)
+        let width = max(1, Int((Double(image.width) * factor).rounded())), height = max(1, Int((Double(image.height) * factor).rounded()))
+        guard let context = makeContext(width: width, height: height) else { throw ExportFile.Failure.encodeFailed }
+        context.interpolationQuality = .high
+        context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+        guard let scaled = context.makeImage() else { throw ExportFile.Failure.encodeFailed }
+        return scaled
+    }
+
+    private struct Drawn {
+        var image: CGImage
+        var plan: ScaleBarPlan?
+        var layout: BarLayout?
+        var overlayScale: Double
+        var barLeftOut: Bool
+    }
+
+    /// The pixels, the marks and the scale bar in one bitmap, `render`'s and `picture`'s one drawing.
+    private static func draw(source: ExportSource, display: Display, marks: [Mark], options: Options) throws -> Drawn {
         let width = display.width, height = display.height
         guard width <= maximumSide, height <= maximumSide else { throw ExportFile.Failure.tooLarge(width: width, height: height) }
         precondition(width >= 1 && height >= 1 && display.normalized.count == width * height,
@@ -195,10 +230,7 @@ package nonisolated enum ImageExport {
         let barLeftOut = options.scaleBar && layout == nil
 
         guard let image = context.makeImage() else { throw ExportFile.Failure.encodeFailed }
-        let description = metadata(source: source, display: display, marks: marks, options: options, plan: plan,
-                                   layout: layout, overlayScale: u, provenance: provenance)
-        let png = try encodePNG(image, title: source.fileName, software: source.software, description: description)
-        return Rendered(png: png, width: width, height: height, bar: plan, barLeftOut: barLeftOut)
+        return Drawn(image: image, plan: plan, layout: layout, overlayScale: u, barLeftOut: barLeftOut)
     }
 
     /// `image` as PNG bytes, the app's one PNG encoder (this file's exports and the SEM rooms' figures): ImageIO writes the
