@@ -41,7 +41,7 @@ nonisolated enum FFTExportMenu {
         /// What the button saves, its help when it is on.
         var saves: String {
             switch self {
-            case .transform: "Save the transform as a PNG: one pixel per bin, with a reciprocal scale bar"
+            case .transform: "Save the transform as a PNG: one pixel per bin, or as shown, with a reciprocal scale bar"
             case .profile: "Save the radial profile as a CSV: |q|, the mean |F|² and the pixel count of each bin"
             case .spots: "Save the measured spots as a CSV: d, |q|, qx, qy and whether each is in the mask"
             }

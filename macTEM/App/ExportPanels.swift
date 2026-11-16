@@ -313,7 +313,7 @@ enum ExportPanels {
 
     private static func presentTransformPanel(_ snapshot: ExportTransformSnapshot, on window: NSWindow,
                                               appState: AppState) async {
-        let choices = ExportImageChoices(snapshot.defaults, kind: .spots)
+        let choices = ExportImageChoices(snapshot.defaults, kind: .spots, offersAsShown: snapshot.offersAsShown)
         let panel = transformPanel(for: snapshot, choices: choices)
         guard await present(panel, on: window) == .OK, let url = panel.url else { return }
 
@@ -323,10 +323,10 @@ enum ExportPanels {
         let options = ExportSnapshot.options(scaleBar: choices.scaleBar, marks: choices.marks, offersMarks: choices.offersMarks)
         appState.statusText = ExportSnapshot.exportingLine(name: name)
         do {
-            let rendered = try await snapshot.write(to: url, options: options)
+            let rendered = try await snapshot.write(to: url, options: options, asShown: choices.asShown)
             report(ExportSnapshot.transformDoneLine(name: name, width: rendered.width, height: rendered.height,
                                                     spots: options.marks ? snapshot.marks.count : 0,
-                                                    barLeftOut: rendered.barLeftOut), in: appState)
+                                                    barLeftOut: rendered.barLeftOut, asShown: choices.asShown), in: appState)
         } catch {
             appState.present(error)
         }
