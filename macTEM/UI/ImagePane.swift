@@ -33,7 +33,21 @@ struct ImagePane: View {
     @Environment(AppState.self) private var appState
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// An angle whose first arm is drawn: the marks overlay's gesture state, held here so Escape (the room's key) can drop it.
-    @State private var angleArm: AngleArm?
+    /// The angle's arm (the marks overlay's gesture state, held here so Escape, the room's key, can drop it) and the keyboard and
+    /// VoiceOver twin of the marks' gestures (UI/MarkCursor.swift): the cursor and the point Set point holds, drawn once a key or an
+    /// action has moved it (`MarkCursorMarker`). One object, so the keys' closures read them now (`MarkCursorModel`).
+    @State private var cursor = MarkCursorModel()
+    private var angleArm: AngleArm? {
+        get { cursor.arm }
+        nonmutating set { cursor.arm = newValue }
+    }
+    private var markCursor: MarkCursorState {
+        get { cursor.state }
+        nonmutating set { cursor.state = newValue }
+    }
+    /// Where the pointer was last reported over the pane: a hover report at the same place (SwiftUI re-reports a resting pointer when
+    /// the pane redraws, as the cursor's square appears) is no move, so it leaves the cursor shown and the status line on its pixel.
+    @State private var lastHover: CGPoint?
 
     init(item: OpenItem) {
         self.item = item
@@ -80,8 +94,20 @@ struct ImagePane: View {
         }
         .padding(8)
         .clipped()
-        // The one keyed container of the room: Delete, ⌘C, Escape and Edit > Copy / Delete (`PaneKeys.swift`).
-        .modifier(ImageKeyedRoom(image: image, session: item.session, measurements: item.measurements, angleArm: $angleArm))
+        // The one keyed container of the room: Delete, ⌘C, Escape, Edit > Copy / Delete, a stack's frame keys and the mark cursor's
+        // ⌥-arrows and Return (`PaneKeys.swift`). Escape drops an unfinished angle and a point the cursor holds.
+        .modifier(ImageKeyedRoom(item: item, items: appState.openItems, cursor: cursor, basis: markCursorBasis))
+        // A lone point the cursor holds belongs to the picture and the tool it was set with: another frame, a read of other pixels or
+        // another tool drops it (`MarkCursorState.adopt`), so it never lands on another picture. An angle's arm keeps its rules.
+        .onChange(of: markCursorScope, initial: true) { adoptMarkCursorScope() }
+        // An arm drawn or gone ends what a lone held point began (in practice the pointer drags an arm while the cursor holds an A),
+        // so the point goes (`MarkCursorState.armChanged`).
+        .onChange(of: angleArm) { if markCursor.first != nil { markCursor.armChanged() } }
+        // A key or an action moved the cursor: the status line reads its pixel, as it reads the pointer's (this pane is its one writer).
+        .onChange(of: markCursor) { old, new in
+            guard new.shown, new.position != old.position || !old.shown else { return }
+            appState.imageRoomTools.readout = markCursorReadout
+        }
         // The COMMITTED values only (`zoom`, `offset`); the live gesture fields change on every sample and stay here.
         .onChange(of: zp.zoom) { item.viewport = ImageViewport(zoom: zp.zoom, offset: zp.offset) }
         .onChange(of: zp.offset) { item.viewport = ImageViewport(zoom: zp.zoom, offset: zp.offset) }
@@ -96,6 +122,10 @@ struct ImagePane: View {
     private func hovered(_ phase: HoverPhase, box: CGSize) {
         switch phase {
         case .active(let p):
+            guard p != lastHover else { return }
+            lastHover = p
+            // The pointer is back over the picture: the cursor's square goes and the readout is the pointer's again.
+            if markCursor.shown { markCursor.shown = false }
             let geometry = MarkGeometry(transform: MetalDisplayTransform(paneSize: box, imageBox: box, zoom: zp.drawZoom, offset: zp.effectiveOffset),
                                         imageWidth: canvas.width, imageHeight: canvas.height)
             // While the Particles view shows its objects, the object under the pointer is named after the pixel.
@@ -103,6 +133,7 @@ struct ImagePane: View {
                                                                 particles: item.particles.showsObjects ? item.particles.report : nil,
                                                                 scale: ParticleCompute.scale(of: image))
         case .ended:
+            lastHover = nil
             appState.imageRoomTools.readout = nil
         }
     }
@@ -119,6 +150,30 @@ struct ImagePane: View {
                 .accessibilityLabel(spoken)
                 .accessibilityIdentifier("image.zoomBadge")
         }
+    }
+
+    /// The picture the cursor's points are set on: its size and its pixels' version.
+    private var markCursorBasis: MarkCursorBasis {
+        MarkCursorBasis(width: image.width, height: image.height, version: canvas.contentVersion)
+    }
+
+    /// The picture and the tool's kind of mark the cursor's points belong to.
+    private var markCursorScope: MarkCursorScope {
+        MarkCursorScope(basis: markCursorBasis, kind: appState.imageRoomTools.tool.markKind)
+    }
+
+    /// The cursor's pixel in the status line's words, as the pointer's readout names a pixel (`ImageReadout`).
+    private var markCursorReadout: String? {
+        let p = MarkCursor.resolved(markCursor.position, width: image.width, height: image.height)
+        return ImageReadout.text(image, at: MarkCursor.imagePoint(p), particles: item.particles.showsObjects ? item.particles.report : nil,
+                                 scale: ParticleCompute.scale(of: image))
+    }
+
+    /// The picture or the tool changed (or the pane appeared): a point held for another is dropped, written only when it was.
+    private func adoptMarkCursorScope() {
+        var now = markCursor
+        now.adopt(markCursorScope)
+        if now != markCursor { markCursor = now }
     }
 
     /// ZoomPan's own reset (its double-click), animated unless Reduce Motion is on.
@@ -228,7 +283,7 @@ struct ImagePane: View {
                                                                             zoom: zp.drawZoom, offset: zp.effectiveOffset),
                                            imageWidth: canvas.width, imageHeight: canvas.height),
                     measurements: item.measurements,
-                    angleArm: $angleArm,
+                    angleArm: cursor.armBinding,
                     tool: appState.imageRoomTools.tool,
                     label: { [x = image.x, y = image.y] in MarkFormat.value($0, x: x, y: y) })
                 // With a measuring tool the overlay takes every press, so the pane's double-click reset (ZoomPan, a
@@ -243,6 +298,28 @@ struct ImagePane: View {
                                                                                               zoom: zp.drawZoom, offset: zp.effectiveOffset),
                                                              imageWidth: canvas.width, imageHeight: canvas.height))
             }
+            .overlay {
+                // The cursor, for the eyes, once a key or an action has moved it (and a point it holds), while a tool is chosen.
+                if appState.imageRoomTools.tool.markKind != nil, markCursor.shown || markCursor.first != nil {
+                    let geometry = MarkGeometry(transform: MetalDisplayTransform(paneSize: box, imageBox: box,
+                                                                                 zoom: zp.drawZoom, offset: zp.effectiveOffset),
+                                                imageWidth: canvas.width, imageHeight: canvas.height)
+                    MarkCursorMarker(
+                        cursor: markCursor.shown
+                            ? geometry.panePoint(of: MarkCursor.imagePoint(MarkCursor.resolved(markCursor.position, width: image.width,
+                                                                                                height: image.height)))
+                            : nil,
+                        held: markCursor.first.map { geometry.panePoint(of: $0) })
+                }
+            }
+            // The gestures' VoiceOver twin while a measuring tool is chosen: named actions on an element of their own at the cursor,
+            // which takes no hits and draws nothing.
+            .modifier(MarkCursorAccessibility(
+                session: item.session, measurements: item.measurements, kind: appState.imageRoomTools.tool.markKind, basis: markCursorBasis,
+                geometry: MarkGeometry(transform: MetalDisplayTransform(paneSize: box, imageBox: box,
+                                                                        zoom: zp.drawZoom, offset: zp.effectiveOffset),
+                                       imageWidth: canvas.width, imageHeight: canvas.height),
+                cursor: cursor))
             .clipped()
             .contentShape(Rectangle())
             .border(.separator)
@@ -271,7 +348,8 @@ struct ImagePane: View {
         .accessibilityLabel("Image")
         // The pixel and its value under the pointer, as the status line reads them; else the picture's size. This pane is the readout's one writer.
         .modifier(ReadoutAccessibilityValue(readout: { appState.imageRoomTools.readout }, fallback: "\(image.width) by \(image.height) pixels"))
-        .accessibilityHint(ZoomPan.accessibilityHint)
+        // While a tool is chosen the hint also names the element whose actions set the points (the twin).
+        .accessibilityHint(MarkCursor.paneHint(ZoomPan.accessibilityHint, kind: appState.imageRoomTools.tool.markKind))
         .zoomPanAccessibilityActions(zoomModel, box: box)
     }
 }

@@ -13,6 +13,13 @@
 //  type it. A click in the Spot tool measures a spot. Gesture-rate values (the drag, the pointer) are `@State` here and never touch the
 //  owner until the gesture ends.
 //
+//  The click's keyboard and VoiceOver twin (macTEM#262, macEM#509, #510): in the Spot tool, an element of its own at a cursor
+//  (`MarkCursor`, shared with the Image room's marks) with "Place point at centre", the coarse and the one-pixel "Move point …" and
+//  "Add spot here", which makes the click's own `addSpot` call on the cursor's pixel (`SpotCursorActions`); the keys are ⌥ and an
+//  arrow (⌥⇧ the coarse step) and Return (`DiffractionKeyedPane`, App/PaneKeys.swift). The cursor starts at the pattern's centre,
+//  where the view is centred, and is spoken as the status line reads the pointer's pixel (R, q and d). Once moved it is drawn and
+//  the status line reads its pixel, until the pointer moves over the pattern. It takes no hits.
+//
 
 import ShellControls
 import ShellLayout
@@ -153,6 +160,49 @@ private struct DiffractionPatternPane: View {
     /// The half-side while a pinch is running; committed to the view state once, when it ends.
     @State private var liveHalf: Double?
     @State private var pinchStart: Double?
+    /// The Spot tool's VoiceOver cursor (`SpotCursorAccessibility`): nil until moved (it starts at the pattern's centre). Drawn
+    /// nowhere.
+    @State private var spotCursor: MarkCursor.Pixel?
+    /// The spot cursor is drawn and the status line reads its pixel: a key or an action moved it, and the pointer has not moved over
+    /// the pattern since.
+    @State private var spotCursorShown = false
+    /// Where the pointer was last reported over the pattern: a report at the same place (a redraw re-reports a resting pointer) is no
+    /// move, so it leaves the spot cursor shown (`ImagePane.lastHover`).
+    @State private var lastHover: CGPoint?
+
+    /// The Spot tool's twin on the image the owner holds now (read at each use, never held).
+    private var spotActions: SpotCursorActions { SpotCursorActions(image: image, analysis: analysis) }
+
+    /// The pattern's keys: a stack's frames, and in the Spot tool the spot cursor's ⌥-arrows and Return.
+    private var patternKeys: DiffractionPatternKeys {
+        var keys = DiffractionPatternKeys(frames: StackFrameKeys.of(item, in: appState.openItems))
+        if SpotCursorActions.addsSpots(view) {
+            keys.cursor = CursorKeys(move: { direction, fine in
+                                         guard let step = MarkCursor.Move(direction) else { return }
+                                         moveSpotCursor(step, fine: fine)
+                                     },
+                                     set: { addSpotAtCursor() })
+        }
+        return keys
+    }
+
+    private func moveSpotCursor(_ step: MarkCursor.Move, fine: Bool) {
+        spotCursor = spotActions.moved(spotCursor, by: step, fine: fine)
+        showSpotCursor()
+    }
+
+    private func addSpotAtCursor() {
+        let actions = spotActions
+        let spot = actions.addSpotHere(spotCursor)
+        showSpotCursor()
+        AccessibilityNotification.Announcement(actions.announcement(for: spot)).post()
+    }
+
+    /// The cursor is drawn, and the status line reads its pixel as it reads the pointer's (this pane is the readout's one writer).
+    private func showSpotCursor() {
+        if !spotCursorShown { spotCursorShown = true }
+        appState.diffractionRoom.readout = spotActions.spokenValue(spotCursor)
+    }
 
     var body: some View {
         GeometryReader { geo in
@@ -173,6 +223,11 @@ private struct DiffractionPatternPane: View {
                 }
                 DiffractionOverlay(analysis: analysis, view: view, rows: rows, layout: layout, drag: drag.flatMap { radii(from: $0.start, to: $0.end, layout: layout) })
                     .allowsHitTesting(false)
+                // The spot cursor, for the eyes, once a key or an action has moved it.
+                if spotCursorShown, SpotCursorActions.addsSpots(view) {
+                    let pixel = spotActions.pixel(spotCursor)
+                    MarkCursorMarker(cursor: layout.point(column: Double(pixel.x), row: Double(pixel.y)), held: nil)
+                }
             }
             .frame(width: box.width, height: box.height)
             .clipped()
@@ -207,15 +262,20 @@ private struct DiffractionPatternPane: View {
             .onContinuousHover { phase in
                 switch phase {
                 case .active(let p):
+                    guard p != lastHover else { return }
+                    lastHover = p
+                    // The pointer is back over the pattern: the cursor's square goes and the readout is the pointer's again.
+                    if spotCursorShown { spotCursorShown = false }
                     let q = layout.pixel(at: p)
                     appState.diffractionRoom.readout = DiffractionReadoutText.text(column: q.column, row: q.row, centre: analysis.centre,
                                                                                     calibration: analysis.calibration(for: image))
                 case .ended:
+                    lastHover = nil
                     appState.diffractionRoom.readout = nil
                 }
             }
             .onTapGesture(coordinateSpace: .local) { p in
-                guard view.tool == .spot else { return }
+                guard SpotCursorActions.addsSpots(view) else { return }
                 let q = layout.pixel(at: p)
                 analysis.addSpot(image: image, row: q.row, column: q.column)
             }
@@ -228,6 +288,13 @@ private struct DiffractionPatternPane: View {
             .accessibilityAction(named: "Zoom in") { view.zoom(by: 2, image: image) }
             .accessibilityAction(named: "Zoom out") { view.zoom(by: 0.5, image: image) }
             .accessibilityAction(named: "Reset zoom") { view.fitView() }
+            // The click's twin while a click adds a spot: an element of its own at the cursor, beside the pattern's (whose children
+            // are ignored), so the pattern keeps its label, its readout value and its zoom actions.
+            .modifier(SpotCursorAccessibility(active: SpotCursorActions.addsSpots(view), layout: layout,
+                                              pixel: spotActions.pixel(spotCursor), spoken: spotActions.spokenValue(spotCursor),
+                                              place: { spotCursor = spotActions.centre(); showSpotCursor() },
+                                              move: { step, fine in moveSpotCursor(step, fine: fine) },
+                                              add: { addSpotAtCursor() }))
             .overlay(alignment: .bottomTrailing) {
                 // The zoom against the pattern's own extent, once it is not 1× (§6).
                 let fit = view.fitHalfSide(for: image)
@@ -245,6 +312,8 @@ private struct DiffractionPatternPane: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .padding(8)
+        // The pattern's keyboard: a stack's frames, and the spot cursor's keys in the Spot tool.
+        .modifier(DiffractionKeyedPane(keys: patternKeys))
         // The pane going (another file, another room) leaves the readout naming a point of a pattern that is not shown: it goes until the
         // pointer moves (the status line and VoiceOver read it).
         .onDisappear { appState.diffractionRoom.readout = nil }
@@ -261,6 +330,109 @@ private struct DiffractionPatternPane: View {
         let (ra, rb) = (r(a), r(b))
         guard abs(ra - rb) >= 1 else { return nil }
         return (min(ra, rb), max(ra, rb))
+    }
+}
+
+// MARK: - The Spot tool's twin
+
+/// The VoiceOver twin of a click in the Spot tool (mac4DSTEM's "Label centre here"): the shared cursor and "Add spot here", which
+/// makes the click's own call with the cursor's row and column. On the owners at the moment of use, as `ImageRoomKeys`; the
+/// modifier below only forwards to it, so a test drives these same calls.
+@MainActor
+struct SpotCursorActions {
+    let image: CalibratedImage
+    let analysis: DiffractionAnalysis
+
+    static let addActionName = "Add spot here"
+
+    /// Whether a click on the pattern adds a spot: in the Spot tool. The click and the twin ask the same.
+    static func addsSpots(_ view: DiffractionViewState) -> Bool { view.tool == .spot }
+
+    /// The centre the room draws and centres its view on, the pattern's (`analysis.centre`), at its nearest pixel; the picture's
+    /// middle before there is one. Where the cursor starts, and where "Place point at centre" takes it.
+    func centre() -> MarkCursor.Pixel {
+        analysis.centre.flatMap { MarkCursor.nearest(column: $0.column, row: $0.row, width: image.width, height: image.height) }
+            ?? MarkCursor.centre(width: image.width, height: image.height)
+    }
+
+    /// Where the cursor is, on this pattern: where it was moved, else the pattern's centre.
+    func pixel(_ cursor: MarkCursor.Pixel?) -> MarkCursor.Pixel {
+        guard let cursor else { return centre() }
+        return MarkCursor.clamped(cursor, width: image.width, height: image.height)
+    }
+
+    /// One step that way (`fine`: one pixel), held on the pattern.
+    func moved(_ cursor: MarkCursor.Pixel?, by step: MarkCursor.Move, fine: Bool = false) -> MarkCursor.Pixel {
+        MarkCursor.moved(pixel(cursor), by: step, fine: fine, width: image.width, height: image.height)
+    }
+
+    /// The element's value: the status line's readout of the cursor's pixel, in the pointer's words ("x 241, y 311 · R 57.0 px ·
+    /// q … · d …").
+    func spokenValue(_ cursor: MarkCursor.Pixel?) -> String {
+        let p = pixel(cursor)
+        return DiffractionReadoutText.text(column: Double(p.x), row: Double(p.y), centre: analysis.centre,
+                                           calibration: analysis.calibration(for: image))
+    }
+
+    /// "Add spot here": the click's `addSpot` on the cursor's pixel, at its centre, where a click on that pixel's centre reads
+    /// (`DiffractionLayout.pixel(at:)`). The spot it listed.
+    @discardableResult
+    func addSpotHere(_ cursor: MarkCursor.Pixel?) -> MeasuredSpot? {
+        let p = pixel(cursor)
+        analysis.addSpot(image: image, row: Double(p.y), column: Double(p.x))
+        return analysis.spots.last
+    }
+
+    /// What VoiceOver hears after "Add spot here": the spot's row as the readout table lists it (`announcement(_:)` of the row).
+    func announcement(for spot: MeasuredSpot?) -> String {
+        guard let spot else { return "No spot added" }
+        guard let row = analysis.readout(image: image).first(where: { $0.id == spot.id }) else { return "Spot added" }
+        return Self.announcement(row)
+    }
+
+    /// A new spot's row in the table's words: its name, d and family ("Added Spot 2, d 1.4419 ångströms, {220}"), the verdict where
+    /// there is no family, and the verdict alone where there is no d (no centre found, no scale yet), as the table shows them.
+    static func announcement(_ row: DiffractionReadoutRow) -> String {
+        var parts = ["Added " + DiffractionReadoutFormat.spokenName(row)]
+        if row.d != nil { parts.append("d " + DiffractionReadoutFormat.cell(.d, row) + " ångströms") }
+        parts.append(row.family ?? row.verdict)
+        return parts.joined(separator: ", ")
+    }
+}
+
+/// The Spot tool's named actions on an element of their own at the cursor, while a click adds a spot. Beside the pattern's element
+/// (which ignores its children), so the pattern keeps its label, its readout value and its zoom actions; nothing here is drawn, and
+/// it takes no hits. The work is the pane's (`place`, `move`, `add`), which the keys share; it holds no image (#577).
+private struct SpotCursorAccessibility: ViewModifier {
+    let active: Bool
+    /// The pattern's map, which places the element on the cursor's pixel at the pane's zoom.
+    let layout: DiffractionLayout
+    let pixel: MarkCursor.Pixel
+    let spoken: String
+    let place: @MainActor () -> Void
+    let move: @MainActor (MarkCursor.Move, Bool) -> Void
+    let add: @MainActor () -> Void
+
+    func body(content: Content) -> some View {
+        content.overlay {
+            if active { element }
+        }
+    }
+
+    private var element: some View {
+        Color.clear
+            .frame(width: MarkCursor.elementSide, height: MarkCursor.elementSide)
+            .accessibilityElement()
+            .accessibilityLabel("Spot point")
+            .accessibilityValue(spoken)
+            .accessibilityHint("Add spot here measures the spot at this point.")
+            .accessibilityAction(named: MarkCursor.placeActionName) { place() }
+            // The coarse and the one-pixel moves (macEM#510).
+            .modifier(MarkCursorMoveActions(move: move))
+            .accessibilityAction(named: SpotCursorActions.addActionName) { add() }
+            .accessibilityIdentifier("diffraction.spotCursor")
+            .position(MarkCursor.elementCentre(layout.point(column: Double(pixel.x), row: Double(pixel.y)), in: layout.box))
+            .allowsHitTesting(false)
     }
 }
 
