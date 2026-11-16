@@ -24,6 +24,10 @@ nonisolated final class ControlPlacementTests: XCTestCase {
         XCTAssertTrue(room.contains("return Button { session.showMap(choice) } label: {"))
         XCTAssertFalse(room.contains(".onTapGesture { session.showMap(choice) }"))
         XCTAssertTrue(room.contains(".accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)"), "VoiceOver hears a button")
+        XCTAssertTrue(room.contains(".accessibilityAction { session.showMap(choice) }"), "VoiceOver's press shows the map (the drive's AXPress did nothing)")
+        XCTAssertTrue(room.contains(".allowsHitTesting(false)"), "the tile's Metal picture leaves the click to the button")
+        let eels = try ui("EELSRoomInspector.swift")
+        XCTAssertTrue(eels.contains(".accessibilityAction { selected = reference.id }"), "a reference row's press picks it")
     }
 
     func testEachKeptDepartureIsNamed() throws {

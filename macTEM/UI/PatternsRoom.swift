@@ -506,6 +506,8 @@ struct VirtualTilesPane: View {
                 MetalImageView(pixels: canvas.values, width: canvas.width, height: canvas.height, contentVersion: canvas.contentVersion, colormap: .gray, pixelScale: canvas.scale)
                     .aspectRatio(CGFloat(dataset.scanColumns) / CGFloat(dataset.scanRows), contentMode: .fit)
                     .overlay(Rectangle().stroke(selected ? Color.accentColor : Color.white.opacity(0.15), lineWidth: selected ? 2 : 1))
+                    // The picture is an NSView: it must not take the click from the button around it.
+                    .allowsHitTesting(false)
                 Text(title).font(.caption.monospacedDigit()).foregroundStyle(selected ? Color.accentColor : .secondary)
             }
             .contentShape(Rectangle())
@@ -515,6 +517,8 @@ struct VirtualTilesPane: View {
         .accessibilityLabel("Tile \(title)")
         // `children: .ignore` makes the tile a new element, which loses the button's role (the drive saw AXUnknown): say it again.
         .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
+        // The new element has no press either (the drive's AXPress did nothing): give it the button's action.
+        .accessibilityAction { session.showMap(choice) }
         .accessibilityIdentifier("patterns.tile.\(title.replacingOccurrences(of: " ", with: "-"))")
     }
 }

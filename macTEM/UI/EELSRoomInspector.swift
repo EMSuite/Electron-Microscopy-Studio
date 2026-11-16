@@ -497,6 +497,8 @@ private struct EELSReferencesBlock: View {
                     .buttonStyle(.plain)
                     .accessibilityElement(children: .combine)
                     .accessibilityAddTraits(selected == reference.id ? [.isButton, .isSelected] : .isButton)
+                    // `.combine` makes a new element without the button's press: give it the button's action.
+                    .accessibilityAction { selected = reference.id }
                 }
             }
             // The edge is a row and the action a plain button (control-placement §3: no pull-down menus of actions); with one edge picked
