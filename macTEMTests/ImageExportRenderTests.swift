@@ -56,6 +56,22 @@ nonisolated final class ImageExportRenderTests: XCTestCase {
                                options: ImageExport.Options(scaleBar: scaleBar, marks: marksOn))
     }
 
+    /// The agent door's preview (#640): drawn once and scaled before any encoding, its longest side at most the one asked, its
+    /// aspect kept; a picture that already fits comes back at full size. Red before: `picture` did not exist (the door encoded the
+    /// full-size PNG, then decoded and shrank it).
+    func testThePreviewIsScaledBeforeItIsEncoded() throws {
+        let options = ImageExport.Options(scaleBar: false, marks: false)
+        let wide = try ImageExport.picture(source: source(400, 200), display: display(400, 200), marks: [], options: options, longestSide: 100)
+        XCTAssertEqual(wide.width, 100)
+        XCTAssertEqual(wide.height, 50)
+        let fits = try ImageExport.picture(source: source(80, 60), display: display(80, 60), marks: [], options: options, longestSide: 100)
+        XCTAssertEqual(fits.width, 80)
+        XCTAssertEqual(fits.height, 60)
+        let png = try ImageExport.encodePNG(wide)
+        let decoded = try XCTUnwrap(CGImageSourceCreateWithData(png as CFData, nil).flatMap { CGImageSourceCreateImageAtIndex($0, 0, nil) })
+        XCTAssertEqual(decoded.width, 100)
+    }
+
     private func scratchDirectory() throws -> URL {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("ImageExportRenderTests-\(UUID().uuidString)", isDirectory: true)
