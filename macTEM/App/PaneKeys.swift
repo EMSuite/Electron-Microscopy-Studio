@@ -162,6 +162,8 @@ struct FFTRoomKeys {
     /// The file's size, which the region is held inside (the Original view draws the region, and shows the file).
     var sourceSize: (width: Int, height: Int)
     var writer: any PaneTextWriter = SystemPaneTextWriter()
+    /// The window's undo manager, for Edit > Undo of a spot ⌫ removed (#325); nil registers no undo.
+    var undoManager: UndoManager?
 
     var state: FFTKeyState {
         let selected = analysis.selection.flatMap { id in analysis.spots.first { $0.id == id } }
@@ -206,7 +208,7 @@ struct FFTRoomKeys {
         case .clearRegion:
             analysis.setRegion(nil, committed: true)
         case .deleteSpot:
-            if let id = analysis.selection { analysis.removeSpot(id) }
+            if let id = analysis.selection { FFTSpotUndo.remove([id], in: analysis, undoManager: undoManager) }
         case .copySpot:
             if let text = copyText() { writer.write(text) }
         case .deleteMark, .copyMark, .cancelAngle:
@@ -235,9 +237,10 @@ struct FFTKeyedRoom: ViewModifier {
     let imageWidth: Int
     let imageHeight: Int
     @Binding var active: FFTKeyPane?
+    @Environment(\.undoManager) private var undoManager
 
     func body(content: Content) -> some View {
-        let keys = FFTRoomKeys(analysis: analysis, active: active, sourceSize: (imageWidth, imageHeight))
+        let keys = FFTRoomKeys(analysis: analysis, active: active, sourceSize: (imageWidth, imageHeight), undoManager: undoManager)
         return content
             .focusable()
             // DEVIATION (deliberate, mac4DSTEM's arrangement): no focus ring. The container is the whole room, and a room-sized

@@ -717,6 +717,27 @@ package final class FFTAnalysis {
         reconcileMask()
     }
 
+    /// Edit > Undo of a removal (#325): puts the spots back at their places in the list, with their ids, numbers, answers and In Mask; a
+    /// spot that was still measuring is asked again. Refused, changing nothing, when a spot is not on the spectrum asked for now (a new
+    /// region or file since), is back already, or its number is taken by a spot added since.
+    @discardableResult
+    package func restoreSpots(_ removed: [(index: Int, spot: FFTSpot)]) -> Bool {
+        guard !removed.isEmpty, let key = wantedSpectrumKey else { return false }
+        let ids = Set(spots.map(\.id)), numbers = Set(spots.map(\.number))
+        guard removed.allSatisfy({ $0.spot.spectrumKey == key && !ids.contains($0.spot.id) && !numbers.contains($0.spot.number) })
+        else { return false }
+        for entry in removed.sorted(by: { $0.index < $1.index }) {
+            spots.insert(entry.spot, at: min(max(entry.index, 0), spots.count))
+            lastSpotNumber = max(lastSpotNumber, entry.spot.number)
+            if case .measuring = entry.spot.outcome, entry.spot.id != spotRunning, !spotQueue.contains(entry.spot.id) {
+                spotQueue.append(entry.spot.id)
+            }
+        }
+        reconcileMask()
+        runNextSpot()
+        return true
+    }
+
     package func setInMask(_ id: FFTSpot.ID, _ inMask: Bool) {
         guard let index = spots.firstIndex(where: { $0.id == id }), spots[index].inMask != inMask else { return }
         spots[index].inMask = inMask
