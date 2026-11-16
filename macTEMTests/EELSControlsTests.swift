@@ -210,6 +210,36 @@ nonisolated final class EELSControlsTests: XCTestCase {
         XCTAssertEqual(session.fitState, .stale)
     }
 
+    /// A typed zero-loss FWHM (#74) is the one Fourier-ratio uses: the kit's result with that width, recorded as given; a width that is not one is
+    /// refused with a sentence and the old one kept; clearing it goes back to the estimate. The estimate's refusal points to the field. Red before:
+    /// no field, the kit always estimated.
+    @MainActor func testATypedFWHMIsTheOneFourierRatioUses() async throws {
+        let session = try await room()
+        pickCNO(session)
+        session.setDeconvolution(.fourierRatio)
+        session.setZeroLossFWHM(1.7)
+        XCTAssertEqual(session.zeroLossFWHM, 1.7)
+        await session.deconvolve()?.value
+        await session.settled()
+        let d = try XCTUnwrap(session.deconvolution, session.failure ?? "no deconvolution")
+        let kit = try EELSDeconvolution.fourierRatio(coreLoss: try XCTUnwrap(session.workingCoreLoss), lowLoss: try XCTUnwrap(session.workingLowLoss),
+                                                     options: FourierRatioOptions(fwhmEV: 1.7, threshold: .fixed(2.5)))
+        XCTAssertEqual(d.coreLoss?.counts, kit.image.counts, "the kit's Fourier-ratio with the typed width")
+        XCTAssertTrue(d.fwhmGiven)
+        XCTAssertEqual(EELSDeconvolveCompute.parameters(d)["fwhm_source"] as? String, "given (typed in the Deconvolve stage)")
+        XCTAssertEqual(session.deconvolveState, .current)
+
+        session.setZeroLossFWHM(-1)
+        XCTAssertEqual(session.zeroLossFWHM, 1.7, "a width that is not one is refused")
+        XCTAssertNotNil(session.deconvolutionNotice)
+        session.setZeroLossFWHM(nil)
+        XCTAssertNil(session.zeroLossFWHM)
+        XCTAssertNil(session.deconvolutionNotice)
+        XCTAssertEqual(session.deconvolveState, .stale, "back to the estimate stales the stage")
+
+        XCTAssertTrue(EELSErrorWords.sentence(for: EELSDeconvolutionError.noPeakWidth).contains("Type the FWHM in the Deconvolve stage"))
+    }
+
     /// Fourier-log and Richardson-Lucy deconvolve the low loss by each pixel's zero-loss peak, cut at the thickness map's threshold: the result is the
     /// kit's call on that peak, drawn on the spectrum and exported with the spectrum; the fit does not use it. Red under: the stage not calling the kit; a
     /// zero-loss peak cut elsewhere; the deconvolved spectrum missing from the plot.

@@ -89,13 +89,16 @@ package nonisolated struct EELSDeconvolutionResult: Sendable {
     package let thresholdText: String
     /// That rule, for the footer's words in the reader's locale (`EELSDeconvolveCompute.line`).
     package let threshold: EELSThresholdChoice
+    /// Fourier-ratio's FWHM was the one typed in the stage (#74), not estimated from the first pixel.
+    package var fwhmGiven = false
 
     package var unavailableCount: Int { unavailable.filter { $0 != nil }.count }
     /// The same result without its deconvolved cubes: what a fit keeps to say how it was made (its footer, notes and method JSON), so a
     /// stage run again does not leave a second GB-scale cube behind with the fit (#619).
     package var withoutCubes: EELSDeconvolutionResult {
         EELSDeconvolutionResult(choice: choice, lowLoss: nil, coreLoss: nil, unavailable: unavailable, fftSize: fftSize, fwhmEV: fwhmEV,
-                                taperedChannels: taperedChannels, methodName: methodName, thresholdText: thresholdText, threshold: threshold)
+                                taperedChannels: taperedChannels, methodName: methodName, thresholdText: thresholdText, threshold: threshold,
+                                fwhmGiven: fwhmGiven)
     }
     /// The pixels the kit answered (the rest are zeros in its image and must not be summed or fitted).
     package var answered: PixelMask { unavailable.map { $0 == nil } }
@@ -121,9 +124,10 @@ package nonisolated enum EELSDeconvolveCompute {
     }
 
     /// The stage: the kit's method for `choice` on the working cubes. `map` is the thickness map of `low` (its thresholds cut the zero-loss peaks);
-    /// `threshold` is the room's rule for Fourier-ratio's I₀. nil for `.off`.
+    /// `threshold` is the room's rule for Fourier-ratio's I₀; `fwhmEV` its zero-loss FWHM when the person typed one (#74), else the kit estimates it
+    /// from the first pixel. nil for `.off`.
     package static func run(_ choice: EELSDeconvolutionChoice, low: LowLossSpectrumImage?, core: CoreLossSpectrumImage?, map: ThicknessMap?,
-                            threshold: EELSThresholdChoice, cancelled: @Sendable () -> Bool = SpectroCancellation.task,
+                            threshold: EELSThresholdChoice, fwhmEV: Double? = nil, cancelled: @Sendable () -> Bool = SpectroCancellation.task,
                             progress: (@Sendable (Double) -> Void)? = nil) throws -> EELSDeconvolutionResult? {
         func merge(_ kit: [EELSUnavailable?], _ noThreshold: [Bool]) -> [EELSUnavailable?] {
             zip(kit, noThreshold).map { k, none in none ? .noThreshold : k }
@@ -133,11 +137,11 @@ package nonisolated enum EELSDeconvolveCompute {
             return nil
         case .fourierRatio:
             guard let low, let core else { throw EELSDeconvolveRefusal.needs(choice.kind.blocker(hasLowLoss: low != nil, hasCoreLoss: core != nil) ?? "") }
-            let d = try EELSDeconvolution.fourierRatio(coreLoss: core, lowLoss: low, options: FourierRatioOptions(threshold: threshold.rule),
+            let d = try EELSDeconvolution.fourierRatio(coreLoss: core, lowLoss: low, options: FourierRatioOptions(fwhmEV: fwhmEV, threshold: threshold.rule),
                                                        cancelled: cancelled, progress: progress)
             return EELSDeconvolutionResult(choice: choice, lowLoss: nil, coreLoss: d.image, unavailable: d.unavailable, fftSize: d.fftSize, fwhmEV: d.fwhmEV,
                                            taperedChannels: d.taperedChannels, methodName: d.methodName, thresholdText: thresholdWords(threshold),
-                                           threshold: threshold)
+                                           threshold: threshold, fwhmGiven: fwhmEV != nil)
         case .fourierLog:
             guard let low, let map else { throw EELSDeconvolveRefusal.needs("Fourier-log needs the low loss and its thickness map (Run the Thickness stage first).") }
             let zlp = try zeroLoss(low, map: map)
@@ -186,7 +190,7 @@ package nonisolated enum EELSDeconvolveCompute {
         case .fourierRatio:
             d["low_loss_threshold"] = r.thresholdText
             if let f = r.fwhmEV { d["fwhm_eV"] = f }
-            d["fwhm_source"] = "estimated (estimate_peak_width of the first low-loss pixel)"
+            d["fwhm_source"] = r.fwhmGiven ? "given (typed in the Deconvolve stage)" : "estimated (estimate_peak_width of the first low-loss pixel)"
             d["extrapolate_low_loss"] = true; d["extrapolate_core_loss"] = true
             d["fft_size"] = r.fftSize; d["tapered_channels"] = r.taperedChannels
             d["output"] = "single-scattering core loss, fitted by the edge model without the low-loss convolution"

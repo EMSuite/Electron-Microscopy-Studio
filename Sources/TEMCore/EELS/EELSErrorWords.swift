@@ -33,9 +33,9 @@ package nonisolated enum EELSErrorWords {
     package static func deconvolution(_ e: EELSDeconvolutionError) -> String {
         switch e {
         case .noPeakWidth:
-            "Pixel 0's low-loss tail is unusable: Fourier-ratio cannot estimate the zero-loss FWHM from it. Choose Fourier-log or Richardson-Lucy."
+            "Pixel 0's low-loss tail is unusable: Fourier-ratio cannot estimate the zero-loss FWHM from it. Type the FWHM in the Deconvolve stage, or choose Fourier-log or Richardson-Lucy."
         case .invalidFWHM(let f):
-            "The zero-loss FWHM came out as \(eV(f)) eV, which is not a width: choose Fourier-log or Richardson-Lucy."
+            "The zero-loss FWHM came out as \(eV(f)) eV, which is not a width: type one in the Deconvolve stage, or choose Fourier-log or Richardson-Lucy."
         case .shapeMismatch(let expected, let got):
             "The low loss and the core loss cover different scans (\(expected) and \(got) pixels): deconvolution needs one pixel of each per scan position."
         case .kernelSizeMismatch(let expected, let got):

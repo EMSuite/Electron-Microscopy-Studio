@@ -105,7 +105,7 @@ nonisolated final class RoomMemoryTests: XCTestCase {
         let held = Self.parts().minus(partsBefore)
         XCTAssertGreaterThan(open - before, stored, "the measure sees the open image (\(open - before) bytes over the baseline)")
         XCTAssertTrue(back, "after the close the footprint is \(after - before) bytes over the baseline; the image is \(stored) bytes as stored; "
-                      + "of it, malloc \(held.malloc) and Metal \(held.metal) bytes over their baselines (#713: names which one holds it)")
+                      + "of it over their baselines (bytes): \(held.words) (#713: names which one holds it)")
     }
 
     /// The footprint once malloc has handed its free pages back: a parse of many small values (an `.ang`'s 250 000 lines) leaves
@@ -117,17 +117,39 @@ nonisolated final class RoomMemoryTests: XCTestCase {
     }
 
     /// Where a footprint lies: malloc's bytes in use (every zone) and the Metal device's allocations (textures and buffers; on Apple
-    /// silicon they count in the footprint too). A failure that names the larger says whether a buffer or a texture is held (#713).
+    /// silicon they count in the footprint too), then the kernel's own split of the footprint (`task_vm_info`): anonymous resident pages
+    /// (`internal`), compressed pages, and the graphics ledger (IOSurface and GPU memory charged to the task). A failure that names the
+    /// larger says whether a buffer, a texture, a surface or other anonymous VM is held (#713: malloc and Metal named only 0.2 MB of 11).
     private struct Parts {
         var malloc: Int
         var metal: Int
-        func minus(_ other: Parts) -> Parts { Parts(malloc: malloc - other.malloc, metal: metal - other.metal) }
+        var anonymous = 0
+        var compressed = 0
+        var graphics = 0
+        func minus(_ other: Parts) -> Parts {
+            Parts(malloc: malloc - other.malloc, metal: metal - other.metal, anonymous: anonymous - other.anonymous,
+                  compressed: compressed - other.compressed, graphics: graphics - other.graphics)
+        }
+        var words: String {
+            "malloc \(malloc), Metal \(metal), VM internal \(anonymous), compressed \(compressed), graphics \(graphics)"
+        }
     }
 
     private static func parts() -> Parts {
         var stats = malloc_statistics_t()
         malloc_zone_statistics(nil, &stats)
-        return Parts(malloc: Int(stats.size_in_use), metal: MTLCreateSystemDefaultDevice().map { Int($0.currentAllocatedSize) } ?? 0)
+        var parts = Parts(malloc: Int(stats.size_in_use), metal: MTLCreateSystemDefaultDevice().map { Int($0.currentAllocatedSize) } ?? 0)
+        var info = task_vm_info_data_t()
+        var count = mach_msg_type_number_t(MemoryLayout<task_vm_info_data_t>.size / MemoryLayout<integer_t>.size)
+        let r = withUnsafeMutablePointer(to: &info) {
+            $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) { task_info(mach_task_self_, task_flavor_t(TASK_VM_INFO), $0, &count) }
+        }
+        if r == KERN_SUCCESS {
+            parts.anonymous = Int(info.internal)
+            parts.compressed = Int(info.compressed)
+            parts.graphics = Int(info.ledger_tag_graphics_footprint)
+        }
+        return parts
     }
 
     // MARK: - The spectrum and SEM rooms
@@ -203,7 +225,7 @@ nonisolated final class RoomMemoryTests: XCTestCase {
         }
         let held = Self.parts().minus(partsBefore)
         XCTAssertTrue(back, "\(name): after the close the footprint is \(after - before) bytes over the baseline (\(open - before) while "
-                      + "open); allowed \(allowed); of it, malloc \(held.malloc) and Metal \(held.metal) bytes over their baselines (#713)")
+                      + "open); allowed \(allowed); of it over their baselines (bytes): \(held.words) (#713)")
     }
 
     /// A GMS DM4 spectrum image of `nx` × `ny` × `channels` int16 values, as `DM4TestFile` writes one: named "EDS SI" or "EELS SI"

@@ -281,6 +281,25 @@ struct EELSProcessingSection: View {
                     .accessibilityIdentifier("eels.deconvolution.iterations")
                 }
             }
+            if session.deconvolutionChoice == .fourierRatio {
+                InspectorRow("FWHM") {
+                    // Fourier-ratio's zero-loss width (#74): empty lets the kit estimate it from the first pixel; typed, it is used as given.
+                    HStack(spacing: 4) {
+                        OptionalNumericField(title: "Zero-loss FWHM", value: session.zeroLossFWHM,
+                                             format: FloatingPointFormatStyle<Double>.number.precision(.significantDigits(1...6)),
+                                             unit: "eV", prompt: "Estimated") { v in session.setZeroLossFWHM(v) }
+                            .accessibilityIdentifier("eels.deconvolution.fwhm")
+                        if session.zeroLossFWHM != nil {
+                            Button("Estimate") { session.setZeroLossFWHM(nil) }
+                                .controlSize(.small)
+                                .help("Let Fourier-ratio estimate the zero-loss FWHM from the first pixel's low loss again")
+                                .accessibilityIdentifier("eels.deconvolution.fwhmEstimate")
+                        }
+                    }
+                    .help("The zero-loss peak's FWHM Fourier-ratio uses. Empty: estimated from the first pixel's low loss (exSpy's estimate_peak_width). "
+                          + "Type it when the estimate is refused.")
+                }
+            }
             if let notice = session.deconvolutionNotice {
                 InspectorNote(notice).accessibilityIdentifier("eels.deconvolution.notice")
             } else if let d = session.deconvolution, session.deconvolutionChoice != .off {
@@ -447,6 +466,7 @@ struct EELSFittingSection: View {
 /// References: spectra to fit with (MLLS), taken from a region or imported from an MSA file, drawn dashed on the spectrum.
 private struct EELSReferencesBlock: View {
     let session: EELSSession
+    @Environment(\.undoManager) private var undoManager
     @State private var selected: EELSReference.ID?
     @State private var importing = false
     @State private var edgeChoice = 0
@@ -499,7 +519,7 @@ private struct EELSReferencesBlock: View {
                 Button("Import…") { importing = true }
                     .help("Read a reference spectrum from an MSA file")
                     .accessibilityIdentifier("eels.references.import")
-                Button("Remove") { if let selected { session.removeReference(selected); self.selected = nil } }
+                Button("Remove") { if let selected { EELSReferenceUndo.remove(selected, in: session, undoManager: undoManager); self.selected = nil } }
                     .disabled(selected == nil || !session.references.contains { $0.id == selected })
                     .help("Remove the selected reference")
                     .accessibilityIdentifier("eels.references.remove")

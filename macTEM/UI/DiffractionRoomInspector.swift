@@ -76,6 +76,7 @@ private struct DiffractionCalibrationSection: View {
     private var image: CalibratedImage { session.imageOrBlank }
     let analysis: DiffractionAnalysis
     let view: DiffractionViewState
+    @Environment(\.undoManager) private var undoManager
 
     var body: some View {
         let calibration = analysis.calibration(for: image)
@@ -104,7 +105,7 @@ private struct DiffractionCalibrationSection: View {
                 .disabled(analysis.isFitting || families.isEmpty)
                 .help("Fit the ring in the annulus and take Δq from its radius and the family's listed spacing")
                 .accessibilityIdentifier("diffraction.calibrate")
-                if analysis.ringCalibrationExists { Button("Clear") { analysis.clearCalibration() }.accessibilityIdentifier("diffraction.calibration.clear") }
+                if analysis.ringCalibrationExists { Button("Clear") { DiffractionUndo.clearCalibration(in: analysis, undoManager: undoManager) }.accessibilityIdentifier("diffraction.calibration.clear") }
             }
             if let ring = calibration?.ring {
                 if let l = ring.lengthPixels { InspectorValueRow("L", "\(Num.fixed(l, 0)) px") }
@@ -179,6 +180,7 @@ private struct DiffractionRingsSection: View {
     private var image: CalibratedImage { session.imageOrBlank }
     let analysis: DiffractionAnalysis
     let view: DiffractionViewState
+    @Environment(\.undoManager) private var undoManager
 
     var body: some View {
         InspectorSection("Rings and Spots") {
@@ -192,10 +194,10 @@ private struct DiffractionRingsSection: View {
             InspectorActionRow {
                 Button("Fit Ring") { PendingEdits.run { analysis.fitRing(image: image, inner: view.annulusInner, outer: view.annulusOuter) } }
                     .disabled(analysis.isFitting).accessibilityIdentifier("diffraction.fitRing")
-                Button("Remove") { if let id = view.selection { analysis.remove(id); view.selection = nil } }.disabled(view.selection == nil).accessibilityIdentifier("diffraction.remove")
+                Button("Remove") { if let id = view.selection { DiffractionUndo.remove(id, in: analysis, undoManager: undoManager); view.selection = nil } }.disabled(view.selection == nil).accessibilityIdentifier("diffraction.remove")
             }
             InspectorActionRow {
-                Button("Remove All") { analysis.removeAll() }.disabled(analysis.rings.isEmpty && analysis.spots.isEmpty)
+                Button("Remove All") { DiffractionUndo.removeAll(in: analysis, undoManager: undoManager) }.disabled(analysis.rings.isEmpty && analysis.spots.isEmpty)
             }
         }
     }
