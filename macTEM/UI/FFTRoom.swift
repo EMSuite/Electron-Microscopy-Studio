@@ -11,7 +11,7 @@
 //  (`.task(id: contentVersion)` asks again when the file is read again; skill, views.md ".task(id:) for Reactive Async
 //  Work"); leaving the room releases the products (`onDisappear`), so the selected file's megabytes go with the room.
 //  `WorkspaceView` keys the room by the item's id, so a file switch is a new room. The room's accessibility identifier is
-//  `fft.room`; `fft.view` is the View menu's (the design note's list), `fft.sourcePane` and `fft.spectrumPane` the panes'.
+//  `fft.room`; `fft.view` is the Display section's View picker (the design note's list), `fft.sourcePane` and `fft.spectrumPane` the panes'.
 //  The window's View > Zoom commands act on the pane pressed last (`FFTZoomTarget`).
 //
 //  The inspector's two sections are lane C2's (FFTRoomInspector.swift); the two forwarders below are the mount points

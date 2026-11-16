@@ -3,6 +3,7 @@
 // reverting the one line that used it left every test green; these go red when that line reverts.
 import ShellControls
 import ShellInspector
+import ShellLayout
 import XCTest
 import SwiftUI
 import AppKit
@@ -142,15 +143,18 @@ nonisolated final class FFTRoomWiringTests: XCTestCase {
         }
     }
 
-    /// The real control, hosted, shows the plain name of the view the pane shows on its face, within the narrowest header's
-    /// budget, in each state where that view has a reason (a filter's view never does: the owner leaves it when its result
+    /// The real control, hosted in its inspector row (#629: it left the pane header), shows the plain name of the view the pane
+    /// shows on its face and stays inside the narrowest inspector's row, in each state where that view has a reason (a filter's view never does: the owner leaves it when its result
     /// goes); and its items are the entries, each disabled as its entry says.
     /// (A hosted menu has no items until it opens, and the host no accessibility tree, so the items' wiring is read from the
     /// source; the drive reads the menu itself.) Red under: the control drawing its own titles; the face carrying a reason.
     @MainActor func testTheViewMenusFaceIsThePlainNameOfTheViewShown() async throws {
+        // The narrowest inspector less its content padding on both sides: the row the control lives in.
+        let rowWidth = Double(LayoutPolicy.inspectorWidth.min) - 2 * 16
         func face(_ analysis: FFTAnalysis) throws -> (title: String, width: Double) {
-            let host = NSHostingView(rootView: FFTSourceViewControl(analysis: analysis))
-            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 400, height: 60), styleMask: [.borderless],
+            let host = NSHostingView(rootView: InspectorRow("View") { FFTSourceViewControl(analysis: analysis) }
+                .frame(width: rowWidth))
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: rowWidth, height: 60), styleMask: [.borderless],
                                   backing: .buffered, defer: true)
             window.contentView = host
             host.layoutSubtreeIfNeeded()
@@ -158,12 +162,13 @@ nonisolated final class FFTRoomWiringTests: XCTestCase {
                 (view as? NSPopUpButton) ?? view.subviews.lazy.compactMap { popUp(in: $0) }.first
             }
             let button = try XCTUnwrap(popUp(in: host), "the control draws a pop-up button")
-            return (button.title, Double(host.fittingSize.width))
+            // How far the pop-up reaches from the row's leading edge: inside the row, or the row overflows the inspector.
+            return (button.title, Double(button.convert(button.bounds, to: host).maxX))
         }
         let fresh = owner()
         fresh.setSourceView(.maskedInverse)
         XCTAssertEqual(try face(fresh).title, "Masked Inverse", "selected with no spot")
-        XCTAssertLessThanOrEqual(try face(fresh).width, FFTPaneFormat.maximumFaceWidth)
+        XCTAssertLessThanOrEqual(try face(fresh).width, rowWidth)
         fresh.setSourceView(.region)
         XCTAssertEqual(try face(fresh).title, "Region", "selected with no transform")
 
@@ -172,12 +177,13 @@ nonisolated final class FFTRoomWiringTests: XCTestCase {
         analysis.setSourceView(.maskedInverse)
         let shown = try face(analysis)
         XCTAssertEqual(shown.title, "Masked Inverse", "the finding's state, selected")
-        XCTAssertLessThanOrEqual(shown.width, FFTPaneFormat.maximumFaceWidth, "\(shown.width) pt")
+        XCTAssertLessThanOrEqual(shown.width, rowWidth, "\(shown.width) pt")
         analysis.setSourceView(.original)
         XCTAssertEqual(try face(analysis).title, "Original")
 
         let control = squeezed(try declaration("struct FFTSourceViewControl: View {", in: source("macTEM/UI/FFTSourceImagePane.swift")))
         XCTAssertTrue(control.contains("ForEach(Self.entries(for: analysis), id: \\.view) { entry in"), "the items are the entries")
+        XCTAssertTrue(control.contains("ViewThatFits(in: .horizontal) { picker.fixedSize() picker }"), "it gives way in a narrow inspector")
         XCTAssertTrue(control.contains("Text(entry.title).tag(entry.view).disabled(!entry.isEnabled)"),
                       "each item shows its entry's title and is disabled exactly when its entry is")
     }
@@ -486,6 +492,21 @@ nonisolated final class FFTRoomWiringTests: XCTestCase {
         }
         XCTAssertTrue(try Self.squeezedUI("FFTRoomInspector.swift").contains("if analysis.hasMeasuredSpot { InspectorSection(\"Masked Inverse\")"),
                       "the Masked Inverse section's own guard is the owner's predicate")
+    }
+
+    /// The View picker is the Display section's first row and the source pane's header holds no control
+    /// (control-placement §1 and §2, #629). Red under: the picker put back in the header, or dropped from the inspector.
+    func testTheViewPickerIsTheDisplaySectionsFirstRowNotTheHeaders() throws {
+        let inspector = try Self.squeezedUI("FFTRoomInspector.swift")
+        XCTAssertTrue(inspector.contains("InspectorSection(\"Display\") { // What the source pane shows, first"), "Display opens with the View row")
+        XCTAssertTrue(inspector.contains("InspectorRow(\"View\") { FFTSourceViewControl(analysis: analysis) }"), "the View row draws the picker")
+        let pane = try Self.squeezedUI("FFTSourceImagePane.swift")
+        let header = try XCTUnwrap(pane.range(of: "private func header(")).upperBound
+        let title = try XCTUnwrap(pane.range(of: "private var title: some View", range: header..<pane.endIndex)).lowerBound
+        let body = pane[header..<title]
+        XCTAssertFalse(body.contains("FFTSourceViewControl"), "the header holds no picker")
+        XCTAssertFalse(body.contains("Picker("), "the header holds no picker")
+        XCTAssertTrue(body.contains("FFTFilteringIndicator(analysis: analysis)"), "the header keeps the filtering spinner")
     }
 
     /// A source file of macTEM/UI with its whitespace squeezed to single spaces (and a trailing space, so a line's end matches).

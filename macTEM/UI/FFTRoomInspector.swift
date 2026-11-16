@@ -786,8 +786,10 @@ private struct FFTDisplaySection: View {
 
     var body: some View {
         let spectrum = analysis.spectrum
-        if let spectrum, let histogram = spectrum.canvas.histogram {
-            InspectorSection("Display") {
+        InspectorSection("Display") {
+            // What the source pane shows, first: "first what I am looking at" (control-placement §2), out of the pane's header (§1, #629).
+            InspectorRow("View") { FFTSourceViewControl(analysis: analysis) }
+            if let spectrum, let histogram = spectrum.canvas.histogram {
                 IntensityHistogramView(histogram: histogram,
                                        low: edge(\.spectrumWindowLow, default: spectrum.defaultWindow?.low ?? histogram.minimum),
                                        high: edge(\.spectrumWindowHigh, default: spectrum.defaultWindow?.high ?? histogram.maximum),
