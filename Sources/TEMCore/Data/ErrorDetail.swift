@@ -31,7 +31,7 @@ package nonisolated enum ErrorDetail {
 
     /// The title of the alert that lists the files one Open refused.
     package static func openTitle(files: Int) -> String {
-        files == 1 ? "macEM can't open this file" : "macEM can't open these files"
+        files == 1 ? "\(AppName.display) can't open this file" : "\(AppName.display) can't open these files"
     }
 
     package static let genericTitle = "Something went wrong"

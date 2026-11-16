@@ -306,7 +306,7 @@ package nonisolated enum EMsoftMasterPatternReader {
 
         mutating func reserve(patterns: Int, of n: Int, path: String, shape: [Int]) throws {
             let total = patterns.multipliedReportingOverflow(by: n)
-            guard !total.overflow else { throw EBSDReadError(text: "'\(path)' has shape \(shape), more values than macEM holds.") }
+            guard !total.overflow else { throw EBSDReadError(text: "'\(path)' has shape \(shape), more values than \(AppName.display) holds.") }
             switch type {
             case .uint8: u8.reserveCapacity(total.partialValue)
             case .uint16: u16.reserveCapacity(total.partialValue)

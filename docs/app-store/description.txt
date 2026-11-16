@@ -1,4 +1,4 @@
-macEM analyses TEM and SEM images, EDS and EELS spectrum images, electron diffraction patterns and EBSD scans natively on Apple silicon. Open a file, look, measure, and export a figure, with every number traceable to the method it came from.
+Electron Microscopy Studio analyses TEM and SEM images, EDS and EELS spectrum images, electron diffraction patterns and EBSD scans natively on Apple silicon. Open a file, look, measure, export a figure, with every number traceable to the method it came from.
 
 No data at hand? Help > Open Demo Data opens generated TEM documents and three public SEM datasets.
 
@@ -21,14 +21,14 @@ ROOMS
 Exports are PNG figures with the scale bar, CSV tables, MSA spectra, a method JSON for the EDS, EELS, Patterns and Indexing rooms, and indexed maps as .ang and .ctf.
 
 WHERE THE NUMBERS COME FROM
-The TEM methods compute with the open macEM Swift packages, each checked against the Python package it ports, within that package's own tolerance. EELS cross sections are the generalised oscillator strengths of Segger, Guzzinati and Kohl, bundled with the app. The SEM methods are ported into the app and checked the same way against kikuchipy, PyEBSDIndex, orix, diffsims, DefDAP, eXSpy, RosettaSciIO and NexusLIMS.
+The TEM methods compute with the open Swift packages behind the app, each checked against the Python package it ports, within that package's own tolerance. EELS cross sections are the generalised oscillator strengths of Segger, Guzzinati and Kohl, bundled with the app. The SEM methods are ported into the app and checked the same way against kikuchipy, PyEBSDIndex, orix, diffsims, DefDAP, eXSpy, RosettaSciIO and NexusLIMS.
 
 YOUR DATA STAYS ON YOUR MAC
 No account, no analytics, no telemetry, and no connection to the internet. An optional door for AI agents on this Mac, off by default, listens on this Mac only. Your files are read from and written to your own storage only.
 
 OPEN SOURCE
-macEM is free software under GPL-3.0. The source and the issue tracker are at github.com/macEMSuite/macEM.
+It is free software under GPL-3.0; the source and the issue tracker are linked from the website.
 
-Its companion app, mac4DSTEM, analyses 4D-STEM data: virtual images, strain, orientation, ptychography and EDS.
+Its companion app, 4DSTEM Studio, analyses 4D-STEM data: virtual images, strain, orientation, ptychography and EDS.
 
 Requires a Mac with Apple silicon.

@@ -240,7 +240,7 @@ package nonisolated enum JEOLEDSReader {
         }
         let bitsNode = try node(tree, "Image", "Bits", file: name)
         guard let bits = bitsNode.numbers, let code = bitsNode.typeCode, code == "B" || code == "H" else {
-            throw SEMEDSReadError("\(name) stores its image in a type macEM does not read.")
+            throw SEMEDSReadError("\(name) stores its image in a type \(AppName.display) does not read.")
         }
         // numpy's resize: truncated or padded with zeros to height x width. A complete file holds a byte or two for each pixel,
         // so a size larger than the file is refused before the image is allocated.
@@ -560,7 +560,7 @@ package nonisolated enum JEOLEDSReader {
     package static func projectMember(folder: URL, filename: String) throws -> URL {
         let parts = filename.split(whereSeparator: { $0 == "\\" || $0 == "/" }).map(String.init).filter { $0 != "." }
         guard !parts.contains(".."), !parts.contains(where: { $0.contains(":") }) else {
-            throw SEMEDSReadError("\(filename) lies outside the JEOL project's folder \(folder.lastPathComponent); macEM reads only files below a project.")
+            throw SEMEDSReadError("\(filename) lies outside the JEOL project's folder \(folder.lastPathComponent); \(AppName.display) reads only files below a project.")
         }
         return parts.reduce(folder) { $0.appendingPathComponent($1) }
     }
@@ -572,10 +572,10 @@ package nonisolated enum JEOLEDSReader {
         let name = url.lastPathComponent
         let path = url.standardizedFileURL.path
         guard !projects.contains(path) else {
-            throw SEMEDSReadError("\(name) is named again by the JEOL project it belongs to, a loop macEM does not follow.")
+            throw SEMEDSReadError("\(name) is named again by the JEOL project it belongs to, a loop \(AppName.display) does not follow.")
         }
         guard projects.count < projectDepth else {
-            throw SEMEDSReadError("\(name) is a JEOL project nested \(projects.count) projects deep, deeper than macEM follows.")
+            throw SEMEDSReadError("\(name) is a JEOL project nested \(projects.count) projects deep, deeper than \(AppName.display) follows.")
         }
         let b = try load(url)
         guard b.bytes.count >= 12, try b.u32(0) == 0 else {

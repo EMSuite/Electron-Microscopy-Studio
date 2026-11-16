@@ -500,7 +500,7 @@ package nonisolated struct EBSDReadError: Error, LocalizedError, Equatable {
     package static func plainWords(_ error: CocoaError) -> String {
         switch error.code {
         case .fileReadNoPermission:
-            return "macEM was not given access to it: open it with File > Open…, drop it on the window or open it from the Finder."
+            return "\(AppName.display) was not given access to it: open it with File > Open…, drop it on the window or open it from the Finder."
         case .fileReadNoSuchFile, .fileNoSuchFile: return "it is no longer there."
         case .fileReadCorruptFile: return "it could not be read (the file may be damaged)."
         default: return "it could not be read."
@@ -512,13 +512,13 @@ package nonisolated struct EBSDReadError: Error, LocalizedError, Equatable {
         switch error {
         case .cannotOpen: return "it cannot be opened as an HDF5 file (it may be damaged, or still being written)."
         case .notPermitted:
-            return "macEM was not given access to it: open it with File > Open…, drop it on the window or open it from the Finder."
+            return "\(AppName.display) was not given access to it: open it with File > Open…, drop it on the window or open it from the Finder."
         case .hdf5(_, let detail) where detail.localizedCaseInsensitiveContains("filter"):
-            return "its data is compressed with a filter macEM does not have."
+            return "its data is compressed with a filter \(AppName.display) does not have."
         case .hdf5: return "its data could not be read (the file may be damaged)."
         case .library: return "the HDF5 library could not be loaded."
-        case .limitExceeded: return "it holds more than macEM reads in one piece."
-        case .unsupportedType: return "it stores its data in a type macEM does not read."
+        case .limitExceeded: return "it holds more than \(AppName.display) reads in one piece."
+        case .unsupportedType: return "it stores its data in a type \(AppName.display) does not read."
         default: return "it is not laid out as its format says."
         }
     }

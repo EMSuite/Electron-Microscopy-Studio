@@ -74,7 +74,7 @@ package nonisolated enum EBSDH5Reader {
         guard let format = format(ofManufacturer: top.manufacturer) else { return nil }
         guard let scan = top.scanGroups.first else {
             if format == .oxfordH5OINA, top.holdsEDS {
-                return .refused("\(name) holds EDS data from AZtec but no EBSD data. macEM does not read EDS from an .h5oina file yet; "
+                return .refused("\(name) holds EDS data from AZtec but no EBSD data. \(AppName.display) does not read EDS from an .h5oina file yet; "
                                 + "a spectrum AZtec exports as .msa opens in the EDS room.")
             }
             return .refused("\(name) holds no EBSD patterns and no orientation map.")
@@ -108,7 +108,7 @@ package nonisolated enum EBSDH5Reader {
             return (map, layout)
         case .refused(let sentence): throw EBSDReadError(text: sentence)
         case .patterns: throw EBSDReadError(text: "\(name) holds EBSD patterns: it opens in the Patterns room, which shows its map.")
-        case nil: throw EBSDReadError(text: "\(name) is not an orientation map macEM reads (.ang, .ctf, .h5oina, or an .h5 from orix, "
+        case nil: throw EBSDReadError(text: "\(name) is not an orientation map \(AppName.display) reads (.ang, .ctf, .h5oina, or an .h5 from orix, "
                                        + "Bruker Esprit, EDAX OIM or EMsoft).")
         }
     }
@@ -131,7 +131,7 @@ package nonisolated enum EBSDH5Reader {
             let reader = try HDF5Reader(url: url)
             let top = try TopGroup(reader)
             guard let format = format(ofManufacturer: top.manufacturer) else {
-                throw EBSDReadError(text: "\(url.lastPathComponent) is an EBSD file written by \(top.manufacturer), which macEM does not read; it reads kikuchipy, Bruker Esprit, EDAX OIM and Oxford AZtec files.")
+                throw EBSDReadError(text: "\(url.lastPathComponent) is an EBSD file written by \(top.manufacturer), which \(AppName.display) does not read; it reads kikuchipy, Bruker Esprit, EDAX OIM and Oxford AZtec files.")
             }
             guard !top.scanGroups.isEmpty else {
                 throw EBSDReadError(text: "\(url.lastPathComponent) holds no EBSD scan.")

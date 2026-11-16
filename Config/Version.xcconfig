@@ -4,3 +4,14 @@
 // x-release-please-start-version
 MARKETING_VERSION = 2.0.2
 // x-release-please-end
+
+// The app's name on the Mac, per flavour. App Review refuses "Mac" in an App Store app's name (guideline 5.2.5; mac4DSTEM
+// 5.2.0 rejected 16 Nov 2026), so the store build (MACEM_STORE_BUILD=YES) is "Electron Microscopy Studio": the .app, its
+// executable and CFBundleDisplayName (Finder, About). The menu bar takes CFBundleName, which Apple keeps short: "Microscopy
+// Studio" (Info.plist). The website download keeps "macEM" for both. The module stays macTEM (PRODUCT_MODULE_NAME) and the
+// bundle identifier is unchanged. AppName.display (TEMCore) carries the name into the app's sentences.
+MACEM_APP_NAME_NO = macEM
+MACEM_APP_NAME_YES = Electron Microscopy Studio
+MACEM_MENU_NAME_NO = macEM
+MACEM_MENU_NAME_YES = Microscopy Studio
+MACEM_MENU_NAME = $(MACEM_MENU_NAME_$(MACEM_STORE_BUILD))

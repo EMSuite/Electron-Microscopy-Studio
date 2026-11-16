@@ -10,6 +10,7 @@
 //
 
 import Foundation
+import TEMCore
 import ShellAgentDoor
 import ShellEDXAgent
 import ShellEDXModel
@@ -75,5 +76,5 @@ extension MacTEMAgentDoor {
         return "An agent used \(title)" + (given.isEmpty ? "." : " (\(given.joined(separator: "; "))).")
     }
 
-    static let notAWindowRefusal = AgentToolOutput.refusal(status: 500, message: "That window is not a macEM window.")
+    static let notAWindowRefusal = AgentToolOutput.refusal(status: 500, message: "That window is not a \(AppName.display) window.")
 }
