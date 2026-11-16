@@ -513,7 +513,8 @@ struct VirtualTilesPane: View {
         .buttonStyle(.plain)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Tile \(title)")
-        .accessibilityAddTraits(selected ? .isSelected : [])
+        // `children: .ignore` makes the tile a new element, which loses the button's role (the drive saw AXUnknown): say it again.
+        .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
         .accessibilityIdentifier("patterns.tile.\(title.replacingOccurrences(of: " ", with: "-"))")
     }
 }

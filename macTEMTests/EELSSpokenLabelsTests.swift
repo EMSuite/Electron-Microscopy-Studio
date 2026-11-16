@@ -33,7 +33,7 @@ nonisolated final class EELSSpokenLabelsTests: XCTestCase {
         let inspector = try ui("EELSRoomInspector.swift")
         XCTAssertTrue(inspector.contains("Button { selected = reference.id } label: {"), "a reference row is a button VoiceOver and the keyboard can press")
         XCTAssertTrue(inspector.contains(".buttonStyle(.plain) .accessibilityElement(children: .combine) "
-                                         + ".accessibilityAddTraits(selected == reference.id ? .isSelected : [])"), "said as one row, selected or not")
+                                         + ".accessibilityAddTraits(selected == reference.id ? [.isButton, .isSelected] : .isButton)"), "said as one row, selected or not")
         XCTAssertFalse(inspector.contains(".onTapGesture { selected = reference.id }"), "no tap gesture (#629)")
     }
 

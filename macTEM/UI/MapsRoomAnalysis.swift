@@ -111,15 +111,14 @@ struct MapsBottomPane: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                Picker("Bottom pane", selection: $state.bottomTab) {
-                    ForEach(MapsBottomTab.allCases) { Text($0.rawValue).tag($0) }
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                // Full width, as every segmented control (control-placement §3, #629): the pane's own picker, beside it only the
-                // tab's one choice.
-                .frame(maxWidth: .infinity)
-                .accessibilityIdentifier("maps.bottom.tabs")
+                // Full width, as every segmented control (control-placement §3, #629): MacEMUI's `SegmentedControl`, because a
+                // segmented `Picker` keeps its own width whatever frame it is given (the drive of 16 Nov saw it stay 480 pt and centred).
+                // Beside it only the tab's one choice.
+                SegmentedControl(label: "Bottom pane", segments: MapsBottomTab.allCases.map { .title($0.rawValue) },
+                                 selection: Binding(get: { MapsBottomTab.allCases.firstIndex(of: state.bottomTab) ?? 0 },
+                                                    set: { if MapsBottomTab.allCases.indices.contains($0) { state.bottomTab = MapsBottomTab.allCases[$0] } }))
+                    .frame(maxWidth: .infinity)
+                    .accessibilityIdentifier("maps.bottom.tabs")
                 if state.bottomTab == .poleFigures || state.bottomTab == .odf {
                     MapsTexturePhasePicker(session: session)
                 }

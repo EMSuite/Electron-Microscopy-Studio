@@ -14,15 +14,16 @@ nonisolated final class ControlPlacementTests: XCTestCase {
 
     func testTheMapsTabsRunTheFullWidth() throws {
         let pane = try ui("MapsRoomAnalysis.swift")
-        let tabs = try XCTUnwrap(pane.components(separatedBy: "Picker(\"Bottom pane\"").last?.components(separatedBy: "maps.bottom.tabs").first)
+        let tabs = try XCTUnwrap(pane.components(separatedBy: "SegmentedControl(label: \"Bottom pane\"").last?.components(separatedBy: "maps.bottom.tabs").first)
         XCTAssertTrue(tabs.contains(".frame(maxWidth: .infinity)"))
-        XCTAssertFalse(tabs.contains(".fixedSize()"))
+        XCTAssertFalse(pane.contains("Picker(\"Bottom pane\""), "a segmented Picker keeps its own width")
     }
 
     func testThePatternsTilesAreButtons() throws {
         let room = try ui("PatternsRoom.swift")
         XCTAssertTrue(room.contains("return Button { session.showMap(choice) } label: {"))
         XCTAssertFalse(room.contains(".onTapGesture { session.showMap(choice) }"))
+        XCTAssertTrue(room.contains(".accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)"), "VoiceOver hears a button")
     }
 
     func testEachKeptDepartureIsNamed() throws {

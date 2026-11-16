@@ -496,7 +496,7 @@ private struct EELSReferencesBlock: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityElement(children: .combine)
-                    .accessibilityAddTraits(selected == reference.id ? .isSelected : [])
+                    .accessibilityAddTraits(selected == reference.id ? [.isButton, .isSelected] : .isButton)
                 }
             }
             // The edge is a row and the action a plain button (control-placement §3: no pull-down menus of actions); with one edge picked
