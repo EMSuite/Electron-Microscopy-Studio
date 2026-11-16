@@ -146,7 +146,8 @@ nonisolated final class SEMReaderBundleParityTests: XCTestCase {
     /// What a dataset carries beside its patterns, where the bundle holds it as an array: the projection centres in the Bruker
     /// convention and the static background (exact, its dtype too), and the crystal map's first Euler angles (rtol 1e-7). A file
     /// without one matches a bundle that states none: no background where kikuchipy reads none, and no crystal map where
-    /// kikuchipy's is its placeholder of identity rotations (all Euler angles 0).
+    /// kikuchipy's is its placeholder of identity rotations (all Euler angles 0). A Bruker or EDAX file's map, which kikuchipy leaves
+    /// as that placeholder, macEM reads as orix does (#514): only its size is held here.
     private func compareDataset(_ ref: SEMParityReference, _ dataset: EBSDDataset) throws {
         let name = ref.manifest.caseName
         if ref.manifest.arrays["pc"] != nil {
@@ -161,7 +162,12 @@ nonisolated final class SEMReaderBundleParityTests: XCTestCase {
             XCTAssertTrue(ref.values["static_background"] is NSNull, "\(name): the bundle states no static background")
             XCTAssertNil(dataset.staticBackground, "\(name): a static background where kikuchipy reads none")
         }
-        if let map = dataset.crystalMap {
+        let placeholder = try ref.manifest.arrays["xmap_euler_head"] != nil && ref.array("xmap_euler_head").values.allSatisfy { $0 == 0 }
+        if let map = dataset.crystalMap, placeholder, [.brukerH5EBSD, .edaxH5EBSD].contains(dataset.format) {
+            // kikuchipy 0.13.1 leaves a Bruker or EDAX file's map as its placeholder; macEM reads the map beside the patterns as orix
+            // reads it (#514, EBSDH5VendorMapTests), so only its size is held here.
+            XCTAssertEqual(map.pointCount, dataset.scanRows * dataset.scanColumns, "\(name): the map beside the patterns")
+        } else if let map = dataset.crystalMap {
             let head = try reference(ref, "xmap_euler_head")
             let n = head.shape.first ?? 0
             SEMAssertParity(map.eulerInData.prefix(n).flatMap { [$0.x, $0.y, $0.z] }, head, shape: [n, 3])

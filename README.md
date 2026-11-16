@@ -32,7 +32,8 @@ and under the one in front its rooms. What the file holds decides the room it op
   HyperSpy .hspy file.
 - **EBSD and TKD patterns**: h5ebsd from kikuchipy, Bruker, EDAX and Oxford Instruments (.h5oina), EDAX .up1 and .up2,
   Oxford .ebsp and NORDIF Pattern.dat.
-- **Orientation maps**: .ang, .ctf, and Oxford .h5oina saved without patterns (AZtec's map export).
+- **Orientation maps**: .ang, .ctf, Oxford .h5oina saved without patterns (AZtec's map export), and .h5 maps from orix, Bruker
+  Esprit and EDAX OIM saved without patterns, and EMsoft's dictionary indexing.
 
 TKD patterns are read and indexed as EBSD patterns are; no TKD dataset has been checked in the app yet.
 
@@ -45,7 +46,7 @@ No file at hand? Help > Open Demo Data opens generated TEM documents and three p
 
 The rooms:
 
-- **Image**: calibration, colormap, contrast and gamma; distances, angles, line profiles and particles; image stacks.
+- **Image**: calibration, colormap, contrast and gamma; distances, angles, line profiles and particles (in the whole image or a region); image stacks.
   Your marks are saved in a session file next to the image. An SEM TIFF shows the microscope's settings, and a Thermo
   Fisher or Tescan databar can be hidden or shown under the picture (Settings > Images).
 - **FFT**: the transform of the image or a region, spots and their d-spacings, the radial profile, a masked inverse,
