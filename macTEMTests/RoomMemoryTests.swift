@@ -123,22 +123,26 @@ nonisolated final class RoomMemoryTests: XCTestCase {
     private struct Parts {
         var malloc: Int
         var metal: Int
+        /// The bytes malloc's zones hold from the system (`size_allocated`): over `malloc` by the free space in their regions. Grown
+        /// while `malloc` is not, the held pages are malloc's free space that a few live values keep (fragmentation), not a leak.
+        var reserved = 0
         var anonymous = 0
         var compressed = 0
         var graphics = 0
         func minus(_ other: Parts) -> Parts {
-            Parts(malloc: malloc - other.malloc, metal: metal - other.metal, anonymous: anonymous - other.anonymous,
+            Parts(malloc: malloc - other.malloc, metal: metal - other.metal, reserved: reserved - other.reserved, anonymous: anonymous - other.anonymous,
                   compressed: compressed - other.compressed, graphics: graphics - other.graphics)
         }
         var words: String {
-            "malloc \(malloc), Metal \(metal), VM internal \(anonymous), compressed \(compressed), graphics \(graphics)"
+            "malloc \(malloc) (zones reserve \(reserved)), Metal \(metal), VM internal \(anonymous), compressed \(compressed), graphics \(graphics)"
         }
     }
 
     private static func parts() -> Parts {
         var stats = malloc_statistics_t()
         malloc_zone_statistics(nil, &stats)
-        var parts = Parts(malloc: Int(stats.size_in_use), metal: MTLCreateSystemDefaultDevice().map { Int($0.currentAllocatedSize) } ?? 0)
+        var parts = Parts(malloc: Int(stats.size_in_use), metal: MTLCreateSystemDefaultDevice().map { Int($0.currentAllocatedSize) } ?? 0,
+                          reserved: Int(stats.size_allocated))
         var info = task_vm_info_data_t()
         var count = mach_msg_type_number_t(MemoryLayout<task_vm_info_data_t>.size / MemoryLayout<integer_t>.size)
         let r = withUnsafeMutablePointer(to: &info) {
