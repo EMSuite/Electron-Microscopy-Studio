@@ -296,6 +296,7 @@
 			inputFileListPaths = (
 			);
 			inputPaths = (
+				"$(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)",
 			);
 			name = "Leave Sparkle out of the store build";
 			outputFileListPaths = (
@@ -304,7 +305,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# The App Store build (MACEM_STORE_BUILD=YES) carries no updater (#583): its code is compiled out (no SPARKLE condition),\n# -dead_strip_dylibs drops the unused load command (the HDF5 frameworks, loaded by path, are kept as needed), and this removes the framework Xcode embedded for the package.\nif [ \"${MACEM_STORE_BUILD}\" = YES ]; then\n  rm -rf \"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/Sparkle.framework\"\nfi\n";
+			shellScript = "# The App Store build (MACEM_STORE_BUILD=YES) carries no updater (#583): its code is compiled out (no SPARKLE condition),\n# -dead_strip_dylibs drops the unused load command (the HDF5 frameworks, loaded by path, are kept as needed), and this removes the framework Xcode embedded for the package.\nif [ \"${MACEM_STORE_BUILD}\" = YES ]; then\n  rm -rf \"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/Sparkle.framework\"\nfi\n# The menu bar's name (CFBundleName, Config/Version.xcconfig MACEM_MENU_NAME): the generated Info.plist writes PRODUCT_NAME over\n# the file's $(MACEM_MENU_NAME), so the store build's menu read \"Electron Microscopy Studio\". Set after the plist is processed,\n# before signing.\n/usr/libexec/PlistBuddy -c \"Set :CFBundleName ${MACEM_MENU_NAME}\" \"${TARGET_BUILD_DIR}/${INFOPLIST_PATH}\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
