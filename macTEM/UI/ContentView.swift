@@ -114,6 +114,9 @@ private struct SelectionRestorer: View {
     }
 }
 
+/// The shell's one document menu (`ShellToolbar`, mac4DSTEM's Dataset menu in the same place). DEPARTURE from control-placement §1
+/// (#629): it repeats File > Open and Close; it stays because the shell gives both apps this one menu, and in full screen with the menu
+/// bar hidden it is the window's own way to open and close a file.
 struct ImageMenu: View {
     @Environment(AppState.self) private var appState
 

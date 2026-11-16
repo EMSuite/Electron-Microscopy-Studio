@@ -479,22 +479,24 @@ private struct EELSReferencesBlock: View {
                 Text("None").font(.caption).foregroundStyle(.tertiary)
             } else {
                 ForEach(session.references) { reference in
-                    HStack(spacing: 6) {
-                        Image(systemName: "waveform.path").foregroundStyle(.secondary)
-                        VStack(alignment: .leading, spacing: 0) {
-                            Text(reference.name).lineLimit(1).truncationMode(.middle)
-                            Text(reference.originText).font(.caption2).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
+                    // A button, so the row takes a click, the keyboard (Tab, Space) and VoiceOver's action alike (#629: a tap gesture took
+                    // only the click).
+                    Button { selected = reference.id } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "waveform.path").foregroundStyle(.secondary)
+                            VStack(alignment: .leading, spacing: 0) {
+                                Text(reference.name).lineLimit(1).truncationMode(.middle)
+                                Text(reference.originText).font(.caption2).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
+                            }
+                            Spacer(minLength: 0)
                         }
-                        Spacer(minLength: 0)
+                        .padding(.vertical, 2).padding(.horizontal, 4)
+                        .background(selected == reference.id ? Color.accentColor.opacity(0.25) : Color.clear, in: RoundedRectangle(cornerRadius: 4))
+                        .contentShape(Rectangle())
                     }
-                    .padding(.vertical, 2).padding(.horizontal, 4)
-                    .background(selected == reference.id ? Color.accentColor.opacity(0.25) : Color.clear, in: RoundedRectangle(cornerRadius: 4))
-                    .contentShape(Rectangle())
-                    .onTapGesture { selected = reference.id }
-                    // A row that selects on a click is a button to VoiceOver, with the click as its action (the Patterns room's tile cells).
+                    .buttonStyle(.plain)
                     .accessibilityElement(children: .combine)
-                    .accessibilityAddTraits(selected == reference.id ? [.isButton, .isSelected] : .isButton)
-                    .accessibilityAction(.default) { selected = reference.id }
+                    .accessibilityAddTraits(selected == reference.id ? .isSelected : [])
                 }
             }
             // The edge is a row and the action a plain button (control-placement §3: no pull-down menus of actions); with one edge picked

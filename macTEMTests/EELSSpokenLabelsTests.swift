@@ -31,9 +31,10 @@ nonisolated final class EELSSpokenLabelsTests: XCTestCase {
                       "the results header's spinner")
 
         let inspector = try ui("EELSRoomInspector.swift")
-        XCTAssertTrue(inspector.contains(".onTapGesture { selected = reference.id }"))
-        XCTAssertTrue(inspector.contains(".accessibilityAddTraits(selected == reference.id ? [.isButton, .isSelected] : .isButton) "
-                                         + ".accessibilityAction(.default) { selected = reference.id }"), "a reference row is a button VoiceOver can press")
+        XCTAssertTrue(inspector.contains("Button { selected = reference.id } label: {"), "a reference row is a button VoiceOver and the keyboard can press")
+        XCTAssertTrue(inspector.contains(".buttonStyle(.plain) .accessibilityElement(children: .combine) "
+                                         + ".accessibilityAddTraits(selected == reference.id ? .isSelected : [])"), "said as one row, selected or not")
+        XCTAssertFalse(inspector.contains(".onTapGesture { selected = reference.id }"), "no tap gesture (#629)")
     }
 
     /// A column header that is a symbol on screen is said in words, and both tables take their headers from the one table of words; a header that is

@@ -116,9 +116,10 @@ struct MapsBottomPane: View {
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
-                .fixedSize()
+                // Full width, as every segmented control (control-placement §3, #629): the pane's own picker, beside it only the
+                // tab's one choice.
+                .frame(maxWidth: .infinity)
                 .accessibilityIdentifier("maps.bottom.tabs")
-                Spacer(minLength: 8)
                 if state.bottomTab == .poleFigures || state.bottomTab == .odf {
                     MapsTexturePhasePicker(session: session)
                 }

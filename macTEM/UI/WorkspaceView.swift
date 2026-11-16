@@ -213,6 +213,8 @@ private struct StackArrowKeys: ViewModifier {
         if let stack = item.stack {
             content
                 .focusable()
+                // DEPARTURE from the system focus ring (#629): the picture fills the pane, so a ring round it reads as a selection of
+                // the picture; the pane has the keys after a click on it (below), as `FFTKeyedRoom` and `SEMMapPick` do.
                 .focusEffectDisabled()
                 .focused($hasFocus)
                 .simultaneousGesture(TapGesture().onEnded { hasFocus = true })
