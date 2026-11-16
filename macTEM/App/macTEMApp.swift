@@ -367,9 +367,9 @@ struct macTEMApp: App {
                 SoftwareUpdateCommands(update: softwareUpdate)   // macEM > Check for Updates…
                 #endif
             }
-        // Settings (⌘,): the agent door's switch (`AgentSettingsView`).
+        // Settings (⌘,): Images, Agents and, in the website download, Software Update (`SettingsWindow`).
         Settings {
-            AgentSettingsView()
+            SettingsWindow()
                 #if SPARKLE
                 .environment(softwareUpdate)
                 #endif

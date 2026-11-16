@@ -37,8 +37,6 @@
 //    they belong in one owner together with those rules.
 //  - `busySince`, when each room last became busy, for the toolbar's busy clock (`RunClock`): it spans the rooms and is
 //    not observed (the clock ticks on its own), so it is no room's view state.
-//  - `cropsDatabar`, whether an SEM image's databar is hidden: a preference of the app kept in UserDefaults
-//    (`SEMImageSettings`), stored here so the views observe it.
 //
 
 import ShellLayout
@@ -214,15 +212,6 @@ final class AppState {
         indexing.onFailure = { [weak self] in self?.present($0) }
         applyLaunchOptions(launch)
         holdActivityWhileRoomsWork()
-    }
-
-    /// Whether the databar a Thermo or Tescan SEM TIFF's vendor drew under the scan is hidden (`SEMImageSettings`, on by default).
-    /// The picture is always the scan alone; shown, the bar is a strip under it (`ImagePane`), so the setting re-reads nothing.
-    var cropsDatabar = SEMImageSettings.cropDatabar() {
-        didSet {
-            guard cropsDatabar != oldValue else { return }
-            SEMImageSettings.setCropDatabar(cropsDatabar)
-        }
     }
 
     /// The UI tests' and the demo's starting state (`LaunchOptions`): saved geometry cleared, the generated documents opened.

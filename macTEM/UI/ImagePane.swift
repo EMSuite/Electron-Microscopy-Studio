@@ -49,6 +49,8 @@ struct ImagePane: View {
     /// copy of the pane) for a while after the pane is gone, and a stored image kept its 1.5 GB of pixels alive after the tab closed
     /// (12 Nov, the 375 MB SEM TIFF: the memgraph traced the array to a HoverResponder's closure). A pane whose item has let go of its
     /// pixels (closed, gone cold) reads one blank pixel until SwiftUI drops it.
+    /// Settings > Images: the databar hidden (the default) or shown as a strip under the picture.
+    @AppStorage(SEMImageSettings.cropDatabarKey) private var cropsDatabar = SEMImageSettings.cropDatabarDefault
     private var image: CalibratedImage { item.session.image ?? Self.blankImage }
     private var canvas: CanvasPixels { item.presentation.canvas ?? Self.blankCanvas }
     static let blankImage = CalibratedImage(width: 1, height: 1, pixels: [0], x: nil, y: nil, fileName: "", source: "", voltage: nil)
@@ -58,7 +60,7 @@ struct ImagePane: View {
         VStack(spacing: 6) {
             header
             GeometryReader { geometry in
-                if let strip = appState.cropsDatabar ? nil : item.databar {
+                if let strip = cropsDatabar ? nil : item.databar {
                     // The databar shown (design §3): a strip under the picture, outside the zoom container, as wide as the
                     // picture; the picture keeps the scan's rows, so every measurement and export stays on the scan.
                     let split = DatabarLayout.split(geometry.size, width: canvas.width, height: canvas.height,

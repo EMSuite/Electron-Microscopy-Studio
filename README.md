@@ -47,7 +47,7 @@ The rooms:
 
 - **Image**: calibration, colormap, contrast and gamma; distances, angles, line profiles and particles; image stacks.
   Your marks are saved in a session file next to the image. An SEM TIFF shows the microscope's settings, and a Thermo
-  Fisher or Tescan databar can be hidden or shown under the picture.
+  Fisher or Tescan databar can be hidden or shown under the picture (Settings > Images).
 - **FFT**: the transform of the image or a region, spots and their d-spacings, the radial profile, a masked inverse,
   and ABSF and Wiener filters.
 - **EDS**: Velox and GMS spectrum images, and SEM-EDS maps, line scans and spectra. Pick elements from the periodic

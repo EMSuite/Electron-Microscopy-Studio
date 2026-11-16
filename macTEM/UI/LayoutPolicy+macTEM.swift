@@ -51,4 +51,7 @@ extension LayoutPolicy {
     /// A selected grain's pole on a pole figure: a ring this radius (points), and the room under the histogram's bars for the ticks.
     static let mapsPoleMarkerRadius: CGFloat = 3.5
     static let mapsHistogramTickHeight: CGFloat = 8
+
+    /// The Settings window (`SettingsWindow`): a sidebar of sections beside a grouped form, mac4DSTEM's size.
+    static let settingsWindow: (min: CGSize, ideal: CGSize) = (CGSize(width: 560, height: 380), CGSize(width: 660, height: 600))
 }

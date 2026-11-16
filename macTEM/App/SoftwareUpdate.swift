@@ -98,7 +98,7 @@ struct SoftwareUpdateCommands: Commands {
     }
 }
 
-/// Settings > Software Update (the download only; `AgentSettingsView` shows it under `#if SPARKLE`).
+/// Settings > Software Update (the download only; `SettingsWindow` shows it under `#if SPARKLE`).
 struct SoftwareUpdateSettingsSection: View {
     @Environment(SoftwareUpdate.self) private var update
 

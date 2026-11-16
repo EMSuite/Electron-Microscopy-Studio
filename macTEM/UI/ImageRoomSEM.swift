@@ -121,19 +121,21 @@ struct SEMAcquisitionRows: View {
     }
 }
 
-/// The Display section's `Databar · Hide · Show` for a file with a databar: Hide (the default) shows the scan alone, Show the whole
-/// frame, bar included (for an export with the bar). Full width, no leading label (control placement standard).
-struct SEMDatabarPicker: View {
+/// The Display section's word on the databar of a file with one: hidden or shown, and where that is chosen. The choice is Settings >
+/// Images (control-placement §10: it holds for every image and changes no number in it), so the room holds no switch for it (#626).
+struct SEMDatabarNote: View {
     let sem: SEMImageMetadata
-    @Environment(AppState.self) private var appState
+    @AppStorage(SEMImageSettings.cropDatabarKey) private var cropsDatabar = SEMImageSettings.cropDatabarDefault
 
     var body: some View {
-        @Bindable var appState = appState
-        SegmentedPicker(label: "Databar", items: [(true, .title("Hide")), (false, .title("Show"))], selection: $appState.cropsDatabar)
-            .accessibilityIdentifier("image.sem.databar")
-            .help("Hide the \(sem.databarRows ?? 0)-row databar the microscope drew under the scan, or show it as a strip under the picture")
-        InspectorNote(appState.cropsDatabar
-                      ? "Databar hidden: the \(sem.databarRows ?? 0) rows under the scan are cut; lengths and exports are of the scan."
-                      : "Databar shown under the picture: its \(sem.databarRows ?? 0) rows are not part of the image; lengths and exports are of the scan.")
+        InspectorNote(SEMDatabarNote.note(rows: sem.databarRows ?? 0, hidden: cropsDatabar))
+            .accessibilityIdentifier("image.sem.databarNote")
+    }
+
+    nonisolated static func note(rows: Int, hidden: Bool) -> String {
+        hidden
+            ? "Databar hidden: the \(rows) rows under the scan are cut; lengths and exports are of the scan. Settings > Images shows it."
+            : "Databar shown under the picture: its \(rows) rows are not part of the image; lengths and exports are of the scan. "
+                + "Settings > Images hides it."
     }
 }
