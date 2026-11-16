@@ -466,6 +466,7 @@ struct EELSFittingSection: View {
 /// References: spectra to fit with (MLLS), taken from a region or imported from an MSA file, drawn dashed on the spectrum.
 private struct EELSReferencesBlock: View {
     let session: EELSSession
+    @Environment(\.undoManager) private var undoManager
     @State private var selected: EELSReference.ID?
     @State private var importing = false
     @State private var edgeChoice = 0
@@ -518,7 +519,7 @@ private struct EELSReferencesBlock: View {
                 Button("Import…") { importing = true }
                     .help("Read a reference spectrum from an MSA file")
                     .accessibilityIdentifier("eels.references.import")
-                Button("Remove") { if let selected { session.removeReference(selected); self.selected = nil } }
+                Button("Remove") { if let selected { EELSReferenceUndo.remove(selected, in: session, undoManager: undoManager); self.selected = nil } }
                     .disabled(selected == nil || !session.references.contains { $0.id == selected })
                     .help("Remove the selected reference")
                     .accessibilityIdentifier("eels.references.remove")

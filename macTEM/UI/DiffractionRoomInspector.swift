@@ -76,6 +76,7 @@ private struct DiffractionCalibrationSection: View {
     private var image: CalibratedImage { session.imageOrBlank }
     let analysis: DiffractionAnalysis
     let view: DiffractionViewState
+    @Environment(\.undoManager) private var undoManager
 
     var body: some View {
         let calibration = analysis.calibration(for: image)
@@ -104,7 +105,7 @@ private struct DiffractionCalibrationSection: View {
                 .disabled(analysis.isFitting || families.isEmpty)
                 .help("Fit the ring in the annulus and take Δq from its radius and the family's listed spacing")
                 .accessibilityIdentifier("diffraction.calibrate")
-                if analysis.ringCalibrationExists { Button("Clear") { analysis.clearCalibration() }.accessibilityIdentifier("diffraction.calibration.clear") }
+                if analysis.ringCalibrationExists { Button("Clear") { DiffractionUndo.clearCalibration(in: analysis, undoManager: undoManager) }.accessibilityIdentifier("diffraction.calibration.clear") }
             }
             if let ring = calibration?.ring {
                 if let l = ring.lengthPixels { InspectorValueRow("L", "\(Num.fixed(l, 0)) px") }

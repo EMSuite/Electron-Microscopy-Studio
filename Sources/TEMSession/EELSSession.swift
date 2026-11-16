@@ -109,6 +109,9 @@ package final class EELSSession {
     /// window change, pick or fit.
     package private(set) var fitRefusal: String?
     package private(set) var references: [EELSReference] = []
+    /// Counts the times the references were dropped with their file (open, close): an Edit > Undo of a reference's removal puts it back
+    /// only on the file it was taken on (`restoreReferences`).
+    @ObservationIgnored package private(set) var referenceGeneration = 0
     /// The names of the references the MLLS fit on screen took (empty for the exact fit, or an MLLS fit with none).
     package private(set) var modelReferenceNames: [String] = []
     package private(set) var referenceNotice: String?
@@ -504,7 +507,7 @@ package final class EELSSession {
         typedConvergenceMrad = nil; typedCollectionMrad = nil
         map = nil; tiles = []; unavailableReasons = []; failure = nil
         resetRegions()
-        editedWindows = [:]; references = []; referenceNotice = nil; modelReferenceNames = []; backgroundChoice = .powerLaw; backgroundNotice = nil; coreDeadStretches = []
+        editedWindows = [:]; references = []; referenceGeneration &+= 1; referenceNotice = nil; modelReferenceNames = []; backgroundChoice = .powerLaw; backgroundNotice = nil; coreDeadStretches = []
         refreshDeadStretches()
         refreshPlot()
         onEvent?("Opened \(loaded.fileName) — \(loaded.image.nx) × \(loaded.image.ny) px, \(loaded.image.channels) channels")
@@ -517,7 +520,7 @@ package final class EELSSession {
         // A plot, quick spectrum or live spectrum still on its way lands nothing on the closed room.
         plotTask?.cancel(); plotInterimTask?.cancel(); plotRun += 1; isPreviewing = false; pendingPreview = nil; plottedRegion = nil
         plot = nil; wholeMapPlot = nil; fitUsed = nil; alignmentShiftTile = nil
-        deadTask?.cancel(); coreDeadStretches = []; editedWindows = [:]; references = []; modelReferenceNames = []
+        deadTask?.cancel(); coreDeadStretches = []; editedWindows = [:]; references = []; referenceGeneration &+= 1; modelReferenceNames = []
         fitModel = .exactNNLS; fitOnlyElements = []; modelDeconvolution = nil; fitToEV = nil; fitToNotice = nil; regionQuality = nil
         deconvolutionChoice = .off; deconvolution = nil; deconvolutionSignature = ""; deconvolutionNotice = nil; zeroLossFWHM = nil
         alignChoice = EELSAlignChoice(); alignedWith = nil; alignNotice = nil
@@ -796,6 +799,15 @@ package final class EELSSession {
     }
 
     package func removeReference(_ id: EELSReference.ID) { references.removeAll { $0.id == id }; referenceNotice = nil }
+
+    /// Edit > Undo and Redo of a reference's removal: `references` becomes `list` only while it is exactly `current` on the same file
+    /// (`generation`), so a reference added since, or another file, is never overwritten. Says whether it did.
+    @discardableResult
+    package func restoreReferences(_ list: [EELSReference], from current: [EELSReference], generation: Int) -> Bool {
+        guard generation == referenceGeneration, references == current else { return false }
+        references = list; referenceNotice = nil
+        return true
+    }
 
     /// The summed core loss's empty stretches, found off the main actor and landed once; a newer request drops an older one.
     private func refreshDeadStretches() {
