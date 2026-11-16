@@ -20,6 +20,7 @@
 //
 
 import AppKit
+import Metal
 import ShellLayout
 import SwiftUI
 import XCTest
@@ -93,6 +94,7 @@ nonisolated final class RoomMemoryTests: XCTestCase {
 
         _ = try await openVisitClose(small, state: state, host: host)
         let before = Self.settledFootprint()
+        let partsBefore = Self.parts()
         let open = try await openVisitClose(large, state: state, host: host)
 
         let stored = Self.side * Self.side * 2
@@ -100,8 +102,10 @@ nonisolated final class RoomMemoryTests: XCTestCase {
         // footprint is asked again for a few seconds, as the other rooms' check asks it (#713: one immediate read saw 9.5 to 12 MB).
         let back = try await conditionHolds(within: 5) { Self.settledFootprint() - before < stored / 2 }
         let after = Self.settledFootprint()
+        let held = Self.parts().minus(partsBefore)
         XCTAssertGreaterThan(open - before, stored, "the measure sees the open image (\(open - before) bytes over the baseline)")
-        XCTAssertTrue(back, "after the close the footprint is \(after - before) bytes over the baseline; the image is \(stored) bytes as stored")
+        XCTAssertTrue(back, "after the close the footprint is \(after - before) bytes over the baseline; the image is \(stored) bytes as stored; "
+                      + "of it, malloc \(held.malloc) and Metal \(held.metal) bytes over their baselines (#713: names which one holds it)")
     }
 
     /// The footprint once malloc has handed its free pages back: a parse of many small values (an `.ang`'s 250 000 lines) leaves
@@ -110,6 +114,20 @@ nonisolated final class RoomMemoryTests: XCTestCase {
     private static func settledFootprint() -> Int {
         _ = malloc_zone_pressure_relief(nil, 0)
         return ImageStackTests.footprint()
+    }
+
+    /// Where a footprint lies: malloc's bytes in use (every zone) and the Metal device's allocations (textures and buffers; on Apple
+    /// silicon they count in the footprint too). A failure that names the larger says whether a buffer or a texture is held (#713).
+    private struct Parts {
+        var malloc: Int
+        var metal: Int
+        func minus(_ other: Parts) -> Parts { Parts(malloc: malloc - other.malloc, metal: metal - other.metal) }
+    }
+
+    private static func parts() -> Parts {
+        var stats = malloc_statistics_t()
+        malloc_zone_statistics(nil, &stats)
+        return Parts(malloc: Int(stats.size_in_use), metal: MTLCreateSystemDefaultDevice().map { Int($0.currentAllocatedSize) } ?? 0)
     }
 
     // MARK: - The spectrum and SEM rooms
@@ -175,6 +193,7 @@ nonisolated final class RoomMemoryTests: XCTestCase {
         func settled() -> Int { Self.settledFootprint() }
         _ = try await cycle(small, rooms: rooms, target: target, state: state, host: host, use: use, busy: busy, closed: closed)
         let before = settled()
+        let partsBefore = Self.parts()
         let open = try await cycle(large, rooms: rooms, target: target, state: state, host: host, use: use, busy: busy, closed: closed)
         // What is freed off the main actor (a pass's last buffer) lands a moment after the close: asked again for a few seconds.
         let back = try await conditionHolds(within: 5) { settled() - before < allowed }
@@ -182,8 +201,9 @@ nonisolated final class RoomMemoryTests: XCTestCase {
         if let seen {
             XCTAssertGreaterThan(open - before, seen, "\(name): the measure sees the open file (\(open - before) bytes over the baseline)")
         }
+        let held = Self.parts().minus(partsBefore)
         XCTAssertTrue(back, "\(name): after the close the footprint is \(after - before) bytes over the baseline (\(open - before) while "
-                      + "open); allowed \(allowed)")
+                      + "open); allowed \(allowed); of it, malloc \(held.malloc) and Metal \(held.metal) bytes over their baselines (#713)")
     }
 
     /// A GMS DM4 spectrum image of `nx` × `ny` × `channels` int16 values, as `DM4TestFile` writes one: named "EDS SI" or "EELS SI"
