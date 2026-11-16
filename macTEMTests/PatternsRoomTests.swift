@@ -206,7 +206,7 @@ nonisolated final class PatternsRoomTests: XCTestCase {
         let state = PatternsRoomState()
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("patterns-quality-\(UUID().uuidString)")
         var reports: [String] = []
-        state.export(.mapPNG, from: session, directory: dir) { reports.append($0) }
+        await state.export(.mapPNG, from: session, directory: dir) { reports.append($0) }
         XCTAssertEqual(reports, ["Exported ebsd-kikuchipy-h5ebsd map average dot product.png"])
         session.close()
         XCTAssertNil(session.imageQualityMap); XCTAssertNil(session.dotProductMap)
@@ -328,17 +328,17 @@ nonisolated final class PatternsRoomTests: XCTestCase {
         let state = PatternsRoomState()
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("patterns-export-\(UUID().uuidString)")
         var reports: [String] = []
-        state.export(.metadataJSON, from: session, directory: dir) { reports.append($0) }
-        state.export(.patternPNG, from: session, directory: dir) { reports.append($0) }
+        await state.export(.metadataJSON, from: session, directory: dir) { reports.append($0) }
+        await state.export(.patternPNG, from: session, directory: dir) { reports.append($0) }
         XCTAssertEqual(reports, ["Exported Demo EBSD metadata.json", "Exported Demo EBSD pattern r0 c0.png"])
         let png = try Data(contentsOf: dir.appendingPathComponent("Demo EBSD pattern r0 c0.png"))
         XCTAssertEqual([UInt8](png.prefix(4)), [0x89, 0x50, 0x4E, 0x47])
         // The map, once the pass has landed: the mean, then the colour mix through its own encoder.
         try await waitUntil("the map pass to end", seconds: 20) { !session.isMapping }
-        state.export(.mapPNG, from: session, directory: dir) { reports.append($0) }
+        await state.export(.mapPNG, from: session, directory: dir) { reports.append($0) }
         XCTAssertEqual(reports.last, "Exported Demo EBSD map mean.png")
         for (channel, column) in [1, 2, 3].enumerated() { await session.setMixTile(VirtualBSETile(row: 2, column: column), channel: channel).value }
-        state.export(.mapPNG, from: session, directory: dir) { reports.append($0) }
+        await state.export(.mapPNG, from: session, directory: dir) { reports.append($0) }
         XCTAssertEqual(reports.last, "Exported Demo EBSD map mix.png")
         let mix = try Data(contentsOf: dir.appendingPathComponent("Demo EBSD map mix.png"))
         XCTAssertEqual([UInt8](mix.prefix(4)), [0x89, 0x50, 0x4E, 0x47])

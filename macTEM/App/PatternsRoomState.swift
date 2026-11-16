@@ -91,9 +91,30 @@ final class PatternsRoomState {
         readout = text
     }
 
+    /// A picture an export makes off the main actor (#251), from values read on it: a pattern or a scan map as the pane shows it, or
+    /// the colour mix.
+    nonisolated enum Picture: Sendable {
+        case pattern(canvas: CanvasPixels, display: ImageExport.Display, dataset: EBSDDataset, fileName: String, position: EBSDPosition)
+        case map(canvas: CanvasPixels, display: ImageExport.Display, scaleBar: Bool, dataset: EBSDDataset, fileName: String, map: String)
+        case mix(rgba: [UInt8], width: Int, height: Int, fileName: String)
+    }
+
+    /// The PNG of `picture`, off the main actor: a scan map is one pixel per scan point. Nil when the colour mix cannot be encoded.
+    @concurrent nonisolated static func png(_ picture: Picture) async throws -> Data? {
+        switch picture {
+        case .pattern(let canvas, let display, let dataset, let fileName, let position):
+            return try patternPNG(canvas: canvas, display: display, dataset: dataset, fileName: fileName, position: position)
+        case .map(let canvas, let display, let scaleBar, let dataset, let fileName, let map):
+            return try mapPNG(canvas: canvas, display: display, scaleBar: scaleBar, dataset: dataset, fileName: fileName, map: map)
+        case .mix(let rgba, let width, let height, let fileName):
+            return mixPNG(rgba: rgba, width: width, height: height, fileName: fileName)
+        }
+    }
+
     /// Makes the bytes of `kind` from the session and opens the save panel, or, with `directory` (the UI journeys' export folder), writes the
-    /// file there; says why when there is nothing to write.
-    @MainActor func export(_ kind: PatternsExportKind, from session: EBSDSession, directory: URL? = nil, report: (String) -> Void) {
+    /// file there; says why when there is nothing to write. The pictures are encoded off the main actor (#251) from what the session shows
+    /// when the export is asked for; the record is of that moment too.
+    @MainActor func export(_ kind: PatternsExportKind, from session: EBSDSession, directory: URL? = nil, report: (String) -> Void) async {
         guard let document = session.document else { report("Nothing to export yet: no dataset is open."); return }
         let data: Data
         do {
@@ -107,8 +128,13 @@ final class PatternsRoomState {
                     report("Nothing to export yet: no pattern is on screen."); return
                 }
                 exportPosition = position
-                data = try Self.patternPNG(canvas: canvas, presentation: session.patternPresentation, dataset: document.dataset,
-                                           fileName: document.fileName, position: position)
+                let picture = Picture.pattern(canvas: canvas, display: ExportSnapshot.display(canvas: canvas, presentation: session.patternPresentation),
+                                              dataset: document.dataset, fileName: document.fileName, position: position)
+                let record = exportRecord(kind, session: session, fileName: document.fileName)
+                let name = (document.fileName as NSString).deletingPathExtension + kind.suffix(position: exportPosition, map: exportMap)
+                guard let png = try await Self.png(picture) else { report("Export failed: the pattern could not be encoded."); return }
+                finish(kind, data: png, record: record, name: name, directory: directory, report: report)
+                return
             case .overlayPNG:
                 guard let canvas = session.patternPresentation.canvas, let position = session.patternPosition,
                       session.overlayOn, case .success(let overlay)? = session.overlay else {
@@ -120,13 +146,18 @@ final class PatternsRoomState {
                     return
                 }
                 exportPosition = position
-                let plain = try Self.patternPNG(canvas: canvas, presentation: session.patternPresentation, dataset: document.dataset,
-                                                fileName: document.fileName, position: position)
-                guard let png = KikuchiOverlayExport.png(patternPNG: plain, fileName: document.fileName, overlay: overlay,
-                                                         settings: session.overlaySettings) else {
+                let settings = session.overlaySettings
+                let picture = Picture.pattern(canvas: canvas, display: ExportSnapshot.display(canvas: canvas, presentation: session.patternPresentation),
+                                              dataset: document.dataset, fileName: document.fileName, position: position)
+                let record = exportRecord(kind, session: session, fileName: document.fileName)
+                let name = (document.fileName as NSString).deletingPathExtension + kind.suffix(position: exportPosition, map: exportMap)
+                // The pattern is encoded off the main actor; the overlay is drawn on it here, as AppKit draws its labels.
+                guard let plain = try await Self.png(picture),
+                      let png = KikuchiOverlayExport.png(patternPNG: plain, fileName: document.fileName, overlay: overlay, settings: settings) else {
                     report("Export failed: the pattern with its overlay could not be encoded."); return
                 }
-                data = png
+                finish(kind, data: png, record: record, name: name, directory: directory, report: report)
+                return
             case .overlayCSV:
                 guard let position = session.patternPosition, session.overlayOn, let csv = session.overlayCSV else {
                     report("Nothing to export yet: no Kikuchi overlay is on the pattern."); return
@@ -139,22 +170,33 @@ final class PatternsRoomState {
                     report("Nothing to export yet: the quality maps have not landed."); return
                 }
                 exportMap = Self.mapName(session.mapChoice)
+                let picture: Picture
                 if session.mapChoice == .mix, let rgba = session.mixRGBA {
-                    guard let png = Self.mixPNG(rgba: rgba, width: canvas.width, height: canvas.height, fileName: document.fileName) else {
-                        report("Export failed: the colour mix could not be encoded."); return
-                    }
-                    data = png
+                    picture = .mix(rgba: rgba, width: canvas.width, height: canvas.height, fileName: document.fileName)
                 } else {
-                    data = try Self.mapPNG(canvas: canvas, presentation: session.mapPresentation, dataset: document.dataset, fileName: document.fileName,
-                                           map: exportMap)
+                    picture = .map(canvas: canvas, display: ExportSnapshot.display(canvas: canvas, presentation: session.mapPresentation),
+                                   scaleBar: session.mapPresentation.showsScaleBar, dataset: document.dataset, fileName: document.fileName,
+                                   map: exportMap)
                 }
+                let record = exportRecord(kind, session: session, fileName: document.fileName)
+                let name = (document.fileName as NSString).deletingPathExtension + kind.suffix(position: exportPosition, map: exportMap)
+                guard let png = try await Self.png(picture) else { report("Export failed: the colour mix could not be encoded."); return }
+                finish(kind, data: png, record: record, name: name, directory: directory, report: report)
+                return
             }
         } catch {
             report("Export failed: \(error.localizedDescription)"); return
         }
-        let record = exportRecord(kind, data: data, session: session, fileName: document.fileName)
+        finish(kind, data: data, record: exportRecord(kind, session: session, fileName: document.fileName),
+               name: (document.fileName as NSString).deletingPathExtension + kind.suffix(position: exportPosition, map: exportMap),
+               directory: directory, report: report)
+    }
+
+    /// The bytes made: written into `directory` (a UI journey's export folder) as `name`, or handed to the save panel.
+    @MainActor private func finish(_ kind: PatternsExportKind, data: Data, record makeRecord: (Data) -> SEMExportedFile, name: String,
+                                   directory: URL?, report: (String) -> Void) {
+        let record = makeRecord(data)
         if let directory {
-            let name = (document.fileName as NSString).deletingPathExtension + kind.suffix(position: exportPosition, map: exportMap)
             let url = directory.appendingPathComponent(name).appendingPathExtension(kind.contentType.preferredFilenameExtension ?? "txt")
             do {
                 try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -171,9 +213,9 @@ final class PatternsRoomState {
         exporting = kind
     }
 
-    /// The export as the session record keeps it: what it is, the map or the position it is of, the methods that made it, the PNG's
-    /// bytes.
-    @MainActor private func exportRecord(_ kind: PatternsExportKind, data: Data, session: EBSDSession, fileName: String) -> SEMExportedFile {
+    /// The export as the session record keeps it: what it is, the map or the position it is of, the methods that made it, and, given
+    /// the bytes, the PNG's. Read from the session when the export is asked for, before the picture is made.
+    @MainActor private func exportRecord(_ kind: PatternsExportKind, session: EBSDSession, fileName: String) -> (Data) -> SEMExportedFile {
         let position = SEMSessionField("Position", "row \(exportPosition.row) · col \(exportPosition.column)")
         let processing = SEMSessionLedger.processingMethods(session.pipeline)
         var fields: [SEMSessionField] = []
@@ -205,8 +247,10 @@ final class PatternsRoomState {
             methods = processing
         }
         let isPicture = kind == .mapPNG || kind == .patternPNG || kind == .overlayPNG
-        return SEMExportedFile(room: "Patterns", what: SEMExportedFile.what(kind.title), source: fileName, fields: fields, methods: methods,
-                               png: isPicture ? data : nil)
+        return { [fields, methods] data in
+            SEMExportedFile(room: "Patterns", what: SEMExportedFile.what(kind.title), source: fileName, fields: fields, methods: methods,
+                            png: isPicture ? data : nil)
+        }
     }
 
     /// The colour mix's RGBA bytes as a PNG, one pixel per scan point, through the app's one encoder (`ImageExport.encodePNG`) with
@@ -267,11 +311,17 @@ final class PatternsRoomState {
     /// The pattern as the pane shows it (its colormap, window and gamma), one PNG pixel per detector pixel, through the Image room's exporter.
     @MainActor static func patternPNG(canvas: CanvasPixels, presentation: ImagePresentation, dataset: EBSDDataset, fileName: String,
                                       position: EBSDPosition) throws -> Data {
+        try patternPNG(canvas: canvas, display: ExportSnapshot.display(canvas: canvas, presentation: presentation), dataset: dataset,
+                       fileName: fileName, position: position)
+    }
+
+    /// The same from the display taken on the main actor (`ExportSnapshot.display`): callable off it (#251).
+    nonisolated static func patternPNG(canvas: CanvasPixels, display: ImageExport.Display, dataset: EBSDDataset, fileName: String,
+                                       position: EBSDPosition) throws -> Data {
         let pixels = canvas.normalized   // the display copy is what the exporter maps; the raw range is in the metadata
         let image = CalibratedImage(width: canvas.width, height: canvas.height, pixels: pixels, x: nil, y: nil,
                                     fileName: fileName, source: "pattern row \(position.row) col \(position.column)", voltage: dataset.sem.beamEnergyKeV.map { $0 * 1000 },
                                     notes: ["\(dataset.format.rawValue)"])
-        let display = ExportSnapshot.display(canvas: canvas, presentation: presentation)
         return try ImageExport.render(source: ExportSource(image: image, software: ExportSnapshot.provenance()), display: display, marks: [],
                                       options: ImageExport.Options(scaleBar: false, marks: false)).png
     }

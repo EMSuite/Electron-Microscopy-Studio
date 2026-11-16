@@ -145,7 +145,7 @@ nonisolated final class SEMSessionLedgerTests: XCTestCase {
         let state = AppState(launch: LaunchOptions(arguments: []))
         await state.ebsd.bind(try DemoDocuments.ebsd()).value
         try await waitIdle(state)
-        state.patternsRoom.export(.metadataJSON, from: state.ebsd) { XCTFail($0) }
+        await state.patternsRoom.export(.metadataJSON, from: state.ebsd) { XCTFail($0) }
         XCTAssertEqual(state.patternsRoom.exporting, .metadataJSON)
         XCTAssertTrue(state.semRecord.exports.isEmpty, "nothing is kept before the panel writes")
         let url = URL(fileURLWithPath: "/tmp/Demo EBSD metadata.json")
