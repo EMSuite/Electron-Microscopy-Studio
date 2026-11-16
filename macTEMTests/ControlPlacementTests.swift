@@ -26,7 +26,7 @@ nonisolated final class ControlPlacementTests: XCTestCase {
     }
 
     func testEachKeptDepartureIsNamed() throws {
-        XCTAssertTrue(try ui("ContentView.swift").contains("DEPARTURE from control-placement §1 (#629)"), "the toolbar's Image menu")
+        XCTAssertTrue(try ui("ContentView.swift").contains("DEPARTURE from control-placement §1"), "the toolbar's Image menu")
         XCTAssertTrue(try ui("DiffractionRoom.swift").contains("DEPARTURE from control-placement §6 (#629)"), "Diffraction's own zoom")
         XCTAssertTrue(try ui("WorkspaceView.swift").contains("DEPARTURE from the system focus ring (#629)"), "the picture's focus ring")
     }
