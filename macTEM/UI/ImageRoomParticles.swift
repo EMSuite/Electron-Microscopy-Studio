@@ -80,6 +80,7 @@ struct ImageRoomParticlesSection: View {
                 .accessibilityValue(UnitDisplay.count(settings.minimumArea, "square pixel", "square pixels"))
                 .accessibilityIdentifier("particles.minimumArea")
             }
+            ParticleRegionRows(analysis: analysis, image: image)
             InspectorRow("Tint mask") {
                 Toggle("Tint mask", isOn: Binding(get: { analysis.previewsMask }, set: { analysis.setPreviewsMask($0) }))
                     .labelsHidden().toggleStyle(.switch)
@@ -105,6 +106,7 @@ struct ImageRoomParticlesSection: View {
             } else if !analysis.isComputing {
                 InspectorNote("Choose bright or dark objects and a threshold, then Show Objects.")
             }
+            if let note = ParticleFormat.renderNote(notes: image.notes) { InspectorNote(note).accessibilityIdentifier("particles.renderNote") }
         }
         .task(id: PreviewKey(settings: settings, on: analysis.previewsMask)) {
             guard analysis.previewsMask else { return }
@@ -269,16 +271,90 @@ struct ParticleOverlay: View {
 
     /// Adds the ellipse of `m` to `p` as its own closed subpath in image coordinates (pixel centres at whole numbers): 64 points round
     /// the centroid, the long axis turned from +x toward +y. `MarkGeometry.imageToPane` places it on the pane.
-    static func addEllipse(_ m: Segmentation.ObjectMoments, to p: inout Path) {
+    static func addEllipse(_ o: ParticleObject, to p: inout Path) {
+        let m = o.moments
         let a = m.axisMajorLength / 2, b = m.axisMinorLength / 2
         let t = m.orientationDegrees * .pi / 180
         for k in 0...64 {
             let s = Double(k) / 64 * 2 * .pi
             let u = a * cos(s), v = b * sin(s)
-            let pt = CGPoint(x: m.centroidCol + u * cos(t) - v * sin(t), y: m.centroidRow + u * sin(t) + v * cos(t))
+            let pt = CGPoint(x: o.centroidCol + u * cos(t) - v * sin(t), y: o.centroidRow + u * sin(t) + v * cos(t))
             if k == 0 { p.move(to: pt) } else { p.addLine(to: pt) }
         }
         p.closeSubpath()
+    }
+}
+
+// MARK: - The region to analyse (#110)
+
+/// The section's Region rows: where the region is ("Whole image" without one), Draw Region (the next drag on the image draws it, as
+/// ImageJ's rectangle selection) and Whole Image (clears it). The drag itself is `ParticleRegionOverlay`'s.
+struct ParticleRegionRows: View {
+    let analysis: ParticleAnalysis
+    let image: CalibratedImage
+
+    var body: some View {
+        let region = ParticleRegion.clamped(analysis.settings.region, width: image.width, height: image.height)
+        let drawing = analysis.isDrawingRegion
+        InspectorRow("Region") {
+            Text(ParticleRegion.text(region)).monospacedDigit()
+                .accessibilityIdentifier("particles.region")
+        }
+        InspectorActionRow {
+            Button(drawing ? "Cancel Drawing" : "Draw Region") { analysis.setDrawingRegion(!drawing) }
+                .help("Drag a rectangle on the image: only its pixels are analysed, and an object cut by its border is an edge object")
+                .accessibilityIdentifier("particles.drawRegion")
+            Button("Whole Image") { analysis.setRegion(nil); analysis.setDrawingRegion(false) }
+                .disabled(region == nil)
+                .help(region == nil ? "the whole image is analysed" : "Analyse the whole image again")
+                .accessibilityIdentifier("particles.wholeImage")
+        }
+        if drawing { InspectorNote("Drag a rectangle on the image.") }
+    }
+}
+
+/// The region to analyse over the image: a dashed outline on the pixel edges, and while Draw Region is on, the drag that draws it (the
+/// pane's pan and zoom get every press otherwise). The region is the owner's setting; this view maps and writes.
+struct ParticleRegionOverlay: View {
+    let analysis: ParticleAnalysis
+    let geometry: MarkGeometry
+
+    var body: some View {
+        let region = ParticleRegion.clamped(analysis.settings.region, width: geometry.imageWidth, height: geometry.imageHeight)
+        let drawing = analysis.isDrawingRegion
+        ZStack {
+            Canvas { context, _ in
+                guard let region else { return }
+                let outline = Path(Self.rect(of: region, in: geometry))
+                context.stroke(outline, with: .color(.black.opacity(0.6)), lineWidth: 4)
+                context.stroke(outline, with: .color(.yellow), style: StrokeStyle(lineWidth: 2, dash: [6, 4]))
+            }
+            .allowsHitTesting(false)
+            if drawing {
+                Color.clear
+                    .contentShape(Rectangle())
+                    .gesture(DragGesture(minimumDistance: 2)
+                        .onChanged { draw($0) }
+                        .onEnded { draw($0); analysis.setDrawingRegion(false) })
+                    .pointerStyle(.rectSelection)
+            }
+        }
+        .accessibilityHidden(true)   // the section's Region row says where it is, and its buttons draw and clear it
+    }
+
+    private func draw(_ value: DragGesture.Value) {
+        guard let crop = ParticleRegion.drawn(from: geometry.imagePoint(atPanePoint: value.startLocation),
+                                              to: geometry.imagePoint(atPanePoint: value.location),
+                                              width: geometry.imageWidth, height: geometry.imageHeight),
+              crop != analysis.settings.region else { return }
+        analysis.setRegion(crop)
+    }
+
+    /// The region's outline in pane points: the edges of its pixels.
+    static func rect(of region: PixelCrop, in geometry: MarkGeometry) -> CGRect {
+        let a = geometry.panePoint(of: ImagePoint(x: Double(region.col) - 0.5, y: Double(region.row) - 0.5))
+        let b = geometry.panePoint(of: ImagePoint(x: Double(region.col + region.width) - 0.5, y: Double(region.row + region.height) - 0.5))
+        return CGRect(x: min(a.x, b.x), y: min(a.y, b.y), width: abs(b.x - a.x), height: abs(b.y - a.y))
     }
 }
 
@@ -299,11 +375,11 @@ final class ParticleEllipseMemo {
         var paths = Paths()
         for o in objects {
             if o.id == selected {
-                ParticleOverlay.addEllipse(o.moments, to: &paths.selected)
+                ParticleOverlay.addEllipse(o, to: &paths.selected)
             } else if o.isCounted {
-                ParticleOverlay.addEllipse(o.moments, to: &paths.counted)
+                ParticleOverlay.addEllipse(o, to: &paths.counted)
             } else {
-                ParticleOverlay.addEllipse(o.moments, to: &paths.other)
+                ParticleOverlay.addEllipse(o, to: &paths.other)
             }
         }
         self.objects = objects

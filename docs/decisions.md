@@ -309,7 +309,8 @@ before. That includes an export with a burned-in bar stored as single-channel gr
 after it went cold keeps what the person chose. The Image room's Display section says why under Show Scale Bar, which brings the
 bar back; Export Image follows the toggle as before. The bar is not moved to another corner, and nothing looks for a bar in the
 pixels. The calibration stays in Calibration and Info, Particles still finds a burned-in bar as objects (#110), and no number,
-calibration or exported pixel of any other file changes.
+calibration or exported pixel of any other file changes. Since #110 the Particles section says so on a render and offers a region to analyse (ImageJ's
+rectangle selection) that leaves the burned-in bar and labels out; with no region its numbers are as before.
 
 **Why.** A render is a picture its acquisition software exported. Velox (Batch Export) and GMS (Save Display As, or the prompt
 on Save As TIFF to burn the annotations in or leave them out) burn the scale bar into it only when the user chooses it at

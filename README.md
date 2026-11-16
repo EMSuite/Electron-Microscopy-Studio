@@ -45,7 +45,7 @@ No file at hand? Help > Open Demo Data opens generated TEM documents and three p
 
 The rooms:
 
-- **Image**: calibration, colormap, contrast and gamma; distances, angles, line profiles and particles; image stacks.
+- **Image**: calibration, colormap, contrast and gamma; distances, angles, line profiles and particles (in the whole image or a region); image stacks.
   Your marks are saved in a session file next to the image. An SEM TIFF shows the microscope's settings, and a Thermo
   Fisher or Tescan databar can be hidden or shown under the picture (Settings > Images).
 - **FFT**: the transform of the image or a region, spots and their d-spacings, the radial profile, a masked inverse,
