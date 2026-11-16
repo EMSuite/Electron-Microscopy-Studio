@@ -103,6 +103,7 @@ nonisolated final class RoomMemoryTests: XCTestCase {
         let back = try await conditionHolds(within: 5) { Self.settledFootprint() - before < stored / 2 }
         let after = Self.settledFootprint()
         let held = Self.parts().minus(partsBefore)
+        print("RoomMemoryTests image rooms: \(after - before) bytes over the baseline after the close (allowed \(stored / 2)); \(held.words)")
         XCTAssertGreaterThan(open - before, stored, "the measure sees the open image (\(open - before) bytes over the baseline)")
         XCTAssertTrue(back, "after the close the footprint is \(after - before) bytes over the baseline; the image is \(stored) bytes as stored; "
                       + "of it over their baselines (bytes): \(held.words) (#713: names which one holds it)")
@@ -282,6 +283,8 @@ nonisolated final class RoomMemoryTests: XCTestCase {
             XCTAssertGreaterThan(open - before, seen, "\(name): the measure sees the open file (\(open - before) bytes over the baseline)")
         }
         let held = Self.parts().minus(partsBefore)
+        // Logged on every run, so a green run shows the margin and the holders too (#713).
+        print("RoomMemoryTests \(name): \(after - before) bytes over the baseline after the close (allowed \(allowed)); \(held.words)")
         XCTAssertTrue(back, "\(name): after the close the footprint is \(after - before) bytes over the baseline (\(open - before) while "
                       + "open); allowed \(allowed); of it over their baselines (bytes): \(held.words) (#713)")
     }
