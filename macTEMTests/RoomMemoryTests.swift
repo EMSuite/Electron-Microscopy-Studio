@@ -193,6 +193,7 @@ nonisolated final class RoomMemoryTests: XCTestCase {
         func settled() -> Int { Self.settledFootprint() }
         _ = try await cycle(small, rooms: rooms, target: target, state: state, host: host, use: use, busy: busy, closed: closed)
         let before = settled()
+        let partsBefore = Self.parts()
         let open = try await cycle(large, rooms: rooms, target: target, state: state, host: host, use: use, busy: busy, closed: closed)
         // What is freed off the main actor (a pass's last buffer) lands a moment after the close: asked again for a few seconds.
         let back = try await conditionHolds(within: 5) { settled() - before < allowed }
@@ -200,8 +201,9 @@ nonisolated final class RoomMemoryTests: XCTestCase {
         if let seen {
             XCTAssertGreaterThan(open - before, seen, "\(name): the measure sees the open file (\(open - before) bytes over the baseline)")
         }
+        let held = Self.parts().minus(partsBefore)
         XCTAssertTrue(back, "\(name): after the close the footprint is \(after - before) bytes over the baseline (\(open - before) while "
-                      + "open); allowed \(allowed)")
+                      + "open); allowed \(allowed); of it, malloc \(held.malloc) and Metal \(held.metal) bytes over their baselines (#713)")
     }
 
     /// A GMS DM4 spectrum image of `nx` × `ny` × `channels` int16 values, as `DM4TestFile` writes one: named "EDS SI" or "EELS SI"
