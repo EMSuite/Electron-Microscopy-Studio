@@ -281,6 +281,25 @@ struct EELSProcessingSection: View {
                     .accessibilityIdentifier("eels.deconvolution.iterations")
                 }
             }
+            if session.deconvolutionChoice == .fourierRatio {
+                InspectorRow("FWHM") {
+                    // Fourier-ratio's zero-loss width (#74): empty lets the kit estimate it from the first pixel; typed, it is used as given.
+                    HStack(spacing: 4) {
+                        OptionalNumericField(title: "Zero-loss FWHM", value: session.zeroLossFWHM,
+                                             format: FloatingPointFormatStyle<Double>.number.precision(.significantDigits(1...6)),
+                                             unit: "eV", prompt: "Estimated") { v in session.setZeroLossFWHM(v) }
+                            .accessibilityIdentifier("eels.deconvolution.fwhm")
+                        if session.zeroLossFWHM != nil {
+                            Button("Estimate") { session.setZeroLossFWHM(nil) }
+                                .controlSize(.small)
+                                .help("Let Fourier-ratio estimate the zero-loss FWHM from the first pixel's low loss again")
+                                .accessibilityIdentifier("eels.deconvolution.fwhmEstimate")
+                        }
+                    }
+                    .help("The zero-loss peak's FWHM Fourier-ratio uses. Empty: estimated from the first pixel's low loss (exSpy's estimate_peak_width). "
+                          + "Type it when the estimate is refused.")
+                }
+            }
             if let notice = session.deconvolutionNotice {
                 InspectorNote(notice).accessibilityIdentifier("eels.deconvolution.notice")
             } else if let d = session.deconvolution, session.deconvolutionChoice != .off {
