@@ -10,6 +10,7 @@
 //
 
 import Foundation
+import ImagoCore
 import Observation
 import TEMCore
 
@@ -34,6 +35,8 @@ package final class ParticleAnalysis {
     package var selectedLabel: Int32?
     /// Whether the mask is tinted on the image while the settings are edited.
     package private(set) var previewsMask = false
+    /// Whether a drag on the image draws the region to analyse (the section's Draw Region; #110). Off again once a region is drawn.
+    package private(set) var isDrawingRegion = false
 
     /// Show Objects and the mask preview count apart: a preview asked while a run is in flight leaves the run to land.
     @ObservationIgnored private var runGeneration = 0
@@ -61,6 +64,11 @@ package final class ParticleAnalysis {
         previewsMask = on
         if !on { previewTask?.cancel(); maskPreview = nil }
     }
+
+    /// The region to analyse (nil: the whole image); a change makes the report stale, as any setting does.
+    package func setRegion(_ region: PixelCrop?) { setSettings { $0.region = region } }
+
+    package func setDrawingRegion(_ on: Bool) { isDrawingRegion = on }
 
     package func hideObjects() { showsObjects = false; selectedLabel = nil }
 

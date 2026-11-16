@@ -236,6 +236,13 @@ struct ImagePane: View {
                 .simultaneousGesture(TapGesture(count: 2).onEnded { resetZoom() },
                                      isEnabled: appState.imageRoomTools.tool != .pan)
             }
+            .overlay {
+                // The Particles region to analyse (#110): its outline, and above the marks the drag that draws it while Draw Region is on.
+                ParticleRegionOverlay(analysis: item.particles,
+                                      geometry: MarkGeometry(transform: MetalDisplayTransform(paneSize: box, imageBox: box,
+                                                                                              zoom: zp.drawZoom, offset: zp.effectiveOffset),
+                                                             imageWidth: canvas.width, imageHeight: canvas.height))
+            }
             .clipped()
             .contentShape(Rectangle())
             .border(.separator)
