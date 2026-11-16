@@ -18,7 +18,9 @@ nonisolated final class SEMAccessibilityTests: XCTestCase {
         var panes = 0
         for name in files {
             let source = try String(contentsOf: folder.appendingPathComponent(name), encoding: .utf8)
+            // The Image pane's hint adds the mark cursor's words to the zoom's while a tool is chosen (`MarkCursor.paneHint`).
             let hints = source.components(separatedBy: ".accessibilityHint(ZoomPan.accessibilityHint)").count - 1
+                + source.components(separatedBy: ".accessibilityHint(MarkCursor.paneHint(ZoomPan.accessibilityHint,").count - 1
             let actions = source.components(separatedBy: ".zoomPanAccessibilityActions(").count - 1
             XCTAssertEqual(hints, actions, "\(name): every pane that says it zooms with the actions has them")
             panes += hints

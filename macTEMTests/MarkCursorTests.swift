@@ -112,7 +112,7 @@ nonisolated final class MarkCursorTests: XCTestCase {
         XCTAssertEqual(MarkCursor.Move.allCases.map(\.fineActionName),
                        ["Move point one pixel left", "Move point one pixel right", "Move point one pixel up", "Move point one pixel down"])
         XCTAssertEqual(MarkCursor.placeActionName, "Place point at centre")
-        XCTAssertEqual([MoveCommandDirection.left, .right, .up, .down].map { MarkCursor.Move($0) }, [.left, .right, .up, .down])
+        XCTAssertEqual([MoveCommandDirection.left, .right, .up, .down].compactMap { MarkCursor.Move($0) }, [MarkCursor.Move.left, .right, .up, .down])
     }
 
     /// The fine step (macEM#510) moves exactly one pixel on its axis, whatever the picture's size, and is held on the picture at
