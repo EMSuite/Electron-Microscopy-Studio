@@ -545,7 +545,7 @@
 				ENABLE_USER_SELECTED_FILES = readwrite;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "macTEM/Info$(MACEM_FLAVOUR_SUFFIX_$(MACEM_STORE_BUILD)).plist";
-				INFOPLIST_KEY_CFBundleDisplayName = macEM;
+				INFOPLIST_KEY_CFBundleDisplayName = "$(PRODUCT_NAME)";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2026 Paul Lobpreis.";
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/../Frameworks";
@@ -557,7 +557,7 @@
 				OTHER_LDFLAGS = "$(inherited) $(MACEM_STORE_LDFLAGS_$(MACEM_STORE_BUILD))";
 				PRODUCT_BUNDLE_IDENTIFIER = com.mac4dstem.macTEM;
 				PRODUCT_MODULE_NAME = macTEM;
-				PRODUCT_NAME = macEM;
+				PRODUCT_NAME = "$(MACEM_APP_NAME_$(MACEM_STORE_BUILD))";
 				SUPPORTED_PLATFORMS = macosx;
 				SUPPORTS_MACCATALYST = NO;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) $(MACEM_UPDATER_CONDITION_$(MACEM_STORE_BUILD))";
@@ -587,7 +587,7 @@
 				ENABLE_USER_SELECTED_FILES = readwrite;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "macTEM/Info$(MACEM_FLAVOUR_SUFFIX_$(MACEM_STORE_BUILD)).plist";
-				INFOPLIST_KEY_CFBundleDisplayName = macEM;
+				INFOPLIST_KEY_CFBundleDisplayName = "$(PRODUCT_NAME)";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2026 Paul Lobpreis.";
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/../Frameworks";
@@ -599,7 +599,7 @@
 				OTHER_LDFLAGS = "$(inherited) $(MACEM_STORE_LDFLAGS_$(MACEM_STORE_BUILD))";
 				PRODUCT_BUNDLE_IDENTIFIER = com.mac4dstem.macTEM;
 				PRODUCT_MODULE_NAME = macTEM;
-				PRODUCT_NAME = macEM;
+				PRODUCT_NAME = "$(MACEM_APP_NAME_$(MACEM_STORE_BUILD))";
 				SUPPORTED_PLATFORMS = macosx;
 				SUPPORTS_MACCATALYST = NO;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) $(MACEM_UPDATER_CONDITION_$(MACEM_STORE_BUILD))";
@@ -627,7 +627,7 @@
 				ENABLE_USER_SELECTED_FILES = readwrite;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "macTEM/Info$(MACEM_FLAVOUR_SUFFIX_$(MACEM_STORE_BUILD)).plist";
-				INFOPLIST_KEY_CFBundleDisplayName = macEM;
+				INFOPLIST_KEY_CFBundleDisplayName = "$(PRODUCT_NAME)";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2026 Paul Lobpreis.";
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/../Frameworks";
@@ -639,7 +639,7 @@
 				OTHER_LDFLAGS = "$(inherited) $(MACEM_STORE_LDFLAGS_$(MACEM_STORE_BUILD))";
 				PRODUCT_BUNDLE_IDENTIFIER = com.mac4dstem.macTEM;
 				PRODUCT_MODULE_NAME = macTEM;
-				PRODUCT_NAME = macEM;
+				PRODUCT_NAME = "$(MACEM_APP_NAME_$(MACEM_STORE_BUILD))";
 				SUPPORTED_PLATFORMS = macosx;
 				SUPPORTS_MACCATALYST = NO;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) $(MACEM_UPDATER_CONDITION_$(MACEM_STORE_BUILD))";

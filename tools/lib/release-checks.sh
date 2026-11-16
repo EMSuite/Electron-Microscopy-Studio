@@ -5,6 +5,7 @@
 #   assert_mactem_bundle_arm64_only <app>      the executable and FormatoKit's three HDF5 frameworks: each there, each arm64 alone
 #   assert_mactem_demo_data <app>              the four shipped demo files (DemoDocuments.Shipped) in Contents/Resources/DemoData
 #   assert_mactem_store_entitlements <plist>   the store app's sandbox entitlements (com.apple.security.*): exactly these four
+#   assert_mactem_store_names <app> <root>     the store app's names (Config/Version.xcconfig), none with "mac", and its identifier
 #   assert_mactem_bundle_developer_id_signed <app> <identity>
 #                                              the app and the three frameworks: each signed by the Developer ID identity, with
 #                                              the hardened runtime and a secure timestamp
@@ -37,7 +38,11 @@ assert_mactem_arm64_only() {  # <Mach-O>
 # Every Mach-O a user receives: the executable and the three frameworks, each named.
 assert_mactem_bundle_arm64_only() {  # <app>
   local app="$1" library arch_failures=0
-  assert_mactem_arm64_only "$app/Contents/MacOS/macEM" || arch_failures=1
+  # The executable is named after the flavour (macEM, or the store build's "Electron Microscopy Studio"): read it.
+  local exe
+  exe="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app/Contents/Info.plist" 2>/dev/null)"
+  [[ -n "$exe" ]] || { echo "$app/Contents/Info.plist names no executable." >&2; return 1; }
+  assert_mactem_arm64_only "$app/Contents/MacOS/$exe" || arch_failures=1
   for library in FormatoLibHDF5 FormatoLibSZ FormatoLibAEC; do
     if [[ ! -f "$app/Contents/Frameworks/$library.framework/$library" ]]; then
       echo "The app is missing $library.framework." >&2
@@ -115,4 +120,19 @@ assert_mactem_bundle_developer_id_signed() {  # <app> <identity>
     assert_mactem_developer_id_signed "$app/Contents/Frameworks/$library.framework" "$identity" || bundle_sign_failures=1
   done
   return $bundle_sign_failures
+}
+
+# The App Store build's names (guideline 5.2.5: no "Mac" in an App Store app's name), as Config/Version.xcconfig sets them, under
+# the unchanged bundle identifier. Prints each failure; returns 1 on any.
+assert_mactem_store_names() {  # <app> <root>
+  local app="$1" root="$2" failures=0 key want got
+  for key in CFBundleDisplayName:MACEM_APP_NAME_YES CFBundleExecutable:MACEM_APP_NAME_YES CFBundleName:MACEM_MENU_NAME_YES; do
+    want="$(sed -n "s/^${key#*:} = //p" "$root/Config/Version.xcconfig")"
+    got="$(/usr/libexec/PlistBuddy -c "Print :${key%%:*}" "$app/Contents/Info.plist" 2>/dev/null || true)"
+    [[ -n "$want" && "$got" == "$want" ]] || { echo "  NAME      ${key%%:*} is '$got', Config/Version.xcconfig says '$want'" >&2; failures=1; }
+    [[ "${got:l}" != *mac* ]] || { echo "  NAME      ${key%%:*} '$got' contains \"mac\" (guideline 5.2.5)" >&2; failures=1; }
+  done
+  got="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app/Contents/Info.plist" 2>/dev/null || true)"
+  [[ "$got" == com.mac4dstem.macTEM ]] || { echo "  BUNDLEID  the store app is '$got'; App Store updates need com.mac4dstem.macTEM" >&2; failures=1; }
+  return $failures
 }

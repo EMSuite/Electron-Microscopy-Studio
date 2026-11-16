@@ -369,7 +369,7 @@ extension AppState {
     }
 
     static let needsAccessSentence =
-        "A session file for this image is beside it, but macOS has not given macEM access to read it."
+        "A session file for this image is beside it, but macOS has not given \(AppName.display) access to read it."
 
     /// What the infobar's "Opened …" line adds about the file's session (the design's table): the persistent words are
     /// in the Measure section, this is the event.

@@ -28,7 +28,10 @@ resolve_mactem_developer_dir
 TEAM="${DEVELOPMENT_TEAM:-3B8SMSSAX4}"
 OUT="$ROOT/build/release/$(date +%Y%m%d-%H%M%S)"   # a new folder per run, so a rerun never deletes an earlier archive
 ARCHIVE="$OUT/macEM-store.xcarchive"
-APP="$ARCHIVE/Products/Applications/macEM.app"
+# The store build is "Electron Microscopy Studio" (Config/Version.xcconfig MACEM_APP_NAME_YES; guideline 5.2.5).
+STORE_NAME="$(sed -n 's/^MACEM_APP_NAME_YES = //p' "$ROOT/Config/Version.xcconfig")"
+[[ -n "$STORE_NAME" ]] || { echo "Config/Version.xcconfig sets no MACEM_APP_NAME_YES." >&2; exit 1; }
+APP="$ARCHIVE/Products/Applications/$STORE_NAME.app"
 EXPORT="$OUT/store"
 
 [[ -z "$(git -C "$ROOT" status --porcelain)" ]] || { echo "The working tree is not clean; commit first so the build has a commit." >&2; exit 1; }
@@ -62,6 +65,7 @@ pkgutil --check-signature "$PKG" | grep -q "Installer Distribution\|3rd Party Ma
   || { echo "$PKG is not signed with an installer distribution certificate." >&2; exit 1; }
 # The executable and the three HDF5 frameworks, each by name, and the shipped demo files (tools/lib/release-checks.sh).
 assert_mactem_bundle_arm64_only "$APP"
+assert_mactem_store_names "$APP" "$ROOT" || exit 1
 assert_mactem_demo_data "$APP"
 codesign -d --entitlements :- "$APP" > "$OUT/store-entitlements.plist" 2>/dev/null
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :com.apple.security.app-sandbox' "$OUT/store-entitlements.plist" 2>/dev/null)" == true ]] \
@@ -77,10 +81,10 @@ assert_mactem_store_entitlements "$OUT/store-entitlements.plist"
 [[ ! -d "$APP/Contents/Frameworks/Sparkle.framework" ]] || { echo "Sparkle is in the store build." >&2; exit 1; }
 ! /usr/libexec/PlistBuddy -c 'Print :SUFeedURL' "$APP/Contents/Info.plist" >/dev/null 2>&1 \
   || { echo "The store build's Info.plist names an update feed (it read Info-Direct.plist)." >&2; exit 1; }
-otool -L "$APP/Contents/MacOS/macEM" | grep -q Sparkle && { echo "The store executable still links Sparkle." >&2; exit 1; }
+otool -L "$APP/Contents/MacOS/$STORE_NAME" | grep -q Sparkle && { echo "The store executable still links Sparkle." >&2; exit 1; }
 VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist")"
 [[ "$VERSION" == "$EXPECTED" ]] || { echo "The built app says $VERSION but the tag is $TAG." >&2; exit 1; }
-echo "macEM $VERSION: $PKG"
+echo "$STORE_NAME $VERSION: $PKG"
 
 if [[ -z "${ASC_KEY_ID:-}" || -z "${ASC_ISSUER_ID:-}" ]]; then
   echo "No App Store Connect API key (ASC_KEY_ID, ASC_ISSUER_ID): built and checked, not validated or uploaded."

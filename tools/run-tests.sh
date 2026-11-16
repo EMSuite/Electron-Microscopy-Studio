@@ -39,6 +39,8 @@ resolve_mactem_developer_dir
 . "$ROOT/tools/lib/app-warnings.sh"
 # core_warnings <log>: the warnings `core` counts, all but SwiftPM's repository-cache notes; exit 1 when there is one.
 . "$ROOT/tools/lib/core-warnings.sh"
+# assert_mactem_store_names <app> <root>: the App Store build's names (release_build checks them as release-store.sh does).
+. "$ROOT/tools/lib/release-checks.sh"
 
 # Every tools/ directory is in exactly one array; `inventory` fails on one that is not.
 scientific=(metadata-parity profile-parity export-parity fft-export-parity sidecar-parity diffraction-room-parity)   # gated: compares Core against a pinned reference
@@ -341,7 +343,7 @@ core_build() (
 # tools/harnesses/package-test/run.sh does: what both scripts check on their archive short of the signing identity, and what the
 # App Store asks of the bundle. Every check runs and each failure is named; the run fails at the end.
 release_build() (
-  local work rc app info macho archs library document key want got version failures=0
+  local work rc app info macho archs library document key want got version store_name failures=0
   work="$(mktemp -d "${TMPDIR:-/tmp}/mactem-release-build.XXXXXX")"
   trap 'rm -rf "$work"' EXIT
   xcodebuild build -project "$ROOT/macTEM.xcodeproj" -scheme macTEM -configuration Release \
@@ -353,15 +355,18 @@ release_build() (
   grep -E -A8 "Stack dump|PLEASE submit|Segmentation fault|Assertion failed|terminated due to signal|Illegal instruction" "$work/release.log" | head -40 || true
   echo "release-build: xcodebuild exit $rc"
   (( rc == 0 )) || return $rc
-  app="$work/DerivedData/Build/Products/Release/macEM.app"
+  # MACEM_STORE_BUILD=YES builds the App Store flavour, named "Electron Microscopy Studio" (guideline 5.2.5; Config/Version.xcconfig).
+  store_name="$(sed -n 's/^MACEM_APP_NAME_YES = //p' "$ROOT/Config/Version.xcconfig")"
+  app="$work/DerivedData/Build/Products/Release/$store_name.app"
   info="$app/Contents/Info.plist"
-  [[ -f "$info" ]] || { echo "release-build: the build wrote no app at Build/Products/Release/macEM.app"; return 1; }
+  [[ -f "$info" ]] || { echo "release-build: the build wrote no app at Build/Products/Release/$store_name.app"; return 1; }
+  assert_mactem_store_names "$app" "$ROOT" || failures=1
 
   # Each Mach-O a user receives, named: the executable and FormatoKit's three HDF5 frameworks, each present and arm64 alone. Named,
   # not globbed: a glob that matches nothing passes an app that lost them (mac4DSTEM's release-arch.sh), and FormatoKit loads
   # libhdf5 at run time, so such an app launches and then fails every HDF5, EMD and h5ebsd open. No load command may name a
   # machine-local library either.
-  local -a machos=("$app/Contents/MacOS/macEM")
+  local -a machos=("$app/Contents/MacOS/$store_name")
   for library in FormatoLibHDF5 FormatoLibSZ FormatoLibAEC; do machos+=("$app/Contents/Frameworks/$library.framework/$library"); done
   for macho in "${machos[@]}"; do
     if [[ ! -f "$macho" ]]; then echo "  MISSING   ${macho#$app/}"; failures=1; continue; fi
@@ -412,7 +417,7 @@ release_build() (
   fi
 
   if (( failures != 0 )); then echo "release-build: the Release app FAILED the checks above"; return 1; fi
-  echo "release-build: macEM $version built Release for generic/platform=macOS;" \
+  echo "release-build: $store_name $version built Release for generic/platform=macOS;" \
        "arm64 alone with its three frameworks, version, build, floor and identifier as the project declares, privacy manifest," \
        "export answer, licences, sandbox entitlements and a verified signature"
 )

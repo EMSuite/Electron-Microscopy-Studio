@@ -7,6 +7,7 @@
 //
 
 import XCTest
+import TEMCore
 import TEMSession
 
 nonisolated final class AppStoreReleaseTests: XCTestCase {
@@ -116,5 +117,46 @@ nonisolated final class AppStoreReleaseTests: XCTestCase {
         try String(contentsOf: url, encoding: .utf8).components(separatedBy: "\n")
             .map { line in String(line.drop { $0 == " " || $0 == "\t" }) }
             .filter { !$0.isEmpty && !$0.hasPrefix("#") }
+    }
+
+    /// App Review refuses "Mac" in an App Store app's name (guideline 5.2.5; mac4DSTEM 5.2.0 rejected 16 Nov 2026). The store build
+    /// is "Electron Microscopy Studio" (menu bar "Microscopy Studio"); the website download keeps macEM. Mutation: "mac" back in a
+    /// store name, PRODUCT_NAME a literal again, CFBundleName dropped from a plist, or release-store.sh not checking the names - red.
+    func testTheStoreBuildCarriesNamesWithoutMac() throws {
+        let config = try String(contentsOf: root.appendingPathComponent("Config/Version.xcconfig"), encoding: .utf8)
+        func setting(_ key: String) -> String? {
+            config.split(separator: "\n").first { $0.hasPrefix("\(key) = ") }.map { String($0.dropFirst(key.count + 3)) }
+        }
+        XCTAssertEqual(setting("MACEM_APP_NAME_YES"), "Electron Microscopy Studio")
+        XCTAssertEqual(setting("MACEM_MENU_NAME_YES"), "Microscopy Studio")
+        XCTAssertEqual(setting("MACEM_APP_NAME_NO"), "macEM", "the website download keeps its name")
+        XCTAssertEqual(setting("MACEM_MENU_NAME_NO"), "macEM")
+        for key in ["MACEM_APP_NAME_YES", "MACEM_MENU_NAME_YES"] {
+            XCTAssertFalse(try XCTUnwrap(setting(key)).lowercased().contains("mac"), key)
+        }
+        XCTAssertLessThanOrEqual(try XCTUnwrap(setting("MACEM_APP_NAME_YES")).count, 30, "App Store Connect's name limit")
+
+        let project = try String(contentsOf: root.appendingPathComponent("macTEM.xcodeproj/project.pbxproj"), encoding: .utf8)
+        XCTAssertEqual(project.components(separatedBy: "PRODUCT_NAME = \"$(MACEM_APP_NAME_$(MACEM_STORE_BUILD))\";").count - 1, 3)
+        XCTAssertEqual(project.components(separatedBy: "INFOPLIST_KEY_CFBundleDisplayName = \"$(PRODUCT_NAME)\";").count - 1, 3)
+        XCTAssertEqual(project.components(separatedBy: "PRODUCT_MODULE_NAME = macTEM;").count - 1, 3, "the module never changes")
+        for plist in ["macTEM/Info.plist", "macTEM/Info-Direct.plist"] {
+            let info = try XCTUnwrap(PropertyListSerialization.propertyList(
+                from: Data(contentsOf: root.appendingPathComponent(plist)), format: nil) as? [String: Any])
+            XCTAssertEqual(info["CFBundleName"] as? String, "$(MACEM_MENU_NAME)", plist)
+        }
+
+        let store = try Self.codeLines(of: root.appendingPathComponent("tools/release-store.sh"))
+        XCTAssertTrue(store.contains { $0.hasPrefix("assert_mactem_store_names \"$APP\" \"$ROOT\"") },
+                      "release-store.sh does not check the store app's names")
+    }
+
+    /// The name a sentence on screen uses comes from the bundle; anything else falls back to the project's name.
+    func testTheAppNameComesFromTheBundle() {
+        XCTAssertEqual(AppName.display(from: ["CFBundleDisplayName": "Electron Microscopy Studio", "CFBundleName": "Microscopy Studio"]),
+                       "Electron Microscopy Studio")
+        XCTAssertEqual(AppName.display(from: ["CFBundleName": "Microscopy Studio"]), "Microscopy Studio")
+        XCTAssertEqual(AppName.display(from: nil), "macEM")
+        XCTAssertEqual(AppName.display, "macEM", "the test host is the website flavour")
     }
 }
