@@ -199,7 +199,7 @@ package nonisolated enum ImageExport {
         var image: CGImage
         var plan: ScaleBarPlan?
         var layout: BarLayout?
-        var overlayScale: Double
+        var overlayScale: Int
         var barLeftOut: Bool
     }
 
