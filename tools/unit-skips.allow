@@ -11,6 +11,7 @@ EDXRealDataTests.testTheProposerOnTheThreeLabelledFiles	real-data	opt-in (MACTEM
 EDXRoomRealDataTests.testARectangleHasPixelsAndWindowRowsMovesAndIsDeleted	real-data	opt-in (MACTEM_REAL_DATA=1 or $TMPDIR/macTEM-real-data.flag), then the owner's spectrum images under $MACEM_DATA/stem-edx
 EDXRoomRealDataTests.testAutoIDWithARectangleRegionOn1339	real-data	opt-in (MACTEM_REAL_DATA=1 or $TMPDIR/macTEM-real-data.flag), then the owner's spectrum images under $MACEM_DATA/stem-edx
 EDXRoomRealDataTests.testAutoIDWithNothingSelectedOnWholeMap1339	real-data	opt-in (MACTEM_REAL_DATA=1 or $TMPDIR/macTEM-real-data.flag), then the owner's spectrum images under $MACEM_DATA/stem-edx
+EDXRoomRealDataTests.testWhyMgIsNotPickedOn1339And1840	real-data	opt-in (MACTEM_REAL_DATA=1 or $TMPDIR/macTEM-real-data.flag), then the owner's spectrum images under $MACEM_DATA/stem-edx
 EDXRoomRealDataTests.testAutoIDWithNothingSelectedOnWholeMap1456	real-data	opt-in (MACTEM_REAL_DATA=1 or $TMPDIR/macTEM-real-data.flag), then the owner's spectrum images under $MACEM_DATA/stem-edx
 EDXRoomRealDataTests.testAutoIDWithNothingSelectedOnWholeMap1840	real-data	opt-in (MACTEM_REAL_DATA=1 or $TMPDIR/macTEM-real-data.flag), then the owner's spectrum images under $MACEM_DATA/stem-edx
 EDXRoomRealDataTests.testDeselectAllThenAutoIDBringsTheSamePicksBack	real-data	opt-in (MACTEM_REAL_DATA=1 or $TMPDIR/macTEM-real-data.flag), then the owner's spectrum images under $MACEM_DATA/stem-edx
