@@ -21,8 +21,14 @@ nonisolated final class MarkKeysJourney: Journey {
         showInspector(waitingFor: "image.tool")
         element("image.tool").radioButtons["Distance"].firstMatch.click()
         waitFor("image.view").coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).click()
+        let cursor = waitFor("image.markCursor")
+        let start = (cursor.value as? String) ?? ""
         walk(.leftArrow, coarse: 10, fine: 2)
+        let moved = (cursor.value as? String) ?? ""
+        XCTAssertNotEqual(moved, start, "the ⌥-arrows did not move the cursor: \(moved)")
         app.typeKey(.return, modifierFlags: [])
+        let held = (cursor.value as? String) ?? ""
+        XCTAssertTrue(held.hasPrefix("Point 2 of 2"), "Return set no point: \(held)")
         walk(.rightArrow, coarse: 20, fine: 3)
         app.typeKey(.return, modifierFlags: [])
     }

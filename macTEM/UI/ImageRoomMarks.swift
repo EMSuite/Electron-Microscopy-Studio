@@ -86,6 +86,8 @@ struct ImageMarksOverlay: View {
     let label: (ImageMark) -> String
     /// Where a refused mark, move or width is said (`MarkRefusalText`): never a silent no-op.
     @Environment(AppState.self) private var appState
+    /// A press here gives the room's keyed container the keyboard (`ImageKeyedRoom`), for the mark cursor's keys and Escape.
+    @Environment(\.imageRoomFocus) private var roomFocus
 
     /// A press this close to a mark's end, in points, drags that end.
     static let handleRadius: CGFloat = 6
@@ -177,6 +179,7 @@ struct ImageMarksOverlay: View {
                                     current: geometry.clamped(geometry.imagePoint(atPanePoint: value.location)))
                 }
             }
+            .onChanged { _ in roomFocus.take() }
             .onEnded { value in
                 let here = geometry.clamped(geometry.imagePoint(atPanePoint: value.location))
                 if let grab = handle(near: value.startLocation, in: marks) {

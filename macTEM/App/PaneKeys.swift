@@ -445,6 +445,16 @@ struct CursorKeys {
     let set: @MainActor () -> Void
 }
 
+/// Gives the Image room's keyed container the keyboard: a press on the marks' overlay, whose own drag is a child gesture that the
+/// container's press gesture does not see (`SEMRoomKeys`, `SEMMapPress`). `ImageKeyedRoom` puts it in the environment.
+struct ImageRoomFocus {
+    let take: () -> Void
+}
+
+extension EnvironmentValues {
+    @Entry var imageRoomFocus = ImageRoomFocus(take: {})
+}
+
 /// The room's one keyboard target, bound by value as `SEMRoomFocus` binds its own (a Bool reads true while a descendant has it).
 enum PaneKeyTarget: Hashable {
     case room
@@ -488,6 +498,8 @@ struct ImageKeyedRoom: ViewModifier {
             // Any press on the pane (a click, a drag, the start of a pan) gives the room the keyboard, simultaneously, so the marks' and
             // the zoom's gestures are not disturbed (`FFTPanePress`, `SEMMapPress`).
             .simultaneousGesture(DragGesture(minimumDistance: 0).onChanged { _ in if focus != .room { focus = .room } })
+            // A press on a measuring tool's overlay is the overlay's drag: it takes the keyboard for the room itself.
+            .environment(\.imageRoomFocus, ImageRoomFocus { if focus != .room { focus = .room } })
     }
 
     /// The room's keys on the owners now, so a test drives the ones the room has: Escape routes while an angle's arm or a point the
