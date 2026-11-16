@@ -8,6 +8,7 @@
 
 # The display pipeline is MacEMUI's (its Colormaps.metal); the app holds no .metal file. The test of its export twin:
 macTEMTests/ImageExportGPUTests.swift	Metal	GPU image export vs CPU rendering
+macTEMTests/RoomMemoryTests.swift	Metal	the Metal device's allocated bytes, to name a texture held after a close (#713)
 
 # SEM: the float32 GPU paths of two numeric ports in TEMCore.
 Sources/TEMCore/SEM/MasterPattern/MasterPatternProjectionMetal.swift	Metal	SEM master pattern projection: the float32 GPU path of a numeric port that lives in TEMCore because the SEM program changes no kit; checked against the float64 CPU path
