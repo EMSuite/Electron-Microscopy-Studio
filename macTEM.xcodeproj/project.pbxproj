@@ -18,6 +18,7 @@
 		B00000000000000000000132 /* ShellInspector in Frameworks */ = {isa = PBXBuildFile; productRef = B00000000000000000000131 /* ShellInspector */; };
 		B00000000000000000000142 /* ShellLayout in Frameworks */ = {isa = PBXBuildFile; productRef = B00000000000000000000141 /* ShellLayout */; };
 		B00000000000000000000152 /* ShellSpectroscopy in Frameworks */ = {isa = PBXBuildFile; productRef = B00000000000000000000151 /* ShellSpectroscopy */; };
+		B00000000000000000000193 /* ShellEDXAgent in Frameworks */ = {isa = PBXBuildFile; productRef = B00000000000000000000192 /* ShellEDXAgent */; };
 		B00000000000000000000162 /* ShellEDXModel in Frameworks */ = {isa = PBXBuildFile; productRef = B00000000000000000000161 /* ShellEDXModel */; };
 		B00000000000000000000172 /* ShellAgentDoor in Frameworks */ = {isa = PBXBuildFile; productRef = B00000000000000000000171 /* ShellAgentDoor */; };
 		B00000000000000000000181 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = B00000000000000000000180 /* Sparkle */; };
@@ -94,6 +95,7 @@
 				B00000000000000000000132 /* ShellInspector in Frameworks */,
 				B00000000000000000000142 /* ShellLayout in Frameworks */,
 				B00000000000000000000152 /* ShellSpectroscopy in Frameworks */,
+				B00000000000000000000193 /* ShellEDXAgent in Frameworks */,
 				B00000000000000000000162 /* ShellEDXModel in Frameworks */,
 				B00000000000000000000172 /* ShellAgentDoor in Frameworks */,
 				B00000000000000000000181 /* Sparkle in Frameworks */,
@@ -163,6 +165,7 @@
 				B00000000000000000000131 /* ShellInspector */,
 				B00000000000000000000141 /* ShellLayout */,
 				B00000000000000000000151 /* ShellSpectroscopy */,
+				B00000000000000000000192 /* ShellEDXAgent */,
 				B00000000000000000000161 /* ShellEDXModel */,
 				B00000000000000000000171 /* ShellAgentDoor */,
 				B00000000000000000000180 /* Sparkle */,
@@ -842,6 +845,10 @@
 		B00000000000000000000151 /* ShellSpectroscopy */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = ShellSpectroscopy;
+		};
+		B00000000000000000000192 /* ShellEDXAgent */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ShellEDXAgent;
 		};
 		B00000000000000000000161 /* ShellEDXModel */ = {
 			isa = XCSwiftPackageProductDependency;
