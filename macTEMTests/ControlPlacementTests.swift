@@ -8,7 +8,6 @@
 
 import Foundation
 import XCTest
-@testable import macTEM
 
 nonisolated final class ControlPlacementTests: XCTestCase {
     private func ui(_ name: String) throws -> String { try FFTRoomWiringTests.squeezedUI(name) }
