@@ -2,13 +2,14 @@
 //  SettingsWindow.swift
 //  Role: the Settings scene (⌘,), built as mac4DSTEM's `SettingsWindow` is (control-placement §10): a `NavigationSplitView` with a
 //        sidebar of sections and a grouped `Form` beside it. A choice lives here, not in a room, when it changes no number in an open
-//        document and outlives the document: the SEM databar (Images, #626), the agent door (Agents) and, in the website download,
+//        document and outlives the document: the scroll wheel and the SEM databar (Images, #626), the agent door (Agents) and, in the website download,
 //        Software Update. Every value is a UserDefaults key read through `@AppStorage`, so each open window follows a change at once;
 //        this scene has no window's `AppState`.
 //
 //  `NavigationSplitView`, never `HSplitView`/`NSSplitView`, as the workspace split.
 //
 
+import ShellControls
 import ShellLayout
 import SwiftUI
 
@@ -79,6 +80,12 @@ struct ImageSettingsSection: View {
     @AppStorage(SEMImageSettings.cropDatabarKey) private var cropsDatabar = SEMImageSettings.cropDatabarDefault
 
     var body: some View {
+        // Control-placement §6: what the wheel does on every zoomable picture, the shared row both apps' Settings show (MacEMUI).
+        Section {
+            ScrollWheelSettingRow()
+        } footer: {
+            Text("Zoom about the pointer, as Velox, GMS and ImageJ do, or pan, the Mac's way. Hold ⌥ for the other.")
+        }
         Section {
             Toggle("Hide the SEM databar", isOn: $cropsDatabar)
                 .accessibilityIdentifier("settings.images.cropDatabar")
