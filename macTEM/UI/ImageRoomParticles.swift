@@ -179,9 +179,11 @@ private struct ParticleTableSheet: View {
     let scale: ParticleScale
     @State private var countedOnly = false
     @State private var sortOrder = [KeyPathComparator(\ParticleRow.id)]
+    @State private var rowsMemo = ParticleRowsMemo()
 
     var body: some View {
-        let rows = report.objects.map { ParticleRow($0, scale: scale) }.filter { !countedOnly || $0.counted }.sorted(using: sortOrder)
+        // Made once per objects, filter and order, not again on every selection (#623): the body reads the selection.
+        let rows = rowsMemo.rows(report.objects, scale: scale, countedOnly: countedOnly, sortOrder: sortOrder)
         // Read here, so Edit > Copy is offered and dimmed as the selection comes and goes.
         let selected = analysis.selectedLabel
         VStack(alignment: .leading, spacing: 10) {
@@ -224,27 +226,27 @@ struct ParticleOverlay: View {
     let analysis: ParticleAnalysis
     let geometry: MarkGeometry
     @State private var tint: CGImage?
+    @State private var pathsMemo = ParticleEllipseMemo()
 
     var body: some View {
         let report = analysis.showsObjects ? analysis.report : nil
         let preview = analysis.previewsMask ? analysis.maskPreview : nil
         let current = analysis.isCurrent
         let selected = analysis.selectedLabel
+        // The ellipses are built once per objects and selection in image coordinates and placed per frame by one affine map (#623).
+        let paths = report.map { pathsMemo.paths($0.objects, selected: selected) }
+        let toPane = geometry.imageToPane
         Canvas { ctx, _ in
             if let tint, preview != nil {
                 let a = geometry.panePoint(of: ImagePoint(x: -0.5, y: -0.5))
                 let b = geometry.panePoint(of: ImagePoint(x: Double(geometry.imageWidth) - 0.5, y: Double(geometry.imageHeight) - 0.5))
                 ctx.draw(Image(decorative: tint, scale: 1).interpolation(.none), in: CGRect(x: a.x, y: a.y, width: b.x - a.x, height: b.y - a.y))
             }
-            guard let report else { return }
-            for o in report.objects {
-                let m = o.moments
-                let path = Self.ellipse(m, geometry)
-                let isSelected = o.id == selected
-                let color: Color = isSelected ? .yellow : (o.isCounted ? .cyan : .gray)
-                ctx.stroke(path, with: .color(color.opacity(current ? 1 : 0.4)),
-                           style: StrokeStyle(lineWidth: isSelected ? 2.5 : 1.25, dash: o.isCounted || isSelected ? [] : [3, 3]))
-            }
+            guard let paths else { return }
+            let opacity = current ? 1.0 : 0.4
+            ctx.stroke(paths.other.applying(toPane), with: .color(Color.gray.opacity(opacity)), style: StrokeStyle(lineWidth: 1.25, dash: [3, 3]))
+            ctx.stroke(paths.counted.applying(toPane), with: .color(Color.cyan.opacity(opacity)), style: StrokeStyle(lineWidth: 1.25))
+            ctx.stroke(paths.selected.applying(toPane), with: .color(Color.yellow.opacity(opacity)), style: StrokeStyle(lineWidth: 2.5))
         }
         .allowsHitTesting(false)
         .task(id: preview?.version) {
@@ -265,20 +267,67 @@ struct ParticleOverlay: View {
         }
     }
 
-    /// The object's ellipse as a path in pane points: 64 points round the centroid, the long axis turned from +x toward +y.
-    static func ellipse(_ m: Segmentation.ObjectMoments, _ geometry: MarkGeometry) -> Path {
+    /// Adds the ellipse of `m` to `p` as its own closed subpath in image coordinates (pixel centres at whole numbers): 64 points round
+    /// the centroid, the long axis turned from +x toward +y. `MarkGeometry.imageToPane` places it on the pane.
+    static func addEllipse(_ m: Segmentation.ObjectMoments, to p: inout Path) {
         let a = m.axisMajorLength / 2, b = m.axisMinorLength / 2
         let t = m.orientationDegrees * .pi / 180
-        return Path { p in
-            for k in 0...64 {
-                let s = Double(k) / 64 * 2 * .pi
-                let u = a * cos(s), v = b * sin(s)
-                let q = ImagePoint(x: m.centroidCol + u * cos(t) - v * sin(t), y: m.centroidRow + u * sin(t) + v * cos(t))
-                let pt = geometry.panePoint(of: q)
-                if k == 0 { p.move(to: pt) } else { p.addLine(to: pt) }
-            }
-            p.closeSubpath()
+        for k in 0...64 {
+            let s = Double(k) / 64 * 2 * .pi
+            let u = a * cos(s), v = b * sin(s)
+            let pt = CGPoint(x: m.centroidCol + u * cos(t) - v * sin(t), y: m.centroidRow + u * sin(t) + v * cos(t))
+            if k == 0 { p.move(to: pt) } else { p.addLine(to: pt) }
         }
+        p.closeSubpath()
+    }
+}
+
+/// The overlay's ellipses in image coordinates, one path per stroke style, made again only when the objects or the selection change
+/// (#623), not per pan or zoom frame. Held in `@State`; not observed.
+final class ParticleEllipseMemo {
+    struct Paths {
+        var counted = Path(), other = Path(), selected = Path()
+    }
+    private var objects: [ParticleObject]?
+    private var selected: Int32?
+    private var made = Paths()
+    /// How many times the paths were built: a test pins that panning builds none.
+    private(set) var builds = 0
+
+    func paths(_ objects: [ParticleObject], selected: Int32?) -> Paths {
+        if objects == self.objects, selected == self.selected { return made }
+        var paths = Paths()
+        for o in objects {
+            if o.id == selected {
+                ParticleOverlay.addEllipse(o.moments, to: &paths.selected)
+            } else if o.isCounted {
+                ParticleOverlay.addEllipse(o.moments, to: &paths.counted)
+            } else {
+                ParticleOverlay.addEllipse(o.moments, to: &paths.other)
+            }
+        }
+        self.objects = objects
+        self.selected = selected
+        made = paths
+        builds += 1
+        return paths
+    }
+}
+
+/// The object table's rows, made again only when the objects, the scale, the Counted only filter or the order change (#623), not on
+/// every selection. Held in `@State`; not observed.
+final class ParticleRowsMemo {
+    private var key: (objects: [ParticleObject], scale: ParticleScale, countedOnly: Bool, sortOrder: [KeyPathComparator<ParticleRow>])?
+    private var made: [ParticleRow] = []
+    /// How many times the rows were made: a test pins that a selection makes none.
+    private(set) var builds = 0
+
+    func rows(_ objects: [ParticleObject], scale: ParticleScale, countedOnly: Bool, sortOrder: [KeyPathComparator<ParticleRow>]) -> [ParticleRow] {
+        if let key, key.objects == objects, key.scale == scale, key.countedOnly == countedOnly, key.sortOrder == sortOrder { return made }
+        made = objects.map { ParticleRow($0, scale: scale) }.filter { !countedOnly || $0.counted }.sorted(using: sortOrder)
+        key = (objects, scale, countedOnly, sortOrder)
+        builds += 1
+        return made
     }
 }
 

@@ -47,6 +47,15 @@ nonisolated struct MarkGeometry: Equatable {
                        y: pcy * z + Double(transform.offset.height) + Double(transform.paneSize.height) / 2)
     }
 
+    /// `panePoint(of:)` as one affine map, so a path built once in image coordinates is placed per frame without being rebuilt (#623).
+    var imageToPane: CGAffineTransform {
+        let w = Double(transform.imageBox.width), h = Double(transform.imageBox.height), z = Double(transform.zoom)
+        let kx = w / Double(imageWidth) * z, ky = h / Double(imageHeight) * z
+        let tx = (0.5 / Double(imageWidth) * w - w / 2) * z + Double(transform.offset.width) + Double(transform.paneSize.width) / 2
+        let ty = (0.5 / Double(imageHeight) * h - h / 2) * z + Double(transform.offset.height) + Double(transform.paneSize.height) / 2
+        return CGAffineTransform(a: kx, b: 0, c: 0, d: ky, tx: tx, ty: ty)
+    }
+
     /// `q` held inside the image (−0.5…W − 0.5 on each axis): a mark never ends off the pixels.
     func clamped(_ q: ImagePoint) -> ImagePoint {
         ImagePoint(x: min(max(q.x, -0.5), Double(imageWidth) - 0.5), y: min(max(q.y, -0.5), Double(imageHeight) - 0.5))
