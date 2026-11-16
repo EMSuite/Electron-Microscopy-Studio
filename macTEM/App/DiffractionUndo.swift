@@ -1,7 +1,7 @@
 //
 //  DiffractionUndo.swift
-//  Role: Edit > Undo for removing Diffraction room rings and spots (#325, after `MarkUndo` and `FFTSpotUndo`): ⌫ on a selected row, Remove
-//        and Remove All. The window's `UndoManager` comes from SwiftUI (`@Environment(\.undoManager)`) and is handed in by the view; a nil
+//  Role: Edit > Undo for removing Diffraction room rings and spots and for clearing the ring calibration (#325, after `MarkUndo` and
+//        `FFTSpotUndo`): ⌫ on a selected row, Remove, Remove All and the calibration's Clear. The window's `UndoManager` comes from SwiftUI (`@Environment(\.undoManager)`) and is handed in by the view; a nil
 //        manager registers nothing (a test, a harness). The target is the file's `DiffractionAnalysis`, never captured by the handler.
 //
 //        Undo puts the marks back as they were before the removal, the scale a calibrating ring set with them
@@ -24,6 +24,11 @@ enum DiffractionUndo {
     /// Removes every ring and spot ("Remove All Rings and Spots").
     static func removeAll(in analysis: DiffractionAnalysis, undoManager: UndoManager?) {
         change(in: analysis, undoManager: undoManager, actionName: "Remove All Rings and Spots") { analysis.removeAll() }
+    }
+
+    /// Clears the ring calibration ("Clear Calibration"); undo puts the scale and its family back.
+    static func clearCalibration(in analysis: DiffractionAnalysis, undoManager: UndoManager?) {
+        change(in: analysis, undoManager: undoManager, actionName: "Clear Calibration") { analysis.clearCalibration() }
     }
 
     private static func change(in analysis: DiffractionAnalysis, undoManager: UndoManager?, actionName: String, _ remove: () -> Void) {

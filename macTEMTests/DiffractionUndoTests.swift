@@ -1,7 +1,8 @@
 //
 //  DiffractionUndoTests.swift
 //  Edit > Undo for removing Diffraction room rings and spots (#325; App/DiffractionUndo.swift), on the planted Au pattern: a removed
-//  calibrating ring comes back with the scale it set; Remove All is one undo; redo removes again; an undo after a new mark does nothing.
+//  calibrating ring comes back with the scale it set; Remove All is one undo; Clear on the calibration is undone; redo removes again; an
+//  undo after a new mark does nothing.
 //  Red before: no undo registered, Edit > Undo always dimmed.
 //
 
@@ -80,6 +81,21 @@ nonisolated final class DiffractionUndoTests: XCTestCase {
         undo.undo()
         XCTAssertEqual(analysis.marks, now)
         XCTAssertFalse(undo.canRedo)
+    }
+
+    /// Clear on the calibration is undone: the scale and its family come back, the marks untouched; redo clears again.
+    @MainActor func testUndoPutsAClearedCalibrationBack() async throws {
+        let (analysis, _) = try await marked()
+        let before = analysis.marks
+        let undo = manager()
+        step(undo) { DiffractionUndo.clearCalibration(in: analysis, undoManager: undo) }
+        XCTAssertNil(analysis.ringCalibration)
+        XCTAssertEqual(analysis.rings.count, 1, "the ring stays")
+        XCTAssertEqual(undo.undoActionName, "Clear Calibration")
+        undo.undo()
+        XCTAssertEqual(analysis.marks, before, "the scale and its family")
+        undo.redo()
+        XCTAssertNil(analysis.ringCalibration)
     }
 
     /// Without a manager the removal still happens.
