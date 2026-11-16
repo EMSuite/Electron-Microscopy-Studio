@@ -411,6 +411,12 @@ struct MarkCursorAccessibility: ViewModifier {
         MarkCursorActions(image: session.imageOrBlank, measurements: measurements, kind: kind, basis: basis)
     }
 
+    private func placeAtCentre(_ kind: ImageMark.Kind) {
+        var cursor = state
+        actions(kind).placeAtCentre(&cursor)
+        if cursor != state { state = cursor }
+    }
+
     private func element(_ kind: ImageMark.Kind) -> some View {
         let now = actions(kind)
         let at = geometry.panePoint(of: MarkCursor.imagePoint(now.pixel(state)))
@@ -422,20 +428,9 @@ struct MarkCursorAccessibility: ViewModifier {
             .accessibilityLabel(MarkCursor.elementLabel(kind))
             .accessibilityValue(now.spokenValue(state, arm: angleArm))
             .accessibilityHint(now.hint)
-            .accessibilityAction(named: MarkCursor.placeActionName) {
-                var cursor = state
-                actions(kind).placeAtCentre(&cursor)
-                if cursor != state { state = cursor }
-            }
-            .accessibilityAction(named: MarkCursor.Move.left.actionName) { actions(kind).move(.left, fine: false, cursor: $state) }
-            .accessibilityAction(named: MarkCursor.Move.right.actionName) { actions(kind).move(.right, fine: false, cursor: $state) }
-            .accessibilityAction(named: MarkCursor.Move.up.actionName) { actions(kind).move(.up, fine: false, cursor: $state) }
-            .accessibilityAction(named: MarkCursor.Move.down.actionName) { actions(kind).move(.down, fine: false, cursor: $state) }
-            // The fine step (macEM#510): any pixel of a large picture is a few coarse steps and a few of these away.
-            .accessibilityAction(named: MarkCursor.Move.left.fineActionName) { actions(kind).move(.left, fine: true, cursor: $state) }
-            .accessibilityAction(named: MarkCursor.Move.right.fineActionName) { actions(kind).move(.right, fine: true, cursor: $state) }
-            .accessibilityAction(named: MarkCursor.Move.up.fineActionName) { actions(kind).move(.up, fine: true, cursor: $state) }
-            .accessibilityAction(named: MarkCursor.Move.down.fineActionName) { actions(kind).move(.down, fine: true, cursor: $state) }
+            .accessibilityAction(named: MarkCursor.placeActionName) { placeAtCentre(kind) }
+            // The coarse and the one-pixel moves (macEM#510).
+            .modifier(MarkCursorMoveActions(move: { step, fine in actions(kind).move(step, fine: fine, cursor: $state) }))
             .accessibilityAction(named: MarkCursorActions.setActionName) {
                 actions(kind).setPoint(cursor: $state, arm: $angleArm, refused: { SessionPanels.markRefused($0, .added, appState: appState) })
             }
@@ -448,6 +443,23 @@ struct MarkCursorAccessibility: ViewModifier {
             .accessibilityIdentifier("image.markCursor")
             .position(MarkCursor.elementCentre(at, in: geometry.transform.paneSize))
             .allowsHitTesting(false)
+    }
+}
+
+/// The eight move actions, the coarse step and the one-pixel step in each direction, in that order (one modifier, so the elements' chains
+/// stay short enough for the type checker).
+struct MarkCursorMoveActions: ViewModifier {
+    let move: @MainActor (MarkCursor.Move, Bool) -> Void
+
+    func body(content: Content) -> some View {
+        content.accessibilityActions {
+            ForEach(MarkCursor.Move.allCases, id: \.self) { step in
+                Button(step.actionName) { move(step, false) }
+            }
+            ForEach(MarkCursor.Move.allCases, id: \.self) { step in
+                Button(step.fineActionName) { move(step, true) }
+            }
+        }
     }
 }
 

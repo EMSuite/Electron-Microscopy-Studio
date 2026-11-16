@@ -421,15 +421,8 @@ private struct SpotCursorAccessibility: ViewModifier {
             .accessibilityValue(spoken)
             .accessibilityHint("Add spot here measures the spot at this point.")
             .accessibilityAction(named: MarkCursor.placeActionName) { place() }
-            .accessibilityAction(named: MarkCursor.Move.left.actionName) { move(.left, false) }
-            .accessibilityAction(named: MarkCursor.Move.right.actionName) { move(.right, false) }
-            .accessibilityAction(named: MarkCursor.Move.up.actionName) { move(.up, false) }
-            .accessibilityAction(named: MarkCursor.Move.down.actionName) { move(.down, false) }
-            // The fine step (macEM#510).
-            .accessibilityAction(named: MarkCursor.Move.left.fineActionName) { move(.left, true) }
-            .accessibilityAction(named: MarkCursor.Move.right.fineActionName) { move(.right, true) }
-            .accessibilityAction(named: MarkCursor.Move.up.fineActionName) { move(.up, true) }
-            .accessibilityAction(named: MarkCursor.Move.down.fineActionName) { move(.down, true) }
+            // The coarse and the one-pixel moves (macEM#510).
+            .modifier(MarkCursorMoveActions(move: move))
             .accessibilityAction(named: SpotCursorActions.addActionName) { add() }
             .accessibilityIdentifier("diffraction.spotCursor")
             .position(MarkCursor.elementCentre(layout.point(column: Double(pixel.x), row: Double(pixel.y)), in: layout.box))
