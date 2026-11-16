@@ -123,15 +123,15 @@ nonisolated final class RoomMemoryTests: XCTestCase {
     private struct Parts {
         var malloc: Int
         var metal: Int
-        var internal = 0
+        var anonymous = 0
         var compressed = 0
         var graphics = 0
         func minus(_ other: Parts) -> Parts {
-            Parts(malloc: malloc - other.malloc, metal: metal - other.metal, internal: internal - other.internal,
+            Parts(malloc: malloc - other.malloc, metal: metal - other.metal, anonymous: anonymous - other.anonymous,
                   compressed: compressed - other.compressed, graphics: graphics - other.graphics)
         }
         var words: String {
-            "malloc \(malloc), Metal \(metal), VM internal \(internal), compressed \(compressed), graphics \(graphics)"
+            "malloc \(malloc), Metal \(metal), VM internal \(anonymous), compressed \(compressed), graphics \(graphics)"
         }
     }
 
@@ -145,7 +145,7 @@ nonisolated final class RoomMemoryTests: XCTestCase {
             $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) { task_info(mach_task_self_, task_flavor_t(TASK_VM_INFO), $0, &count) }
         }
         if r == KERN_SUCCESS {
-            parts.internal = Int(info.internal)
+            parts.anonymous = Int(info.internal)
             parts.compressed = Int(info.compressed)
             parts.graphics = Int(info.ledger_tag_graphics_footprint)
         }
