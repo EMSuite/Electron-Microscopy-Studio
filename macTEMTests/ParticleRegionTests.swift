@@ -10,7 +10,6 @@ import XCTest
 import ImagoCore
 import TEMCore
 import TEMSession
-@testable import macTEM
 
 nonisolated final class ParticleRegionTests: XCTestCase {
     private func settings(_ region: PixelCrop?) -> ParticleSettings {
