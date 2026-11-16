@@ -7,7 +7,7 @@
 #   ebsd-bruker-nopatterns-h5ebsd.h5   ebsd-bruker-h5ebsd.h5 without Scan 0/EBSD/Data/RawPatterns
 #   ebsd-edax-nopatterns-h5ebsd.h5     ebsd-edax-h5ebsd.h5 without Scan 1/EBSD/Data/Pattern, and without the five schematic pictures of
 #                                      its Header/Coordinate System (850 KiB of RGB images no reader looks at)
-# macTEM refuses both in words until it reads their maps (EBSDH5ContentTests).
+# macEM reads the EDAX map (EBSDH5VendorMapTests); the Bruker one puts every point at one X and Y SAMPLE, so it is refused in words.
 import sys
 from pathlib import Path
 import h5py

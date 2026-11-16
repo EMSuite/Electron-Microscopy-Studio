@@ -175,7 +175,13 @@ nonisolated final class EBSDH5ReaderTests: XCTestCase {
                     try assertClose(map.euler[0][k], firstEuler[k], "\(fileName) first Euler \(k)")
                     try assertClose(map.euler[map.euler.count - 1][k], lastEuler[k], "\(fileName) last Euler \(k)")
                 }
+            } else if fixture.format == .edaxH5EBSD {
+                // kikuchipy 0.13.1 reads an empty crystal map here; macEM reads the map beside the patterns as the scan's .ang reads
+                // (#514, EBSDH5VendorMapTests).
+                XCTAssertEqual(dataset.crystalMap, try EBSDH5Reader.readVendorMap(url: url, layout: .edax), fileName)
             } else {
+                // kikuchipy reads an empty crystal map here. kikuchipy's Bruker files put every point at one X and Y SAMPLE, which lays
+                // out no map, so none comes with their patterns (#514).
                 XCTAssertNil(dataset.crystalMap, "\(fileName): kikuchipy reads an empty crystal map here")
             }
         }
