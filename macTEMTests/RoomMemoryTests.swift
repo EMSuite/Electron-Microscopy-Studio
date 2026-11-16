@@ -94,19 +94,22 @@ nonisolated final class RoomMemoryTests: XCTestCase {
 
         _ = try await openVisitClose(small, state: state, host: host)
         let before = Self.settledFootprint()
+        let regionsBefore = Self.settledRegions()
         let partsBefore = Self.parts()
         let open = try await openVisitClose(large, state: state, host: host)
 
         let stored = Self.side * Self.side * 2
         // An FFT stage already running when the file closed holds its copy until the stage ends (it stops between stages, #618): the
         // footprint is asked again for a few seconds, as the other rooms' check asks it (#713: one immediate read saw 9.5 to 12 MB).
-        let back = try await conditionHolds(within: 5) { Self.settledFootprint() - before < stored / 2 }
+        let back = try await conditionHolds(within: 5) { Self.settledRegions() - regionsBefore < stored / 2 }
         let after = Self.settledFootprint()
+        let regionsAfter = Self.settledRegions()
         let held = Self.parts().minus(partsBefore)
-        print("RoomMemoryTests image rooms: \(after - before) bytes over the baseline after the close (allowed \(stored / 2)); \(held.words)")
+        print("RoomMemoryTests image rooms: \(regionsAfter - regionsBefore) bytes of regions over the baseline after the close (allowed "
+              + "\(stored / 2)); footprint \(after - before); \(held.words)")
         XCTAssertGreaterThan(open - before, stored, "the measure sees the open image (\(open - before) bytes over the baseline)")
-        XCTAssertTrue(back, "after the close the footprint is \(after - before) bytes over the baseline; the image is \(stored) bytes as stored; "
-                      + "of it over their baselines (bytes): \(held.words) (#713: names which one holds it)")
+        XCTAssertTrue(back, "after the close the regions hold \(regionsAfter - regionsBefore) bytes over the baseline (footprint \(after - before)); "
+                      + "the image is \(stored) bytes as stored; of it over their baselines (bytes): \(held.words) (#713: names which one holds it)")
     }
 
     /// The footprint once malloc has handed its free pages back: a parse of many small values (an `.ang`'s 250 000 lines) leaves
@@ -115,6 +118,26 @@ nonisolated final class RoomMemoryTests: XCTestCase {
     private static func settledFootprint() -> Int {
         _ = malloc_zone_pressure_relief(nil, 0)
         return ImageStackTests.footprint()
+    }
+
+    /// What the process's own memory holds once malloc has handed its free pages back: the dirty and compressed pages of every VM
+    /// region (malloc's, Metal's, CoreGraphics', Accelerate's and the rest, by `mach_vm_region_recurse`) plus the graphics ledger
+    /// (IOSurface and GPU memory charged to the task). The close checks gate on it, not on the footprint: on CI the footprint stayed
+    /// 10 to 15 MB over its baseline after a close while no region's dirty and compressed pages grew by 1 MB and malloc in use grew
+    /// by under 0.1 MB (#713, PR 742's run, 16 Nov), so that residue lies outside the process's regions. A buffer, texture, surface or
+    /// malloc's kept free pages a room holds after its close are dirty pages in a region and show here.
+    private static func settledRegions() -> Int {
+        _ = malloc_zone_pressure_relief(nil, 0)
+        return bytesByTag().values.reduce(0, +) + graphicsLedger()
+    }
+
+    private static func graphicsLedger() -> Int {
+        var info = task_vm_info_data_t()
+        var count = mach_msg_type_number_t(MemoryLayout<task_vm_info_data_t>.size / MemoryLayout<integer_t>.size)
+        let r = withUnsafeMutablePointer(to: &info) {
+            $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) { task_info(mach_task_self_, task_flavor_t(TASK_VM_INFO), $0, &count) }
+        }
+        return r == KERN_SUCCESS ? Int(info.ledger_tag_graphics_footprint) : 0
     }
 
     /// Where a footprint lies: malloc's bytes in use (every zone) and the Metal device's allocations (textures and buffers; on Apple
@@ -143,7 +166,7 @@ nonisolated final class RoomMemoryTests: XCTestCase {
         var words: String {
             let tags = byTag.filter { abs($0.value) >= 1 << 20 }.sorted { abs($0.value) > abs($1.value) }.prefix(6)
                 .map { "\(RoomMemoryTests.tagName($0.key)) \($0.value)" }.joined(separator: ", ")
-            return "malloc \(malloc) (zones reserve \(reserved)), Metal \(metal), VM internal \(anonymous), compressed \(compressed), graphics \(graphics)"
+            return "regions \(byTag.values.reduce(0, +)), malloc \(malloc) (zones reserve \(reserved)), Metal \(metal), VM internal \(anonymous), compressed \(compressed), graphics \(graphics)"
                 + "; by VM tag (dirty + compressed, 1 MB or more): " + (tags.isEmpty ? "none" : tags)
         }
     }
@@ -271,22 +294,24 @@ nonisolated final class RoomMemoryTests: XCTestCase {
                                             target: DocumentTarget, state: AppState, host: NSView,
                                             use: @MainActor (AppState) async throws -> Void, busy: @MainActor (AppState) -> Bool,
                                             closed: @MainActor (AppState) -> Bool) async throws {
-        func settled() -> Int { Self.settledFootprint() }
         _ = try await cycle(small, rooms: rooms, target: target, state: state, host: host, use: use, busy: busy, closed: closed)
-        let before = settled()
+        let before = Self.settledFootprint()
+        let regionsBefore = Self.settledRegions()
         let partsBefore = Self.parts()
         let open = try await cycle(large, rooms: rooms, target: target, state: state, host: host, use: use, busy: busy, closed: closed)
         // What is freed off the main actor (a pass's last buffer) lands a moment after the close: asked again for a few seconds.
-        let back = try await conditionHolds(within: 5) { settled() - before < allowed }
-        let after = settled()
+        let back = try await conditionHolds(within: 5) { Self.settledRegions() - regionsBefore < allowed }
+        let after = Self.settledFootprint()
+        let regionsAfter = Self.settledRegions()
         if let seen {
             XCTAssertGreaterThan(open - before, seen, "\(name): the measure sees the open file (\(open - before) bytes over the baseline)")
         }
         let held = Self.parts().minus(partsBefore)
         // Logged on every run, so a green run shows the margin and the holders too (#713).
-        print("RoomMemoryTests \(name): \(after - before) bytes over the baseline after the close (allowed \(allowed)); \(held.words)")
-        XCTAssertTrue(back, "\(name): after the close the footprint is \(after - before) bytes over the baseline (\(open - before) while "
-                      + "open); allowed \(allowed); of it over their baselines (bytes): \(held.words) (#713)")
+        print("RoomMemoryTests \(name): \(regionsAfter - regionsBefore) bytes of regions over the baseline after the close (allowed "
+              + "\(allowed)); footprint \(after - before); \(held.words)")
+        XCTAssertTrue(back, "\(name): after the close the regions hold \(regionsAfter - regionsBefore) bytes over the baseline (footprint "
+                      + "\(after - before), \(open - before) while open); allowed \(allowed); of it over their baselines (bytes): \(held.words) (#713)")
     }
 
     /// A GMS DM4 spectrum image of `nx` × `ny` × `channels` int16 values, as `DM4TestFile` writes one: named "EDS SI" or "EELS SI"
