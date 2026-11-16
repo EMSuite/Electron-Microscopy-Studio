@@ -92,14 +92,24 @@ nonisolated final class RoomMemoryTests: XCTestCase {
         defer { window.contentView = nil; window.close() }
 
         _ = try await openVisitClose(small, state: state, host: host)
-        let before = ImageStackTests.footprint()
+        let before = Self.settledFootprint()
         let open = try await openVisitClose(large, state: state, host: host)
-        let after = ImageStackTests.footprint()
 
         let stored = Self.side * Self.side * 2
+        // An FFT stage already running when the file closed holds its copy until the stage ends (it stops between stages, #618): the
+        // footprint is asked again for a few seconds, as the other rooms' check asks it (#713: one immediate read saw 9.5 to 12 MB).
+        let back = try await conditionHolds(within: 5) { Self.settledFootprint() - before < stored / 2 }
+        let after = Self.settledFootprint()
         XCTAssertGreaterThan(open - before, stored, "the measure sees the open image (\(open - before) bytes over the baseline)")
-        XCTAssertLessThan(after - before, stored / 2,
-                          "after the close the footprint is \(after - before) bytes over the baseline; the image is \(stored) bytes as stored")
+        XCTAssertTrue(back, "after the close the footprint is \(after - before) bytes over the baseline; the image is \(stored) bytes as stored")
+    }
+
+    /// The footprint once malloc has handed its free pages back: a parse of many small values (an `.ang`'s 250 000 lines) leaves
+    /// freed pages in malloc's regions, which it returns only under pressure (CI, 14 Nov: 12 MiB, a whole number of MiB, after the
+    /// Maps room's close). Asked for at both ends of a check, so it is the same measure before and after.
+    private static func settledFootprint() -> Int {
+        _ = malloc_zone_pressure_relief(nil, 0)
+        return ImageStackTests.footprint()
     }
 
     // MARK: - The spectrum and SEM rooms
@@ -162,13 +172,7 @@ nonisolated final class RoomMemoryTests: XCTestCase {
                                             target: DocumentTarget, state: AppState, host: NSView,
                                             use: @MainActor (AppState) async throws -> Void, busy: @MainActor (AppState) -> Bool,
                                             closed: @MainActor (AppState) -> Bool) async throws {
-        // The footprint once malloc has handed its free pages back: a parse of many small values (an `.ang`'s 250 000 lines) leaves
-        // freed pages in malloc's regions, which it returns only under pressure (CI, 14 Nov: 12 MiB, a whole number of MiB, after the
-        // Maps room's close). Asked for at both ends, so it is the same measure before and after.
-        func settled() -> Int {
-            _ = malloc_zone_pressure_relief(nil, 0)
-            return ImageStackTests.footprint()
-        }
+        func settled() -> Int { Self.settledFootprint() }
         _ = try await cycle(small, rooms: rooms, target: target, state: state, host: host, use: use, busy: busy, closed: closed)
         let before = settled()
         let open = try await cycle(large, rooms: rooms, target: target, state: state, host: host, use: use, busy: busy, closed: closed)
