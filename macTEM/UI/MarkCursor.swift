@@ -189,12 +189,22 @@ nonisolated struct MarkCursorBasis: Equatable, Sendable {
     var width: Int
     var height: Int
     var version: Int
+
+    // Written out (not synthesized) so the unused-code scan sees the fields read.
+    static func == (a: Self, b: Self) -> Bool {
+        a.width == b.width && a.height == b.height && a.version == b.version
+    }
 }
 
 /// The picture and the tool's kind of mark (nil: Pan) that a held point belongs to.
 nonisolated struct MarkCursorScope: Equatable, Sendable {
     var basis: MarkCursorBasis
     var kind: ImageMark.Kind?
+
+    // Written out (not synthesized) so the unused-code scan sees the fields read.
+    static func == (a: Self, b: Self) -> Bool {
+        a.basis == b.basis && a.kind == b.kind
+    }
 }
 
 /// The Image room's cursor and the point Set point holds. The room keeps it beside its `AngleArm` (`ImagePane`); drawn nowhere.
