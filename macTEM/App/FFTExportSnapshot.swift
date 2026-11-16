@@ -38,11 +38,27 @@ nonisolated struct ExportTransformSnapshot: Sendable {
     /// Scale bar on, Spots on and offered only when there are some.
     let defaults: ExportImageDefaults
 
-    /// What the panel's OK does: this snapshot's own source, display and spots, to the chosen file.
-    nonisolated func write(to url: URL, options: ImageExport.Options) async throws -> ImageExport.Rendered {
-        try await ImageExport.export(source: FFTExport.transformSource(header), display: display, marks: marks, options: options,
-                                     provenance: FFTExport.transformProvenance(header, spotsDrawn: options.marks ? marks.count : 0),
-                                     to: url)
+    /// Whether the bins are not square in q, so the panel offers "As shown" (#636).
+    var offersAsShown: Bool {
+        !ExportSnapshot.aspectSentence(width: header.spectrumWidth, height: header.spectrumHeight, spacingX: header.spacingX,
+                                       spacingY: header.spacingY).isEmpty
+    }
+
+    /// What the panel's OK does: this snapshot's own source, display and spots, to the chosen file; with `asShown`, the picture
+    /// resampled to the shape the pane draws (`FFTExport.asShown`), else one pixel per bin.
+    nonisolated func write(to url: URL, options: ImageExport.Options, asShown: Bool = false) async throws -> ImageExport.Rendered {
+        let spotsDrawn = options.marks ? marks.count : 0
+        guard asShown else {
+            return try await ImageExport.export(source: FFTExport.transformSource(header), display: display, marks: marks, options: options,
+                                                provenance: FFTExport.transformProvenance(header, spotsDrawn: spotsDrawn), to: url)
+        }
+        let shown = FFTExport.asShown(display: display, marks: marks, header: header)
+        let bins = shown.header.spectrumWidth == header.spectrumWidth && shown.header.spectrumHeight == header.spectrumHeight
+            ? nil : (width: header.spectrumWidth, height: header.spectrumHeight)
+        return try await ImageExport.export(source: FFTExport.transformSource(shown.header), display: shown.display, marks: shown.marks,
+                                            options: options,
+                                            provenance: FFTExport.transformProvenance(shown.header, spotsDrawn: spotsDrawn, resampledFrom: bins),
+                                            to: url)
     }
 }
 
@@ -153,8 +169,9 @@ extension ExportSnapshot {
         return omitted > 0 ? "\(base) · \(omitted) not listed (refused, still measuring or no peak)" : base
     }
 
-    nonisolated static func transformDoneLine(name: String, width: Int, height: Int, spots: Int, barLeftOut: Bool) -> String {
-        let size = "\(width) × \(height) bins"
+    nonisolated static func transformDoneLine(name: String, width: Int, height: Int, spots: Int, barLeftOut: Bool,
+                                              asShown: Bool = false) -> String {
+        let size = asShown ? "\(width) × \(height) px as shown" : "\(width) × \(height) bins"
         let drawn = spots == 0 ? "" : (spots == 1 ? " (1 spot drawn)" : " (\(spots) spots drawn)")
         return barLeftOut ? "Exported \(name) without the scale bar (the transform is too small) — \(size)\(drawn)"
                           : "Exported \(name) — \(size)\(drawn)"

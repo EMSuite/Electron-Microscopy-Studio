@@ -7,8 +7,9 @@
 //    read never keeps the patterns from opening.
 //  - A map without patterns goes to the Maps room: AZtec's H5OINA map export (#513) and orix's own HDF5 file, read as orix 0.15.0
 //    reads it (ebsd-orix-map.truth.json, tools/parity/sem-readers/make_orix_map_fixtures.py): the points `is_in_data` keeps, and of a
-//    map with several rotations a point the first, the one orix shows.
-//  - An EDS-only H5OINA, and a Bruker or EDAX file saved without patterns (whose maps are not read yet), are refused in their sentences.
+//    map with several rotations a point the first, the one orix shows. So do a Bruker or EDAX file saved without patterns and EMsoft's
+//    dictionary indexing file (EBSDH5VendorMapTests).
+//  - An EDS-only H5OINA is refused in its sentence.
 //  Fixtures: tools/parity/sem-readers/make_h5oina_map_fixtures.py, make_orix_map_fixtures.py, make_h5ebsd_without_patterns.py.
 //  Red before: the EDS-only file and the files without patterns were refused as "neither a Velox file nor an EBSD scan … open it in
 //  mac4DSTEM" or with "could not find patterns in the expected dataset 'EBSD/Data/RawPatterns'."; the unprocessed-only scan with the
@@ -51,6 +52,8 @@ nonisolated final class EBSDH5ContentTests: XCTestCase {
         }
         let maps: [(String, EBSDH5Reader.MapLayout)] = [
             ("ebsd-oxford-map.h5oina", .oxford), ("ebsd-orix-map.h5", .orix), ("ebsd-orix-map-best2.h5", .orix), ("ebsd-orix-map-crop.h5", .orix),
+            ("ebsd-bruker-map.h5", .bruker), ("ebsd-bruker-nopatterns-h5ebsd.h5", .bruker), ("ebsd-edax-map.h5", .edax),
+            ("ebsd-edax-nopatterns-h5ebsd.h5", .edax), ("ebsd-emsoft-map.h5", .emsoft),
         ]
         for (name, layout) in maps {
             XCTAssertEqual(EBSDH5Reader.content(url: Self.fixture(name)), .map(layout), name)
@@ -59,10 +62,6 @@ nonisolated final class EBSDH5ContentTests: XCTestCase {
         let refused = [
             "ebsd-oxford-eds.h5oina": "ebsd-oxford-eds.h5oina holds EDS data from AZtec but no EBSD data. macEM does not read EDS from an "
                 + ".h5oina file yet; a spectrum AZtec exports as .msa opens in the EDS room.",
-            "ebsd-bruker-nopatterns-h5ebsd.h5": "ebsd-bruker-nopatterns-h5ebsd.h5 is a Bruker Esprit file saved without its EBSD patterns. "
-                + "macEM does not read its orientation map yet; the map exported as .ang or .ctf opens in the Maps room.",
-            "ebsd-edax-nopatterns-h5ebsd.h5": "ebsd-edax-nopatterns-h5ebsd.h5 is an EDAX OIM file saved without its EBSD patterns. "
-                + "macEM does not read its orientation map yet; the map exported as .ang opens in the Maps room.",
         ]
         for (name, sentence) in refused {
             XCTAssertEqual(EBSDH5Reader.content(url: Self.fixture(name)), .refused(sentence), name)

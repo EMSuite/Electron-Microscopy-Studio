@@ -80,6 +80,38 @@ nonisolated final class EDXRoomRealDataTests: XCTestCase {
 
     // MARK: Auto ID
 
+    /// DIAGNOSIS for MacEMUI#143 (prints only, asserts nothing about Mg): the kit's proposer on the whole map of 1339 and 1840, first with
+    /// nothing listed, then with Al and Si listed (Auto ID's second round), at the file's axis and the room's default width. Every
+    /// candidate within 0.3 keV of Mg K-alpha (1.254 keV) is printed with its net, sigma, L_D, flags and notes, and every refusal of Mg, so
+    /// the next step names why Mg is not picked (below L_D, a family or sum-peak hold, refused, or taken as an excess beside Al K-alpha).
+    @MainActor func testWhyMgIsNotPickedOn1339And1840() async throws {
+        for name in [Self.f1339, Self.f1840] {
+            let (s, loaded) = try await room(name)
+            await deselectAll(s)
+            let counts = s.spectrumCounts.map { Double($0) }
+            let axis = loaded.energyAxis
+            let beam = try XCTUnwrap(s.beamEnergy)
+            for listed in [[String](), ["Al", "Si"]] {
+                let settings = FitSettings.standard(elements: listed, axis: axis, resolutionMnKaEV: ElementWindows.defaultResolutionMnKaEV, beamEnergy: beam)
+                let r = try ElementProposer().propose(counts: counts, axis: axis, settings: settings)
+                say("MG \(name) listed [\(listed.joined(separator: " "))]: proposed \(r.proposed.map(\.element).joined(separator: " ")); "
+                    + "chi2r \(r.reducedChiSquared.map { String(format: "%.2f", $0) } ?? "-"); passes \(r.passes), settled \(r.settled)")
+                for c in r.candidates where abs(c.energyKeV - 1.254) < 0.3 || c.element == "Mg" {
+                    say(String(format: "MG   %@ %@ at %.3f keV: net %.0f, sigma %.0f, L_C %.0f, L_D %.0f, net/L_D %.2f, proposed %@, family %@, possible %@, sum %@, conflicts %@, misfit %.2f",
+                               c.element, c.group, c.energyKeV, c.net, c.sigma, c.criticalLevel, c.detectionLimit, c.significance,
+                               "\(c.isProposed)", c.familyNote ?? "-", c.possibleReason ?? "-", c.explainedBySumPeak ?? "-",
+                               c.conflicts.map { "\($0.kind)" }.joined(separator: ","), c.misfit))
+                }
+                for (element, reason) in r.refused where element == "Mg" { say("MG   refused Mg: \(reason)") }
+                for note in r.notes { say("MG   note: \(note)") }
+            }
+            let ruled = ProposalRules.shipped.apply(try ElementProposer().propose(
+                counts: counts, axis: axis,
+                settings: FitSettings.standard(elements: [], axis: axis, resolutionMnKaEV: ElementWindows.defaultResolutionMnKaEV, beamEnergy: beam)))
+            for w in ruled.withheld { say("MG   withheld \(w.candidate.element): \(w.rule.rawValue) \(w.why)") }
+        }
+    }
+
     /// RED TODAY, kept red: Mg is missed on 1339 (the proposer finds Al and Si, not Mg). Green when the picks hold Al, Mg, Si and none of Ba, Eu, Dy, Hf, Os.
     @MainActor func testAutoIDWithNothingSelectedOnWholeMap1339() async throws {
         let (s, _) = try await room(Self.f1339)

@@ -292,6 +292,13 @@ struct ImagePane: View {
                                      isEnabled: appState.imageRoomTools.tool != .pan)
             }
             .overlay {
+                // The Particles region to analyse (#110): its outline, and above the marks the drag that draws it while Draw Region is on.
+                ParticleRegionOverlay(analysis: item.particles,
+                                      geometry: MarkGeometry(transform: MetalDisplayTransform(paneSize: box, imageBox: box,
+                                                                                              zoom: zp.drawZoom, offset: zp.effectiveOffset),
+                                                             imageWidth: canvas.width, imageHeight: canvas.height))
+            }
+            .overlay {
                 // The cursor, for the eyes, once a key or an action has moved it (and a point it holds), while a tool is chosen.
                 if appState.imageRoomTools.tool.markKind != nil, markCursor.shown || markCursor.first != nil {
                     let geometry = MarkGeometry(transform: MetalDisplayTransform(paneSize: box, imageBox: box,

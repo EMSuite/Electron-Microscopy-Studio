@@ -47,7 +47,19 @@ package nonisolated enum FFTExport {
     }
 
     /// The Description's "fft" block and the two sentences that replace the image export's.
-    package static func transformProvenance(_ h: FFTExportHeader, spotsDrawn: Int) -> ImageExport.Provenance {
+    /// `resampledFrom`: the bins' own size when the PNG is the "As shown" picture (`asShown`), so the Description says so.
+    package static func transformProvenance(_ h: FFTExportHeader, spotsDrawn: Int,
+                                            resampledFrom bins: (width: Int, height: Int)? = nil) -> ImageExport.Provenance {
+        var provenance = binsProvenance(h, spotsDrawn: spotsDrawn)
+        if let bins {
+            provenance.fields["aspect_note"] = "As shown: the \(bins.width) x \(bins.height) bins resampled bilinearly to \(h.spectrumWidth) x "
+                + "\(h.spectrumHeight) square pixels, the shape the pane draws; dq_x and dq_y are per pixel of this PNG"
+            provenance.fields["resampled_from"] = "\(bins.width) x \(bins.height) bins"
+        }
+        return provenance
+    }
+
+    private static func binsProvenance(_ h: FFTExportHeader, spotsDrawn: Int) -> ImageExport.Provenance {
         let aspect = (Double(h.spectrumWidth) * h.spacingX) / (Double(h.spectrumHeight) * h.spacingY)
         return ImageExport.Provenance(
             fields: [
@@ -66,6 +78,52 @@ package nonisolated enum FFTExport {
                 "spots_drawn": String(spotsDrawn),
             ],
             validation: transformValidation, lineage: lineage)
+    }
+}
+
+extension FFTExport {
+    /// The transform as the pane draws it (#636, Paul 16 Nov: "As shown"): the bins resampled to square pixels in q, the finer of
+    /// Δq_x and Δq_y kept as the pixel's size, so one axis is stretched and none is thinned. Bilinear between bin centres; the spots
+    /// move with their bins; the header's size and steps become the picture's, so the scale bar is the pane's. Bins already square
+    /// come back unchanged. The analysis is untouched: this is the picture only.
+    package static func asShown(display: ImageExport.Display, marks: [ImageExport.Mark], header h: FFTExportHeader)
+        -> (display: ImageExport.Display, marks: [ImageExport.Mark], header: FFTExportHeader) {
+        let w = display.width, ht = display.height
+        let step = min(h.spacingX, h.spacingY)
+        guard w > 0, ht > 0, step > 0, h.spacingX.isFinite, h.spacingY.isFinite else { return (display, marks, h) }
+        let newW = max(1, Int((Double(w) * h.spacingX / step).rounded()))
+        let newH = max(1, Int((Double(ht) * h.spacingY / step).rounded()))
+        guard newW != w || newH != ht else { return (display, marks, h) }
+        let fx = Double(w) / Double(newW), fy = Double(ht) / Double(newH)
+        var out = [Float](repeating: 0, count: newW * newH)
+        display.normalized.withUnsafeBufferPointer { src in
+            for row in 0..<newH {
+                let y = min(max((Double(row) + 0.5) * fy - 0.5, 0), Double(ht - 1))
+                let y0 = Int(y), y1 = min(y0 + 1, ht - 1), ty = Float(y - Double(y0))
+                for col in 0..<newW {
+                    let x = min(max((Double(col) + 0.5) * fx - 0.5, 0), Double(w - 1))
+                    let x0 = Int(x), x1 = min(x0 + 1, w - 1), tx = Float(x - Double(x0))
+                    let top = src[y0 * w + x0] * (1 - tx) + src[y0 * w + x1] * tx
+                    let bottom = src[y1 * w + x0] * (1 - tx) + src[y1 * w + x1] * tx
+                    out[row * newW + col] = top * (1 - ty) + bottom * ty
+                }
+            }
+        }
+        var resampled = display
+        resampled.normalized = out
+        resampled.width = newW
+        resampled.height = newH
+        let moved = marks.map { mark in
+            var m = mark
+            m.points = mark.points.map { ImagePoint(x: ($0.x + 0.5) / fx - 0.5, y: ($0.y + 0.5) / fy - 0.5) }
+            return m
+        }
+        var header = h
+        header.spectrumWidth = newW
+        header.spectrumHeight = newH
+        header.spacingX = h.spacingX * fx
+        header.spacingY = h.spacingY * fy
+        return (resampled, moved, header)
     }
 }
 

@@ -22,6 +22,9 @@ final class ExportImageChoices {
     let offersMarks: Bool
     /// What the second checkbox draws: the Image room's marks, or the FFT room's measured spots.
     let kind: Kind
+    /// The FFT transform's "As shown" (#636): offered only when its bins are not square, off by default (one pixel per bin).
+    let offersAsShown: Bool
+    var asShown = false
 
     enum Kind: Sendable {
         case marks, spots
@@ -34,15 +37,17 @@ final class ExportImageChoices {
         var identifier: String { self == .marks ? "export.marksToggle" : "export.spotsToggle" }
     }
 
-    init(scaleBar: Bool, marks: Bool, offersMarks: Bool, kind: Kind = .marks) {
+    init(scaleBar: Bool, marks: Bool, offersMarks: Bool, kind: Kind = .marks, offersAsShown: Bool = false) {
         self.scaleBar = scaleBar
         self.marks = marks
         self.offersMarks = offersMarks
         self.kind = kind
+        self.offersAsShown = offersAsShown
     }
 
-    convenience init(_ defaults: ExportImageDefaults, kind: Kind = .marks) {
-        self.init(scaleBar: defaults.scaleBar, marks: defaults.marks, offersMarks: defaults.offersMarks, kind: kind)
+    convenience init(_ defaults: ExportImageDefaults, kind: Kind = .marks, offersAsShown: Bool = false) {
+        self.init(scaleBar: defaults.scaleBar, marks: defaults.marks, offersMarks: defaults.offersMarks, kind: kind,
+                  offersAsShown: offersAsShown)
     }
 }
 
@@ -65,6 +70,11 @@ struct ExportImageOptions: View {
                 Toggle(choices.kind.title, isOn: $choices.marks)
                     .help(choices.kind.help)
                     .accessibilityIdentifier(choices.kind.identifier)
+            }
+            if choices.offersAsShown {
+                Toggle("As shown", isOn: $choices.asShown)
+                    .help("Resample to the shape the room shows (square pixels in q); off, the PNG has one pixel per bin")
+                    .accessibilityIdentifier("export.asShownToggle")
             }
         }
         .toggleStyle(.checkbox)
