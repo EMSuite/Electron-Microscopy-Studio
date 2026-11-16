@@ -127,22 +127,11 @@ struct EELSRoom: View {
         }
         .onChange(of: state.importRequest) { showImporter = true }
         .onChange(of: session.fileName) { state.reset() }
-        .fileImporter(isPresented: $showImporter, allowedContentTypes: importTypes, allowsMultipleSelection: false) { result in
-            switch result {
-            case .success(let urls): if let url = urls.first { EELSDoor.open(url, in: appState) }
-            case .failure(let error): appState.present(error)
-            }
-        }
-        .fileExporter(isPresented: Binding(get: { state.exporting != nil }, set: { if !$0 { state.exporting = nil } }),
-                      document: EDXExportFile(data: state.exportData),
-                      contentType: state.exporting?.contentType ?? .commaSeparatedText,
-                      defaultFilename: (session.fileName as NSString).deletingPathExtension + (state.exporting?.suffix ?? "")) { result in
-            state.didFinishExport()
-            switch result {
-            case .success(let url): appState.statusText = "Exported \(url.lastPathComponent)"
-            case .failure(let error): appState.present(error)
-            }
-        }
+        .roomImporter(isPresented: $showImporter, types: importTypes, open: { EELSDoor.open($0, in: appState) })
+        .roomExporter(isPresented: Binding(get: { state.exporting != nil }, set: { if !$0 { state.exporting = nil } }),
+                      data: state.exportData, contentType: state.exporting?.contentType ?? .commaSeparatedText,
+                      defaultFilename: (session.fileName as NSString).deletingPathExtension + (state.exporting?.suffix ?? ""),
+                      didWrite: { _ in state.didFinishExport() }, didFinish: { state.didFinishExport() })
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("eels.room")
     }

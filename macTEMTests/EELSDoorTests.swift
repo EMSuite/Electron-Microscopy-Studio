@@ -98,7 +98,7 @@ nonisolated final class EELSDoorTests: XCTestCase {
     /// calling `session.open(url:)`.
     func testTheImporterHandsItsFileToTheAppsOpen() throws {
         let source = try FFTRoomWiringTests.squeezedUI("EELSRoom.swift")
-        XCTAssertTrue(source.contains("case .success(let urls): if let url = urls.first { EELSDoor.open(url, in: appState) }"))
+        XCTAssertTrue(source.contains(".roomImporter(isPresented: $showImporter, types: importTypes, open: { EELSDoor.open($0, in: appState) })"))
         XCTAssertTrue(source.contains("guard let opening = appState.open(urls: [url]) else { return nil }"))
         XCTAssertFalse(source.contains(".open(url:"), "the room opens the session nowhere itself")
     }

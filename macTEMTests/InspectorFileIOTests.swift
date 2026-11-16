@@ -126,13 +126,13 @@ nonisolated final class InspectorFileIOTests: XCTestCase {
     /// builds none. Red under: the document built in the `fileExporter` call again (the whole CSV on every body evaluation).
     func testTheParticlesCSVIsBuiltWhenExportIsPressed() throws {
         let section = try FFTRoomWiringTests.squeezedUI("ImageRoomParticles.swift")
-        XCTAssertTrue(section.contains("@State private var exportDocument: EDXExportFile?"))
+        XCTAssertTrue(section.contains("@State private var exportDocument: RoomExportFile?"))
         XCTAssertTrue(section.contains(
             ".fileExporter(isPresented: Binding(get: { exportDocument != nil }, set: { if !$0 { exportDocument = nil } }), "
                 + "document: exportDocument, contentType: .commaSeparatedText, defaultFilename: ParticleExport.baseName(of: image.fileName)) { result in"))
-        XCTAssertFalse(section.contains("document: EDXExportFile("), "no document made in the body")
+        XCTAssertFalse(section.contains("document: RoomExportFile("), "no document made in the body")
         XCTAssertTrue(section.contains("let text = csv(analysis) guard let directory = appState.exportDirectory else { "
-            + "exportDocument = EDXExportFile(data: Data(text.utf8)) return }"))
+            + "exportDocument = RoomExportFile(text: text) return }"))
         XCTAssertEqual(section.components(separatedBy: "csv(analysis)").count - 1, 1, "the CSV is built in one place, the export")
     }
 }

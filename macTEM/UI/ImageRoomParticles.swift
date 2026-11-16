@@ -25,7 +25,7 @@ struct ImageRoomParticlesSection: View {
     private var image: CalibratedImage { item.session.imageOrBlank }
     let rawRange: ClosedRange<Float>?
     /// The CSV the save panel writes: made when Export CSV… is pressed and dropped when the panel is done, so the body builds none.
-    @State private var exportDocument: EDXExportFile?
+    @State private var exportDocument: RoomExportFile?
     @Environment(\.openWindow) private var openWindow
     @Environment(AppState.self) private var appState
 
@@ -127,7 +127,7 @@ struct ImageRoomParticlesSection: View {
     private func export(_ analysis: ParticleAnalysis) {
         let text = csv(analysis)
         guard let directory = appState.exportDirectory else {
-            exportDocument = EDXExportFile(data: Data(text.utf8))
+            exportDocument = RoomExportFile(text: text)
             return
         }
         do {

@@ -168,10 +168,8 @@ final class IndexingRoomState {
                                  fileName: document.fileName)
         if let directory {
             let name = (document.fileName as NSString).deletingPathExtension + kind.suffix(layer: exportLayer)
-            let url = directory.appendingPathComponent(name).appendingPathExtension(kind.fileExtension)
             do {
-                try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-                try data.write(to: url)
+                let url = try ExportDirectoryFile.write(data, named: name + "." + kind.fileExtension, into: directory)
                 onWritten?(record.written(to: url, at: Date()))
                 report("Exported \(url.lastPathComponent)")
             } catch {
