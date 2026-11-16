@@ -78,59 +78,71 @@ package nonisolated enum ANGReader {
 
     package static func read(text: String, url: URL) throws -> ANGMap {
         let name = url.lastPathComponent
-        let lines = TextLines.split(text).map(String.init)   // LF, CRLF and CR, as Python's `open()` reads them for orix (#518)
+        // LF, CRLF and CR, as Python's `open()` reads them for orix (#518). Slices of `text`, never a String a line: a 250 000-line map
+        // made a quarter of a million small heap values (each line, its trimmed copy, its row of numbers) that lived to the end of the
+        // read, and the few values allocated between them kept malloc's regions after the close (#713: 60 MiB reserved, 15 MB held).
+        let lines = TextLines.split(text)
         // _get_header: the leading lines that start with '#', at most 1000, each rstripped.
         var headerLines: [String] = []
         for line in lines.prefix(1000) {
             guard line.hasPrefix("#") else { break }
-            headerLines.append(rstrip(line))
+            headerLines.append(rstrip(String(line)))
         }
         let header = parseHeader(headerLines)
         let (phaseFields, formulas) = try phasesFromHeader(headerLines)
 
-        // np.loadtxt: every line that is not blank and not a comment, split on whitespace, equal column counts.
-        var rows: [[Double]] = []
+        // np.loadtxt: every line that is not blank and not a comment, split on whitespace, equal column counts. The numbers go row by
+        // row into one array.
+        var values: [Double] = []
         var columnCount: Int?
         for (number, raw) in lines.enumerated() {
-            let line = raw.trimmingCharacters(in: .whitespaces)
+            let line = trimmedOfWhitespace(raw)
             if line.isEmpty || line.hasPrefix("#") { continue }
-            let fields = line.split(whereSeparator: { $0 == " " || $0 == "\t" })
-            var row: [Double] = []
-            row.reserveCapacity(fields.count)
-            for field in fields {
+            let rowStart = values.count
+            let bytes = line.utf8
+            var cursor = bytes.startIndex
+            while cursor < bytes.endIndex {
+                if bytes[cursor] == UInt8(ascii: " ") || bytes[cursor] == UInt8(ascii: "\t") { cursor = bytes.index(after: cursor); continue }
+                var fieldEnd = cursor
+                while fieldEnd < bytes.endIndex, bytes[fieldEnd] != UInt8(ascii: " "), bytes[fieldEnd] != UInt8(ascii: "\t") {
+                    fieldEnd = bytes.index(after: fieldEnd)
+                }
+                let field = line[cursor..<fieldEnd]
                 guard let value = Double(field) else {
                     throw ANGReadError(text: "\(name) line \(number + 1): '\(field)' is not a number.")
                 }
-                row.append(value)
+                values.append(value)
+                cursor = fieldEnd
             }
-            if let columnCount, columnCount != row.count {
-                throw ANGReadError(text: "\(name) line \(number + 1) has \(row.count) columns where the first row has \(columnCount).")
+            let count = values.count - rowStart
+            if let columnCount, columnCount != count {
+                throw ANGReadError(text: "\(name) line \(number + 1) has \(count) columns where the first row has \(columnCount).")
             }
-            columnCount = row.count
-            rows.append(row)
+            if columnCount == nil { values.reserveCapacity(count * (lines.count - number)) }
+            columnCount = count
         }
-        guard let columnCount, !rows.isEmpty else { throw ANGReadError(text: "\(name) has no data rows after its header.") }
+        guard let columnCount, columnCount > 0, !values.isEmpty else { throw ANGReadError(text: "\(name) has no data rows after its header.") }
 
         let (vendor, columnNames) = vendorColumns(headerLines, fileColumns: columnCount)
         guard columnNames.count <= columnCount else {
             throw ANGReadError(text: "\(name) has \(columnCount) columns; a \(vendor.rawValue) file needs at least \(columnNames.count) (\(columnNames.joined(separator: ", "))).")
         }
-        let n = rows.count
-        func column(_ i: Int) -> [Double] { rows.map { $0[i] } }
+        let n = values.count / columnCount
+        func column(_ i: Int) -> [Double] { (0..<n).map { values[$0 * columnCount + i] } }
         var euler = [SIMD3<Double>](repeating: .zero, count: n)
         var x = [Double](repeating: 0, count: n), y = [Double](repeating: 0, count: n)
         var phaseIDs = [Int](repeating: 0, count: n)
         var properties: [String: [Double]] = [:]
         for (i, columnName) in columnNames.enumerated() {
             switch columnName {
-            case "euler1": for k in 0..<n { euler[k].x = rows[k][i] }
-            case "euler2": for k in 0..<n { euler[k].y = rows[k][i] }
-            case "euler3": for k in 0..<n { euler[k].z = rows[k][i] }
+            case "euler1": for k in 0..<n { euler[k].x = values[k * columnCount + i] }
+            case "euler2": for k in 0..<n { euler[k].y = values[k * columnCount + i] }
+            case "euler3": for k in 0..<n { euler[k].z = values[k * columnCount + i] }
             case "x": x = column(i)
             case "y": y = column(i)
             case "phase_id":
                 for k in 0..<n {
-                    let value = rows[k][i]
+                    let value = values[k * columnCount + i]
                     guard value.isFinite, value == value.rounded(), abs(value) < 1e15 else {
                         throw ANGReadError(text: "\(name) row \(k + 1): the phase id '\(value)' is not an integer.")
                     }
@@ -352,6 +364,14 @@ package nonisolated enum ANGReader {
     /// `RotationConversions.eu2qu` (Sources/TEMCore/SEM/Orientation).
     package static func quaternion(fromBungeEuler eu: SIMD3<Double>) -> SIMD4<Double> {
         RotationConversions.eu2qu(eu)
+    }
+
+    /// `line` without the whitespace at its ends, as `trimmingCharacters(in: .whitespaces)` (scalar by scalar), as a slice.
+    private static func trimmedOfWhitespace(_ line: Substring) -> Substring {
+        var scalars = line.unicodeScalars
+        while let first = scalars.first, CharacterSet.whitespaces.contains(first) { scalars.removeFirst() }
+        while let last = scalars.last, CharacterSet.whitespaces.contains(last) { scalars.removeLast() }
+        return Substring(scalars)
     }
 
     private static func rstrip(_ line: String) -> String {

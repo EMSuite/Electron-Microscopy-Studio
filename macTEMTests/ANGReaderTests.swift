@@ -201,6 +201,28 @@ nonisolated final class ANGReaderTests: XCTestCase {
         XCTAssertThrowsError(try ANGReader.read(text: "# GRID: SqrGrid\n", url: URL(fileURLWithPath: "/tmp/e.ang")))
     }
 
+    /// The data lines as np.loadtxt splits them, read from slices of the text (#713): runs of spaces and tabs, blanks and
+    /// non-breaking spaces at the ends, CRLF and CR line ends, blank and comment lines between rows, and the line named in a refusal.
+    func testDataLinesSplitOnRunsOfBlanksWhateverTheLineEnds() throws {
+        let header = "# MaterialName  Al\r\n# Symmetry  43\r\n# LatticeConstants  4.05 4.05 4.05 90 90 90\r\n# GRID: SqrGrid\r\n"
+        let text = header + "  0.1\t 0.2  0.3 0 0 10 0.5 0 100 0.1\u{00A0}\r\n\r\n# a comment\r0.4 0.5 0.6\t\t1 0 10 0.7 0 100 0.2 \r\n"
+        let map = try ANGReader.read(text: text, url: URL(fileURLWithPath: "/tmp/f.ang"))
+        XCTAssertEqual(map.map.pointCount, 2)
+        XCTAssertEqual(map.map.euler.map(\.x), [0.1, 0.4])
+        XCTAssertEqual(map.map.euler.map(\.z), [0.3, 0.6])
+        XCTAssertEqual(map.map.allX, [0, 1])
+        XCTAssertEqual(map.map.properties["ci"], [0.5, 0.7])
+        XCTAssertEqual(map.map.properties["fit"], [0.1, 0.2])
+        let bad = header + "0.1 0.2 0.3 0 0 10 0.5 0 100 0.1\n0.1 x 0.3 0 0 10 0.5 0 100 0.1\n"
+        XCTAssertThrowsError(try ANGReader.read(text: bad, url: URL(fileURLWithPath: "/tmp/g.ang"))) { error in
+            XCTAssertEqual((error as? ANGReadError)?.text, "g.ang line 6: 'x' is not a number.")
+        }
+        let ragged = header + "0.1 0.2 0.3 0 0 10 0.5 0 100 0.1\n0.1 0.2\n"
+        XCTAssertThrowsError(try ANGReader.read(text: ragged, url: URL(fileURLWithPath: "/tmp/h.ang"))) { error in
+            XCTAssertEqual((error as? ANGReadError)?.text, "h.ang line 6 has 2 columns where the first row has 10.")
+        }
+    }
+
     func testAnUnexpectedColumnCountFallsBackToOrixsUnknownNames() throws {
         let text = "# Phase 1\n# MaterialName Ni\n# Symmetry 43\n# LatticeConstants 3.5 3.5 3.5 90 90 90\n" +
             "0.1 0.2 0.3 0 0 7 8 1 9 10 11\n0.1 0.2 0.3 1 0 7 8 1 9 10 11\n"
