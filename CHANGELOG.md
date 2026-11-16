@@ -3,6 +3,91 @@
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). App versions are tagged with a `v`
 (`v1.0.0`); release-please writes each new entry above the older ones from the merged pull requests' titles.
 
+## [2.1.0](https://github.com/macEMSuite/macEM/compare/v2.0.2...v2.1.0) (2026-11-16)
+
+
+### Features
+
+* a Settings window with sections; Settings &gt; Images holds the SEM databar choice ([#720](https://github.com/macEMSuite/macEM/issues/720)) ([68043db](https://github.com/macEMSuite/macEM/commit/68043dbc705430022b5bfcfe844343a130c4ddc4))
+* an optional zero-loss FWHM for EELS Fourier-ratio deconvolution ([#711](https://github.com/macEMSuite/macEM/issues/711)) ([b317077](https://github.com/macEMSuite/macEM/commit/b3170775e70e02d49141e3a1163693125b7405f9))
+* Check for Updates in the website download (Sparkle) ([#708](https://github.com/macEMSuite/macEM/issues/708)) ([6be8dd4](https://github.com/macEMSuite/macEM/commit/6be8dd42ae10effc16e6cfe3e60dc3674beae4ca))
+* Edit &gt; Undo for clearing the ring calibration and removing an EELS reference ([#722](https://github.com/macEMSuite/macEM/issues/722)) ([8a874c9](https://github.com/macEMSuite/macEM/commit/8a874c9f2909d8559161e76014d51afcc595d2a6))
+* Edit &gt; Undo for removing FFT spots ([#717](https://github.com/macEMSuite/macEM/issues/717)) ([9fc0ea1](https://github.com/macEMSuite/macEM/commit/9fc0ea1e736890dbfddcff67219270c894a5dc93))
+* Edit &gt; Undo puts back a removed Diffraction ring or spot ([#719](https://github.com/macEMSuite/macEM/issues/719)) ([6d84852](https://github.com/macEMSuite/macEM/commit/6d84852b55f9b73f999d8906dcff00ffa5278bdc))
+* Edit &gt; Undo puts back a removed Image room mark ([#712](https://github.com/macEMSuite/macEM/issues/712)) ([07d5131](https://github.com/macEMSuite/macEM/commit/07d51318fbdc2b43ee84b93f5191d4c61b84d033))
+* list only the current room's exports in the File menu ([#702](https://github.com/macEMSuite/macEM/issues/702)) ([53a56e0](https://github.com/macEMSuite/macEM/commit/53a56e0c9a3a34964b5357195a6ee460e9fbe0ac))
+* marks and spots by keyboard and VoiceOver: ⌥-arrows, Return and a one-pixel step ([#736](https://github.com/macEMSuite/macEM/issues/736)) ([0e9a654](https://github.com/macEMSuite/macEM/commit/0e9a654016f91e11ec20e1798a460e503f18f5d3))
+* name the App Store build Electron Microscopy Studio ([#745](https://github.com/macEMSuite/macEM/issues/745)) ([a9ceb8e](https://github.com/macEMSuite/macEM/commit/a9ceb8e7d249cb1124fa035f6b04a32f74b014b4))
+* Particles can analyse a region drawn on the image, and say when a render's burnt-in labels are found as objects ([#735](https://github.com/macEMSuite/macEM/issues/735)) ([793bed0](https://github.com/macEMSuite/macEM/commit/793bed022525b01667dbbe112ba53e07751bfa94))
+* Settings &gt; Images chooses what the scroll wheel does on a picture: Zoom or Pan ([#732](https://github.com/macEMSuite/macEM/issues/732)) ([9c7603a](https://github.com/macEMSuite/macEM/commit/9c7603ac0788b16d132110312a144fb3ca10e036))
+* the agent door's first tools that act (room, EDS picks and runs, EDS maps picture) ([#709](https://github.com/macEMSuite/macEM/issues/709)) ([f7d7193](https://github.com/macEMSuite/macEM/commit/f7d7193a45d897a08e0ca97f4ff472df919ed531))
+* the FFT transform PNG can be exported as shown, resampled to the room's shape ([#734](https://github.com/macEMSuite/macEM/issues/734)) ([0e917ff](https://github.com/macEMSuite/macEM/commit/0e917ffde5e4bc40085de5d18a3a99b88e91f704))
+
+
+### Bug Fixes
+
+* a background launch that came up with no window opens one ([#729](https://github.com/macEMSuite/macEM/issues/729)) ([142b31f](https://github.com/macEMSuite/macEM/commit/142b31f7a5acbbf6faf83d9db9cbf55cb8983bf1))
+* a cancelled texture stops between its figures instead of holding a closed map; the image rooms' memory check settles ([#716](https://github.com/macEMSuite/macEM/issues/716)) ([2bdf257](https://github.com/macEMSuite/macEM/commit/2bdf2572549de961378a94c51617f9e3b3ed4cbb))
+* a stack frame keeps the bit depth of its file ([#678](https://github.com/macEMSuite/macEM/issues/678)) ([cd770f6](https://github.com/macEMSuite/macEM/commit/cd770f6b87f2e3f89380426ab42ef7de3f95175f))
+* a stopped or superseded run ends before the next one starts, and never lands ([#688](https://github.com/macEMSuite/macEM/issues/688)) ([55f77b9](https://github.com/macEMSuite/macEM/commit/55f77b9152d17bb701248353365c8e184c577ee0))
+* a Velox EELS cube holds its counts as Floats where the file's values are exact in Float32 ([#677](https://github.com/macEMSuite/macEM/issues/677)) ([107b5f2](https://github.com/macEMSuite/macEM/commit/107b5f2acef5cbe724eea5ea2b78a6ca4fe4a88d))
+* an EBSD master pattern stays at its file's bit depth, so a uint8 one takes a quarter of the memory ([#682](https://github.com/macEMSuite/macEM/issues/682)) ([3650de3](https://github.com/macEMSuite/macEM/commit/3650de33ce729e04b39a47f36c610cec9a6295fb))
+* an image keeps the bit depth of its file, and an 8- or 16-bit image is drawn as stored ([#676](https://github.com/macEMSuite/macEM/issues/676)) ([6c1eef6](https://github.com/macEMSuite/macEM/commit/6c1eef6e1b5ca0efe5951c3a39b71f65e39393ae))
+* Bruker, EDAX and EMsoft .h5 maps without patterns open in the Maps room ([#737](https://github.com/macEMSuite/macEM/issues/737)) ([5c8d8f1](https://github.com/macEMSuite/macEM/commit/5c8d8f1a4fa8cba3fb44dcaa5584ab237775f442))
+* carry the lattice unit from the file to the Kikuchi overlay instead of guessing it ([#657](https://github.com/macEMSuite/macEM/issues/657)) ([b91d1a4](https://github.com/macEMSuite/macEM/commit/b91d1a405a008722b9814d49162e0b651ee0fd8b))
+* centre the ZLP shift tile on its flat bulk so far pixels on one side do not paint it solid ([#655](https://github.com/macEMSuite/macEM/issues/655)) ([542c8f8](https://github.com/macEMSuite/macEM/commit/542c8f89aa299cc109386b8039aa18f1df45056a))
+* closing a file cancels its running FFT jobs, so their image goes without waiting ([#669](https://github.com/macEMSuite/macEM/issues/669)) ([4d20f69](https://github.com/macEMSuite/macEM/commit/4d20f6989115b818ed3c30f4c223db48257b48a7))
+* closing a file cancels its running particle analysis, which stops between stages ([#675](https://github.com/macEMSuite/macEM/issues/675)) ([2e7c514](https://github.com/macEMSuite/macEM/commit/2e7c514756bfcd033056cc22d682c19354fe88a5))
+* closing a file, a window or a room lets go of every canvas and mask it held ([#668](https://github.com/macEMSuite/macEM/issues/668)) ([35a5738](https://github.com/macEMSuite/macEM/commit/35a5738a9af02c1b8d5912ed24b72e4558c3dec5))
+* damaged EDS and EBSD files are refused in words, and one flat pattern no longer stops a run ([#648](https://github.com/macEMSuite/macEM/issues/648)) ([ebc6177](https://github.com/macEMSuite/macEM/commit/ebc6177671bdb08f0c753a54a7ebe70d0c0d06bb))
+* demo files are replaced atomically and a damaged sidecar never reaches a force-unwrap ([#649](https://github.com/macEMSuite/macEM/issues/649)) ([ab24ff8](https://github.com/macEMSuite/macEM/commit/ab24ff8be059b2b8b4b06464d789a5399b673c4d))
+* **deps:** SpectroKit 0.14.3; results change: EDS absorption correction for a GMS file takes the tilt from the file's Stage Alpha and Beta, as exSpy does, so a tilted GMS file's quantified composition differs from 2.0.2 ([27224a1](https://github.com/macEMSuite/macEM/commit/27224a15490bed24776079e84a934e9e08e9126c))
+* **deps:** take MacEMUI 0.12.3, so the store build's agent door names its server with a space in the app name ([ca2d887](https://github.com/macEMSuite/macEM/commit/ca2d887499d0a5802027037f840c0efff2258fe8))
+* **deps:** take MacEMUI 0.12.3, so the store build's agent door works with a space in the app name ([#747](https://github.com/macEMSuite/macEM/issues/747)) ([ca2d887](https://github.com/macEMSuite/macEM/commit/ca2d887499d0a5802027037f840c0efff2258fe8))
+* dictionary indexing and refinement hold a block of patterns at its stored bit depth ([#684](https://github.com/macEMSuite/macEM/issues/684)) ([6568e8e](https://github.com/macEMSuite/macEM/commit/6568e8e252a1796724bf2d3c3eb50ee35a732cf0))
+* dictionary matches, orientation samples and pole figures stay within a stated size ([#671](https://github.com/macEMSuite/macEM/issues/671)) ([96faf2d](https://github.com/macEMSuite/macEM/commit/96faf2df9fd188fc80c5d56c012ba28f00cefd69))
+* drop a ring fit when the diffraction centre moves while it runs ([bd09a98](https://github.com/macEMSuite/macEM/commit/bd09a981d703e8aa9c975b22173f9b304ccf47ab))
+* EELS references take their edge from a row and From Region is a plain button ([#714](https://github.com/macEMSuite/macEM/issues/714)) ([51773f3](https://github.com/macEMSuite/macEM/commit/51773f3aed75298aa345497418b66c30cac06548))
+* exports, a refitted deconvolution, colour maps and overlay masters no longer hold memory after their use ([#670](https://github.com/macEMSuite/macEM/issues/670)) ([3ebb434](https://github.com/macEMSuite/macEM/commit/3ebb434639cc77e939f3c68c416a150baccf140b))
+* grain areas and the lineal intercept use both scan steps; results change: on a map whose x and y steps differ, grain areas, the mean lineal intercept and the ASTM grain size number differ from 2.0.2 ([1d6792b](https://github.com/macEMSuite/macEM/commit/1d6792ba0259b345a57a607515c14f14945d3a2c))
+* keep the IPF key's corner labels off the triangle in the Maps Key tab ([#728](https://github.com/macEMSuite/macEM/issues/728)) ([e3fd0a3](https://github.com/macEMSuite/macEM/commit/e3fd0a345794d2056b01ae893a15a44607b298e1))
+* make the quality maps from the processed scan once a Process run has landed; results change: after a Process run, the Image quality and Average dot product maps are of the processed patterns, not the stored ones as in 2.0.2 ([1f83a65](https://github.com/macEMSuite/macEM/commit/1f83a65a538b70b58cd302ddfa64fd726fb40bba))
+* Maps tabs full width, tiles and reference rows as buttons, departures named ([#724](https://github.com/macEMSuite/macEM/issues/724)) ([f34d8a9](https://github.com/macEMSuite/macEM/commit/f34d8a9a8247e7865909e1c6689ca1ffc2c81dc7))
+* NaN, zero and degenerate inputs in SEM indexing never crash or hang ([#646](https://github.com/macEMSuite/macEM/issues/646)) ([62a37ff](https://github.com/macEMSuite/macEM/commit/62a37ff4b591a5eef3782905812d7552a4141714))
+* no force-unwrap or try! can trap on a damaged file; the audit fails on a new one ([#662](https://github.com/macEMSuite/macEM/issues/662)) ([ec71df5](https://github.com/macEMSuite/macEM/commit/ec71df561f1219a5a78335dba4fc327c87e41030))
+* no inspector view holds a file's pixels, and a test fails one that does ([#673](https://github.com/macEMSuite/macEM/issues/673)) ([963ef78](https://github.com/macEMSuite/macEM/commit/963ef78e0d70aefd07679e83a37acc9ad3e4bf03))
+* pair a monoclinic m phase in Compare and sample the ODF without column aliasing ([#654](https://github.com/macEMSuite/macEM/issues/654)) ([06f844c](https://github.com/macEMSuite/macEM/commit/06f844ca258f13166d5329ddb4a00543d1762329))
+* pane hairlines use the system separator, so they show in light mode ([#710](https://github.com/macEMSuite/macEM/issues/710)) ([b337136](https://github.com/macEMSuite/macEM/commit/b337136fc7ba29afdfe904a22e157c2cedf9411a))
+* reading an .ang map leaves malloc nothing to keep after the map closes ([#731](https://github.com/macEMSuite/macEM/issues/731)) ([b50c5e8](https://github.com/macEMSuite/macEM/commit/b50c5e8208aacacae2c4f9b8098ab319403c4c58))
+* refuse the GND density on a map whose step is in no length unit ([#652](https://github.com/macEMSuite/macEM/issues/652)) ([54277c9](https://github.com/macEMSuite/macEM/commit/54277c9cdd367461f05b29bacb3054d0f04ce3db))
+* say when the projection centre, pixel size or sample tilt is assumed rather than read from the file ([#658](https://github.com/macEMSuite/macEM/issues/658)) ([584d817](https://github.com/macEMSuite/macEM/commit/584d817875a19f0e428cdaf706f93badeefb37e0))
+* tell a refused access by its code and show failed EBSD passes in an alert ([#704](https://github.com/macEMSuite/macEM/issues/704)) ([4db0e20](https://github.com/macEMSuite/macEM/commit/4db0e2097b6843684c8d2597b0c5a302e31a2e07))
+* the Diffraction room draws a pattern on a log scale from the file's own pixels ([#681](https://github.com/macEMSuite/macEM/issues/681)) ([0578aa3](https://github.com/macEMSuite/macEM/commit/0578aa377a9ca3e4232bc7cd88c53e6a23aa4462))
+* the EDS room's own Open goes through the app's Open ([#705](https://github.com/macEMSuite/macEM/issues/705)) ([bb38c7a](https://github.com/macEMSuite/macEM/commit/bb38c7a45a6993dd9b3d9723adc406bf2e87b58b))
+* the FFT room's View picker is the Display section's first row, not a control in the pane header ([#715](https://github.com/macEMSuite/macEM/issues/715)) ([53b3ee7](https://github.com/macEMSuite/macEM/commit/53b3ee707dc99262baa8f337a4ed6ff4f56ad777))
+* the FFT spectrum on a large image peaks at two thirds of the memory it took ([#741](https://github.com/macEMSuite/macEM/issues/741)) ([54836a7](https://github.com/macEMSuite/macEM/commit/54836a7a10f56041b098514bb14dbc787a64125a))
+* the store build's menu bar reads Microscopy Studio ([#748](https://github.com/macEMSuite/macEM/issues/748)) ([6482b4c](https://github.com/macEMSuite/macEM/commit/6482b4c14a8b5555df84adbdedc56402a9c504a9))
+* the store build's menu bar reads Microscopy Studio, as Version.xcconfig asks ([6482b4c](https://github.com/macEMSuite/macEM/commit/6482b4c14a8b5555df84adbdedc56402a9c504a9))
+* write the known acquisition values into .ang and .ctf and name the build in every SEM export ([#656](https://github.com/macEMSuite/macEM/issues/656)) ([0311e83](https://github.com/macEMSuite/macEM/commit/0311e830ed8741b9b998f008df765995e3dc1cb0))
+
+
+### Performance Improvements
+
+* build the Indexing results rows off the main actor ([#701](https://github.com/macEMSuite/macEM/issues/701)) ([5e6d6e9](https://github.com/macEMSuite/macEM/commit/5e6d6e9f897663fb3c3f8052e0608d81ec5567fd))
+* build the particle ellipses and table rows once per change ([#697](https://github.com/macEMSuite/macEM/issues/697)) ([0cb2eba](https://github.com/macEMSuite/macEM/commit/0cb2ebad7fed54a70a360f8681cb54431f830fcf))
+* count a dragged mark's lineage bytes from the replaced node ([#698](https://github.com/macEMSuite/macEM/issues/698)) ([e45ae82](https://github.com/macEMSuite/macEM/commit/e45ae8253ffbdb2ff1dbd614101c1ed1ece6cc66))
+* draw the Maps room's figures off the main actor ([#695](https://github.com/macEMSuite/macEM/issues/695)) ([89fc4cc](https://github.com/macEMSuite/macEM/commit/89fc4cca0ec459d7598d5e9619499f61c3a716e8))
+* encode the Patterns room's export pictures off the main actor ([#694](https://github.com/macEMSuite/macEM/issues/694)) ([f43cc82](https://github.com/macEMSuite/macEM/commit/f43cc82e9a93a4cb375329f3b59aebb445ff45cd))
+* keep the EELS background previews per spectrum and windows ([#699](https://github.com/macEMSuite/macEM/issues/699)) ([aa8a140](https://github.com/macEMSuite/macEM/commit/aa8a1408f3211ff4c4c4b2ce428d64089cc7f205))
+* make the Indexing room's export bytes off the main actor ([#693](https://github.com/macEMSuite/macEM/issues/693)) ([853f47f](https://github.com/macEMSuite/macEM/commit/853f47f8388eb97c2b598f4f720a4e2a30491372))
+* run FFT Find Spots off the main actor ([#700](https://github.com/macEMSuite/macEM/issues/700)) ([95d6cfb](https://github.com/macEMSuite/macEM/commit/95d6cfb17e4bfb76eab928a606e861d3b1c220ad))
+* set and write the SEM session report off the main actor ([#696](https://github.com/macEMSuite/macEM/issues/696)) ([7d56739](https://github.com/macEMSuite/macEM/commit/7d567393f6b1c2c57978814c80a943de32263ab2))
+* the agent door's get_image draws the picture at the asked size and encodes it once ([#733](https://github.com/macEMSuite/macEM/issues/733)) ([00ad87f](https://github.com/macEMSuite/macEM/commit/00ad87ff1b060ba47de09d13140b69328dcf0d48))
+* the FFT room draws its spectrum from 16-bit levels, half the memory ([#685](https://github.com/macEMSuite/macEM/issues/685)) ([c23cca2](https://github.com/macEMSuite/macEM/commit/c23cca2c079dd1ba17e5360267f751b6937572c2))
+* the Indexing room draws its map off the main actor and keeps its counts as rows land ([#692](https://github.com/macEMSuite/macEM/issues/692)) ([f04ed45](https://github.com/macEMSuite/macEM/commit/f04ed45169f41d56791d5ecbe8c16d7d220218df))
+* the Maps and Patterns views read numbers and pictures made once instead of on every draw ([#690](https://github.com/macEMSuite/macEM/issues/690)) ([812b776](https://github.com/macEMSuite/macEM/commit/812b776e42e642e7e6a74c740245e2095b844bae))
+* the Patterns room makes its map, tile, mix and pattern canvases off the main actor ([#689](https://github.com/macEMSuite/macEM/issues/689)) ([7453e03](https://github.com/macEMSuite/macEM/commit/7453e03e25cb4fcb251a3eb1a21a7708bf9f91cc))
+
 ## [2.0.2](https://github.com/mac4DSTEM/macTEM/compare/v2.0.1...v2.0.2) (2026-11-12)
 
 
