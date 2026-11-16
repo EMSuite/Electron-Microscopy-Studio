@@ -179,6 +179,7 @@ private struct DiffractionRingsSection: View {
     private var image: CalibratedImage { session.imageOrBlank }
     let analysis: DiffractionAnalysis
     let view: DiffractionViewState
+    @Environment(\.undoManager) private var undoManager
 
     var body: some View {
         InspectorSection("Rings and Spots") {
@@ -192,10 +193,10 @@ private struct DiffractionRingsSection: View {
             InspectorActionRow {
                 Button("Fit Ring") { PendingEdits.run { analysis.fitRing(image: image, inner: view.annulusInner, outer: view.annulusOuter) } }
                     .disabled(analysis.isFitting).accessibilityIdentifier("diffraction.fitRing")
-                Button("Remove") { if let id = view.selection { analysis.remove(id); view.selection = nil } }.disabled(view.selection == nil).accessibilityIdentifier("diffraction.remove")
+                Button("Remove") { if let id = view.selection { DiffractionUndo.remove(id, in: analysis, undoManager: undoManager); view.selection = nil } }.disabled(view.selection == nil).accessibilityIdentifier("diffraction.remove")
             }
             InspectorActionRow {
-                Button("Remove All") { analysis.removeAll() }.disabled(analysis.rings.isEmpty && analysis.spots.isEmpty)
+                Button("Remove All") { DiffractionUndo.removeAll(in: analysis, undoManager: undoManager) }.disabled(analysis.rings.isEmpty && analysis.spots.isEmpty)
             }
         }
     }

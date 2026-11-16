@@ -426,6 +426,7 @@ private struct DiffractionReadoutTable: View {
     let analysis: DiffractionAnalysis
     let view: DiffractionViewState
     let rows: [DiffractionReadoutRow]
+    @Environment(\.undoManager) private var undoManager
 
     private typealias Column = DiffractionReadoutFormat.Column
 
@@ -460,7 +461,7 @@ private struct DiffractionReadoutTable: View {
                     .accessibilityValue(row.verdict)
             }.width(min: 70, ideal: 90)
         }
-        .onDeleteCommand { if let id = view.selection { analysis.remove(id); view.selection = nil } }
+        .onDeleteCommand { if let id = view.selection { DiffractionUndo.remove(id, in: analysis, undoManager: undoManager); view.selection = nil } }
         // ⌘C and Edit > Copy: the selected ring or spot; dimmed with no row selected.
         .onCopyCommand(perform: rows.contains(where: { $0.id == selected }) ? { copied(selected) } : nil)
         .overlay {

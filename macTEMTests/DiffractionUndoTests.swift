@@ -1,0 +1,91 @@
+//
+//  DiffractionUndoTests.swift
+//  Edit > Undo for removing Diffraction room rings and spots (#325; App/DiffractionUndo.swift), on the planted Au pattern: a removed
+//  calibrating ring comes back with the scale it set; Remove All is one undo; redo removes again; an undo after a new mark does nothing.
+//  Red before: no undo registered, Edit > Undo always dimmed.
+//
+
+import Foundation
+import TEMCore
+import TEMSession
+import XCTest
+@testable import macTEM
+
+nonisolated final class DiffractionUndoTests: XCTestCase {
+    /// The Au pattern with {111} fitted and calibrating, and one spot.
+    @MainActor private func marked() async throws -> (DiffractionAnalysis, CalibratedImage) {
+        let image = DemoDocuments.diffractionPattern()
+        let analysis = DiffractionAnalysis()
+        analysis.bind(image)
+        let family = try XCTUnwrap(analysis.standardFamilies().first { $0.name == "{111}" })
+        await analysis.fitRing(image: image, inner: 29, outer: 37, calibrateOn: family.family)?.value
+        analysis.addSpot(image: image, row: 256, column: 256 + 55.48)
+        XCTAssertEqual(analysis.rings.count, 1)
+        XCTAssertEqual(analysis.spots.count, 1)
+        XCTAssertNotNil(analysis.ringCalibration, "the ring set the scale")
+        return (analysis, image)
+    }
+
+    @MainActor private func manager() -> UndoManager {
+        let manager = UndoManager()
+        manager.groupsByEvent = false
+        return manager
+    }
+
+    @MainActor private func step(_ undo: UndoManager, _ body: () -> Void) {
+        undo.beginUndoGrouping()
+        body()
+        undo.endUndoGrouping()
+    }
+
+    @MainActor func testUndoPutsACalibratingRingBackWithItsScale() async throws {
+        let (analysis, _) = try await marked()
+        let before = analysis.marks
+        let undo = manager()
+        step(undo) { DiffractionUndo.remove(analysis.rings[0].id, in: analysis, undoManager: undo) }
+        XCTAssertTrue(analysis.rings.isEmpty)
+        XCTAssertNil(analysis.ringCalibration, "removing the calibrating ring clears its scale")
+        XCTAssertEqual(undo.undoActionName, "Remove Ring")
+
+        undo.undo()
+        XCTAssertEqual(analysis.marks, before, "the ring, its id and the scale it set")
+        XCTAssertTrue(undo.canRedo)
+        undo.redo()
+        XCTAssertTrue(analysis.rings.isEmpty)
+        XCTAssertNil(analysis.ringCalibration)
+        undo.undo()
+        XCTAssertEqual(analysis.marks, before)
+    }
+
+    @MainActor func testRemoveAllIsOneUndo() async throws {
+        let (analysis, _) = try await marked()
+        let before = analysis.marks
+        let undo = manager()
+        step(undo) { DiffractionUndo.removeAll(in: analysis, undoManager: undo) }
+        XCTAssertTrue(analysis.rings.isEmpty && analysis.spots.isEmpty)
+        XCTAssertEqual(undo.undoActionName, "Remove All Rings and Spots")
+        undo.undo()
+        XCTAssertEqual(analysis.marks, before)
+        XCTAssertFalse(undo.canUndo, "one step")
+    }
+
+    /// A spot added after the removal is not lost to the undo: it does nothing and offers no redo.
+    @MainActor func testAnUndoAfterANewMarkDoesNothing() async throws {
+        let (analysis, image) = try await marked()
+        let undo = manager()
+        step(undo) { DiffractionUndo.remove(analysis.spots[0].id, in: analysis, undoManager: undo) }
+        XCTAssertEqual(undo.undoActionName, "Remove Spot")
+        analysis.addSpot(image: image, row: 256 - 55.48, column: 256)
+        let now = analysis.marks
+        undo.undo()
+        XCTAssertEqual(analysis.marks, now)
+        XCTAssertFalse(undo.canRedo)
+    }
+
+    /// Without a manager the removal still happens.
+    @MainActor func testWithoutAManagerTheRowIsStillRemoved() async throws {
+        let (analysis, _) = try await marked()
+        DiffractionUndo.remove(analysis.spots[0].id, in: analysis, undoManager: nil)
+        XCTAssertTrue(analysis.spots.isEmpty)
+    }
+}
