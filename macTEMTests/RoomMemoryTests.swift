@@ -162,7 +162,7 @@ nonisolated final class RoomMemoryTests: XCTestCase {
         var out: [UInt32: Int] = [:]
         var address: mach_vm_address_t = 0
         var depth: natural_t = 0
-        let page = Int(vm_page_size)
+        let page = Int(getpagesize())
         while true {
             var size: mach_vm_size_t = 0
             var info = vm_region_submap_info_data_64_t()
