@@ -17,8 +17,8 @@ import AppKit
 enum FolderPanels {
     /// The folder of `file` (or one around it) the person chose to let macTEM read, or nil when the panel was cancelled, or when
     /// the window has a sheet up already (a beep, as for a refused action).
-    static func askForFolder(of file: URL) async -> URL? {
-        guard let window = ExportPanels.hostWindow() else {
+    static func askForFolder(of file: URL, appState: AppState) async -> URL? {
+        guard let window = ExportPanels.hostWindow(for: appState) else {
             NSSound.beep()
             return nil
         }

@@ -61,6 +61,7 @@ final class AppWindows {
         onScreen.removeAll { $0 === state }
         state.windows = nil
         state.showWindow = nil
+        state.sheetWindow = nil
         if front === state { front = onScreen.last }
         if state.quitQuestion != nil, !parked.contains(where: { $0 === state }) { parked.append(state) }
         // The last-session record follows the windows still on screen; with none left it keeps what the last one held. Not while

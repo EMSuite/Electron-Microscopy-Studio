@@ -72,7 +72,7 @@ extension AppState {
                 let folder = FolderGrants.path(of: url.deletingLastPathComponent())
                 if answered[folder] == nil, FolderGrants.reaches(granted, file: url) { answered[folder] = true }
                 if answered[folder] == nil {
-                    let chosen = await FolderPanels.askForFolder(of: url)
+                    let chosen = await FolderPanels.askForFolder(of: url, appState: self)
                     if let chosen {
                         let bookmark = try? SecurityScopedBookmark.make(for: chosen)
                         FolderGrants.store(bookmark, forFolder: chosen)
