@@ -141,6 +141,10 @@ enum MacTEMAgentDoor {
     }
 
     static func image(_ appState: AppState, scale: Int) -> AgentToolOutput {
+        // Refused from the size first, as Export Image… is: never a full-size copy built on the main actor to be refused (#639).
+        if let refusal = ExportSnapshot.imageRefusal(in: appState.openItems) {
+            return .refusal(status: 413, message: refusal.localizedDescription)
+        }
         guard let snapshot = ExportSnapshot.imageSnapshot(in: appState.openItems) else {
             return .refusal(status: 404, message: "No image is shown: open a file in \(AppName.display), or wait until its read finishes.")
         }

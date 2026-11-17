@@ -162,6 +162,21 @@ nonisolated final class ExportSnapshotTests: XCTestCase {
                        "The image is 20000 \u{00D7} 300 px; export takes at most 16384 px a side.")
     }
 
+    /// An image above the limit is refused from its size before any snapshot: the snapshot's display values are a full-size
+    /// Float32 copy, built on the main actor and then refused by TEMCore (#639: 1.5 GB for the 19433 × 19320 alite TIFF).
+    /// Red under: the snapshot taken first (it was, and it built the copy).
+    @MainActor func testAnImageAboveTheLimitGetsNoSnapshotAndIsRefusedFromItsSize() {
+        let wide = Self.image(width: ImageExport.maximumSide + 1, height: 2)
+        let o = owners(wide)
+        XCTAssertNil(ExportSnapshot.imageSnapshot(image: wide, url: nil, presentation: o.presentation,
+                                                  measurements: o.measurements, software: Self.software),
+                     "no display values are built for a size the PNG cannot have")
+        let fits = Self.image(width: ImageExport.maximumSide, height: 2)
+        let f = owners(fits)
+        XCTAssertNotNil(ExportSnapshot.imageSnapshot(image: fits, url: nil, presentation: f.presentation,
+                                                     measurements: f.measurements, software: Self.software))
+    }
+
     // MARK: - Defaults and options
 
     /// The scale bar starts as the Display section's Show Scale Bar of THIS file, Marks start on and are offered only when
@@ -593,6 +608,27 @@ nonisolated final class ExportSnapshotTests: XCTestCase {
         let image = isA ? Self.image(fileName: "a.dm4") : Self.image(width: 5, height: 4, x: nil, y: nil, fileName: "b.dm4")
         return OpenedImage(image: image, canvas: AppState.canvas(for: image), metadata: AcquisitionMetadata(), url: url,
                            thumbnail: nil, bookmark: nil)
+    }
+
+    /// `imageRefusal(in:)` reads the selected file's size only: a file wider than the limit is refused by name, one that fits
+    /// and no file at all are not. Red under: the refusal read from the snapshot (none is built for a wide file, #639).
+    @MainActor func testTheSelectedImageIsRefusedFromItsSizeAlone() async throws {
+        let wide = URL(fileURLWithPath: "/data/one/wide.dm4"), b = URL(fileURLWithPath: "/data/two/b.dm4")
+        let items = OpenItems(identify: { FileIdentity(path: $0.path) }, reader: { request in
+            guard request.url.lastPathComponent == "wide.dm4" else { return Self.opened(request.url) }
+            let image = Self.image(width: ImageExport.maximumSide + 1, height: 2, fileName: "wide.dm4")
+            return OpenedImage(image: image, canvas: AppState.canvas(for: image), metadata: AcquisitionMetadata(), url: request.url,
+                               thumbnail: nil, bookmark: nil)
+        })
+        XCTAssertNil(ExportSnapshot.imageRefusal(in: items), "no file open, nothing refused")
+        items.open(urls: [wide, b])
+        await items.settled()
+        XCTAssertEqual(items.selected?.url, wide, "setup: the first file of a batch is selected")
+        XCTAssertEqual(ExportSnapshot.imageRefusal(in: items), .tooLarge(width: ImageExport.maximumSide + 1, height: 2))
+        XCTAssertNil(ExportSnapshot.imageSnapshot(in: items, software: Self.software))
+        let itemB = try XCTUnwrap(items.items.first { $0.url == b })
+        items.select(itemB.id)
+        XCTAssertNil(ExportSnapshot.imageRefusal(in: items))
     }
 
     // MARK: - A re-read file
