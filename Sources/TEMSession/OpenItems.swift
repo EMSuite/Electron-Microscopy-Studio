@@ -110,16 +110,41 @@ package nonisolated struct ImageSummary: Sendable, Equatable {
     }
 }
 
+/// Where an open stands, as the reader reports it: the pane under "Opening image" says which step runs, so a file that takes
+/// minutes (a 375 MB SEM TIFF, macEM#562) does not look stuck. In the order a read takes them.
+package nonisolated enum OpenStage: Int, Sendable, Comparable {
+    /// The file is read and decoded.
+    case reading
+    /// The display copy, the row's thumbnail and the pixels' identity are made.
+    case preparing
+    /// The sidecar beside the file is read for saved marks.
+    case checkingMarks
+
+    package static func < (a: OpenStage, b: OpenStage) -> Bool { a.rawValue < b.rawValue }
+
+    /// The line the opening pane shows.
+    package var sentence: String {
+        switch self {
+        case .reading: "Reading the file"
+        case .preparing: "Preparing the display"
+        case .checkingMarks: "Checking for saved marks"
+        }
+    }
+}
+
 /// One read the reader is asked for.
 package nonisolated struct ReadRequest: Sendable {
     package let url: URL
     /// The item's security-scoped bookmark, for the re-read of an evicted item (the reader resolves it, re-making a
     /// stale one, and scopes the read); nil for a file's first read, whose URL the sandbox granted just now.
     package let bookmark: Data?
+    /// Told, from the reader's own context, each time the read moves to a later stage (`OpenItem.openStage`).
+    package let stage: @Sendable (OpenStage) -> Void
 
-    package init(url: URL, bookmark: Data?) {
+    package init(url: URL, bookmark: Data?, stage: @escaping @Sendable (OpenStage) -> Void = { _ in }) {
         self.url = url
         self.bookmark = bookmark
+        self.stage = stage
     }
 }
 
@@ -340,6 +365,10 @@ package final class OpenItem: Identifiable {
     @ObservationIgnored fileprivate var readGeneration = 0
     @ObservationIgnored fileprivate var sessionToken = 0
     @ObservationIgnored fileprivate var readTask: Task<OpenedImage, any Error>?
+    /// The stage the running read last reported; nil while no read runs or before the reader reports one.
+    package private(set) var openStage: OpenStage?
+    /// When the running read started; nil while none runs. The opening pane counts the time from it.
+    package private(set) var openingSince: Date?
 
     fileprivate init(url: URL, fileIdentity: FileIdentity, lastSelected: Int) {
         self.url = url
@@ -422,12 +451,26 @@ package final class OpenItem: Identifiable {
         readGeneration &+= 1
         readFailure = nil
         residency = .reading
+        openStage = nil
+        openingSince = Date()
         sessionToken = session.beginOpen()
+    }
+
+    /// Takes a stage the reader reported for the read of `generation`: a later one only, and none after that read ended.
+    fileprivate func reached(_ stage: OpenStage, generation: Int) {
+        guard generation == readGeneration, residency == .reading, openStage.map({ stage > $0 }) ?? true else { return }
+        openStage = stage
+    }
+
+    private func endOpening() {
+        openStage = nil
+        openingSince = nil
     }
 
     /// Publishes a read's answer. `movedTo` is the identity of `opened.url` when the read found the file somewhere other
     /// than `url`; the item then follows it.
     fileprivate func publish(_ opened: OpenedImage, movedTo: FileIdentity?) {
+        endOpening()
         guard session.finishOpen(sessionToken, image: opened.image, url: opened.url, metadata: opened.metadata, sem: opened.sem) else { return }
         // Whether this is the file's first read, asked before `summary` is set below; a re-read of a cold item is not.
         let first = !hasBeenRead
@@ -468,6 +511,7 @@ package final class OpenItem: Identifiable {
 
     /// A re-read ended without pixels (failed, or dropped by the selection leaving): back to cold, saying why if it failed.
     fileprivate func endRead(failure: String?) {
+        endOpening()
         session.failOpen(sessionToken)
         readFailure = failure
         residency = .cold
@@ -537,6 +581,7 @@ package final class OpenItem: Identifiable {
         readGeneration &+= 1
         readTask?.cancel()
         readTask = nil
+        endOpening()
     }
 
     fileprivate func goCold() {
@@ -800,7 +845,10 @@ package final class OpenItems {
     private func drain() async {
         while let item = nextQueued() {
             let generation = item.readGeneration
-            let request = ReadRequest(url: item.url, bookmark: item.hasBeenRead ? item.bookmark : nil)
+            let request = ReadRequest(url: item.url, bookmark: item.hasBeenRead ? item.bookmark : nil) { stage in
+                // Held only for the read's life; a stage that lands after the read ended is dropped (`reached`).
+                Task { @MainActor in item.reached(stage, generation: generation) }
+            }
             let reader = self.reader
             let read = Task { try await reader(request) }
             item.readTask = read

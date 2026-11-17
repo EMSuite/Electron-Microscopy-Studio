@@ -119,13 +119,13 @@ struct WorkspaceView: View {
                     .stackArrowKeys(item: item, items: appState.openItems,
                                     enabled: ![.image, .diffraction].contains(appState.navigation.workspaceArea))
                     .overlay {
-                        if item.session.isLoading { loadingState.background(.regularMaterial) }
+                        if item.session.isLoading { loadingState(item).background(.regularMaterial) }
                     }
             } else if let failure = item.readFailure {
                 unreadableState(item, failure)
             } else {
                 // First read, or a cold item about to be read again once the selection rests.
-                loadingState
+                loadingState(item)
             }
         } else if appState.navigation.workspaceArea == .results, SEMSessionLedger.hasRows(appState) {
             // The Results room with no image open: the SEM session's rows alone (D-SEM-103); with nothing open, the welcome door.
@@ -146,17 +146,43 @@ struct WorkspaceView: View {
         .accessibilityIdentifier("welcome.unreadableStatus")
     }
 
-    private var loadingState: some View {
+    /// "Opening image", the stage the read reports and the time it has taken, and a Stop that closes the file (which cancels its
+    /// read): a 375 MB SEM TIFF takes long enough to look stuck without them (macEM#562).
+    private func loadingState(_ item: OpenItem) -> some View {
         VStack(spacing: 12) {
             ProgressView()
                 .controlSize(.small)
                 .accessibilityLabel("Opening image")
             Text("Opening image")
                 .font(.headline)
+            if let since = item.openingSince {
+                TimelineView(.periodic(from: since, by: 1)) { context in
+                    Text(OpeningStatus.line(stage: item.openStage, elapsed: context.date.timeIntervalSince(since)))
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
+                .accessibilityIdentifier("welcome.loadingStage")
+                Button("Stop") { appState.requestClose([item.id]) }
+                    .help("Stop opening \(item.url.lastPathComponent) and close it")
+                    .accessibilityLabel("Stop opening \(item.url.lastPathComponent)")
+                    .accessibilityIdentifier("welcome.stopOpening")
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("welcome.loadingStatus")
+    }
+}
+
+/// The line under "Opening image": the stage the reader reported, and from two seconds on the time the open has taken, so a quick
+/// open does not flash a clock. Pure, so a test holds it.
+nonisolated enum OpeningStatus {
+    static func line(stage: OpenStage?, elapsed: TimeInterval) -> String {
+        let step = (stage ?? .reading).sentence
+        guard elapsed >= 2 else { return step }
+        let seconds = Int(elapsed)
+        return "\(step) · \(seconds / 60):" + String(format: "%02d", seconds % 60)
     }
 }
 

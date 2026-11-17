@@ -58,6 +58,7 @@ nonisolated final class OpenItemsTests: XCTestCase {
         private var held: Set<String> = []
         private var ignoringCancellation: Set<String> = []
         private var relocations: [String: URL] = [:]
+        private var stagesByPath: [String: [OpenStage]] = [:]
         private var gates: [String: [CheckedContinuation<Void, Never>]] = [:]
         private var answered: [String: Int] = [:]
 
@@ -74,6 +75,8 @@ nonisolated final class OpenItemsTests: XCTestCase {
         func fail(_ url: URL, _ on: Bool = true) { if on { failing.insert(url.path) } else { failing.remove(url.path) } }
         func noBookmark(_ url: URL) { withoutBookmark.insert(url.path) }
         func hold(_ url: URL) { held.insert(url.path) }
+        /// Reports `stages`, in this order, on every read of `url`, before its gate.
+        func report(_ url: URL, _ stages: [OpenStage]) { stagesByPath[url.path] = stages }
         func ignoreCancellation(_ url: URL) { ignoringCancellation.insert(url.path) }
         /// Answers the reads of `url` as if its bookmark had resolved to `moved`.
         func relocate(_ url: URL, to moved: URL) { relocations[url.path] = moved }
@@ -119,6 +122,7 @@ nonisolated final class OpenItemsTests: XCTestCase {
             inFlight += 1
             maxInFlight = max(maxInFlight, inFlight)
             defer { inFlight -= 1 }
+            for stage in stagesByPath[path] ?? [] { request.stage(stage) }
             if held.contains(path) {
                 await withTaskCancellationHandler {
                     await withCheckedContinuation { gates[path, default: []].append($0) }
@@ -932,6 +936,46 @@ nonisolated final class OpenItemsTests: XCTestCase {
     }
 
     // MARK: - Cancellation
+
+    /// While a file opens, its item shows the latest stage its reader reported (an earlier one arriving late does not take it back)
+    /// and when the read started; both clear when the answer lands (macEM#562). Red under: `reached` not setting `openStage`, or
+    /// taking an earlier stage; `publish` not calling `endOpening()`; `beginReading` not setting `openingSince`.
+    @MainActor func testAnOpeningItemShowsItsReadersLatestStageUntilTheAnswerLands() async throws {
+        let fake = FakeReader()
+        await fake.hold(Self.a)
+        await fake.report(Self.a, [.reading, .checkingMarks, .preparing])
+        let items = makeItems(fake)
+        items.open(urls: [Self.a])
+        try await waitUntilHeld(fake, Self.a)
+        let a = try item(items, Self.a)
+        for _ in 0..<400 where a.openStage != .checkingMarks { try await Task.sleep(for: .milliseconds(5)) }
+        XCTAssertEqual(a.openStage, .checkingMarks, "the latest stage, not the late earlier one")
+        XCTAssertNotNil(a.openingSince, "the pane counts the time from the read's start")
+        await fake.release(Self.a)
+        await items.settled()
+        XCTAssertEqual(a.residency, .resident)
+        XCTAssertNil(a.openStage, "no stage once the image is shown")
+        XCTAssertNil(a.openingSince)
+    }
+
+    /// Stop on the opening pane closes the file: its read is cancelled and nothing of it is left. Red under: `cancelRead`
+    /// not calling `endOpening()` (the closed item keeps its stage), or closing not cancelling the read.
+    @MainActor func testStoppingAnOpenCancelsItsReadAndClearsItsStage() async throws {
+        let fake = FakeReader()
+        await fake.hold(Self.a)
+        await fake.report(Self.a, [.reading])
+        let items = makeItems(fake)
+        items.open(urls: [Self.a])
+        try await waitUntilHeld(fake, Self.a)
+        let a = try item(items, Self.a)
+        items.close(a.id)
+        let cancelled = await fake.untilCancelled(Self.a)
+        XCTAssertTrue(cancelled, "the reader is told to stop")
+        await items.settled()
+        XCTAssertTrue(items.items.isEmpty)
+        XCTAssertNil(a.openStage)
+        XCTAssertNil(a.openingSince)
+    }
 
     /// A reader that checks its cancellation (the fake does, at its gate) ends at once, and the queue behind it moves on
     /// without waiting for a release. Red under: closing an item not cancelling its read (`item.cancelRead()` removed
