@@ -1,6 +1,6 @@
 //
 //  MapsKeyLayoutTests.swift
-//  The Maps room's IPF key: no corner label covers the key (macEMSuite/macEM#725: "[1̄11]" sat on the m-3m triangle's top). Red
+//  The Maps room's IPF key: no corner label covers the key (EMSuite/Electron-Microscopy-Studio#725: "[1̄11]" sat on the m-3m triangle's top). Red
 //  before: `MapsKeyLayout` did not exist and the labels sat 8 pt below their corner, inside the key for a corner on its top edge.
 //
 

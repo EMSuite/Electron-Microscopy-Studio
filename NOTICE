@@ -15,7 +15,7 @@ Code copied from mac4DSTEM
 ================================================================================
 
 Parts of the app shell, the scripts and the CI workflow are adapted from mac4DSTEM
-(https://github.com/mac4DSTEM/mac4DSTEM), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only; such a file says so in its
+(https://github.com/EMSuite/4DSTEM-Studio), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only; such a file says so in its
 first lines. mac4DSTEM's own third-party notices
 (py4DSTEM, HyperSpy/eXSpy) apply to the parts it ported and are in its NOTICE.
 
@@ -192,7 +192,7 @@ sdss_ferrite_austenite.ang (both CC BY 4.0).
 SpectroKit (a Swift package the app is built with)
 ================================================================================
 
-The app links SpectroKit (https://github.com/mac4DSTEM/SpectroKit, tag 0.15.0, commit
+The app links SpectroKit (https://github.com/EMSuite/SpectroKit, tag 0.15.0, commit
 d21ee9832f063adf7b665c55ffc2eeab7c66a739), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only, for the EDS and EELS rooms: the spectrum image, line
 windows and maps, Auto ID, the pooled Cliff-Lorimer quantification, and the EELS alignment, thickness and edge fits. The app embeds its resource bundle
 `SpectroKit_SpectroEDX.bundle` in Contents/Resources: the NIST EPQ mass-absorption, line-weight, ionisation cross-section and Krause fluorescence-yield
@@ -205,7 +205,7 @@ table eXSpy uses, values unchanged (SpectroKit's NOTICE). Its eXSpy/HyperSpy and
 FormatoKit (a Swift package the app is built with)
 ================================================================================
 
-The app links FormatoKit (https://github.com/mac4DSTEM/FormatoKit, tag 0.17.0, commit
+The app links FormatoKit (https://github.com/EMSuite/FormatoKit, tag 0.17.0, commit
 20c61674a4f1924b2fb98b6dda3d41572f6661b0), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only, for its DM3/DM4, Velox EMD, TIFF
 and MRC readers and its HDF5 layer, which SpectroKit held until 0.4.0, including the root-attribute file layer
 (`HDF5RootAttributes`) the session sidecar is written and read through since FormatoKit 0.5.0: it was this app's own HDF5 binding (an adapted
@@ -229,7 +229,7 @@ Both texts ship in the application bundle at `Contents/Resources/Licenses/` with
 DiffractoKit (a Swift package the app is built with)
 ================================================================================
 
-The app links DiffractoKit (https://github.com/mac4DSTEM/DiffractoKit, tag 0.15.1, commit
+The app links DiffractoKit (https://github.com/EMSuite/DiffractoKit, tag 0.15.1, commit
 76ea90dc889551f547b4708b754b6f2a69e9a942), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only, for crystal structures, the CIF
 import, kinematic reflection lists, ring and ellipse calibration and the indexing of a measured |q|. Its scattering table and lattice conventions are py4DSTEM's (GPL-3.0); pymatgen (MIT) was
 its oracle and none of its code is copied. Its own third-party notices are in its NOTICE.
@@ -238,7 +238,7 @@ its oracle and none of its code is copied. Its own third-party notices are in it
 ImagoKit (a Swift package the app is built with)
 ================================================================================
 
-The app links ImagoKit (https://github.com/mac4DSTEM/ImagoKit, tag 0.11.0, commit
+The app links ImagoKit (https://github.com/EMSuite/ImagoKit, tag 0.11.0, commit
 4af4d49816d6d0fa55975faba48c403a2ac9240f), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only, for the exact-length 2D FFT, the
 centred power spectrum, the radial profile, the spot spacing, the masked inverse FFT, the HRTEM filters, line profiles and the
 histogram. Its references are NumPy, SciPy and scikit-image; none of their code is copied. Its own notices are in its NOTICE.
@@ -247,7 +247,7 @@ histogram. Its references are NumPy, SciPy and scikit-image; none of their code 
 MacEMUI (a Swift package the app is built with)
 ================================================================================
 
-The app links MacEMUI (https://github.com/mac4DSTEM/MacEMUI, tag 0.12.3, commit
+The app links MacEMUI (https://github.com/EMSuite/MacEMUI, tag 0.12.3, commit
 116744ed3a5d0a20b5b7bfec347501525243648b), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only: the window shell, the
 inspector, the controls, the Metal image view, the EDS room and the agent door macEM shares with mac4DSTEM.
 

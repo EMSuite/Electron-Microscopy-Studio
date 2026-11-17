@@ -1,6 +1,6 @@
 //
 //  LaunchWindowTests.swift
-//  A background launch that came up with no window opens one itself (macEMSuite/macEM#727): File > New Window, as ⌘N did in the
+//  A background launch that came up with no window opens one itself (EMSuite/Electron-Microscopy-Studio#727): File > New Window, as ⌘N did in the
 //  drive. Red before: `LaunchWindow` did not exist.
 //
 

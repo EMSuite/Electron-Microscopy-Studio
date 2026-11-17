@@ -19,7 +19,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 
     /// A launch in the background (`open -g`, with `--open` or `--demo-fixture` or none) sometimes came up with no window at all until
-    /// ⌘N (macEMSuite/macEM#727, driven 2026-11-16): `defaultLaunchBehavior(.presented)` did not present one. A moment after the
+    /// ⌘N (EMSuite/Electron-Microscopy-Studio#727, driven 2026-11-16): `defaultLaunchBehavior(.presented)` did not present one. A moment after the
     /// launch, with no window on screen and none enrolled, the app chooses File > New Window itself, as ⌘N did, so the window and its
     /// launch file arrive. AppKit: SwiftUI's scene API has no launch hook that can open a window without a view.
     func applicationDidFinishLaunching(_ notification: Notification) {
