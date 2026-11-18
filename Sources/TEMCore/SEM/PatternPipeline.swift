@@ -695,7 +695,7 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
                           "reference": "pyebsdindex 0.3.10.1"])
         }
         let root: [String: Any] = [
-            "software": "macEM", "reference": "kikuchipy 0.13.1", "file": fileName,
+            "software": AppName.writer, "reference": "kikuchipy 0.13.1", "file": fileName,
             "scan": [dataset.scanRows, dataset.scanColumns], "pattern": [dataset.patternRows, dataset.patternColumns],
             "dtype": dataset.dataType.rawValue, "steps": steps,
         ]

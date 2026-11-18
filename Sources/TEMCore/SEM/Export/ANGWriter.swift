@@ -33,7 +33,7 @@ package nonisolated enum ANGWriter {
         package var acquisition: CrystalMapAcquisition?
 
         package init(imageQuality: String? = nil, confidenceIndex: String? = nil, detectorSignal: String? = nil, patternFit: String? = nil,
-                     extraProperties: [String] = [], operatorName: String = "macEM", acquisition: CrystalMapAcquisition? = nil) {
+                     extraProperties: [String] = [], operatorName: String = AppName.writer, acquisition: CrystalMapAcquisition? = nil) {
             self.imageQuality = imageQuality; self.confidenceIndex = confidenceIndex; self.detectorSignal = detectorSignal
             self.patternFit = patternFit; self.extraProperties = extraProperties; self.operatorName = operatorName
             self.acquisition = acquisition

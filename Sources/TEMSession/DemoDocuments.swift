@@ -100,12 +100,15 @@ package nonisolated enum DemoDocuments {
 
     /// The folders in the app's temporary folder that Help > Open Demo Data writes its on-disk demos to (the stack, the SEM image, the
     /// spectrum): opened through the File menu's own path, but scratch, never a folder to save into (#507).
-    package static let writtenFolders = ["macEM-demo-stack", "macEM-demo-sem", "macEM-demo-spectrum"]
+    package static let writtenFolders = ["Electron-Microscopy-Studio-demo-stack", "Electron-Microscopy-Studio-demo-sem",
+                                         "Electron-Microscopy-Studio-demo-spectrum"]
+    /// The folders' names up to 2.1.0 (#764): a recent file or last session recorded there is still a demo, never a folder to save into.
+    package static let olderWrittenFolders = ["macEM-demo-stack", "macEM-demo-sem", "macEM-demo-spectrum"]
 
     /// Whether `url` is one of the on-disk demo files (`writtenFolders`, in the temporary folder).
     package static func isWrittenDemo(_ url: URL) -> Bool {
         let folder = url.deletingLastPathComponent()
-        guard writtenFolders.contains(folder.lastPathComponent) else { return false }
+        guard (writtenFolders + olderWrittenFolders).contains(folder.lastPathComponent) else { return false }
         let tmp = FileManager.default.temporaryDirectory.resolvingSymlinksInPath().standardizedFileURL.pathComponents
         return folder.deletingLastPathComponent().resolvingSymlinksInPath().standardizedFileURL.pathComponents == tmp
     }
@@ -488,7 +491,7 @@ package nonisolated enum DemoDocuments {
         }
         let detector = EBSDDetectorGeometry(rows: side, columns: side, pixelSize: 70, binning: Truth.ebsdBinning, tilt: 0, azimuthal: 0, twist: 0,
                                             sampleTilt: Truth.ebsdSampleTilt, projectionCenters: [Truth.ebsdProjectionCenter])
-        let dataset = EBSDDataset(format: .generated, manufacturer: "macEM", version: "", scanGroup: "Demo", scanGroups: ["Demo"],
+        let dataset = EBSDDataset(format: .generated, manufacturer: AppName.writer, version: "", scanGroup: "Demo", scanGroups: ["Demo"],
                                   scanRows: rows, scanColumns: columns, patternRows: side, patternColumns: side, dataType: .uint8,
                                   stepY: Truth.ebsdStepUm, stepX: Truth.ebsdStepUm, detector: detector,
                                   sem: EBSDSEMHeader(beamEnergyKeV: Truth.ebsdBeamKeV, magnification: 200, workingDistanceMM: 24.7, microscope: "generated demo"),

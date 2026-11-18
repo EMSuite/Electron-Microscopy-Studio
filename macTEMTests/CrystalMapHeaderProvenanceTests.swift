@@ -29,7 +29,7 @@ nonisolated final class CrystalMapHeaderProvenanceTests: XCTestCase {
         let pc = try XCTUnwrap(back.header.projectionCenter)
         XCTAssertEqual(pc.x, 0.4512, accuracy: 1e-6); XCTAssertEqual(pc.y, 0.6271, accuracy: 1e-6); XCTAssertEqual(pc.z, 0.5983, accuracy: 1e-6)
         XCTAssertEqual(try XCTUnwrap(back.header.workingDistance), 15.2, accuracy: 1e-6)
-        XCTAssertTrue(text.contains("# NOTES: Written by macEM 2.1.0 (42) with FormatoKit"), "the build and the kits")
+        XCTAssertTrue(text.contains("# NOTES: Written by Electron Microscopy Studio 2.1.0 (42) with FormatoKit"), "the build and the kits")
         XCTAssertTrue(text.contains("# NOTES: Beam energy 20 kV"))
         XCTAssertEqual(back.map.size, map.size)
         // Without an acquisition: orix's zeros, no notes.
@@ -42,7 +42,7 @@ nonisolated final class CrystalMapHeaderProvenanceTests: XCTestCase {
         let map = try ANGReader.read(url: Self.sdss).map
         let text = try CTFWriter.text(of: map, project: "sdss", author: ExportSnapshot.softwareName(info: Self.info), acquisition: Self.acquisition)
         XCTAssertTrue(text.contains("\tMag\t2000\tCoverage\t100\tDevice\t0\tKV\t20\tTiltAngle\t70\tTiltAxis\t0\n"), "the CS0 line")
-        XCTAssertTrue(text.contains("Author\tmacEM 2.1.0 (42)\n"))
+        XCTAssertTrue(text.contains("Author\tElectron Microscopy Studio 2.1.0 (42)\n"))
         let back = try CTFReader.read(text: text).map
         XCTAssertEqual(back.size, map.size)
         // Unknown stays the format's 0.
@@ -68,11 +68,11 @@ nonisolated final class CrystalMapHeaderProvenanceTests: XCTestCase {
 
     func testTheMethodRecordAndThePNGsNameTheAppAndTheKits() throws {
         let provenance = ExportSnapshot.provenance(info: Self.info)
-        XCTAssertTrue(provenance.hasPrefix("macEM 2.1.0 (42) with "))
+        XCTAssertTrue(provenance.hasPrefix("Electron Microscopy Studio 2.1.0 (42) with "))
         for kit in SEMReferenceVersions.builtWith { XCTAssertTrue(provenance.contains("\(kit.name) \(kit.value)"), kit.name) }
         let json = try ExportSnapshot.stampingProvenance(Data(#"{"software": "macEM", "points": 4}"#.utf8), info: Self.info)
         let object = try XCTUnwrap(try JSONSerialization.jsonObject(with: json) as? [String: Any])
-        XCTAssertEqual(object["software"] as? String, "macEM 2.1.0 (42)")
+        XCTAssertEqual(object["software"] as? String, "Electron Microscopy Studio 2.1.0 (42)")
         XCTAssertEqual(object["points"] as? Int, 4)
         let kits = try XCTUnwrap(object["builtWith"] as? [String: String])
         XCTAssertEqual(kits.count, SEMReferenceVersions.builtWith.count)

@@ -30,7 +30,7 @@ package nonisolated enum CTFWriter {
 
     /// The file's text; `project` is the `Prj` line, `author` the `Author` line. `acquisition` fills the CS0 line's Mag, KV and TiltAngle
     /// where the session knows them (0, the reference writer's, otherwise; macEM#616).
-    package static func text(of map: CrystalMap, project: String = "macEM", author: String = "macEM",
+    package static func text(of map: CrystalMap, project: String = AppName.writer, author: String = AppName.writer,
                              acquisition: CrystalMapAcquisition? = nil) throws -> String {
         let grid = try CrystalMapExtent(map)
         let n = grid.count
@@ -89,7 +89,7 @@ package nonisolated enum CTFWriter {
     }
 
     /// Writes the file through `FormatoFileWrite` (a scratch file first, then over `url`).
-    package static func write(_ map: CrystalMap, to url: URL, project: String? = nil, author: String = "macEM") throws {
+    package static func write(_ map: CrystalMap, to url: URL, project: String? = nil, author: String = AppName.writer) throws {
         let name = project ?? url.deletingPathExtension().lastPathComponent
         try FormatoFileWrite.write(Data(try text(of: map, project: name, author: author).utf8), to: url)
     }

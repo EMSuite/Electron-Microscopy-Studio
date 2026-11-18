@@ -69,7 +69,7 @@ nonisolated final class KikuchiOverlayExportTests: XCTestCase {
         XCTAssertEqual(text.first { $0.keyword == "Software" }?.value, ExportSnapshot.provenance())
         let bands = overlay.simulation.lines.count, axes = overlay.simulation.zoneAxes.count
         XCTAssertEqual(text.first { $0.keyword == "Description" }?.value,
-                       "Kikuchi overlay of \(overlay.phase): \(bands) bands, \(axes) zone axes; pattern enlarged 8x; macEM")
+                       "Kikuchi overlay of \(overlay.phase): \(bands) bands, \(axes) zone axes; pattern enlarged 8x; Electron Microscopy Studio")
 
         // The overlay is in the picture: the enlarged plain pattern differs from it, and the accent blue is drawn where a band runs.
         let plain = try PatternsRoomState.patternPNG(canvas: try XCTUnwrap(session.patternPresentation.canvas), presentation: session.patternPresentation,

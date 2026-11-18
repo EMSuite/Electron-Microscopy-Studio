@@ -107,9 +107,9 @@ enum ExportSnapshot {
 
     /// "macEM 0.1.0 (1)": the version and build the bundle states. What the export files name as their writer.
     nonisolated static func softwareName(info: [String: Any]? = Bundle.main.infoDictionary) -> String {
-        guard let version = info?["CFBundleShortVersionString"] as? String, !version.isEmpty else { return "macEM" }
-        guard let build = info?["CFBundleVersion"] as? String, !build.isEmpty else { return "macEM \(version)" }
-        return "macEM \(version) (\(build))"
+        guard let version = info?["CFBundleShortVersionString"] as? String, !version.isEmpty else { return AppName.writer }
+        guard let build = info?["CFBundleVersion"] as? String, !build.isEmpty else { return "\(AppName.writer) \(version)" }
+        return "\(AppName.writer) \(version) (\(build))"
     }
 
     /// "macEM 2.1.0 (42) with FormatoKit 0.15.0, ImagoKit 0.9.2, ...": the app and the kits it is built with, so a written file can be

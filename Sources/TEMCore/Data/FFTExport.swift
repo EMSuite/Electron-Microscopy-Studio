@@ -132,7 +132,7 @@ extension FFTExport {
 extension RadialProfileCSV {
     /// The whole file (UTF-8, LF), or nil when no bin outside the DC holds a pixel (the chart draws none either).
     package nonisolated static func text(_ profile: RadialProfile, header h: FFTExportHeader) -> String? {
-        text(profile, header: h, title: "macEM radial profile", validation: FFTExport.profileValidation, lineage: FFTExport.lineage)
+        text(profile, header: h, title: "\(AppName.writer) radial profile", validation: FFTExport.profileValidation, lineage: FFTExport.lineage)
     }
 
     @concurrent package static func export(_ profile: RadialProfile, header: FFTExportHeader, to url: URL) async throws {
@@ -147,7 +147,7 @@ extension SpotsCSV {
     package nonisolated static func text(rows: [Row], omitted: Int, maskRadius: Double, maskEdge: Double, notes: [String],
                                          header h: FFTExportHeader) -> String? {
         text(rows: rows, omitted: omitted, maskRadius: maskRadius, maskEdge: maskEdge, notes: notes, header: h,
-             title: "macEM spots", validation: FFTExport.spotsValidation, lineage: FFTExport.lineage)
+             title: "\(AppName.writer) spots", validation: FFTExport.spotsValidation, lineage: FFTExport.lineage)
     }
 
     @concurrent package static func export(rows: [Row], omitted: Int, maskRadius: Double, maskEdge: Double, notes: [String],

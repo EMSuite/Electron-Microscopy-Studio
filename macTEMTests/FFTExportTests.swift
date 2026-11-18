@@ -94,7 +94,7 @@ nonisolated final class FFTExportTests: XCTestCase {
         let profile = try RadialProfile.compute(Self.spectrum())
         let text = try XCTUnwrap(RadialProfileCSV.text(profile, header: Self.header(notes: ["a note"])))
         let c = Self.table(text).comments
-        XCTAssertEqual(c.first, "# macEM radial profile")
+        XCTAssertEqual(c.first, "# Electron Microscopy Studio radial profile")
         XCTAssertTrue(text.contains("NO window, the mean NOT removed"))
         XCTAssertFalse(text.contains("Hann"), "the profile is of the unwindowed transform")
         XCTAssertTrue(c.contains("# subject: region 64 x 64 px at (16, 0) (column, row of its top-left pixel)"))
@@ -162,7 +162,7 @@ nonisolated final class FFTExportTests: XCTestCase {
     func testTheSpotsHeaderStatesTheEstimatorTheMaskTheOmittedAndTheNotes() throws {
         let text = try Self.spotsText(notes: ["With noise, d is good to 1\u{2013}5 % at 64 px."], omitted: 4)
         let c = Self.table(text).comments
-        XCTAssertEqual(c.first, "# macEM spots")
+        XCTAssertEqual(c.first, "# Electron Microscopy Studio spots")
         XCTAssertTrue(text.contains("Hann-windowed, mean-removed copy of the region (the transform above is not)"))
         XCTAssertTrue(c.contains { $0.hasPrefix("# listed: 2 measured spots; not listed: 4") })
         XCTAssertTrue(c.contains("# mask: radius 3 bins, edge 2 bins (the masked inverse)"), "\(c)")
