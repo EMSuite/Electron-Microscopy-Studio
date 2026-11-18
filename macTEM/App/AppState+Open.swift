@@ -422,6 +422,7 @@ extension AppState {
         let scoped = url.startAccessingSecurityScopedResource()
         defer { if scoped { url.stopAccessingSecurityScopedResource() } }
         try Task.checkCancellation()
+        request.stage(.reading)
         // A multi-page TIFF opens as a stack read on demand: its first frame now, the others one at a time later, with the sandbox scope held
         // for the source's life (it is read long after this open).
         if request.bookmark == nil, ["tif", "tiff"].contains(url.pathExtension.lowercased()),
@@ -430,6 +431,7 @@ extension AppState {
             let sem = SEMImageMetadata.read(path: url.path)
             let frame0 = try stack.frame(0)
             let first = sem?.calibrated(frame0) ?? frame0
+            request.stage(.preparing)
             let canvas = canvas(for: first)
             // The stack's identity (its first frame's pixels, the stack as the object, so a mark drawn on any frame is the stack's
             // and restores with it) and what the sidecar beside it makes of it, as for a single image. Inside the live scope.
@@ -441,16 +443,22 @@ extension AppState {
                                bookmark: nil, identity: identity, sidecar: sidecar, stack: stack,
                                hasGrant: SessionGrants.bookmark(forSource: url) != nil, sem: sem)
         }
-        let (image, canvas, metadata, sem, databar) = try await read(url)
+        let (image, metadata, sem, databar) = try decode(url)
         try Task.checkCancellation()
-        // The identity of the pixels just read (what saved marks describe), and — for a file's first read only; a cold
-        // item's re-read never restores — what the sidecar beside it makes of it. Inside the live scope.
+        request.stage(.preparing)
+        // The display copy and its thumbnail, and the identity of the pixels just read (what saved marks describe), side by side:
+        // each passes over every pixel, and on a 19433 × 19320 SEM TIFF each is seconds (macEM#562).
         let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize).map(Int64.init) ?? 0
-        let identity = SessionSourceIdentity.of(image, fileByteSize: size)
+        async let display = Self.display(of: image)
+        async let identified = SessionSourceIdentity.of(image, fileByteSize: size)
+        let (canvas, thumbnail) = await display
+        let identity = await identified
+        try Task.checkCancellation()
+        // For a file's first read only (a cold item's re-read never restores): what the sidecar beside it makes of it. Inside the
+        // live scope.
+        if request.bookmark == nil { request.stage(.checkingMarks) }
         let sidecar = request.bookmark == nil
             ? SessionGrants.outcome(source: url, opened: identity, image: image) : SidecarOutcome.none
-        try Task.checkCancellation()
-        let thumbnail = canvas.thumbnail(maxSide: Thumbnail.defaultMaxSide)
         try Task.checkCancellation()
         // Nil when none can be made: the item then keeps its pixels for its life (`OpenItems`' memory rule).
         let bookmark = try? SecurityScopedBookmark.make(for: url)
@@ -482,6 +490,14 @@ extension AppState {
     @concurrent
     nonisolated static func read(_ url: URL) async throws
         -> (CalibratedImage, CanvasPixels, AcquisitionMetadata, SEMImageMetadata?, CanvasPixels?) {
+        let (opened, metadata, sem, databar) = try decode(url)
+        return (opened, canvas(for: opened), metadata, sem, databar)
+    }
+
+    /// `read(_ url:)` up to the image: the file, its acquisition record, the SEM record applied and the databar's canvas; the
+    /// image's own canvas is the caller's, so the open can make it beside the identity.
+    nonisolated static func decode(_ url: URL) throws
+        -> (CalibratedImage, AcquisitionMetadata, SEMImageMetadata?, CanvasPixels?) {
         let scoped = url.startAccessingSecurityScopedResource()
         defer { if scoped { url.stopAccessingSecurityScopedResource() } }
         let interval = Signposts.begin("open.image"); defer { Signposts.end(interval) }
@@ -494,7 +510,14 @@ extension AppState {
             databar = sem.databar(of: calibrated).map(canvas(for:))
             opened = sem.cropped(calibrated)
         }
-        return (opened, canvas(for: opened), metadata, sem, databar)
+        return (opened, metadata, sem, databar)
+    }
+
+    /// The canvas of `image` and the row's thumbnail made from it, off the caller's context.
+    @concurrent
+    nonisolated static func display(of image: CalibratedImage) async -> (CanvasPixels, Thumbnail?) {
+        let canvas = canvas(for: image)
+        return (canvas, canvas.thumbnail(maxSide: Thumbnail.defaultMaxSide))
     }
 
     /// The pixels the canvas uploads (an 8- or 16-bit image's at their own bit depth, #566), their range and the histogram of the

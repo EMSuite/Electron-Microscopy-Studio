@@ -187,6 +187,14 @@ enum ExportSnapshot {
             ? .tooLarge(width: width, height: height) : nil
     }
 
+    /// Export Image…'s and the agent door's refusal of the selected file's image, from its size alone: asked BEFORE the snapshot,
+    /// because the snapshot's display values are a full-size Float32 copy for a raw canvas (`CanvasPixels.normalized`), 1.5 GB on
+    /// the main actor for the 19433 × 19320 alite TIFF, which TEMCore then refused anyway (#639). nil when it fits or nothing is shown.
+    static func imageRefusal(in openItems: OpenItems) -> ExportFile.Failure? {
+        guard let image = openItems.selected?.session.image else { return nil }
+        return refusal(width: image.width, height: image.height)
+    }
+
     // MARK: Enabled
 
     /// The first two commands need an image with its pixels in the Image room, no read running; the second also a profile with
@@ -255,11 +263,14 @@ enum ExportSnapshot {
             windowLow: presentation.windowLow, windowHigh: presentation.windowHigh, rawRange: canvas.rawRange)
     }
 
-    /// Export Image… for a file's owners; nil when the file holds no pixels (cold, or still being read) or its canvas
-    /// is not its image's size (never both in a real item: one read publishes both).
+    /// Export Image… for a file's owners; nil when the file holds no pixels (cold, or still being read), its canvas
+    /// is not its image's size (never both in a real item: one read publishes both), or a side is above `ImageExport.maximumSide`
+    /// (`imageRefusal(in:)` names that one first).
     static func imageSnapshot(image: CalibratedImage, url: URL?, presentation: ImagePresentation,
                               measurements: ImageMeasurements, software: String) -> ExportImageSnapshot? {
-        guard let canvas = presentation.canvas, canvas.width == image.width, canvas.height == image.height else {
+        guard let canvas = presentation.canvas, canvas.width == image.width, canvas.height == image.height,
+              // A size the PNG cannot have gets no snapshot: its display values would be built only to be refused (#639).
+              refusal(width: image.width, height: image.height) == nil else {
             return nil
         }
         let marks = measurements.marks

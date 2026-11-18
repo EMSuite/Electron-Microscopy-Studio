@@ -50,14 +50,15 @@ enum ExportPanels {
 
     /// File > Export Image… (⇧⌘E): the selected file's image as a PNG.
     static func exportImage(appState: AppState) {
-        guard ExportSnapshot.availability(of: appState).image,
-              let snapshot = ExportSnapshot.imageSnapshot(in: appState.openItems) else { return }
-        guard let window = hostWindowOrBeep(for: appState) else { return }
-        // A side TEMCore would refuse is refused by name now, not after the user has chosen a place.
-        if let refusal = ExportSnapshot.refusal(width: snapshot.display.width, height: snapshot.display.height) {
+        guard ExportSnapshot.availability(of: appState).image else { return }
+        // A side TEMCore would refuse is refused by name now, from the image's size, before the snapshot builds its full-size
+        // display values (#639) and before the user has chosen a place.
+        if let refusal = ExportSnapshot.imageRefusal(in: appState.openItems) {
             appState.present(refusal)
             return
         }
+        guard let snapshot = ExportSnapshot.imageSnapshot(in: appState.openItems) else { return }
+        guard let window = hostWindowOrBeep(for: appState) else { return }
         Task.immediate { await presentImagePanel(snapshot, on: window, appState: appState) }
     }
 
