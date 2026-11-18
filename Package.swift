@@ -12,13 +12,13 @@ let package = Package(
         .library(name: "TEMSession", targets: ["TEMSession"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/mac4DSTEM/FormatoKit", from: "0.15.0"),
+        .package(url: "https://github.com/mac4DSTEM/FormatoKit", from: "0.18.0"),
         .package(url: "https://github.com/mac4DSTEM/DiffractoKit", from: "0.11.0"),
         .package(url: "https://github.com/mac4DSTEM/ImagoKit", from: "0.11.0"),
-        .package(url: "https://github.com/mac4DSTEM/SpectroKit", from: "0.15.0"),
+        .package(url: "https://github.com/mac4DSTEM/SpectroKit", from: "0.16.0"),
         // The window shell, controls and Metal image view both apps share. TEMSession takes ShellMetal (MetalEngine, ColormapKind); TEMCore and
         // TEMSession take ShellEDXModel (the shared EDS room; the EELS room reuses its regions and pins).
-        .package(url: "https://github.com/mac4DSTEM/MacEMUI", from: "0.12.3"),
+        .package(url: "https://github.com/mac4DSTEM/MacEMUI", from: "0.13.0"),
     ],
     targets: [
         .target(
