@@ -10,6 +10,7 @@
 
 import Foundation
 import Observation
+import TEMCore
 
 /// One activity held while asked, begun and ended through injected closures (`ProcessInfo`'s by default), so a test counts them.
 final class RunActivity {
@@ -18,7 +19,7 @@ final class RunActivity {
     private var token: (any NSObjectProtocol)?
 
     init(begin: @escaping () -> any NSObjectProtocol = {
-             ProcessInfo.processInfo.beginActivity(options: .userInitiated, reason: "macEM is running an analysis")
+             ProcessInfo.processInfo.beginActivity(options: .userInitiated, reason: "\(AppName.display) is running an analysis")
          },
          end: @escaping (any NSObjectProtocol) -> Void = { ProcessInfo.processInfo.endActivity($0) }) {
         self.begin = begin

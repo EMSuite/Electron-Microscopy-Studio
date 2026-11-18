@@ -121,7 +121,7 @@ nonisolated final class ShippedDemoDataTests: XCTestCase {
         let fake = dir.appendingPathComponent("fake.hspy")
         try Data("not an HDF5 file".utf8).write(to: fake)
         XCTAssertFalse(HyperSpySpectrumFile.isHyperSpyFile(path: fake.path))
-        XCTAssertEqual(FileRouting.inventory(path: fake.path).refusal, "fake.hspy is not a format macEM opens (or its extension and its first bytes disagree).")
+        XCTAssertEqual(FileRouting.inventory(path: fake.path).refusal, "fake.hspy is not a format Electron Microscopy Studio opens (or its extension and its first bytes disagree).")
     }
 
     /// A 4D HyperSpy file (as a 4D-STEM .hspy is) is refused naming the file and what it holds, never HyperSpy's internal group name
@@ -133,7 +133,7 @@ nonisolated final class ShippedDemoDataTests: XCTestCase {
         XCTAssertThrowsError(try HyperSpySpectrumFile.header(path: url.path)) { error in
             let text = (error as? HyperSpySpectrumFile.Refusal)?.text ?? "\(error)"
             XCTAssertEqual(text, "hyperspy-4d-unnamed.hspy holds a 4-dimensional signal (a 4D-STEM or EBSD dataset), not one spectrum: "
-                           + "macEM opens single spectra from HyperSpy files.")
+                           + "Electron Microscopy Studio opens single spectra from HyperSpy files.")
             XCTAssertFalse(text.contains("__unnamed__"))
         }
     }

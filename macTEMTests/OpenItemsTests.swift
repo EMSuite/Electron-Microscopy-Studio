@@ -731,7 +731,7 @@ nonisolated final class OpenItemsTests: XCTestCase {
     /// the note written out in the view, or the flag not passed.
     func testTheDisplaySectionSaysWhyARendersBarStartsHidden() throws {
         XCTAssertEqual(ImagePresentation.renderScaleBarNote,
-                       "A render: any scale bar it shows was drawn into its pixels at export, so macEM's starts hidden.")
+                       "A render: any scale bar it shows was drawn into its pixels at export, so Electron Microscopy Studio's starts hidden.")
         let display = try FFTRoomWiringTests.squeezedUI("ImageRoomDisplay.swift")
         XCTAssertTrue(display.contains("if isRender { InspectorNote(ImagePresentation.renderScaleBarNote) }"))
         let inspector = try FFTRoomWiringTests.squeezedUI("ImageRoomInspector.swift")

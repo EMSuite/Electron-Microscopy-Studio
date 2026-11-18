@@ -37,7 +37,7 @@ nonisolated final class AgentDoorToolsTests: XCTestCase {
     @MainActor func testTheToolsAreTheFourThatLook() {
         XCTAssertEqual(MacTEMAgentDoor.tools.map(\.name), ["get_window", "get_image", "get_results", "get_log"])
         XCTAssertEqual(MacTEMAgentDoor.allTools.filter(\.acts).map(\.name).sorted(), ["run_eds", "select_room", "set_eds"])
-        XCTAssertEqual(MacTEMAgentDoor.shared.appName, "macEM")
+        XCTAssertEqual(MacTEMAgentDoor.shared.appName, "Electron Microscopy Studio")
     }
 
     /// An empty window says so, and the picture and the results are refused with a sentence, not an empty answer.

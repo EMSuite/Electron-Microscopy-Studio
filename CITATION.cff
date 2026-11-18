@@ -1,11 +1,11 @@
 cff-version: 1.2.0
 message: >-
-  If you use macEM in published work, please cite it, and please also cite the
+  If you use Electron Microscopy Studio in published work, please cite it, and please also cite the
   Python packages whose methods it follows: HyperSpy and eXSpy for EDS;
   kikuchipy, PyEBSDIndex, orix, diffsims and DefDAP for EBSD and TKD; and
   RosettaSciIO and NexusLIMS for the SEM-EDS and SEM TIFF readers. All are
   listed under references.
-title: macEM
+title: Electron Microscopy Studio
 abstract: >-
   A native macOS application for transmission and scanning electron microscopy
   on Apple Silicon: calibrated TEM and SEM images, FFT and lattice analysis,
@@ -13,7 +13,7 @@ abstract: >-
   spectrum images, and SEM-EDS maps, line scans and spectra. For EBSD and TKD
   it goes from the patterns (background removal, filters, NLPAR, Hough and
   dictionary indexing) to orientation maps, grains, grain size, KAM, GOS, GND,
-  slip and texture. The TEM methods run on the macEM Swift kits; the SEM
+  slip and texture. The TEM methods run on the EMSuite Swift kits; the SEM
   methods are ported into the app. Each is checked against its Python
   reference package. The SEM features are in the development version on main,
   not yet in release 1.3.0.

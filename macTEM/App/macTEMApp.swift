@@ -150,6 +150,8 @@ private struct ImageCommands: Commands {
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismissWindow) private var dismissWindow
     let menuRelay: MenuActionRelay
+    /// The app's windows: a menu action with no window focused goes to a minimised one before a new one opens (#762).
+    let windows: AppWindows
     /// File > Open Recent's list, the app's, not the focused window's: the menu lists it with no window focused too.
     let recents: RecentFiles
     /// File > Reopen Last Session's record, the app's for the same reason.
@@ -307,8 +309,9 @@ private struct ImageCommands: Commands {
         if let appState {
             MenuActionRelay.run(action, in: appState)
         } else {
+            // A minimised window takes the request itself; only with none on screen does a window open for it (#762).
             menuRelay.request(action)
-            openWindow(id: "image")
+            if windows.menuActionNeedsNewWindow { openWindow(id: "image") }
         }
     }
 
@@ -357,7 +360,7 @@ struct macTEMApp: App {
             .windowStyle(.titleBar)
             .windowToolbarStyle(.unified)
             .commands {
-                ImageCommands(menuRelay: menuRelay, recents: recents, lastSession: lastSession)
+                ImageCommands(menuRelay: menuRelay, windows: windows, recents: recents, lastSession: lastSession)
                 // File > Save to Session (V1-2), listed before the export group so it sits above its Divider.
                 SessionCommands()
                 // File > Export Image… and Export Profile… (V1-10), their own `Commands` (`ExportCommands.swift`).
@@ -365,7 +368,7 @@ struct macTEMApp: App {
                 // View > Zoom In, Zoom Out, Zoom to Fit (⌘+ ⌘− ⌘0) on the pane that publishes its zoom (control placement §6).
                 ZoomCommands()
                 #if SPARKLE
-                SoftwareUpdateCommands(update: softwareUpdate)   // macEM > Check for Updates…
+                SoftwareUpdateCommands(update: softwareUpdate)   // Microscopy Studio > Check for Updates…
                 #endif
             }
         // Settings (⌘,): Images, Agents and, in the website download, Software Update (`SettingsWindow`).

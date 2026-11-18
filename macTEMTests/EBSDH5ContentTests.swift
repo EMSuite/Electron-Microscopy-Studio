@@ -60,7 +60,7 @@ nonisolated final class EBSDH5ContentTests: XCTestCase {
             XCTAssertEqual(FileRouting.inventory(path: Self.fixture(name).path), FileInventory(orientationMap: true), name)
         }
         let refused = [
-            "ebsd-oxford-eds.h5oina": "ebsd-oxford-eds.h5oina holds EDS data from AZtec but no EBSD data. macEM does not read EDS from an "
+            "ebsd-oxford-eds.h5oina": "ebsd-oxford-eds.h5oina holds EDS data from AZtec but no EBSD data. Electron Microscopy Studio does not read EDS from an "
                 + ".h5oina file yet; a spectrum AZtec exports as .msa opens in the EDS room.",
         ]
         for (name, sentence) in refused {
@@ -181,7 +181,7 @@ nonisolated final class EBSDH5ContentTests: XCTestCase {
         let file = URL(fileURLWithPath: "/data/scan 7.h5oina")
         let filter = HDF5FileError.hdf5(operation: "reading /1/EBSD/Data/Processed Patterns",
                                         detail: "H5Dread: required filter 'blosc' is not registered")
-        XCTAssertEqual(EBSDReadError.wrap(filter, file: file).text, "scan 7.h5oina: its data is compressed with a filter macEM does not have.")
+        XCTAssertEqual(EBSDReadError.wrap(filter, file: file).text, "scan 7.h5oina: its data is compressed with a filter Electron Microscopy Studio does not have.")
         XCTAssertEqual(EBSDReadError.wrap(HDF5FileError.cannotOpen("H5Fopen failed"), file: file).text,
                        "scan 7.h5oina: it cannot be opened as an HDF5 file (it may be damaged, or still being written).")
         XCTAssertEqual(EBSDReadError.wrap(EBSDReadError(text: "it holds no EBSD patterns."), file: file).text,

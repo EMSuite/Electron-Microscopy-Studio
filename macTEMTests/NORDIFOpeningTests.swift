@@ -149,7 +149,7 @@ nonisolated final class NORDIFOpeningTests: XCTestCase {
         defer { try? FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: settings.path) }
         let pattern = folder.appendingPathComponent("Pattern.dat")
         XCTAssertFalse(NORDIFOpening.isNORDIFFile(pattern), "a settings file that cannot be opened cannot be recognised")
-        let sentence = "Setting.txt beside Pattern.dat cannot be read: macOS does not let macEM open it (Permission denied); "
+        let sentence = "Setting.txt beside Pattern.dat cannot be read: macOS does not let Electron Microscopy Studio open it (Permission denied); "
             + "a NORDIF scan needs the acquisition's folder, not Pattern.dat alone."
         XCTAssertEqual(NORDIFOpening.unreadableSettingsRefusal(pattern), sentence)
         XCTAssertEqual(FileRouting.inventory(path: pattern.path), FileInventory(refusal: sentence))

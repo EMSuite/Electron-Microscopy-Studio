@@ -173,7 +173,7 @@ nonisolated final class TIFFImageReaderTests: XCTestCase {
         XCTAssertNil(try ImageStackSource.open(path: url.path), "a page the kit refuses is the single-image reader's to answer")
         XCTAssertThrowsError(try ImageOpening.openNow(path: url.path)) { error in
             let sentence = (error as? LocalizedError)?.errorDescription ?? ""
-            XCTAssertEqual(sentence, "ADF Image.tif is not read: its pixels are compressed with JPEG, which macEM does not read yet.")
+            XCTAssertEqual(sentence, "ADF Image.tif is not read: its pixels are compressed with JPEG, which Electron Microscopy Studio does not read yet.")
             for leak in ["Compression", "scheme", "7"] { XCTAssertFalse(sentence.contains(leak), "carries \(leak): \(sentence)") }
         }
         XCTAssertEqual(TIFFImageReader.compressionName(32773), "PackBits")

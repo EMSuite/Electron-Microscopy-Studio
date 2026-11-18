@@ -37,6 +37,25 @@ nonisolated final class AppWindowsTests: XCTestCase {
         return state
     }
 
+    /// File > Open with the only window minimised (#762, the 2.1.1 walk): the minimised window is still on screen and takes the action,
+    /// so no second, empty window opens; with every window closed one does. Red before: Open Image… opened a window whenever none
+    /// was focused.
+    @MainActor func testAMenuActionWithTheOnlyWindowMinimisedOpensNoSecondWindow() throws {
+        let windows = AppWindows()
+        XCTAssertTrue(windows.menuActionNeedsNewWindow, "no window: the action opens one")
+        let minimised = AppState(launch: LaunchOptions(arguments: []))
+        windows.enroll(minimised)
+        XCTAssertFalse(windows.menuActionNeedsNewWindow, "a minimised window never disappeared: it takes the action itself")
+        windows.withdraw(minimised)
+        XCTAssertTrue(windows.menuActionNeedsNewWindow, "the window closed: the action opens one again")
+
+        let root = URL(fileURLWithPath: #filePath).resolvingSymlinksInPath().deletingLastPathComponent().deletingLastPathComponent()
+        let app = try String(contentsOf: root.appendingPathComponent("macTEM/App/macTEMApp.swift"), encoding: .utf8)
+            .split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        XCTAssertTrue(app.contains("menuRelay.request(action) if windows.menuActionNeedsNewWindow { openWindow(id: \"image\") }"),
+                      "the File menu opens a window for its action only when none is on screen")
+    }
+
     /// Red under: the front window staying the first one; a closed front window still named as front.
     @MainActor func testTheFrontWindowIsTheOneLastBroughtForward() {
         let windows = AppWindows()
@@ -216,13 +235,13 @@ nonisolated final class AppWindowsTests: XCTestCase {
         XCTAssertEqual(asked, 1, "one tab, for b")
         XCTAssertEqual(windows.takeWaitingURLs(), [b])
         XCTAssertNil(windows.takeWaitingURLs())
-        XCTAssertEqual(first.errorMessage, "notes.xyz is not a format macEM opens (or its extension and its first bytes disagree).")
+        XCTAssertEqual(first.errorMessage, "notes.xyz is not a format Electron Microscopy Studio opens (or its extension and its first bytes disagree).")
 
         // A window that holds a file, and only a refused one opened: the alert, no tab.
         first.errorMessage = nil
         await first.open(urls: [junk])?.value
         XCTAssertEqual(asked, 1)
-        XCTAssertEqual(first.errorMessage, "notes.xyz is not a format macEM opens (or its extension and its first bytes disagree).")
+        XCTAssertEqual(first.errorMessage, "notes.xyz is not a format Electron Microscopy Studio opens (or its extension and its first bytes disagree).")
     }
 
     /// A launch restores no window: a restored window came back empty (its file is read only when the person asks, File > Reopen Last
@@ -231,7 +250,7 @@ nonisolated final class AppWindowsTests: XCTestCase {
         let root = URL(fileURLWithPath: #filePath).resolvingSymlinksInPath().deletingLastPathComponent().deletingLastPathComponent()
         let app = try String(contentsOf: root.appendingPathComponent("macTEM/App/macTEMApp.swift"), encoding: .utf8)
             .split(whereSeparator: \.isWhitespace).joined(separator: " ")
-        let scene = try XCTUnwrap(app.components(separatedBy: "WindowGroup(\"macEM\", id: \"image\")").last?.components(separatedBy: ".commands").first)
+        let scene = try XCTUnwrap(app.components(separatedBy: "WindowGroup(AppName.display, id: \"image\")").last?.components(separatedBy: ".commands").first)
         XCTAssertTrue(scene.contains(".restorationBehavior(.disabled)"), scene)
         XCTAssertFalse(scene.contains(".automatic"), scene)
     }
