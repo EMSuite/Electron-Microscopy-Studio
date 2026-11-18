@@ -2,5 +2,6 @@
 - DM4 spectrum images open, and a second EELS Align runs, in far less memory.
 - EDS Auto ID offers what it nearly found (a minor element, carbon, a FIB gallium) as one-click Adds; it still adds only what it confirms.
 - Export and session sheets open on the window that asked, and one window's export no longer blocks another.
+- File > Open with every window minimised brings that window back and no longer opens an extra empty one.
 - Better keyboard and VoiceOver use: the sidebar rooms, the EDS spectrum's zoom and pan, the sliders and the map tiles.
 - Results change: an EDS element found by its L line is quantified on its Kα when the spectrum holds it well excited.
