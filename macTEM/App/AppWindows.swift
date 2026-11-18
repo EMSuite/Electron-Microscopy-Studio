@@ -26,6 +26,10 @@ final class AppWindows {
     private(set) var parked: [AppState] = []
     /// The window last brought forward; nil when none is open.
     private(set) weak var front: AppState?
+    /// A File-menu action chosen with no window focused needs a new window only when none is on screen. A minimised window is
+    /// still on screen (it never disappeared) and takes the action itself (`MenuActionRelay`, its `requestCount` watch); a new
+    /// window as well came up empty beside it (#762, the 2.1.1 walk: ⌘O with the only window minimised).
+    var menuActionNeedsNewWindow: Bool { onScreen.isEmpty }
     /// The launch arguments' documents have gone to a window.
     @ObservationIgnored private var launchDocumentsTaken = false
     /// The batches waiting for a window, oldest first, each taken by one new window (`takeWaitingURLs`): a Finder open that arrived
