@@ -37,6 +37,25 @@ nonisolated final class AppWindowsTests: XCTestCase {
         return state
     }
 
+    /// File > Open with the only window minimised (#762, the 2.1.1 walk): the minimised window is still on screen and takes the action,
+    /// so no second, empty window opens; with every window closed one does. Red before: Open Image… opened a window whenever none
+    /// was focused.
+    @MainActor func testAMenuActionWithTheOnlyWindowMinimisedOpensNoSecondWindow() throws {
+        let windows = AppWindows()
+        XCTAssertTrue(windows.menuActionNeedsNewWindow, "no window: the action opens one")
+        let minimised = AppState(launch: LaunchOptions(arguments: []))
+        windows.enroll(minimised)
+        XCTAssertFalse(windows.menuActionNeedsNewWindow, "a minimised window never disappeared: it takes the action itself")
+        windows.withdraw(minimised)
+        XCTAssertTrue(windows.menuActionNeedsNewWindow, "the window closed: the action opens one again")
+
+        let root = URL(fileURLWithPath: #filePath).resolvingSymlinksInPath().deletingLastPathComponent().deletingLastPathComponent()
+        let app = try String(contentsOf: root.appendingPathComponent("macTEM/App/macTEMApp.swift"), encoding: .utf8)
+            .split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        XCTAssertTrue(app.contains("menuRelay.request(action) if windows.menuActionNeedsNewWindow { openWindow(id: \"image\") }"),
+                      "the File menu opens a window for its action only when none is on screen")
+    }
+
     /// Red under: the front window staying the first one; a closed front window still named as front.
     @MainActor func testTheFrontWindowIsTheOneLastBroughtForward() {
         let windows = AppWindows()
