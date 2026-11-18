@@ -1,5 +1,6 @@
-- Images, stacks and EBSD master patterns keep their file's bit depth, so large files open in far less memory, and closing a file gives its memory back.
-- Particles can analyse a region you draw; the FFT transform exports as shown; a Settings window chooses what the scroll wheel does (Zoom or Pan).
-- Edit > Undo puts back a removed mark, spot, ring or EELS reference.
-- Bruker, EDAX and EMsoft .h5 orientation maps open in the Maps room; damaged files are refused in words instead of stopping the app.
-- Results change: EDS absorption on a tilted GMS file takes the tilt from the file, as exSpy does; grain sizes on maps with unequal x and y steps use both steps; colour maps follow matplotlib's own tables.
+- Opening a large image shows its stage and time, and Stop cancels it.
+- DM4 spectrum images open, and a second EELS Align runs, in far less memory.
+- EDS Auto ID offers what it nearly found (a minor element, carbon, a FIB gallium) as one-click Adds; it still adds only what it confirms.
+- Export and session sheets open on the window that asked, and one window's export no longer blocks another.
+- Better keyboard and VoiceOver use: the sidebar rooms, the EDS spectrum's zoom and pan, the sliders and the map tiles.
+- Results change: an EDS element found by its L line is quantified on its Kα when the spectrum holds it well excited.

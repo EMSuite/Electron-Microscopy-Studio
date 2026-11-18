@@ -11,7 +11,7 @@ One plain UTF-8 file per App Store Connect field. Counts are characters (`wc -m`
 - `promotional-text.txt`: 162 / 170
 - `description.txt`: 3997 / 4000 (plain text, no markdown)
 - `keywords.txt`: 97 / 100 (comma-separated, no spaces after commas; no word from the name or subtitle, which Apple indexes already, and no other product names)
-- `whats-new.txt`: 710 / 4000 (2.1.0)
+- `whats-new.txt`: 636 / 4000 (2.1.1)
 - `category.txt`: primary Education, secondary Productivity (no limit)
 - `urls.txt`: support, marketing and privacy policy URLs on mac4dstem.com (no limit)
 - `age-rating.txt`: questionnaire answers, all None, rating 4+ (no limit)
