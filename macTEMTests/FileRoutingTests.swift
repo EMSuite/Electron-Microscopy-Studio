@@ -49,7 +49,7 @@ nonisolated final class FileRoutingTests: XCTestCase {
         XCTAssertEqual(FileRouting.inventory(path: Self.fixture("velox-single-spectrum.emd")), FileInventory(singleSpectrum: true))
         let mib = try Self.temp("scan.mib", Data("x".utf8))
         guard let fourD = FileRouting.inventory(path: mib.path).refusal else { return XCTFail("a MIB file is a 4D dataset") }
-        XCTAssertTrue(fourD.contains("scan.mib") && fourD.contains("4D dataset") && fourD.contains("mac4DSTEM"), fourD)
+        XCTAssertTrue(fourD.contains("scan.mib") && fourD.contains("4D dataset") && fourD.contains("4DSTEM Studio"), fourD)
         let unknown = try Self.temp("notes.xyz", Data("hello".utf8))
         XCTAssertEqual(FileRouting.inventory(path: unknown.path).refusal,
                        "notes.xyz is not a format Electron Microscopy Studio opens (or its extension and its first bytes disagree).")
