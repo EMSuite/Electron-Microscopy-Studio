@@ -24,7 +24,9 @@ struct WorkspaceSidebar: View {
             WorkspaceRoomsSection(
                 rooms: WorkspaceGroup.allCases, tag: { SidebarRoute.workspace($0) },
                 isAvailable: { appState.workspaceUnavailableReason($0) == nil },
-                unavailableHelp: { appState.workspaceUnavailableReason($0) ?? "" })
+                unavailableHelp: { appState.workspaceUnavailableReason($0) ?? "" },
+                // Each available row is a button to accessibility and its press chooses the room (EMSuiteUI#131).
+                selection: appState.sidebarRoute)
             if group.hasParts {
                 Section(group.title) {
                     ForEach(group.parts) { room in
