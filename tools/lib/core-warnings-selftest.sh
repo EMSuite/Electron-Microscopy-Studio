@@ -14,9 +14,9 @@ fail() { echo "core-warnings-selftest: $1"; print -r -- "$out"; exit 1; }
 compiler="/runner/macTEM/Sources/TEMCore/Profile.swift:12:9: warning: initialization of immutable value 'unused' was never used"
 manifest="warning: 'mactem': found 1 file(s) which are unhandled; explicitly declare them as resources or exclude from the target"
 cat > "$work/notes.log" <<'LOG'
-Fetching https://github.com/mac4DSTEM/ImagoKit from cache
+Fetching https://github.com/EMSuite/ImagoKit from cache
 warning: 'diffractokit': skipping cache due to an error: The file “maintenance.lock” doesn’t exist.
-Fetched https://github.com/mac4DSTEM/ImagoKit from cache (0.64s)
+Fetched https://github.com/EMSuite/ImagoKit from cache (0.64s)
 warning: 'macemui': skipping cache due to an error: The file “maintenance.lock” doesn’t exist.
 Building for debugging...
 Build complete! (178.87s)

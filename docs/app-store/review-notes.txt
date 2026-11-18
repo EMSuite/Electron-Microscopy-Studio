@@ -35,6 +35,6 @@ To see the listener:
 Turn the switch off and the port closes.
 
 Open source:
-The app is free software under GPL-3.0. Source: https://github.com/macEMSuite/macEM
+The app is free software under GPL-3.0. Source: https://github.com/EMSuite/Electron-Microscopy-Studio
 
 Contact: mail@mac4dstem.com
