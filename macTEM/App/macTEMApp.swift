@@ -365,7 +365,7 @@ struct macTEMApp: App {
                 // View > Zoom In, Zoom Out, Zoom to Fit (⌘+ ⌘− ⌘0) on the pane that publishes its zoom (control placement §6).
                 ZoomCommands()
                 #if SPARKLE
-                SoftwareUpdateCommands(update: softwareUpdate)   // macEM > Check for Updates…
+                SoftwareUpdateCommands(update: softwareUpdate)   // Microscopy Studio > Check for Updates…
                 #endif
             }
         // Settings (⌘,): Images, Agents and, in the website download, Software Update (`SettingsWindow`).

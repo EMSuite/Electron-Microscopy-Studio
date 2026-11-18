@@ -479,6 +479,9 @@ inventory() {
   echo "== kit boundary (no Accelerate / Metal / vDSP in the app outside tools/kit-boundary.allow)"
   "$ROOT/tools/check-kit-boundary.sh" || rc=1
 
+  echo "== no old app name on screen (tools/check-old-names.sh, #759)"
+  "$ROOT/tools/check-old-names.sh" || rc=1
+
   echo "== harness flags = TEMCore's settings"
   # A harness must check Core under the settings the app builds it with (mac4DSTEM, 2026-08-19: three of five
   # upcoming features missing from the harness flags): Package.swift's parityHarness enables exactly TEMCore's.

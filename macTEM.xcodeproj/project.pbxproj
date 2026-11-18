@@ -47,7 +47,7 @@
 		A00000000000000000000026 /* Licenses */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Licenses; sourceTree = "<group>"; };
 		A00000000000000000000028 /* DemoData */ = {isa = PBXFileReference; lastKnownFileType = folder; path = DemoData; sourceTree = "<group>"; };
 		A00000000000000000000030 /* Version.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Version.xcconfig; path = Config/Version.xcconfig; sourceTree = "<group>"; };
-		B00000000000000000000002 /* macEM.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = macEM.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		B00000000000000000000002 /* Electron Microscopy Studio.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Electron Microscopy Studio.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		C00000000000000000000002 /* macTEMTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = macTEMTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		D00000000000000000000002 /* macTEMUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = macTEMUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -132,7 +132,7 @@
 		A00000000000000000000003 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				B00000000000000000000002 /* macEM.app */,
+				B00000000000000000000002 /* Electron Microscopy Studio.app */,
 				C00000000000000000000002 /* macTEMTests.xctest */,
 				D00000000000000000000002 /* macTEMUITests.xctest */,
 			);
@@ -171,7 +171,7 @@
 				B00000000000000000000180 /* Sparkle */,
 			);
 			productName = macTEM;
-			productReference = B00000000000000000000002 /* macEM.app */;
+			productReference = B00000000000000000000002 /* Electron Microscopy Studio.app */;
 			productType = "com.apple.product-type.application";
 		};
 		C00000000000000000000001 /* macTEMTests */ = {
@@ -668,7 +668,7 @@
 				SWIFT_PACKAGE_NAME = "$(SRCROOT:file:lower:c99extidentifier)";
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 6.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/macEM.app/Contents/MacOS/macEM";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Electron Microscopy Studio.app/Contents/MacOS/Electron Microscopy Studio";
 			};
 			name = Debug;
 		};
@@ -686,7 +686,7 @@
 				SWIFT_PACKAGE_NAME = "$(SRCROOT:file:lower:c99extidentifier)";
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 6.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/macEM.app/Contents/MacOS/macEM";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Electron Microscopy Studio.app/Contents/MacOS/Electron Microscopy Studio";
 			};
 			name = Release;
 		};
@@ -704,7 +704,7 @@
 				SWIFT_PACKAGE_NAME = "$(SRCROOT:file:lower:c99extidentifier)";
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 6.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/macEM.app/Contents/MacOS/macEM";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Electron Microscopy Studio.app/Contents/MacOS/Electron Microscopy Studio";
 			};
 			name = Develop;
 		};

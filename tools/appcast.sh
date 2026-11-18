@@ -40,17 +40,17 @@ tag = f"v{version}"
 item = f"""<?xml version="1.0" encoding="utf-8"?>
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
-    <title>macEM</title>
+    <title>Electron Microscopy Studio</title>
     <link>https://mac4dstem.com/mactem/</link>
     <item>
-      <title>macEM {version}</title>
+      <title>Electron Microscopy Studio {version}</title>
       <pubDate>{formatdate(usegmt=True)}</pubDate>
       <sparkle:version>{version}</sparkle:version>
       <sparkle:shortVersionString>{version}</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>{floor}</sparkle:minimumSystemVersion>
       <sparkle:fullReleaseNotesLink>https://github.com/EMSuite/Electron-Microscopy-Studio/releases/tag/{tag}</sparkle:fullReleaseNotesLink>
       <description sparkle:format="plain-text">{escape(notes)}</description>
-      <enclosure url="https://github.com/EMSuite/Electron-Microscopy-Studio/releases/download/{tag}/macEM-{version}.dmg" type="application/octet-stream" {attributes}/>
+      <enclosure url="https://github.com/EMSuite/Electron-Microscopy-Studio/releases/download/{tag}/Electron-Microscopy-Studio-{version}.dmg" type="application/octet-stream" {attributes}/>
     </item>
   </channel>
 </rss>

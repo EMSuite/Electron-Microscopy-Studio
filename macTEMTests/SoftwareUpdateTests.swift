@@ -31,8 +31,10 @@ nonisolated final class SoftwareUpdateTests: XCTestCase {
         XCTAssertEqual(key, "j4qRIz2RC40tuHy7FRngpvq0OHuJWLjAT7v/Mtx49qE=", "the public half of Paul's EdDSA key, mac4DSTEM's feed's too")
         XCTAssertEqual(direct.removeValue(forKey: "SUEnableInstallerLauncherService") as? Bool, true, "the sandboxed installer")
         XCTAssertEqual(direct.removeValue(forKey: "SUEnableSystemProfiling") as? Bool, false, "no system profile is sent")
+        XCTAssertEqual(direct.removeValue(forKey: "SUBundleName") as? String, "Electron Microscopy Studio",
+                       "a normalized install takes the full name, not the menu bar's (#759)")
         XCTAssertNil(direct["SUEnableAutomaticChecks"], "Sparkle asks the person before it checks by itself")
-        XCTAssertEqual(NSDictionary(dictionary: direct), NSDictionary(dictionary: store), "Info-Direct.plist is Info.plist plus the four Sparkle keys")
+        XCTAssertEqual(NSDictionary(dictionary: direct), NSDictionary(dictionary: store), "Info-Direct.plist is Info.plist plus the five Sparkle keys")
         XCTAssertTrue(store.keys.allSatisfy { !$0.hasPrefix("SU") }, "the store build names no updater")
     }
 
@@ -68,11 +70,13 @@ nonisolated final class SoftwareUpdateTests: XCTestCase {
     func testTheReleaseScriptsSignTheDownloadsUpdaterAndRefuseItInTheStore() throws {
         let download = try text("tools/release.sh")
         for check in ["Installer.xpc", "Autoupdate", "Updater.app", "Downloader.xpc", "SUPublicEDKey", "SET-BEFORE-RELEASE",
-                      "-clonedSourcePackagesDirPath", "CURRENT_PROJECT_VERSION=\"$EXPECTED\"", "mach-lookup", "tools/appcast.sh"] {
+                      "-clonedSourcePackagesDirPath", "CURRENT_PROJECT_VERSION=\"$EXPECTED\"", "mach-lookup", "tools/appcast.sh",
+                      // The new name from the project's setting, and the old names' copies, so old download links keep working (#759).
+                      "MACEM_APP_NAME_NO", #"cp "$DMG" "$OUT/$FILE.dmg""#, #"cp "$DMG" "$OUT/macEM.dmg""#, #"cp "$DMG" "$OUT/macTEM.dmg""#] {
             XCTAssertTrue(download.contains(check), "release.sh no longer handles \(check)")
         }
         let feed = try text("tools/appcast.sh")
-        for part in ["sign_update", "sparkle:version", "sparkle:minimumSystemVersion", "releases/download/{tag}/macEM-{version}.dmg",
+        for part in ["sign_update", "sparkle:version", "sparkle:minimumSystemVersion", "releases/download/{tag}/Electron-Microscopy-Studio-{version}.dmg",
                      "macTEM.xcodeproj/project.pbxproj"] {
             XCTAssertTrue(feed.contains(part), "appcast.sh no longer writes \(part)")
         }

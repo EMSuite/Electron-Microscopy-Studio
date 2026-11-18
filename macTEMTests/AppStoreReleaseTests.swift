@@ -119,19 +119,20 @@ nonisolated final class AppStoreReleaseTests: XCTestCase {
             .filter { !$0.isEmpty && !$0.hasPrefix("#") }
     }
 
-    /// App Review refuses "Mac" in an App Store app's name (guideline 5.2.5; mac4DSTEM 5.2.0 rejected 16 Nov 2026). The store build
-    /// is "Electron Microscopy Studio" (menu bar "Microscopy Studio"); the website download keeps macEM. Mutation: "mac" back in a
-    /// store name, PRODUCT_NAME a literal again, CFBundleName dropped from a plist, or release-store.sh not checking the names - red.
-    func testTheStoreBuildCarriesNamesWithoutMac() throws {
+    /// App Review refuses "Mac" in an App Store app's name (guideline 5.2.5; mac4DSTEM 5.2.0 rejected 16 Nov 2026). Both builds are
+    /// "Electron Microscopy Studio" (menu bar "Microscopy Studio") since 2.1.1 (#759); up to 2.1.0 the website download was macEM.
+    /// Mutation: "mac" back in either build's name, the builds named apart, PRODUCT_NAME a literal again, CFBundleName dropped from a
+    /// plist, or release-store.sh not checking the names - red.
+    func testBothBuildsCarryNamesWithoutMac() throws {
         let config = try String(contentsOf: root.appendingPathComponent("Config/Version.xcconfig"), encoding: .utf8)
         func setting(_ key: String) -> String? {
             config.split(separator: "\n").first { $0.hasPrefix("\(key) = ") }.map { String($0.dropFirst(key.count + 3)) }
         }
         XCTAssertEqual(setting("MACEM_APP_NAME_YES"), "Electron Microscopy Studio")
         XCTAssertEqual(setting("MACEM_MENU_NAME_YES"), "Microscopy Studio")
-        XCTAssertEqual(setting("MACEM_APP_NAME_NO"), "macEM", "the website download keeps its name")
-        XCTAssertEqual(setting("MACEM_MENU_NAME_NO"), "macEM")
-        for key in ["MACEM_APP_NAME_YES", "MACEM_MENU_NAME_YES"] {
+        XCTAssertEqual(setting("MACEM_APP_NAME_NO"), "Electron Microscopy Studio", "the website download has the same name (#759)")
+        XCTAssertEqual(setting("MACEM_MENU_NAME_NO"), "Microscopy Studio")
+        for key in ["MACEM_APP_NAME_YES", "MACEM_MENU_NAME_YES", "MACEM_APP_NAME_NO", "MACEM_MENU_NAME_NO"] {
             XCTAssertFalse(try XCTUnwrap(setting(key)).lowercased().contains("mac"), key)
         }
         XCTAssertLessThanOrEqual(try XCTUnwrap(setting("MACEM_APP_NAME_YES")).count, 30, "App Store Connect's name limit")
@@ -151,12 +152,12 @@ nonisolated final class AppStoreReleaseTests: XCTestCase {
                       "release-store.sh does not check the store app's names")
     }
 
-    /// The name a sentence on screen uses comes from the bundle; anything else falls back to the project's name.
+    /// The name a sentence on screen uses comes from the bundle; anything else falls back to the app's name.
     func testTheAppNameComesFromTheBundle() {
         XCTAssertEqual(AppName.display(from: ["CFBundleDisplayName": "Electron Microscopy Studio", "CFBundleName": "Microscopy Studio"]),
                        "Electron Microscopy Studio")
         XCTAssertEqual(AppName.display(from: ["CFBundleName": "Microscopy Studio"]), "Microscopy Studio")
-        XCTAssertEqual(AppName.display(from: nil), "macEM")
-        XCTAssertEqual(AppName.display, "macEM", "the test host is the website flavour")
+        XCTAssertEqual(AppName.display(from: nil), "Electron Microscopy Studio")
+        XCTAssertEqual(AppName.display, "Electron Microscopy Studio", "the test host, the website flavour, has the same name (#759)")
     }
 }

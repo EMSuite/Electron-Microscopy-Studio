@@ -12,6 +12,7 @@ import Foundation
 #if SPARKLE
 import Sparkle
 import SwiftUI
+import TEMCore
 #endif
 
 /// When the updater runs, outside `#if SPARKLE` so the unit tests (whose target has no such condition) reach it.
@@ -108,7 +109,7 @@ struct SoftwareUpdateSettingsSection: View {
             Toggle("Check for updates automatically", isOn: $update.automaticallyChecks)
                 .disabled(!update.isRunning)
                 .accessibilityIdentifier("settings.automaticUpdates")
-                .help("Once a day macEM asks mac4dstem.com whether a newer version exists. Nothing else is sent.")
+                .help("Once a day \(AppName.display) asks mac4dstem.com whether a newer version exists. Nothing else is sent.")
         }
     }
 }

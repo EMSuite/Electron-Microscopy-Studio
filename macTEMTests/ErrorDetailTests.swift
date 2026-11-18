@@ -66,7 +66,7 @@ nonisolated final class ErrorDetailTests: XCTestCase {
     /// the generic title back for an alert raised by its text alone. Red before: every alert was "Something went wrong".
     @MainActor func testAFileThatCannotBeOpenedIsTitledSo() throws {
         let refusal = ImageOpening.Refusal.unreadableFormat(file: "notes.txt", ext: "txt")
-        XCTAssertEqual(ErrorDetail.title(FileOpenFailure(refusal)), "macEM can't open this file")
+        XCTAssertEqual(ErrorDetail.title(FileOpenFailure(refusal)), "Electron Microscopy Studio can't open this file")
         XCTAssertEqual(ErrorDetail.title(refusal), "Something went wrong")
         XCTAssertEqual(ErrorDetail.text(FileOpenFailure(refusal)), ErrorDetail.text(refusal))
         let denied = CocoaError(.fileReadNoPermission)
@@ -75,12 +75,12 @@ nonisolated final class ErrorDetailTests: XCTestCase {
 
         let state = AppState(launch: LaunchOptions(arguments: []))
         state.present(FileOpenFailure(refusal))
-        XCTAssertEqual(state.errorTitle, "macEM can't open this file")
+        XCTAssertEqual(state.errorTitle, "Electron Microscopy Studio can't open this file")
         XCTAssertEqual(state.errorMessage, ErrorDetail.text(refusal))
         state.errorMessage = nil
         XCTAssertEqual(state.errorTitle, "Something went wrong")
         state.presentRefusals(["a.txt is a .txt file.", "b.doc is a .doc file."])
-        XCTAssertEqual(state.errorTitle, "macEM can't open these files")
+        XCTAssertEqual(state.errorTitle, "Electron Microscopy Studio can't open these files")
         state.errorMessage = nil
         state.present(CocoaError(.fileWriteNoPermission))
         XCTAssertEqual(state.errorTitle, "Something went wrong", "a failure that is not an open keeps the generic title")
