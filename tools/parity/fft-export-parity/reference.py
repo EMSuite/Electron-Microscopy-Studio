@@ -252,7 +252,7 @@ def common_comments(rep, tag, comments, c, win, subject, kind):
     spec = f"{win['width']} x {win['height']} bins"
     dqx, dqy = win["spacingX"], win["spacingY"]
     fx, fy = unit_factor(win["unitsX"]), unit_factor(win["unitsY"])
-    want = [f"# macEM {kind}",
+    want = [f"# Electron Microscopy Studio {kind}",
             f"# software: {SOFTWARE}",
             f"# file: {c['fileName']}",
             "# object: ImageList.1",

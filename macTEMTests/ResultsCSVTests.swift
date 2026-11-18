@@ -107,7 +107,7 @@ nonisolated final class ResultsCSVTests: XCTestCase {
         let rows = [distance(), angle(), try spot()]
         let text = try XCTUnwrap(ResultsCSV.text(rows, source: source(notes: ["The scale is the file's"]), session: "Saved at 14:03."))
         let parts = split(text)
-        XCTAssertEqual(parts.header.first, "# macEM results")
+        XCTAssertEqual(parts.header.first, "# Electron Microscopy Studio results")
         XCTAssertEqual(header(text, "software"), "macEM 0.1.0 (1)")
         XCTAssertEqual(header(text, "file"), "results.dm4")
         XCTAssertEqual(header(text, "object"), "ImageList.1")

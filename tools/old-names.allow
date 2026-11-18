@@ -1,18 +1,6 @@
 # Fragments that may stay on a line naming an old app name (tools/check-old-names.sh): fragment<TAB>reason. A line holding one
-# is skipped. Each is what a written file says about its writer, the bundle identifier, or a name never shown (#759).
+# is skipped. Each is the bundle identifier, a name never shown, or an older name still recognised (#759, #764).
 com.mac4dstem.macTEM	the bundle identifier, unchanged so settings and updates carry over
-"# macEM 	the first line of a CSV the app writes: its writer
-title: "macEM 	a CSV title line: its writer
-appName: "macEM"	the EDS room host: the creator in the files it writes
-creator: String = "macEM"	an .msa file's creator
-operatorName: String = "macEM"	an .ang file's OPERATOR line (orix reads it)
-author: String = "macEM"	a .ctf file's author
-software: "macEM"	a run record's software, written into the files
-"software": "macEM"	a pattern record's software, written into the files
-manufacturer: "macEM"	the generated demo scan's writer
 /macTEM-demo/	the demo documents' internal paths, never on disk
-macEM-demo-	the folders the demo data is written to
-"macEM \(version)	ExportSnapshot.softwareName: the writer in every exported file
-else { return "macEM" }	ExportSnapshot.softwareName: the writer in every exported file
+olderWrittenFolders = ["macEM-demo-	the folders 2.1.0 and earlier wrote the demo data to, still recognised
 domain: "macTEM.	an NSError domain, never shown
-enlarged \(s)x; macEM"	the Kikuchi overlay export's caption: its writer

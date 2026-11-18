@@ -88,7 +88,7 @@ nonisolated final class ProfileCSVTests: XCTestCase {
     func testTheTextIsExactForAPlantedProfile() throws {
         let text = try csv(planted())
         let expected = [
-            "# macEM line profile",
+            "# Electron Microscopy Studio line profile",
             "# software: macEM 0.1.0 (1)",
             "# file: planted.dm4",
             "# object: ImageList.1",
@@ -123,13 +123,13 @@ nonisolated final class ProfileCSVTests: XCTestCase {
         let parsed = parse(text)
         XCTAssertEqual(parsed.header.compactMap(key), [
             "software", "file", "object", "image", "start", "end", "width", "samples", "length", "x scale", "y scale",
-            "position", "shown in macEM as", "method", "notes", "validation", "lineage", "numbers",
+            "position", "shown in Electron Microscopy Studio as", "method", "notes", "validation", "lineage", "numbers",
         ])
-        XCTAssertEqual(parsed.header.first, "# macEM line profile")
+        XCTAssertEqual(parsed.header.first, "# Electron Microscopy Studio line profile")
         XCTAssertEqual(parsed.columns, "position (nm),value")
         XCTAssertEqual(parsed.rows.count, p.profile.samples.count)
         // Without `shown` the same file has the same keys minus that one.
-        XCTAssertEqual(parse(try csv(p)).header.compactMap(key).filter { $0 == "shown in macEM as" }, [])
+        XCTAssertEqual(parse(try csv(p)).header.compactMap(key).filter { $0 == "shown in Electron Microscopy Studio as" }, [])
     }
 
     /// A Velox pixel is 4.46179e-11 m: the file states metres, the positions stay in metres (the column header says so),
@@ -145,11 +145,11 @@ nonisolated final class ProfileCSVTests: XCTestCase {
         let withShown = try XCTUnwrap(ProfileCSV.text(profile, start: start, end: end, source: src,
                                                       shown: (unit: "nm", factor: 1e9)))
         let without = try XCTUnwrap(ProfileCSV.text(profile, start: start, end: end, source: src))
-        XCTAssertTrue(withShown.contains("\n# shown in macEM as: nm (x 1000000000.0)\n"))
-        XCTAssertFalse(without.contains("shown in macEM"))
-        XCTAssertEqual(lines(withShown).filter { $0.hasPrefix("# shown in macEM as") }.count, 1)
+        XCTAssertTrue(withShown.contains("\n# shown in Electron Microscopy Studio as: nm (x 1000000000.0)\n"))
+        XCTAssertFalse(without.contains("shown in Electron Microscopy Studio"))
+        XCTAssertEqual(lines(withShown).filter { $0.hasPrefix("# shown in Electron Microscopy Studio as") }.count, 1)
         // The line sits between the position line and the method line, and nothing else differs.
-        XCTAssertEqual(lines(withShown).filter { !$0.hasPrefix("# shown in macEM as") }, lines(without))
+        XCTAssertEqual(lines(withShown).filter { !$0.hasPrefix("# shown in Electron Microscopy Studio as") }, lines(without))
         for text in [withShown, without] {
             let parsed = parse(text)
             XCTAssertEqual(parsed.columns, "position (m),value")
@@ -285,7 +285,7 @@ nonisolated final class ProfileCSVTests: XCTestCase {
         XCTAssertTrue(parsed.header.contains("# object: a b  c d e f g h i"))
         XCTAssertTrue(parsed.header.contains("# software: macEM 0.1.0"))
         XCTAssertTrue(parsed.header.contains("# notes: a b  c d e f g h i; second note"))
-        XCTAssertTrue(parsed.header.contains("# shown in macEM as: u x (x 2.0)"))
+        XCTAssertTrue(parsed.header.contains("# shown in Electron Microscopy Studio as: u x (x 2.0)"))
         XCTAssertTrue(parsed.header.contains("# x scale: 0.5 n m per px, origin 0.0 px"))
         XCTAssertEqual(parsed.columns, "position (n m),value")
     }

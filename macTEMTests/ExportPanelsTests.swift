@@ -41,6 +41,12 @@ nonisolated final class ExportPanelsTests: XCTestCase {
         let elsewhere = URL(fileURLWithPath: "/data/macEM-demo-sem/Demo SEM image.tif")
         XCTAssertFalse(DemoDocuments.isWrittenDemo(elsewhere))
         XCTAssertEqual(ExportPanels.defaultFolder(for: elsewhere)?.path, "/data/macEM-demo-sem")
+        // #764: the demos are written under the new name, and the folders 2.1.0 wrote are still scratch.
+        XCTAssertEqual(try DemoDocuments.semImageFile().deletingLastPathComponent().lastPathComponent,
+                       "Electron-Microscopy-Studio-demo-sem")
+        let older = FileManager.default.temporaryDirectory.appendingPathComponent("macEM-demo-sem/Demo SEM image.tif")
+        XCTAssertTrue(DemoDocuments.isWrittenDemo(older), older.path)
+        XCTAssertNil(ExportPanels.defaultFolder(for: older))
 
         let root = URL(fileURLWithPath: #filePath).resolvingSymlinksInPath().deletingLastPathComponent().deletingLastPathComponent()
         for name in ["ExportSnapshot", "FFTExportSnapshot", "ResultsExportSnapshot"] {
