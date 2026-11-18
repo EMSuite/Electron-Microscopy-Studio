@@ -62,7 +62,7 @@ enum SessionPanels {
         // serialised by `SessionSaving.save`).
         guard panelItems.insert(item.id).inserted else { return }
         defer { panelItems.remove(item.id) }
-        guard let window = ExportPanels.hostWindow() else {
+        guard let window = ExportPanels.hostWindow(for: appState) else {
             NSSound.beep()
             return
         }
@@ -94,11 +94,11 @@ enum SessionPanels {
                                appState: AppState) async {
         let failure = error as? SessionSaving.Failure
         if failure?.dropsGrant == true { SessionGrants.drop(for: item) }
-        if failure?.offersSaveAnyway == true, let window = ExportPanels.hostWindow() {
+        if failure?.offersSaveAnyway == true, let window = ExportPanels.hostWindow(for: appState) {
             await saveAnyway(item: item, target: target, on: window, appState: appState)
             return
         }
-        guard failure?.offersReplace == true, let window = ExportPanels.hostWindow() else {
+        guard failure?.offersReplace == true, let window = ExportPanels.hostWindow(for: appState) else {
             appState.present(error)
             return
         }
@@ -196,7 +196,7 @@ enum SessionPanels {
     /// first save asks where, as File > Save to Session does), then the answer closes the files with nothing left unsaved; Don't
     /// Save closes them; Cancel keeps them. With another sheet up nothing can be asked: a beep, and the files stay open.
     static func askToClose(_ request: CloseRequest, appState: AppState) {
-        guard let window = ExportPanels.hostWindow() else {
+        guard let window = ExportPanels.hostWindow(for: appState) else {
             NSSound.beep()
             appState.answerClose(.cancel, to: request)
             return

@@ -143,6 +143,12 @@ final class AppState {
     @ObservationIgnored var opensInFlight = 0
     /// Brings this state's window forward (`WindowTabbing`, the one place the `NSWindow` is known); nil while no window shows it.
     @ObservationIgnored var showWindow: (() -> Void)?
+    /// This state's own window (an `NSWindow`, from `WindowTabbing`; typed `AnyObject` so this file needs no AppKit): the window a
+    /// save panel, an alert or a question this state asks is a sheet on, never whichever window is main (#625). nil while none shows it.
+    @ObservationIgnored var sheetWindow: (() -> AnyObject?)?
+    /// Exports of this window being rendered and written right now (never more than one: a second is refused with a beep). Per window,
+    /// so a write in one window never blocks an export in another (#625).
+    @ObservationIgnored var exportsWriting = 0
     /// Files opened into the Image room that are also spectrum images (the HAADF of a Velox SI): their image is a scan image, which the Diffraction room does not take.
     var spectrumCompanionImages: Set<URL> = []
     /// The scan of each opened DM4 spectrum image, from its header: the scan's size, not the survey image's.

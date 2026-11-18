@@ -14,7 +14,8 @@
 //  (`UI/` imports no AppKit); the accessory's content is SwiftUI (`UI/ExportImageOptions.swift`). The third named AppKit
 //  use, after the Metal image view and `NSWorkspace`'s Show in Finder.
 //
-//  THE SHEET: the host is `NSApp.mainWindow` (a sheet is key, not main), and nothing is presented when the window has a
+//  THE SHEET: the host is the asking state's own window (`AppState.sheetWindow`, #625: with two windows, an export asked from
+//  the back one is a sheet on that one), `NSApp.mainWindow` only for a state no window shows yet; nothing is presented when the window has a
 //  sheet already (the open panel or the alert can be up, and a menu item stays enabled under a window sheet): the entry
 //  point beeps, as AppKit does for a refused action, and so it does while an export is still writing. The panel is begun
 //  synchronously (`Task.immediate`), so a second ⇧⌘E before the first sheet is up finds it. Anything but OK is a silent
@@ -45,11 +46,6 @@ import TEMSession
 @MainActor
 enum ExportPanels {
 
-    /// The exports rendering and writing right now (never more than one: a second is refused). Transient, a fact about
-    /// the process and not about any file, so it lives here and not on `AppState`. Counted from the panel's OK to the
-    /// infobar's last line, so two exports never interleave their status lines or write one destination twice.
-    private static var writing = 0
-
     // MARK: Entry points
 
     /// File > Export Image… (⇧⌘E): the selected file's image as a PNG.
@@ -62,7 +58,7 @@ enum ExportPanels {
             return
         }
         guard let snapshot = ExportSnapshot.imageSnapshot(in: appState.openItems) else { return }
-        guard let window = hostWindowOrBeep() else { return }
+        guard let window = hostWindowOrBeep(for: appState) else { return }
         Task.immediate { await presentImagePanel(snapshot, on: window, appState: appState) }
     }
 
@@ -70,7 +66,7 @@ enum ExportPanels {
     static func exportProfile(appState: AppState) {
         guard ExportSnapshot.availability(of: appState).profile,
               let snapshot = ExportSnapshot.profileSnapshot(in: appState.openItems) else { return }
-        guard let window = hostWindowOrBeep() else { return }
+        guard let window = hostWindowOrBeep(for: appState) else { return }
         Task.immediate { await presentProfilePanel(snapshot, on: window, appState: appState) }
     }
 
@@ -78,7 +74,7 @@ enum ExportPanels {
     static func exportTransform(appState: AppState) {
         guard ExportSnapshot.fftAvailability(of: appState).transform,
               let snapshot = ExportSnapshot.transformSnapshot(in: appState.openItems) else { return }
-        guard let window = hostWindowOrBeep() else { return }
+        guard let window = hostWindowOrBeep(for: appState) else { return }
         if let refusal = ExportSnapshot.refusal(width: snapshot.display.width, height: snapshot.display.height) {
             appState.present(refusal)
             return
@@ -90,7 +86,7 @@ enum ExportPanels {
     static func exportRadialProfile(appState: AppState) {
         guard ExportSnapshot.fftAvailability(of: appState).profile,
               let snapshot = ExportSnapshot.radialProfileSnapshot(in: appState.openItems) else { return }
-        guard let window = hostWindowOrBeep() else { return }
+        guard let window = hostWindowOrBeep(for: appState) else { return }
         Task.immediate { await presentRadialProfilePanel(snapshot, on: window, appState: appState) }
     }
 
@@ -98,7 +94,7 @@ enum ExportPanels {
     static func exportSpots(appState: AppState) {
         guard ExportSnapshot.fftAvailability(of: appState).spots,
               let snapshot = ExportSnapshot.spotsSnapshot(in: appState.openItems) else { return }
-        guard let window = hostWindowOrBeep() else { return }
+        guard let window = hostWindowOrBeep(for: appState) else { return }
         Task.immediate { await presentSpotsPanel(snapshot, on: window, appState: appState) }
     }
 
@@ -111,7 +107,7 @@ enum ExportPanels {
             Task.immediate { await presentResultsPanel(snapshot, on: nil, appState: appState) }
             return
         }
-        guard let window = hostWindowOrBeep() else { return }
+        guard let window = hostWindowOrBeep(for: appState) else { return }
         Task.immediate { await presentResultsPanel(snapshot, on: window, appState: appState) }
     }
 
@@ -133,7 +129,7 @@ enum ExportPanels {
             let url = directory.appendingPathComponent(stem).appendingPathExtension(options.format.fileExtension)
             return Task.immediate { await writeSessionReport(rows, options: options, context: context, to: url, appState: appState) }
         }
-        guard let window = hostWindowOrBeep() else { return nil }
+        guard let window = hostWindowOrBeep(for: appState) else { return nil }
         return Task.immediate {
             await presentSessionReportPanel(rows, options: options, context: context, stem: stem, on: window, appState: appState)
         }
@@ -154,8 +150,10 @@ enum ExportPanels {
     /// Sets the report and writes it to `url` off the main actor; the status bar says what it holds, the alert why it could not be written.
     private static func writeSessionReport(_ rows: [SEMSessionRow], options: SEMSessionReport.Options, context: SEMSessionReport.Context,
                                            to url: URL, appState: AppState) async {
-        writing += 1
-        defer { writing -= 1 }
+        // Counted from the panel's OK to the infobar's last line, per window (`AppState.exportsWriting`): two exports of one window
+        // never interleave its status lines or write one destination twice, and another window's export is not held up (#625).
+        appState.exportsWriting += 1
+        defer { appState.exportsWriting -= 1 }
         do {
             let line = try await sessionReportFile(rows, options: options, context: context, to: url)
             report(line, in: appState)
@@ -187,16 +185,22 @@ enum ExportPanels {
         return folder.resolvingSymlinksInPath().standardizedFileURL.pathComponents.starts(with: bundle) ? nil : folder
     }
 
-    /// The window the sheet is presented on: the main window, unless it has a sheet already.
-    static func hostWindow() -> NSWindow? {
-        guard let window = NSApp.mainWindow, window.attachedSheet == nil else { return nil }
+    /// The window the sheet is presented on: `appState`'s own window (`AppState.sheetWindow`), the main window for a state no window
+    /// shows yet (a test, a launch before the first window); nil when that window has a sheet already.
+    static func hostWindow(for appState: AppState?) -> NSWindow? {
+        guard let window = sheetHost(own: appState?.sheetWindow?() as? NSWindow, main: NSApp.mainWindow),
+              window.attachedSheet == nil else { return nil }
         return window
     }
 
-    /// The host window, or a beep and nil when an export is writing or a sheet is up: an enabled command that did nothing
+    /// The asking window when it is known, else the main one (#625: the main one was always taken, so an export asked from the back
+    /// window was a sheet on the front one).
+    nonisolated static func sheetHost<Window: AnyObject>(own: Window?, main: Window?) -> Window? { own ?? main }
+
+    /// The host window, or a beep and nil when this window's export is writing or a sheet is up: an enabled command that did nothing
     /// and said nothing would read as broken.
-    private static func hostWindowOrBeep() -> NSWindow? {
-        if writing == 0, let window = hostWindow() { return window }
+    private static func hostWindowOrBeep(for appState: AppState) -> NSWindow? {
+        if appState.exportsWriting == 0, let window = hostWindow(for: appState) { return window }
         NSSound.beep()
         return nil
     }
@@ -280,8 +284,10 @@ enum ExportPanels {
         let panel = imagePanel(for: snapshot, choices: choices)
         guard await present(panel, on: window) == .OK, let url = panel.url else { return }
 
-        writing += 1
-        defer { writing -= 1 }
+        // Counted from the panel's OK to the infobar's last line, per window (`AppState.exportsWriting`): two exports of one window
+        // never interleave its status lines or write one destination twice, and another window's export is not held up (#625).
+        appState.exportsWriting += 1
+        defer { appState.exportsWriting -= 1 }
         let name = url.lastPathComponent
         let options = ExportSnapshot.options(scaleBar: choices.scaleBar, marks: choices.marks,
                                              offersMarks: choices.offersMarks)
@@ -300,8 +306,10 @@ enum ExportPanels {
         let panel = profilePanel(for: snapshot)
         guard await present(panel, on: window) == .OK, let url = panel.url else { return }
 
-        writing += 1
-        defer { writing -= 1 }
+        // Counted from the panel's OK to the infobar's last line, per window (`AppState.exportsWriting`): two exports of one window
+        // never interleave its status lines or write one destination twice, and another window's export is not held up (#625).
+        appState.exportsWriting += 1
+        defer { appState.exportsWriting -= 1 }
         let name = url.lastPathComponent
         appState.statusText = ExportSnapshot.exportingLine(name: name)
         do {
@@ -318,8 +326,10 @@ enum ExportPanels {
         let panel = transformPanel(for: snapshot, choices: choices)
         guard await present(panel, on: window) == .OK, let url = panel.url else { return }
 
-        writing += 1
-        defer { writing -= 1 }
+        // Counted from the panel's OK to the infobar's last line, per window (`AppState.exportsWriting`): two exports of one window
+        // never interleave its status lines or write one destination twice, and another window's export is not held up (#625).
+        appState.exportsWriting += 1
+        defer { appState.exportsWriting -= 1 }
         let name = url.lastPathComponent
         let options = ExportSnapshot.options(scaleBar: choices.scaleBar, marks: choices.marks, offersMarks: choices.offersMarks)
         appState.statusText = ExportSnapshot.exportingLine(name: name)
@@ -338,8 +348,10 @@ enum ExportPanels {
         let panel = radialProfilePanel(for: snapshot)
         guard await present(panel, on: window) == .OK, let url = panel.url else { return }
 
-        writing += 1
-        defer { writing -= 1 }
+        // Counted from the panel's OK to the infobar's last line, per window (`AppState.exportsWriting`): two exports of one window
+        // never interleave its status lines or write one destination twice, and another window's export is not held up (#625).
+        appState.exportsWriting += 1
+        defer { appState.exportsWriting -= 1 }
         let name = url.lastPathComponent
         appState.statusText = ExportSnapshot.exportingLine(name: name)
         do {
@@ -354,8 +366,10 @@ enum ExportPanels {
         let panel = spotsPanel(for: snapshot)
         guard await present(panel, on: window) == .OK, let url = panel.url else { return }
 
-        writing += 1
-        defer { writing -= 1 }
+        // Counted from the panel's OK to the infobar's last line, per window (`AppState.exportsWriting`): two exports of one window
+        // never interleave its status lines or write one destination twice, and another window's export is not held up (#625).
+        appState.exportsWriting += 1
+        defer { appState.exportsWriting -= 1 }
         let name = url.lastPathComponent
         appState.statusText = ExportSnapshot.exportingLine(name: name)
         do {
@@ -378,8 +392,10 @@ enum ExportPanels {
             url = chosen
         }
 
-        writing += 1
-        defer { writing -= 1 }
+        // Counted from the panel's OK to the infobar's last line, per window (`AppState.exportsWriting`): two exports of one window
+        // never interleave its status lines or write one destination twice, and another window's export is not held up (#625).
+        appState.exportsWriting += 1
+        defer { appState.exportsWriting -= 1 }
         let name = url.lastPathComponent
         appState.statusText = ExportSnapshot.exportingLine(name: name)
         do {

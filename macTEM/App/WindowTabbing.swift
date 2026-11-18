@@ -46,6 +46,7 @@ struct WindowTabbing: NSViewRepresentable {
             guard let window else { return }
             window.tabbingMode = .preferred
             state?.showWindow = { [weak window] in window?.makeKeyAndOrderFront(nil) }
+            state?.sheetWindow = { [weak window] in window }
             if let closeObserver { NotificationCenter.default.removeObserver(closeObserver) }
             closeObserver = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: window, queue: .main) {
                 [weak self] _ in
