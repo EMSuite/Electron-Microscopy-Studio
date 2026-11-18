@@ -42,8 +42,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/mac4DSTEM/SpectroKit",
       "state" : {
-        "revision" : "d21ee9832f063adf7b665c55ffc2eeab7c66a739",
-        "version" : "0.15.0"
+        "revision" : "b9707367ea3a7e688fe9c638826824686f7d4f8c",
+        "version" : "0.16.0"
       }
     }
   ],

@@ -243,7 +243,7 @@ package nonisolated enum SEMReferenceVersions {
         SEMSessionField("FormatoKit", "0.18.0"),
         SEMSessionField("ImagoKit", "0.11.0"),
         SEMSessionField("DiffractoKit", "0.15.1"),
-        SEMSessionField("SpectroKit", "0.15.0"),
+        SEMSessionField("SpectroKit", "0.16.0"),
         SEMSessionField("MacEMUI", "0.13.0"),
     ]
 
