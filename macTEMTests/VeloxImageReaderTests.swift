@@ -66,7 +66,7 @@ nonisolated final class VeloxImageReaderTests: XCTestCase {
         let refused = try refusal("velox-maps-only")
         XCTAssertEqual(refused, .velox(file: "velox-maps-only.emd",
                                        .noImage("SuperXG1 5 × 3, no detector index; SuperXG2 5 × 3, an EDS map")))
-        XCTAssertTrue(refused.localizedDescription.hasPrefix("velox-maps-only.emd is not read: it holds no image macEM opens ("),
+        XCTAssertTrue(refused.localizedDescription.hasPrefix("velox-maps-only.emd is not read: it holds no image Electron Microscopy Studio opens ("),
                       refused.localizedDescription)
     }
 

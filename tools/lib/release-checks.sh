@@ -38,7 +38,7 @@ assert_mactem_arm64_only() {  # <Mach-O>
 # Every Mach-O a user receives: the executable and the three frameworks, each named.
 assert_mactem_bundle_arm64_only() {  # <app>
   local app="$1" library arch_failures=0
-  # The executable is named after the flavour (macEM, or the store build's "Electron Microscopy Studio"): read it.
+  # The executable is named after the app ("Electron Microscopy Studio" since 2.1.1; macEM before): read it.
   local exe
   exe="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app/Contents/Info.plist" 2>/dev/null)"
   [[ -n "$exe" ]] || { echo "$app/Contents/Info.plist names no executable." >&2; return 1; }

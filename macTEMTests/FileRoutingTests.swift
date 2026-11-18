@@ -49,10 +49,10 @@ nonisolated final class FileRoutingTests: XCTestCase {
         XCTAssertEqual(FileRouting.inventory(path: Self.fixture("velox-single-spectrum.emd")), FileInventory(singleSpectrum: true))
         let mib = try Self.temp("scan.mib", Data("x".utf8))
         guard let fourD = FileRouting.inventory(path: mib.path).refusal else { return XCTFail("a MIB file is a 4D dataset") }
-        XCTAssertTrue(fourD.contains("scan.mib") && fourD.contains("4D dataset") && fourD.contains("mac4DSTEM"), fourD)
+        XCTAssertTrue(fourD.contains("scan.mib") && fourD.contains("4D dataset") && fourD.contains("4DSTEM Studio"), fourD)
         let unknown = try Self.temp("notes.xyz", Data("hello".utf8))
         XCTAssertEqual(FileRouting.inventory(path: unknown.path).refusal,
-                       "notes.xyz is not a format macEM opens (or its extension and its first bytes disagree).")
+                       "notes.xyz is not a format Electron Microscopy Studio opens (or its extension and its first bytes disagree).")
         let liar = try Self.temp("fake.dm4", Data("this is not a DM file".utf8))
         XCTAssertNotNil(FileRouting.inventory(path: liar.path).refusal, "bytes that disagree with the extension are refused")
     }
@@ -66,7 +66,7 @@ nonisolated final class FileRoutingTests: XCTestCase {
         try FileManager.default.setAttributes([.posixPermissions: 0o000], ofItemAtPath: tiff.path)
         defer { try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: tiff.path) }
         XCTAssertEqual(FileRouting.inventory(path: tiff.path).refusal,
-                       "macEM was not given access to ceta.tif: open it with File > Open…, drop it on the window or open it from the Finder.")
+                       "Electron Microscopy Studio was not given access to ceta.tif: open it with File > Open…, drop it on the window or open it from the Finder.")
         let gone = tiff.deletingLastPathComponent().appendingPathComponent("moved.emd")
         XCTAssertEqual(FileRouting.inventory(path: gone.path).refusal, "moved.emd is no longer where it was (moved, renamed or deleted).")
         XCTAssertNil(FileRouting.accessRefusal(path: Self.fixture("planted-2d.dm4")), "a file that reads is judged by its format")
@@ -243,7 +243,7 @@ nonisolated final class FileRoutingTests: XCTestCase {
         XCTAssertEqual(drop.accepted, [file("Pattern.dat")])
         XCTAssertEqual(drop.refusals, ["Setting.txt is a .txt file.", "Background.BMP is a .bmp file.", "README is a file without an extension.",
                                        FileRouting.openableSentence])
-        XCTAssertEqual(drop.refusals.joined(separator: " ").components(separatedBy: "macEM opens").count, 2, "the formats are named once")
+        XCTAssertEqual(drop.refusals.joined(separator: " ").components(separatedBy: "Electron Microscopy Studio opens").count, 2, "the formats are named once")
         let routed = FileRouting.dropped([file("a.dm4"), file("b.TIF")])
         XCTAssertEqual(routed.accepted, [file("a.dm4"), file("b.TIF")])
         XCTAssertEqual(routed.refusals, [])

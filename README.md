@@ -1,10 +1,10 @@
-<p align="center"><img src="docs/banner.png" width="100%" alt="macEM: TEM and SEM images, spectra and diffraction, native on Apple silicon"></p>
+<p align="center"><img src="docs/banner.png" width="100%" alt="Electron Microscopy Studio: TEM and SEM images, spectra and diffraction, native on Apple silicon"></p>
 
-# macEM
+# Electron Microscopy Studio
 
 TEM and SEM images, EDS and EELS spectrum images, electron diffraction and EBSD, analysed natively on the Mac.
 
-macEM is the companion to [mac4DSTEM](https://github.com/EMSuite/4DSTEM-Studio). Both are free, open source and built for
+Electron Microscopy Studio is the companion to [4DSTEM Studio](https://github.com/EMSuite/4DSTEM-Studio). Both are free, open source and built for
 Apple silicon.
 
 ## Download
@@ -13,16 +13,18 @@ Get the signed and notarised DMG from the [latest release](https://github.com/EM
 macOS 26 or later on an Apple silicon Mac. The SEM rooms and SEM files below are not in a release yet: to use them
 now, build the app yourself.
 
-From 2.1 the download checks for updates itself (macEM > Check for Updates…, and a daily check you can turn off in
-Settings); the App Store version updates through the store.
+From 2.1 the download checks for updates itself (Microscopy Studio > Check for Updates…, and a daily check you can turn off
+in Settings); the App Store version updates through the store.
 
-Up to 1.3 the app was called macTEM. To update, quit macTEM, drag macEM to Applications, then move macTEM to the Trash.
-Your recent files, the folders you allowed and your `.mactem.h5` session files carry over.
+Up to 2.1.0 the download was called macEM (and up to 1.3 macTEM). A copy that updates itself keeps its old file name in
+Applications and shows the new name everywhere else; rename it in the Finder if you like. A fresh download is
+Electron Microscopy Studio.app. Your settings, recent files, the folders you allowed and your `.mactem.h5` session files
+carry over either way.
 
 ## What it does
 
 Open a file and work through the sidebar. It lists five workspaces, Imaging, Spectroscopy, Diffraction, EBSD and Results,
-and under the one in front its rooms. What the file holds decides the room it opens in. macEM reads:
+and under the one in front its rooms. What the file holds decides the room it opens in. Electron Microscopy Studio reads:
 
 - **TEM**: DigitalMicrograph (.dm3, .dm4), Velox (.emd), TIFF and MRC images; EDS spectrum images from Velox and GMS,
   EELS spectrum images from GMS, and single .msa spectra.
@@ -102,7 +104,7 @@ Please open an issue. Bug reports with the file type and what you expected help 
 
 ## Citing
 
-If you use macEM in published work, please cite it and the Python packages whose methods it follows. All are in
+If you use Electron Microscopy Studio in published work, please cite it and the Python packages whose methods it follows. All are in
 [`CITATION.cff`](CITATION.cff).
 
 ## Licence

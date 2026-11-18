@@ -311,6 +311,17 @@ jobs:
         # Decision D15. Plain grep, no build; also part of `inventory`, kept as its own job so the red is named.
         run: tools/check-kit-boundary.sh
 
+  old-names:
+    name: No old app name on screen
+    if: github.event_name != 'schedule'
+    # Plain bash and grep: Linux runs it, off the macOS runner queue. Also part of `inventory`, kept as its own job so the red is named.
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - name: Fail on macEM, macTEM or mac4DSTEM in a string the app shows (#759)
+        run: tools/check-old-names.sh
+
   lint:
     name: Lint (shared SwiftLint and SwiftFormat config)
     if: github.event_name != 'schedule'

@@ -222,6 +222,6 @@ nonisolated extension SessionSidecarFileTests {
         try Data("not HDF5\n".utf8).write(to: junk)
         XCTAssertTrue(isCannotOpen(refusal { try Sidecar.read(url: junk) }))
         XCTAssertTrue(isCannotOpen(refusal { try Sidecar.read(url: directory.appendingPathComponent("missing.mactem.h5")) }))
-        XCTAssertTrue(Sidecar.Refusal.notPermitted("Permission denied").reason.contains("does not let macEM read it"))
+        XCTAssertTrue(Sidecar.Refusal.notPermitted("Permission denied").reason.contains("does not let Electron Microscopy Studio read it"))
     }
 }

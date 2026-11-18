@@ -2,12 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- THE WEBSITE DOWNLOAD'S Info.plist (#583): Info.plist, line for line, plus the four Sparkle keys at the end. The build picks
+	<!-- THE WEBSITE DOWNLOAD'S Info.plist (#583): Info.plist, line for line, plus the five Sparkle keys at the end. The build picks
 	     this file when MACEM_STORE_BUILD is NO (every build but the App Store's); the store build reads Info.plist and carries
 	     no updater. SoftwareUpdateTests checks that the two differ by exactly those keys, so edit Info.plist and copy the change here. -->
 	<!-- App Store export compliance (macTEM#101): macTEM makes no network connection and uses no non-exempt encryption. -->
-	<!-- The menu bar's name (guideline 5.2.5): "Microscopy Studio" in the App Store build, whose .app and Finder name is
-	     "Electron Microscopy Studio" (PRODUCT_NAME, CFBundleDisplayName); "macEM" in the website download. Config/Version.xcconfig. -->
+	<!-- The menu bar's name (guideline 5.2.5): "Microscopy Studio"; the .app and Finder name is "Electron Microscopy Studio"
+	     (PRODUCT_NAME, CFBundleDisplayName), in both builds (#759). Config/Version.xcconfig. -->
 	<key>CFBundleName</key>
 	<string>$(MACEM_MENU_NAME)</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
@@ -132,5 +132,9 @@
 	<true/>
 	<key>SUEnableSystemProfiling</key>
 	<false/>
+	<!-- The full name an installer that normalizes the app's file name gives it (#759): the menu bar's CFBundleName is the
+	     short "Microscopy Studio". The stock Sparkle installs in place, so a copy updated from macEM.app keeps that file name. -->
+	<key>SUBundleName</key>
+	<string>Electron Microscopy Studio</string>
 </dict>
 </plist>
