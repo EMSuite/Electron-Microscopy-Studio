@@ -3,6 +3,23 @@
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). App versions are tagged with a `v`
 (`v1.0.0`); release-please writes each new entry above the older ones from the merged pull requests' titles.
 
+## [2.1.1](https://github.com/EMSuite/Electron-Microscopy-Studio/compare/v2.1.0...v2.1.1) (2026-11-18)
+
+
+### Features
+
+* a large image's open shows its stage and time and can be stopped ([#752](https://github.com/EMSuite/Electron-Microscopy-Studio/issues/752)) ([9b8dbf5](https://github.com/EMSuite/Electron-Microscopy-Studio/commit/9b8dbf5c4715b969b2dcdec0c398656919bf93a3))
+
+
+### Bug Fixes
+
+* **deps:** a second EELS Align no longer holds an extra copy of the file, and Auto ID offers what it nearly found ([#757](https://github.com/EMSuite/Electron-Microscopy-Studio/issues/757)) ([3836625](https://github.com/EMSuite/Electron-Microscopy-Studio/commit/3836625cfb1881b752101ca467eb0a7981927c59))
+* export and session sheets open on the window that asked, and one window's export no longer blocks another ([#751](https://github.com/EMSuite/Electron-Microscopy-Studio/issues/751)) ([327f0d3](https://github.com/EMSuite/Electron-Microscopy-Studio/commit/327f0d36ed899049d671b5fa2d66dd8dff657215))
+* exported files name Electron Microscopy Studio as their writer ([#765](https://github.com/EMSuite/Electron-Microscopy-Studio/issues/765)) ([9c6f697](https://github.com/EMSuite/Electron-Microscopy-Studio/commit/9c6f697ecdef889a99d210d12a02706b58a41f7b))
+* File &gt; Open with every window minimised opens no second, empty window ([#763](https://github.com/EMSuite/Electron-Microscopy-Studio/issues/763)) ([2f1c3c4](https://github.com/EMSuite/Electron-Microscopy-Studio/commit/2f1c3c433b147a3b88a53d5b8f36d1dbfc0b22ce))
+* refuse an image export above 16384 px from its size, before the full-size copy ([#750](https://github.com/EMSuite/Electron-Microscopy-Studio/issues/750)) ([a946517](https://github.com/EMSuite/Electron-Microscopy-Studio/commit/a946517a38738549bfd230429b79ecea0eb94f7e))
+* the website download is named Electron Microscopy Studio, its app and DMG files included ([#760](https://github.com/EMSuite/Electron-Microscopy-Studio/issues/760)) ([b3aa3f4](https://github.com/EMSuite/Electron-Microscopy-Studio/commit/b3aa3f44ac413580bf02f1ea6f11f8db7c003210))
+
 ## [2.1.0](https://github.com/macEMSuite/macEM/compare/v2.0.2...v2.1.0) (2026-11-16)
 
 
