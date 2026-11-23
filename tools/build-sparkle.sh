@@ -41,13 +41,26 @@ xcodebuild archive -project "$WORK/src/Sparkle.xcodeproj" -scheme Sparkle -confi
   BUILD_LIBRARY_FOR_DISTRIBUTION=YES SKIP_INSTALL=NO "$OVERRIDE=1" > "$WORK/archive.log" 2>&1 \
   || { tail -40 "$WORK/archive.log" >&2; fail "the archive failed"; }
 
-# The override, read from the compiler's own command lines (xcodebuild logs `-D<name>\=<value>`): each file that reads the flag
-# was compiled with 1, and nothing was compiled with 0.
+# The override, read from the compiler's own command lines: each file that reads the flag was compiled with 1, and nothing with 0.
+# xcodebuild logs a define as `-D<name>\=<value>`, on the command line or in the response file (`@<path>.resp`) it names.
+compiled_with() { # compiled_with <source> <value>
+  local resp
+  grep -F -- "/$1" "$WORK/archive.log" | grep -E -- "-D$OVERRIDE\\\\?=$2" > /dev/null && return 0
+  for resp in ${(f)"$(grep -F -- "/$1" "$WORK/archive.log" | grep -oE -- '@[^ ]+\.resp' | cut -c2- | sort -u || true)"}; do
+    [[ -f "$resp" ]] && grep -E -- "-D$OVERRIDE\\\\?=$2" "$resp" > /dev/null && return 0
+  done
+  return 1
+}
 for src in Autoupdate/SUInstaller.m Autoupdate/SUPlainInstaller.m Sparkle/InstallerProgress/InstallerProgressAppController.m; do
-  grep -F -- "/$src" "$WORK/archive.log" | grep -E -- "-D$OVERRIDE\\\\?=1" > /dev/null \
-    || fail "$src was not compiled with -D$OVERRIDE=1"
+  if ! compiled_with "$src" 1; then
+    echo "build-sparkle: the log's lines for $src:" >&2
+    grep -F -- "/$src" "$WORK/archive.log" | cut -c1-1500 | head -6 >&2
+    fail "$src was not compiled with -D$OVERRIDE=1"
+  fi
 done
-if grep -E -- "-D$OVERRIDE\\\\?=0" "$WORK/archive.log" > /dev/null; then fail "a file was compiled with -D$OVERRIDE=0"; fi
+if { cat "$WORK/archive.log"; find "$WORK/DerivedData" -name '*.resp' -exec cat {} + 2> /dev/null; } | grep -E -- "-D$OVERRIDE\\\\?=0" > /dev/null; then
+  fail "a file was compiled with -D$OVERRIDE=0"
+fi
 
 FRAMEWORK="$WORK/Sparkle.xcarchive/Products/Library/Frameworks/Sparkle.framework"
 [[ -d "$FRAMEWORK" ]] || fail "the archive holds no Library/Frameworks/Sparkle.framework"
