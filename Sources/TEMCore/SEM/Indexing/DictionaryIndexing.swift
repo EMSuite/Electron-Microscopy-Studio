@@ -138,52 +138,106 @@ package nonisolated enum DictionaryIndexing {
     /// pattern of `pixels` values every `pixels`), centred for NCC, divided by their Euclidean norm. A flat pattern divides zero by
     /// zero, so its values are NaN, as kikuchipy's are.
     package static func prepare(_ values: UnsafeBufferPointer<Double>, count: Int, pixels: Int, kept: [Int], metric: Metric) -> [Double] {
-        let all = kept.count == pixels
-        return prepare(count: count, length: kept.count, metric: metric) { p, dst in
-            guard let source = values.baseAddress else { return }   // no pattern, nothing to copy
-            let src = source + p * pixels
-            if all { for k in 0 ..< kept.count { dst[k] = src[k] } } else { for k in 0 ..< kept.count { dst[k] = src[kept[k]] } }
+        var out = [Double](repeating: 0, count: count * kept.count)
+        guard let source = values.baseAddress else { return out }   // no pattern, nothing to copy
+        out.withUnsafeMutableBufferPointer { o in
+            guard let target = o.baseAddress else { return }
+            prepare(source, count: count, pixels: pixels, kept: kept, metric: metric, into: target)
         }
+        return out
     }
 
     /// `prepare` of the patterns `patterns` of a block held at its stored type, each widened to float64 as it is prepared (#620): the
     /// numbers of `prepare` on the block's doubles, without a float64 copy of the block.
     package static func prepare(_ stored: StoredPatterns, patterns: [Int], kept: [Int], metric: Metric) -> [Double] {
-        let mask: [Int]? = kept.count == stored.pixels ? nil : kept
-        return prepare(count: patterns.count, length: kept.count, metric: metric) { p, dst in
-            stored.gather(pattern: patterns[p], kept: mask, into: dst)
+        var out = [Double](repeating: 0, count: patterns.count * kept.count)
+        out.withUnsafeMutableBufferPointer { o in
+            guard let target = o.baseAddress else { return }   // no pattern, nothing to prepare
+            prepare(stored, patterns: patterns, kept: kept, metric: metric, into: target)
+        }
+        return out
+    }
+
+    /// Centres (NCC) and scales the `n` values at `dst` in place: the preparation itself, in float64.
+    @inline(__always)
+    private static func normalise(_ dst: UnsafeMutablePointer<Double>, _ n: Int, metric: Metric) {
+        if metric.centres {
+            var sum = 0.0
+            for k in 0 ..< n { sum += dst[k] }
+            let mean = sum / Double(n)
+            for k in 0 ..< n { dst[k] -= mean }
+        }
+        var squares = 0.0
+        for k in 0 ..< n { squares += dst[k] * dst[k] }
+        let norm = squares.squareRoot()
+        for k in 0 ..< n { dst[k] /= norm }
+    }
+
+    /// Patterns prepared per worker job: enough to pay for the job, few enough to spread a chunk over the cores.
+    private static let patternsPerJob = 64
+
+    /// The pointers the preparing workers share: each pattern reads its own values and writes its own row.
+    private struct PreparePointers<Source, Target>: @unchecked Sendable {
+        let source: UnsafePointer<Source>
+        let target: UnsafeMutablePointer<Target>
+    }
+
+    /// `prepare` of `count` raw patterns (float64, or the float32 a GPU projection gives, widened exactly) written as `U` to `out`,
+    /// row-major: float64 for the CPU, float32 straight into the GPU's buffer. Each pattern is widened and prepared in float64 as
+    /// before; the patterns are spread over the cores (#624).
+    static func prepare<T: BinaryFloatingPoint, U: BinaryFloatingPoint>(_ source: UnsafePointer<T>, count: Int, pixels: Int, kept: [Int],
+                                                                        metric: Metric, into out: UnsafeMutablePointer<U>) {
+        let n = kept.count
+        guard count > 0, n > 0 else { return }
+        let all = n == pixels
+        let shared = PreparePointers(source: source, target: out)
+        let jobs = (count + patternsPerJob - 1) / patternsPerJob
+        DispatchQueue.concurrentPerform(iterations: jobs) { job in
+            var scratch = [Double](repeating: 0, count: n)
+            scratch.withUnsafeMutableBufferPointer { s in
+                guard let dst = s.baseAddress else { return }
+                for p in (job * patternsPerJob) ..< min(count, (job + 1) * patternsPerJob) {
+                    let src = shared.source + p * pixels
+                    if all { for k in 0 ..< n { dst[k] = Double(src[k]) } } else { for k in 0 ..< n { dst[k] = Double(src[kept[k]]) } }
+                    normalise(dst, n, metric: metric)
+                    let row = shared.target + p * n
+                    for k in 0 ..< n { row[k] = U(dst[k]) }
+                }
+            }
         }
     }
 
-    /// The preparation itself: `load(p, dst)` writes pattern p's `length` kept values to `dst`, then they are centred (NCC) and
-    /// divided by their norm in place.
-    private static func prepare(count: Int, length n: Int, metric: Metric,
-                                load: (Int, UnsafeMutablePointer<Double>) -> Void) -> [Double] {
-        var out = [Double](repeating: 0, count: count * n)
-        out.withUnsafeMutableBufferPointer { o in
-            for p in 0 ..< count {
-                guard let target = o.baseAddress else { return }   // no pattern, nothing to prepare
-                let dst = target + p * n
-                load(p, dst)
-                if metric.centres {
-                    var sum = 0.0
-                    for k in 0 ..< n { sum += dst[k] }
-                    let mean = sum / Double(n)
-                    for k in 0 ..< n { dst[k] -= mean }
+    /// `prepare` of the block's patterns `patterns` (stored type, widened to float64 per pattern) written as `U` to `out`, pattern
+    /// after pattern, spread over the cores.
+    static func prepare<U: BinaryFloatingPoint>(_ stored: StoredPatterns, patterns: [Int], kept: [Int], metric: Metric,
+                                                into out: UnsafeMutablePointer<U>) {
+        let n = kept.count
+        guard !patterns.isEmpty, n > 0 else { return }
+        let mask: [Int]? = n == stored.pixels ? nil : kept
+        let shared = PreparePointers<U, U>(source: UnsafePointer(out), target: out)
+        let count = patterns.count
+        let jobs = (count + patternsPerJob - 1) / patternsPerJob
+        DispatchQueue.concurrentPerform(iterations: jobs) { job in
+            var scratch = [Double](repeating: 0, count: n)
+            scratch.withUnsafeMutableBufferPointer { s in
+                guard let dst = s.baseAddress else { return }
+                for p in (job * patternsPerJob) ..< min(count, (job + 1) * patternsPerJob) {
+                    stored.gather(pattern: patterns[p], kept: mask, into: dst)
+                    normalise(dst, n, metric: metric)
+                    let row = shared.target + p * n
+                    for k in 0 ..< n { row[k] = U(dst[k]) }
                 }
-                var squares = 0.0
-                for k in 0 ..< n { squares += dst[k] * dst[k] }
-                let norm = squares.squareRoot()
-                for k in 0 ..< n { dst[k] /= norm }
             }
         }
-        return out
     }
 
     // MARK: - Matching
 
     /// `metric.match` on the CPU in float64: the scores of every experimental pattern (rows) against every dictionary pattern
-    /// (columns), `experimental · dictionaryᵀ`, both already prepared with `length` values per pattern.
+    /// (columns), `experimental · dictionaryᵀ`, both already prepared with `length` values per pattern. Each score is one dot product
+    /// in a fixed order, so the float64 reference gives the same bits for any chunking (`testChunksGiveTheSameResult`); a BLAS
+    /// product (#624) would block the sums by the matrices' shapes, and a chunk's shape would move a score's last bit and, on a tie,
+    /// the index kept. The GPU path is where the product's size pays.
     static func matchCPU(experimental e: [Double], count nExp: Int, dictionary d: [Double], count nDict: Int, length: Int) -> [Double] {
         var scores = [Double](repeating: 0, count: nExp * nDict)
         // Blocks of experimental patterns that stay in cache while a block of dictionary patterns streams past.
@@ -242,34 +296,68 @@ package nonisolated enum DictionaryIndexing {
         return a > b || (a == b && ia < ib)
     }
 
+    /// The pointers the merging workers share: each experimental pattern reads its own score row and writes its own `keepN` slots.
+    private struct MergePointers<S>: @unchecked Sendable {
+        let chunk: UnsafePointer<S>
+        let scores: UnsafeMutablePointer<Double>
+        let indices: UnsafeMutablePointer<Int>
+        let filled: UnsafeMutablePointer<Int>
+    }
+
     /// The best `keepN` matches of each experimental pattern so far, merged chunk by chunk (`_dictionary_indexing`'s hstack, sort
-    /// and `take_along_axis`).
+    /// and `take_along_axis`). Held flat (pattern × keepN, best first, `filled` per pattern) and merged over the cores, pattern by
+    /// pattern (#624); `ranksBefore` is a total order, so the kept matches do not depend on the chunks or the order they merge in.
     struct Best {
         let keepN: Int
-        var scores: [[Double]]
-        var indices: [[Int]]
+        let patterns: Int
+        var scores: [Double]
+        var indices: [Int]
+        var filled: [Int]
 
         init(patterns: Int, keepN: Int) {
             self.keepN = keepN
-            scores = Array(repeating: [], count: patterns)
-            indices = Array(repeating: [], count: patterns)
+            self.patterns = patterns
+            scores = Array(repeating: .nan, count: patterns * keepN)
+            indices = Array(repeating: -1, count: patterns * keepN)
+            filled = Array(repeating: 0, count: patterns)
         }
 
-        /// Merges a chunk's score matrix (patterns × `count`), whose column 0 is dictionary index `offset`.
-        mutating func merge(_ chunk: [Double], count: Int, offset: Int) {
-            let k = keepN
-            for i in 0 ..< scores.count {
-                var s = scores[i], idx = indices[i]
-                for m in 0 ..< count {
-                    let x = chunk[i * count + m], j = offset + m
-                    if s.count == k, !ranksBefore(x, j, s[k - 1], idx[k - 1]) { continue }
-                    // Insert in rank order, dropping the last when full.
-                    var pos = s.count
-                    while pos > 0, ranksBefore(x, j, s[pos - 1], idx[pos - 1]) { pos -= 1 }
-                    s.insert(x, at: pos); idx.insert(j, at: pos)
-                    if s.count > k { s.removeLast(); idx.removeLast() }
+        /// Merges a chunk's score matrix (patterns × `count`, row-major, float64 from the CPU or float32 from the GPU, widened
+        /// exactly), whose column 0 is dictionary index `offset`.
+        mutating func merge<S: BinaryFloatingPoint>(_ chunk: UnsafePointer<S>, count: Int, offset: Int) {
+            guard patterns > 0, count > 0, keepN > 0 else { return }
+            let k = keepN, n = patterns
+            let rowsPerJob = 32
+            let jobs = (n + rowsPerJob - 1) / rowsPerJob
+            scores.withUnsafeMutableBufferPointer { sp in
+                indices.withUnsafeMutableBufferPointer { ip in
+                    filled.withUnsafeMutableBufferPointer { fp in
+                        guard let s0 = sp.baseAddress, let i0 = ip.baseAddress, let f0 = fp.baseAddress else { return }
+                        let shared = MergePointers(chunk: chunk, scores: s0, indices: i0, filled: f0)
+                        DispatchQueue.concurrentPerform(iterations: jobs) { job in
+                            for i in (job * rowsPerJob) ..< min(n, (job + 1) * rowsPerJob) {
+                                let s = shared.scores + i * k, idx = shared.indices + i * k
+                                let row = shared.chunk + i * count
+                                var f = shared.filled[i]
+                                for m in 0 ..< count {
+                                    let x = Double(row[m]), j = offset + m
+                                    if f == k, !DictionaryIndexing.ranksBefore(x, j, s[k - 1], idx[k - 1]) { continue }
+                                    // Insert in rank order, dropping the last when full.
+                                    var pos = f
+                                    while pos > 0, DictionaryIndexing.ranksBefore(x, j, s[pos - 1], idx[pos - 1]) { pos -= 1 }
+                                    var t = Swift.min(f, k - 1)
+                                    while t > pos {
+                                        s[t] = s[t - 1]; idx[t] = idx[t - 1]
+                                        t -= 1
+                                    }
+                                    s[pos] = x; idx[pos] = j
+                                    if f < k { f += 1 }
+                                }
+                                shared.filled[i] = f
+                            }
+                        }
+                    }
                 }
-                scores[i] = s; indices[i] = idx
             }
         }
     }
@@ -304,14 +392,14 @@ package nonisolated enum DictionaryIndexing {
         return try StoredPatterns(doubles: values, pixels: pixels)
     }
 
-    /// The checked experimental side: navigation shape, masks, the prepared patterns of the points in the data.
+    /// The checked experimental side: navigation shape, masks, the points in the data and the pixels kept. The patterns are
+    /// prepared by the backend that matches them: in float64 for the CPU, straight into the GPU's float32 buffer for the GPU.
     private struct Experimental {
         let count: Int
         let inData: [Bool]
         let indexed: [Int]
         let kept: [Int]
-        /// The prepared patterns in float64; let go once the GPU holds its float32 copy.
-        var prepared: [Double]
+        let patterns: StoredPatterns
     }
 
     private static func experimentalSide(_ experimental: StoredPatterns, navigationShape: [Int], pixels: Int, options: Options) throws -> Experimental {
@@ -330,48 +418,96 @@ package nonisolated enum DictionaryIndexing {
         }
         let kept = try keptPixels(options.signalMask, pixels: pixels)
         let indexed = (0 ..< count).filter { inData[$0] }
-        // Each pattern in the data widened as it is prepared: no float64 copy of the block (#620).
-        let prepared = prepare(experimental, patterns: indexed, kept: kept, metric: options.metric)
-        return Experimental(count: count, inData: inData, indexed: indexed, kept: kept, prepared: prepared)
+        return Experimental(count: count, inData: inData, indexed: indexed, kept: kept, patterns: experimental)
     }
 
     /// The chunks done and the chunks in all, after each chunk merges (and once with 0 before the first); called on the indexing thread.
     package typealias Progress = @Sendable (_ done: Int, _ total: Int) -> Void
 
-    /// Runs the chunks: `chunk(start, end)` hands the dictionary patterns `start ..< end` (float32-valued doubles, row-major), each
-    /// prepared, matched on the chosen backend and merged. Inside a task, a cancelled task stops before the next chunk
+    /// One chunk of raw dictionary patterns (float32-valued, row-major, `pixels` values each) as its source holds it: doubles from a
+    /// dictionary in memory or the CPU projection, floats from the GPU projection.
+    enum RawChunk {
+        case doubles(UnsafeBufferPointer<Double>)
+        case floats(UnsafeBufferPointer<Float>)
+    }
+
+    /// Runs the chunks: `chunk(start, end, use)` hands the dictionary patterns `start ..< end` to `use`, which prepares, matches and
+    /// merges them on the chosen backend. On the GPU two chunks are in flight: one is prepared and merged on the CPU while the
+    /// other's product runs, in buffers made once per run (#624). Inside a task, a cancelled task stops before the next chunk
     /// (`CancellationError`); `progress` hears of each chunk merged.
-    private static func run(_ exp: inout Experimental, pixels: Int, dictionarySize: Int, rotations: [SIMD4<Double>], navigationShape: [Int],
-                            options: Options, progress: Progress? = nil, chunk: (Int, Int) throws -> [Double]) throws -> Result {
+    private static func run(_ exp: Experimental, pixels: Int, dictionarySize: Int, rotations: [SIMD4<Double>], navigationShape: [Int],
+                            options: Options, progress: Progress? = nil,
+                            chunk: (Int, Int, (RawChunk) throws -> Void) throws -> Void) throws -> Result {
         guard dictionarySize > 0 else { throw Error.emptyDictionary }
         let keepN = min(options.keepN, dictionarySize)
         let length = exp.kept.count, nExp = exp.indexed.count
         let per = try chunkSize(options, experimental: nExp, length: length, dictionary: dictionarySize)
         let metal = usesMetal(options.backend, work: nExp * dictionarySize * length)
-        var gpu: DictionaryIndexingMetal.Matcher?
-        if metal {
-            gpu = try DictionaryIndexingMetal.Matcher(experimental: exp.prepared, count: nExp, length: length)
-            exp.prepared = []   // the GPU holds its float32 copy; the float64 one is not read again
-        }
         var best = Best(patterns: nExp, keepN: keepN)
         let chunks = (dictionarySize + per - 1) / per
+        var done = 0
+        let metric = options.metric, kept = exp.kept
         progress?(0, chunks)
-        var start = 0, done = 0
-        while start < dictionarySize {
-            try Task.checkCancellation()
-            let end = min(dictionarySize, start + per)
-            let raw = try chunk(start, end)
-            let prepared = raw.withUnsafeBufferPointer { prepare($0, count: end - start, pixels: pixels, kept: exp.kept, metric: options.metric) }
-            let scores: [Double]
-            if let gpu {
-                scores = try gpu.match(dictionary: prepared, count: end - start)
-            } else {
-                scores = matchCPU(experimental: exp.prepared, count: nExp, dictionary: prepared, count: end - start, length: length)
+        if metal {
+            let gpu = try DictionaryIndexingMetal.Matcher(count: nExp, length: length, capacity: per) { target in
+                prepare(exp.patterns, patterns: exp.indexed, kept: kept, metric: metric, into: target)
             }
-            best.merge(scores, count: end - start, offset: start)
-            start = end
-            done += 1
-            progress?(done, chunks)
+            let merged: (UnsafePointer<Float>, Int, Int) -> Void = { scores, size, offset in
+                best.merge(scores, count: size, offset: offset)
+                done += 1
+                progress?(done, chunks)
+            }
+            var start = 0
+            while start < dictionarySize {
+                try Task.checkCancellation()
+                let end = min(dictionarySize, start + per)
+                try chunk(start, end) { raw in
+                    try gpu.submit(size: end - start, offset: start, completed: merged) { target in
+                        switch raw {
+                        case .doubles(let v):
+                            if let base = v.baseAddress {
+                                prepare(base, count: end - start, pixels: pixels, kept: kept, metric: metric, into: target)
+                            }
+                        case .floats(let v):
+                            if let base = v.baseAddress {
+                                prepare(base, count: end - start, pixels: pixels, kept: kept, metric: metric, into: target)
+                            }
+                        }
+                    }
+                }
+                start = end
+            }
+            try gpu.finish(completed: merged)
+        } else {
+            let prepared = prepare(exp.patterns, patterns: exp.indexed, kept: kept, metric: metric)
+            var start = 0
+            while start < dictionarySize {
+                try Task.checkCancellation()
+                let end = min(dictionarySize, start + per), size = end - start
+                try chunk(start, end) { raw in
+                    var dictionary = [Double](repeating: 0, count: size * length)
+                    dictionary.withUnsafeMutableBufferPointer { d in
+                        guard let target = d.baseAddress else { return }
+                        switch raw {
+                        case .doubles(let v):
+                            if let base = v.baseAddress {
+                                prepare(base, count: size, pixels: pixels, kept: kept, metric: metric, into: target)
+                            }
+                        case .floats(let v):
+                            if let base = v.baseAddress {
+                                prepare(base, count: size, pixels: pixels, kept: kept, metric: metric, into: target)
+                            }
+                        }
+                    }
+                    let scores = matchCPU(experimental: prepared, count: nExp, dictionary: dictionary, count: size, length: length)
+                    scores.withUnsafeBufferPointer { s in
+                        if let base = s.baseAddress { best.merge(base, count: size, offset: start) }
+                    }
+                }
+                done += 1
+                progress?(done, chunks)
+                start = end
+            }
         }
         var result = Result(navigationShape: navigationShape, keepN: keepN, isInData: exp.inData,
                             scores: [Double](repeating: .nan, count: exp.count * keepN),
@@ -379,8 +515,8 @@ package nonisolated enum DictionaryIndexing {
                             rotations: [SIMD4<Double>](repeating: SIMD4(1, 0, 0, 0), count: exp.count * keepN))
         for (row, point) in exp.indexed.enumerated() {
             for r in 0 ..< keepN {
-                let j = best.indices[row][r]
-                result.scores[point * keepN + r] = best.scores[row][r]
+                let j = best.indices[row * keepN + r]
+                result.scores[point * keepN + r] = best.scores[row * keepN + r]
                 result.simulationIndices[point * keepN + r] = j
                 result.rotations[point * keepN + r] = rotations[j]
             }
@@ -394,21 +530,22 @@ package nonisolated enum DictionaryIndexing {
     /// (`get_patterns`' default) to compare with it.
     package static func index(experimental: [Double], navigationShape: [Int], dictionary: [Double], rotations: [SIMD4<Double>],
                               pixels: Int, options: Options = Options()) throws -> Result {
-        var exp = try experimentalSide(try stored(experimental, pixels: pixels), navigationShape: navigationShape, pixels: pixels, options: options)
+        let exp = try experimentalSide(try stored(experimental, pixels: pixels), navigationShape: navigationShape, pixels: pixels, options: options)
         guard !dictionary.isEmpty else { throw Error.emptyDictionary }
         guard dictionary.count % pixels == 0 else {
             throw Error.patternCount(values: dictionary.count, patterns: dictionary.count / pixels, pixels: pixels)
         }
         let size = dictionary.count / pixels
         guard rotations.count == size else { throw Error.rotationCount(rotations: rotations.count, patterns: size) }
-        return try run(&exp, pixels: pixels, dictionarySize: size, rotations: rotations, navigationShape: navigationShape, options: options) { s, e in
-            Array(dictionary[(s * pixels) ..< (e * pixels)])
+        return try run(exp, pixels: pixels, dictionarySize: size, rotations: rotations, navigationShape: navigationShape, options: options) { s, e, use in
+            try dictionary[(s * pixels) ..< (e * pixels)].withUnsafeBufferPointer { try use(.doubles($0)) }
         }
     }
 
     /// Dictionary indexing against the master pattern projected onto `detector` for each rotation, chunk by chunk
     /// (`EBSDMasterPattern.get_patterns(rotations, detector, energy, dtype_out=float32)` then `dictionary_indexing`): the dictionary
-    /// is never held whole. The projection runs on the GPU when the matching does (`MasterPatternProjection.patternsFloat32`).
+    /// is never held whole. The projection runs on the GPU when the matching does (`MasterPatternProjectionMetal.Projector`, the
+    /// master pattern uploaded once per run).
     package static func index(experimental: [Double], navigationShape: [Int], master: EBSDMasterPattern, rotations: [SIMD4<Double>],
                               detector: EBSDDetectorGeometry, energy: Double? = nil, options: Options = Options(),
                               progress: Progress? = nil) throws -> Result {
@@ -422,17 +559,25 @@ package nonisolated enum DictionaryIndexing {
                               detector: EBSDDetectorGeometry, energy: Double? = nil, options: Options = Options(),
                               progress: Progress? = nil) throws -> Result {
         let pixels = detector.rows * detector.columns
-        var exp = try experimentalSide(experimental, navigationShape: navigationShape, pixels: pixels, options: options)
+        let exp = try experimentalSide(experimental, navigationShape: navigationShape, pixels: pixels, options: options)
         guard !rotations.isEmpty else { throw Error.emptyDictionary }
-        let metal = usesMetal(options.backend, work: exp.indexed.count * rotations.count * exp.kept.count)
-        return try run(&exp, pixels: pixels, dictionarySize: rotations.count, rotations: rotations, navigationShape: navigationShape,
-                       options: options, progress: progress) { s, e in
-            let chunk = Array(rotations[s ..< e])
-            if metal {
-                return try MasterPatternProjection.patternsFloat32(master: master, rotations: chunk, detector: detector, energy: energy,
-                                                                   backend: .metal).map(Double.init)
+        let length = exp.kept.count
+        let metal = usesMetal(options.backend, work: exp.indexed.count * rotations.count * length)
+        // The GPU projects into buffers made once for the run's chunk size, the master pattern uploaded once (#624).
+        let projector = try metal
+            ? MasterPatternProjectionMetal.Projector(master: master, detector: detector, energy: energy,
+                                                         capacity: chunkSize(options, experimental: exp.indexed.count, length: length,
+                                                                             dictionary: rotations.count))
+            : nil
+        return try run(exp, pixels: pixels, dictionarySize: rotations.count, rotations: rotations, navigationShape: navigationShape,
+                       options: options, progress: progress) { s, e, use in
+            if let projector {
+                try projector.withPatterns(rotations[s ..< e]) { try use(.floats($0)) }
+                return
             }
-            return try MasterPatternProjection.project(master: master, rotations: chunk, detector: detector, energy: energy, output: .float32).values
+            let patterns = try MasterPatternProjection.project(master: master, rotations: Array(rotations[s ..< e]), detector: detector,
+                                                               energy: energy, output: .float32)
+            try patterns.values.withUnsafeBufferPointer { try use(.doubles($0)) }
         }
     }
 
