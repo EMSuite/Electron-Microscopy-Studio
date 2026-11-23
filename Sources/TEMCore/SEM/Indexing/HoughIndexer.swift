@@ -263,16 +263,17 @@ package nonisolated struct HoughIndexer: Sendable {
         for i in 0..<nb {
             for j in (i + 1)..<max(nb, i + 1) {
                 for k in (j + 1)..<max(nb, j + 1) {
-                    let tri = [angles[i * nb + j], angles[i * nb + k], angles[j * nb + k]]
-                    var s = [0, 1, 2]
-                    if tri[s[0]] > tri[s[2]] { s.swapAt(0, 2) }
-                    if tri[s[0]] > tri[s[1]] { s.swapAt(0, 1) }
-                    if tri[s[1]] > tri[s[2]] { s.swapAt(1, 2) }
-                    let s2 = HoughReflectorLibrary.cornerPermutation(s)
-                    var u = [0, 1, 2]
-                    if s2[u[0]] > s2[u[2]] { u.swapAt(0, 2) }
-                    if s2[u[0]] > s2[u[1]] { u.swapAt(0, 1) }
-                    if s2[u[1]] > s2[u[2]] { u.swapAt(1, 2) }
+                    // SIMD triples, not arrays: this runs once per band triangle, and four heap arrays each were its cost (#624).
+                    let tri = SIMD3(angles[i * nb + j], angles[i * nb + k], angles[j * nb + k])
+                    var s = SIMD3(0, 1, 2)
+                    if tri[s[0]] > tri[s[2]] { Self.swapLanes(&s, 0, 2) }
+                    if tri[s[0]] > tri[s[1]] { Self.swapLanes(&s, 0, 1) }
+                    if tri[s[1]] > tri[s[2]] { Self.swapLanes(&s, 1, 2) }
+                    let s2 = HoughReflectorLibrary.cornerPermutation(edges: s)
+                    var u = SIMD3(0, 1, 2)
+                    if s2[u[0]] > s2[u[2]] { Self.swapLanes(&u, 0, 2) }
+                    if s2[u[0]] > s2[u[1]] { Self.swapLanes(&u, 0, 1) }
+                    if s2[u[1]] > s2[u[2]] { Self.swapLanes(&u, 1, 2) }
                     let a0 = tri[s[0]], a1 = tri[s[1]], a2 = tri[s[2]]
                     let c1 = abs(a0 - a1) < tol, c2 = abs(a1 - a2) < tol, c3 = abs(a2 - a0) < tol
                     for qq in 0..<table.count {
@@ -319,6 +320,14 @@ package nonisolated struct HoughIndexer: Sendable {
         return Vote(weighted: accW, counts: acc, family: family, rank: rank)
     }
 
+    /// `swapAt` for a SIMD triple.
+    @inline(__always)
+    private static func swapLanes(_ v: inout SIMD3<Int>, _ a: Int, _ b: Int) {
+        let t = v[a]
+        v[a] = v[b]
+        v[b] = t
+    }
+
     package struct Assignment: Sendable, Equatable {
         var matched = 0
         var fit = 360.0
@@ -354,20 +363,22 @@ package nonisolated struct HoughIndexer: Sendable {
                         let p1 = poles[s1]
                         var c = Vector3.cross(v1, v2)
                         c /= (c * c).sum().squareRoot()
-                        let bRows = [v1, c, Vector3.cross(v1, c)]
+                        // B's rows and A's columns as three lets each, and one pair of trial buffers per band pair, not per
+                        // trial rotation (#624); the arithmetic and its order are unchanged.
+                        let bRow0 = v1, bRow1 = c, bRow2 = Vector3.cross(v1, c)
                         var score = -1.0
+                        var fitTry = [Double](repeating: 0, count: nb), argmaxTry = [Int](repeating: 0, count: nb)
                         for w in candidates {
                             var p2 = poles[w]
                             p2 /= ((p2 * p2).sum().squareRoot() + 1e-35)
                             var pp = Vector3.cross(p1, p2)
                             pp /= ((pp * pp).sum().squareRoot() + 1e-35)
-                            let aCols = [p1, pp, Vector3.cross(p1, pp)]
-                            // AB = A · B with A's columns aCols and B's rows bRows: AB · v = Σ_k aCols[k] (bRows[k] · v).
-                            var fitTry = [Double](repeating: 0, count: nb), argmaxTry = [Int](repeating: 0, count: nb)
+                            let aCol0 = p1, aCol1 = pp, aCol2 = Vector3.cross(p1, pp)
+                            // AB = A · B with A's columns aCol and B's rows bRow: AB · v = Σ_k aCol_k (bRow_k · v).
                             for b in 0..<nb {
                                 let n = normals[b]
-                                let d0 = Vector3.dot(bRows[0], n), d1 = Vector3.dot(bRows[1], n), d2 = Vector3.dot(bRows[2], n)
-                                let rotated = aCols[0] * d0 + aCols[1] * d1 + aCols[2] * d2
+                                let d0 = Vector3.dot(bRow0, n), d1 = Vector3.dot(bRow1, n), d2 = Vector3.dot(bRow2, n)
+                                let rotated = aCol0 * d0 + aCol1 * d1 + aCol2 * d2
                                 var mx = -Double.infinity, arg = 0
                                 for p in 0..<nPoles {
                                     let t = Vector3.dot(poles[p], rotated)
@@ -376,8 +387,13 @@ package nonisolated struct HoughIndexer: Sendable {
                                 fitTry[b] = acos(min(max(mx, -1), 1)) * HoughReflectorLibrary.degrees
                                 argmaxTry[b] = arg
                             }
-                            let matchedTry = fitTry.filter { $0 < tol }
-                            let scoreTry = Double(matchedTry.count) / (matchedTry.reduce(0, +) / Double(matchedTry.count) + 1e-6)
+                            // The matched bands' count and angle sum in band order (the filter and reduce this replaces).
+                            var matchedCount = 0, matchedSum = 0.0
+                            for b in 0..<nb where fitTry[b] < tol {
+                                matchedCount += 1
+                                matchedSum += fitTry[b]
+                            }
+                            let scoreTry = Double(matchedCount) / (matchedSum / Double(matchedCount) + 1e-6)
                             if scoreTry > score {
                                 score = scoreTry
                                 angFit = fitTry

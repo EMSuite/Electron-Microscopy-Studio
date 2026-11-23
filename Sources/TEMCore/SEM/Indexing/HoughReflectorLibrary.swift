@@ -245,6 +245,20 @@ package nonisolated struct HoughReflectorLibrary: Sendable {
         }
     }
 
+    /// `cornerPermutation` on a SIMD triple: the same table without an array, for the triplet vote, which looks it up once per
+    /// band triangle (#624).
+    @inline(__always)
+    package static func cornerPermutation(edges e: SIMD3<Int>) -> SIMD3<Int> {
+        switch (e[0], e[1], e[2]) {
+        case (0, 1, 2): return SIMD3(0, 1, 2)
+        case (0, 2, 1): return SIMD3(1, 0, 2)
+        case (1, 0, 2): return SIMD3(0, 2, 1)
+        case (1, 2, 0): return SIMD3(2, 0, 1)
+        case (2, 0, 1): return SIMD3(1, 2, 0)
+        default: return SIMD3(2, 1, 0)
+        }
+    }
+
     /// `_hkl_unique(reduceInversion=False)`: round to integers, keep the first of each (h, k, l), ordered by the key
     /// (h - m) + B (k - m) + B² (l - m) with m the smallest index and B the largest shifted index + 1.
     static func uniqueHKL(_ poles: [SIMD3<Double>]) -> [SIMD3<Double>] {
