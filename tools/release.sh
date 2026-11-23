@@ -43,8 +43,8 @@ echo "== Archive ($(git -C "$ROOT" rev-parse --short HEAD))"
 # ARCHS=arm64 on the command line: the project's setting does not reach the package targets, and the HDF5
 # frameworks FormatoKit embeds are arm64 only (mac4DSTEM tools/lib/release-arch.sh has the story).
 # The download's build number is its version (#583): Sparkle compares the feed's sparkle:version with CFBundleVersion, and the
-# project's CURRENT_PROJECT_VERSION does not move between releases. The packages are cloned to build/SourcePackages so
-# tools/appcast.sh finds Sparkle's sign_update at one path.
+# project's CURRENT_PROJECT_VERSION does not move between releases. The packages are cloned to build/SourcePackages, apart
+# from any other checkout's.
 xcodebuild archive -project "$ROOT/macTEM.xcodeproj" -scheme macTEM -configuration Release \
   -destination 'generic/platform=macOS' -archivePath "$ARCHIVE" ARCHS=arm64 \
   -clonedSourcePackagesDirPath "$ROOT/build/SourcePackages" CURRENT_PROJECT_VERSION="$EXPECTED" \
@@ -52,13 +52,25 @@ xcodebuild archive -project "$ROOT/macTEM.xcodeproj" -scheme macTEM -configurati
   || { tail -30 "$OUT/archive.log"; exit 1; }
 
 echo "== Sign the updater"
-# Sparkle (#583), the download's updater. The package ships its helpers (the installer and downloader services, Autoupdate,
-# Updater.app) signed by the Sparkle project; the archive copies the framework without signing inside it. Each helper is
+# Sparkle (#583), the download's updater: Vendor/Sparkle's build, which renames an updated macEM.app (#761). Its helpers (the
+# installer and downloader services, Autoupdate, Updater.app) come signed ad hoc; the archive copies the framework without
+# signing inside it. First, the helpers must be that build: each one's Mach-O UUIDs as in Vendor/Sparkle (signing and Xcode's
+# copy change the bytes, never the UUIDs), so a project that went back to the stock package cannot ship unnoticed. Each helper is
 # signed here with the Developer ID, the hardened runtime and a timestamp, inside out, as Sparkle's documentation says for a
 # build that is not exported by Xcode; the downloader keeps its own entitlements. Then the app again, keeping its
 # entitlements, because its seal covers the framework. As mac4DSTEM's tools/release/build-developer-id.sh does.
 SPARKLE="$APP/Contents/Frameworks/Sparkle.framework"
 [[ -d "$SPARKLE" ]] || { echo "The download has no Sparkle.framework (the updater, #583)." >&2; exit 1; }
+VENDOR=("$ROOT"/Vendor/Sparkle/Sparkle.xcframework/macos-*/Sparkle.framework(N))
+(( ${#VENDOR} == 1 )) || { echo "Vendor/Sparkle holds no one macOS Sparkle.framework (tools/build-sparkle.sh, #761)." >&2; exit 1; }
+for helper in Versions/B/Autoupdate Versions/B/Updater.app/Contents/MacOS/Updater \
+    Versions/B/XPCServices/Installer.xpc/Contents/MacOS/Installer Versions/B/XPCServices/Downloader.xpc/Contents/MacOS/Downloader; do
+  # The arm64 slice's UUID: the download is arm64, whether or not the copy kept the framework's other slice.
+  shipped="$(xcrun dwarfdump --uuid --arch arm64 "$SPARKLE/$helper" 2>/dev/null | awk '{ print $2 }')"
+  vendored="$(xcrun dwarfdump --uuid --arch arm64 "${VENDOR[1]}/$helper" 2>/dev/null | awk '{ print $2 }')"
+  [[ -n "$vendored" && "$shipped" == "$vendored" ]] \
+    || { echo "The download's Sparkle $helper is not Vendor/Sparkle's build (the app-name rename, #761)." >&2; exit 1; }
+done
 KEY="$(/usr/libexec/PlistBuddy -c 'Print :SUPublicEDKey' "$APP/Contents/Info.plist" 2>/dev/null || true)"
 [[ -n "$KEY" && "$KEY" != SET-BEFORE-RELEASE ]] || { echo "The download has no public EdDSA key (SUPublicEDKey in Info-Direct.plist)." >&2; exit 1; }
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP/Contents/Info.plist")" == "$EXPECTED" ]] \
