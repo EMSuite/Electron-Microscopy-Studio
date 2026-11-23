@@ -38,6 +38,22 @@
 				<string>map</string>
 			</array>
 		</dict>
+		<!-- A PNG or JPEG (#792): a pattern from a paper or a camera export. Alternate, so the app is offered under Open With
+		     for pictures and never becomes their default. -->
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Picture</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>png</string>
+				<string>jpg</string>
+				<string>jpeg</string>
+			</array>
+		</dict>
 		<dict>
 			<key>CFBundleTypeName</key>
 			<string>EDS spectrum</string>

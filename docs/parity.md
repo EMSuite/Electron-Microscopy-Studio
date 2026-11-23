@@ -81,6 +81,12 @@ HDF5, a type it does not read), never with the HDF5 call or a path inside the fi
   manufacturer, no scan group, and the crystal map without its Euler angles.
 
 
+## Pictures (PNG and JPEG)
+
+| Function | Reference | Test | Tolerance | State |
+|---|---|---|---|---|
+| `PictureImageReader.read` (ImageIO's decoded samples, no drawing; grey by the brightest channel) | RosettaSciIO 0.14.0 `rsciio.image.file_reader`, which is imageio 2.37.4 over Pillow 12.3.0; truth written by `tools/parity/picture-parity/make_fixtures.py` | `PictureImageReaderTests` on 20 planted files in `macTEMTests/Fixtures/picture` | PNG exact per pixel (I1: grey 8 and 16 bit, RGB, RGBA, palette, Adam7, gAMA, iCCP); JPEG grey within 1 level, colour 4:4:4 within 2 (I2; two decoders, the largest difference is printed by the test); EXIF orientation 1 to 8 as Pillow's `ImageOps.exif_transpose` (I3) | live. Named deviation: the reference keeps RGB, the app reads grey (each pixel the brightest of its red, green and blue, the rule of #541). Refused by name: animations, CMYK, more than 16384 × 16384 pixels. A picture has no scale and is "not counts" |
+
 ## SEM images (TIFF)
 
 | Function | Reference | Test | Tolerance | State |

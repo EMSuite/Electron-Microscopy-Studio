@@ -163,6 +163,7 @@ nonisolated final class ImageOpeningTests: XCTestCase {
         XCTAssertEqual(ser, .unreadableFormat(file: "scan.SER", ext: "ser"))
         XCTAssertEqual(ser?.errorDescription,
                        "scan.SER is a .ser file. Electron Microscopy Studio opens TEM and SEM images (.dm4, .dm3, .tif, .tiff, .mrc, .emd, .img, .map), "
+                       + "patterns and images saved as pictures (.png, .jpg, .jpeg), "
                        + "EDS and EELS spectra and spectrum images (.emd, .dm4, .msa, .hspy, .bcf, .spd, .lsd, .pts, .asw, .spx, .spc, .eds), "
                        + "and EBSD patterns and orientation maps (.h5, .hdf5, .h5oina, .h5ebsd, .ebsp, .ctf, .up1, .up2, .ang, .dat).")
         XCTAssertFalse(ser?.errorDescription?.contains("Lab Disk") ?? true, "the message never shows the folders")
