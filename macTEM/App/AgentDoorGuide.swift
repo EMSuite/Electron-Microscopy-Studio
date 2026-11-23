@@ -34,6 +34,7 @@ extension MacTEMAgentDoor {
         case indexing
         case maps
         case eels
+        case image
 
         var text: String {
             switch self {
@@ -43,6 +44,7 @@ extension MacTEMAgentDoor {
             case .indexing: Self.indexingText
             case .maps: Self.mapsText
             case .eels: Self.eelsText
+            case .image: Self.imageText
             }
         }
 
@@ -60,7 +62,7 @@ extension MacTEMAgentDoor {
             3. Move. `select_room` moves the window to a room, as the room bar does; a room the window's files do not fill is refused \
             with the reason the room bar gives.
             4. Work the room. Topic eds for the EDS room, patterns for the EBSD Patterns room, indexing for the Indexing room, maps \
-            for the Maps room, eels for the EELS room. The other rooms' controls are the person's for now: look at their result with the get tools and ask the person to set and \
+            for the Maps room, eels for the EELS room, image for the Image room (marks and particles). The other rooms' controls are the person's for now: look at their result with the get tools and ask the person to set and \
             run them.
             5. Run. `run_room` presses the shown room's toolbar verb (Quantify, Run, Process, Index, Segment), as ⌘R does; it is \
             refused with the button's own words while it cannot run. `stop_run` stops what runs, as ⌘. does.
@@ -227,6 +229,32 @@ extension MacTEMAgentDoor {
             window).
             - An at% with a σ as large as itself is not a measurement.
             - Changing a setting makes the stage stale: run again before reading the numbers.
+            """
+        private static let imageText = """
+            Image room (an image: TEM, STEM, SEM; ImagoKit's measurements). The marks measure distances, angles and line profiles \
+            in the file's calibration; Particles finds bright or dark objects by a threshold and counts them.
+
+            1. `select_room` room image, then `get_image_room`: the size and calibration (a length in nm needs a calibrated file; \
+            an uncalibrated one measures in pixels), a stack's frame, the marks, an SEM file's rows, and the Particles settings.
+            2. Look. `get_image` draws the picture with its marks and scale bar. Find what to measure on it before measuring.
+            3. Marks. `set_marks` add distance, angle or profile with points in image pixels (x right, y down, a pixel's centre at \
+            whole numbers). Each mark's value is the Measure section's text. `get_profile` gives a profile's samples; width averages \
+            across the line. A lattice spacing is better measured over several periods and divided.
+            4. Particles. `set_particles` polarity bright or dark, then a threshold (manual, in the image's raw intensity, inside \
+            raw_range) or method otsu, sigma to smooth noise, minimum_area to drop specks, region to leave out a scale bar or a \
+            label. show true finds the objects; `get_image_room` then holds the counts, sizes and areal density, and `get_particles` \
+            the object table or its CSV. tint_mask shows the object side of the threshold on `get_image` while settings change.
+            5. Stacks. `set_image_room` frame or step moves through a stack's frames; hold_contrast keeps one contrast window so a \
+            change of brightness between frames shows.
+
+            What to check:
+            - Look at the outlines on `get_image` after Show Objects: an object that is two touching particles, or noise counted as \
+            objects, says the threshold, sigma or minimum area is off.
+            - Edge objects are not counted (they are cut); the areal density is edge-corrected. Report counted and edge together.
+            - A render (a screen capture) has burnt-in labels and a scale bar that are found as objects: render_note says so; draw \
+            a region that leaves them out.
+            - A result is stale (current false) once a setting changed: show again before reading it.
+            - A mark's length in pixels on an uncalibrated image is not a length: say so.
             """
     }
 }

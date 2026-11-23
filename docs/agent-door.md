@@ -17,7 +17,7 @@ door this one follows (4DSTEM Studio `docs/agent-door.md`). This app hands the d
 
 | Tool | Answer |
 |---|---|
-| `get_workflow_guide` | how a person works through a file here and how to judge each step (topics `overview`, `eds`, `patterns`, `indexing`, `maps`, `eels`); read first |
+| `get_workflow_guide` | how a person works through a file here and how to judge each step (topics `overview`, `eds`, `patterns`, `indexing`, `maps`, `eels`, `image`); read first |
 | `list_windows` | the open windows (`w1`, `w2`, ...), each with its shown file, room and number of open files (the door's own tool) |
 | `get_window` | the room, the open files (size, calibration, voltage once read), the shown file's number of results, the status line, any error |
 | `get_image` | the shown image as Export Image… draws it (display window, colormap, scale bar, marks), longest side up to 1024 px per `scale` step |
@@ -34,6 +34,9 @@ door this one follows (4DSTEM Studio `docs/agent-door.md`). This app hands the d
 | `get_maps` | the Maps room: the map and its source (stale when the Indexing room moved on), phases, points not indexed, the layer and the layers on offer, the picked point's phase, Bunge angles, grain and KAM, Segment's settings and summary, the selected grains, Slip and Texture |
 | `get_grains` | after Segment: the grain table (a page of it, by number or largest first) and, with `histogram`, the KAM, GOS or grain size bins as the Histogram tab draws them |
 | `get_maps_picture` | `which` map (Export's Map PNG…: the layer with its key or legend, the scale bar, the boundaries when shown) or texture (Texture PNG…) |
+| `get_image_room` | the Image room for the shown file: size and calibration, a stack's frame, the measuring tool, the marks (numbered, their points and their values as the Measure section words them), an SEM file's rows and vendor fields, the Particles settings, region and raw range, and the last Show Objects' counts, sizes and areal density |
+| `get_particles` | after Show Objects: the object table (a page, by number or largest first, counted only as the table's switch) or Export CSV…'s text |
+| `get_profile` | a profile mark's samples as Export Profile… writes them |
 | `get_indexing_picture` | `which` map (the layer as Export's Map PNG… draws it), pattern (as indexed, without the band overlay) or best_match (a Dictionary run's) |
 
 Every picture and number comes from the code that draws or exports it for the person, so the agent judges what the
@@ -62,6 +65,9 @@ Behind "Let agents run analyses". Each goes through the entry point its control 
 | `set_eels` | the EELS room's Processing (alignment, threshold, deconvolution, mean free path; `align` runs Align alone), Fitting (model, fit end, background, convolution, E₀, α, β) and Maps (segment, display filter) settings |
 | `set_eels_edges` | the periodic table: adds an element's default edge, removes an element, picks single edges, fit only or quantify, resets the windows, MLLS references |
 | `set_eels_region` | the EELS region: whole map, a rectangle or ellipse, a kept region by name, or removes one |
+| `set_image_room` | the Measure section's tool, and a stack's frame, step and Same contrast for every frame |
+| `set_marks` | adds a distance, angle or profile mark from points in image pixels as a drag does, selects a mark, removes marks, sets the selected profile's width |
+| `set_particles` | the Particles section's settings (bright or dark, manual level or Otsu, smoothing, connectivity, minimum area, region, mask tint), Show Objects, Hide, and the object selected |
 | `select_grains` | selects grains as the grain table does, or none |
 
 The EDS tools are EMSuiteUI's `EDXAgentTools`, written once and registered by both apps.
@@ -71,7 +77,7 @@ The EDS tools are EMSuiteUI's `EDXAgentTools`, written once and registered by bo
 `macTEM/App/AgentDoorCoverage.swift` lists every control in the app, by its accessibility identifier, with how an agent
 reaches it: the tool that does it, already seen in a get tool's answer, left to the person on purpose (with the reason), or a
 gap with its open issue. `AgentDoorCoverageTests` fails when a control has no row, a row names a tool the door does not have,
-or a row outlives its control, so a new control cannot ship undecided. The gaps are #558's: the Image, FFT and Diffraction
+or a row outlives its control, so a new control cannot ship undecided. The gaps are #558's: the FFT and Diffraction
 rooms, which get their tools one room per pull request, and the Patterns room's Kikuchi overlay. Opening a file
 (an open panel) is the person's; `open_demo` opens the shipped demos. The EDS room's own controls are
 EMSuiteUI's and are reached through its tools.
@@ -79,6 +85,6 @@ EMSuiteUI's and are reached through its tools.
 ## Code
 
 `macTEM/App/`: `AgentDoorTools.swift` (the door and the tools that look), `AgentDoorRooms.swift` (the tools that act),
-`AgentDoorPatterns.swift` (the toolbar verb and the Patterns room), `AgentDoorIndexing.swift` (the Indexing room), `AgentDoorMaps.swift` (the Maps room), `AgentDoorEELS.swift` (the EELS room),
+`AgentDoorPatterns.swift` (the toolbar verb and the Patterns room), `AgentDoorIndexing.swift` (the Indexing room), `AgentDoorMaps.swift` (the Maps room), `AgentDoorEELS.swift` (the EELS room), `AgentDoorImage.swift` (the Image room),
 `AgentDoorGuide.swift` (the workflow guide) and `AgentDoorCoverage.swift`. Settings > Agents is `AgentSettingsView` on
 EMSuiteUI's `AgentDoorSettingsSection`.
