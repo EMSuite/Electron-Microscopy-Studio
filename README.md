@@ -73,6 +73,11 @@ The rooms:
 - **Results**: every measurement of a file in one table, exported as CSV. The SEM results have a table of their own and
   a session report, as PDF or Markdown.
 
+## Agents
+
+An AI agent on the same Mac (Claude, Codex, a script) can look at what a window shows, and with your leave work a room,
+through the agent door: Settings > Agents, off by default. What it can reach is in [`docs/agent-door.md`](docs/agent-door.md).
+
 ## Where the numbers come from
 
 The TEM methods compute with the suite's Swift kits, each checked against the Python package it ports, within that

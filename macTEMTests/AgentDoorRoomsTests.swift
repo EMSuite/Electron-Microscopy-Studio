@@ -3,7 +3,7 @@
 //  macEM's first tools that act (#558), through a real door over MCP as an agent calls them: select_room moves the window as the room
 //  bar does and refuses a room the files do not fill with the room bar's reason; the EDS room's tools (MacEMUI's EDXAgentTools) pick an
 //  element on the demo spectrum image and get_eds_maps draws the maps as the export does; each acting call leaves an "An agent" Output
-//  line; with the second switch off an acting tool is refused.
+//  line; open_demo opens a demo document in its room as Help > Open Demo Data does; with the second switch off an acting tool is refused.
 //
 
 import Foundation
@@ -99,6 +99,20 @@ nonisolated final class AgentDoorRoomsTests: XCTestCase {
         let maps = try await call("get_eds_maps")
         XCTAssertFalse(maps.refused, maps.text)
         XCTAssertTrue(maps.image, "get_eds_maps answers a picture")
+    }
+
+    /// Mutation: open_demo going around `openDemo`, leaving the window in another room, or leaving no Output line - red.
+    @MainActor func testOpenDemoOpensTheDocumentInItsRoom() async throws {
+        let state = window()
+        let opened = try await call("open_demo", ["demo": "lattice"])
+        XCTAssertFalse(opened.refused, opened.text)
+        XCTAssertEqual(state.navigation.workspaceArea, .image)
+        XCTAssertTrue(state.activityLog.messages.contains("An agent opened the demo Lattice Image."), "\(state.activityLog.messages)")
+        try await waitUntil("the lattice image to be read", seconds: 30) { state.openItems.selected?.session.image != nil }
+
+        let unknown = try await call("open_demo", ["demo": "gold"])
+        XCTAssertTrue(unknown.refused, "a demo the menu does not have is refused by its schema")
+        XCTAssertEqual(state.openItems.items.count, 1)
     }
 
     /// With Settings > Agents' second switch off, an acting tool is refused and nothing moves. Mutation: select_room not marked acts - red.
