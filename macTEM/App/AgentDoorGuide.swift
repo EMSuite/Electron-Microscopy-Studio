@@ -31,12 +31,14 @@ extension MacTEMAgentDoor {
         case overview
         case eds
         case patterns
+        case indexing
 
         var text: String {
             switch self {
             case .overview: Self.overviewText
             case .eds: Self.edsText
             case .patterns: Self.patternsText
+            case .indexing: Self.indexingText
             }
         }
 
@@ -53,8 +55,9 @@ extension MacTEMAgentDoor {
             as Help > Open Demo Data does, for trying a room.
             3. Move. `select_room` moves the window to a room, as the room bar does; a room the window's files do not fill is refused \
             with the reason the room bar gives.
-            4. Work the room. Topic eds for the EDS room, topic patterns for the EBSD Patterns room. The other rooms' controls are \
-            the person's for now: look at their result with the get tools and ask the person to set and run them.
+            4. Work the room. Topic eds for the EDS room, patterns for the EBSD Patterns room, indexing for the Indexing room. The \
+            other rooms' controls are the person's for now: look at their result with the get tools and ask the person to set and \
+            run them.
             5. Run. `run_room` presses the shown room's toolbar verb (Quantify, Run, Process, Index, Segment), as ⌘R does; it is \
             refused with the button's own words while it cannot run. `stop_run` stops what runs, as ⌘. does.
 
@@ -124,6 +127,42 @@ extension MacTEMAgentDoor {
             - Binning trades pattern detail for speed: index at the size the bands still read.
             - NLPAR's λ is chosen from the scan's noise (nlpar_lambda after Process); compare a processed pattern with and without it.
             - Processing changes no orientation by itself: judge it on the patterns, then index (the Indexing room).
+            """
+
+        private static let indexingText = """
+            Indexing room (EBSD and TKD orientations from the Patterns room's scan: pyEBSDindex's Hough indexing or kikuchipy's \
+            dictionary indexing). It indexes the patterns as the Patterns room processes them; the processing is set there.
+
+            1. `select_room` room indexing, then `get_indexing`: where the patterns come from, the projection centre, the phases, \
+            the method and its settings, and index_refusal, which says what Index still needs.
+            2. Phases. The file's own phases come first. `set_indexing_phase` add puts a built-in phase in the list; phase with on \
+            picks those indexed against. Hough matches bands to a reflector list (fcc, bcc, hcp) that must fit the phase's \
+            structure. Index against the phases the person expects in the sample, no more: each extra phase is a chance for a \
+            wrong match.
+            3. Method. `set_indexing` method hough is fast and needs no master pattern; dictionary compares every pattern with \
+            patterns simulated from a master pattern (the shipped Ni one, or one the person opens) and is slower and more robust \
+            on noisy patterns. Their settings start at kikuchipy's tutorial values; change one at a time.
+            4. Index. `run_room` presses Index. Wait until `get_indexing` says not busy; run then holds the state, the points \
+            indexed per phase, the mean confidence index or score and, for Hough, the mean fit.
+            5. Look. `get_indexing_picture` which map draws the layer on screen (`set_indexing` layer: IPF-Z, X, Y, Euler, phase, \
+            or a quality layer). `select_scan_position` picks a point: get_indexing then gives its solution and detected bands, \
+            and which pattern and best_match draw its pattern and a Dictionary run's best match.
+            6. Check and hand on. `set_indexing` compare with compare_a and compare_b compares two results point by point (the \
+            median disorientation and the share over 2°). `open_in_maps` sends the run to the Maps room for grains and texture.
+
+            What to check:
+            - The IPF map shows grains of one colour each with sharp boundaries. Speckle inside a grain, or one colour over the \
+            whole scan, is a wrong match: check the phases, the reflectors and the patterns' processing before changing anything \
+            else.
+            - Confidence index (Hough) or score (Dictionary): low values sit at grain boundaries and on bad patterns; low values \
+            inside grains say the indexing is not reliable there. For Hough, a fit (the bands' mean angular misfit) that rises \
+            inside grains says the same.
+            - Points not indexed, and how many matched bands the picked points have: a pattern with few matched bands has a \
+            doubtful solution.
+            - The detected bands lie on the pattern's bands; bands found on noise mean the patterns need processing first.
+            - A Hough and a Dictionary run that agree (a small median disorientation in Compare) support each other; where they \
+            disagree, look at those points' patterns.
+            - A refinement (refine) is judged by its mean score as indexed and as refined, and by its projection centre's spread.
             """
     }
 }
