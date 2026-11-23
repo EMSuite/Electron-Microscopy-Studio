@@ -50,6 +50,8 @@ nonisolated final class MenuKeyTableTests: XCTestCase {
         var literal: [String] = []
         for file in Self.menuFiles { literal += try Self.literalKeys(in: try source(file)) }
         XCTAssertGreaterThan(literal.count, 15, "the reader finds the menus' keys: \(literal)")
+        // Show Next Room and Show Previous Room (#837), the only way between the rooms of a workspace from the keyboard.
+        XCTAssertTrue(literal.contains("⇧⌘]") && literal.contains("⇧⌘["), "the room keys: \(literal)")
         let eds = try edsToolKeys()
         XCTAssertEqual(eds, ["⌃⌘0", "⌃⌘1", "⌃⌘2", "⌃⌘3", "⌃⌘4"], "the EDS room's region tools")
 
