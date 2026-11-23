@@ -76,29 +76,43 @@ extension MacTEMAgentDoor {
             return patternsPicture(appState, which: call.arguments["which"] ?? "", scale: call.scale)
         },
         said(AgentTool(name: "select_scan_position", title: "Scan position",
-                       summary: "Picks a scan position, as a click on the map of the Patterns or Indexing room does: the marker moves "
-                           + "there (the two rooms share it) and the pattern pane shows its pattern, in the Indexing room as it is indexed, "
-                           + "with its bands and best match (get_patterns or get_indexing says which pattern is shown once it is read). x is "
-                           + "the column, y the row, from 0 at the top left.",
+                       summary: "Picks a scan position, as a click on the map of the Patterns, Indexing or Maps room does: the marker "
+                           + "moves there (the rooms share it while the map is of the pattern scan) and the pattern pane shows its pattern, "
+                           + "in the Indexing room as it is indexed, with its bands and best match; in the Maps room the grain under it is "
+                           + "selected. The room's get tool answers. x is the column, y the row, from 0 at the top left.",
                        input: .window,
                        parameters: [AgentParameter("x", .integer(0...1_000_000), summary: "The column, from 0.", required: true),
                                     AgentParameter("y", .integer(0...1_000_000), summary: "The row, from 0.", required: true)],
                        acts: true) { call in
             guard let appState = call.window?.state as? AppState else { return notAWindowRefusal }
-            let session = appState.ebsd
-            guard let dataset = session.dataset else { return noPatterns }
-            guard let x = call.arguments["x"].flatMap(Int.init), let y = call.arguments["y"].flatMap(Int.init),
-                  x < dataset.scanColumns, y < dataset.scanRows else {
-                return .refusal(status: 400, message: "The scan is \(dataset.scanColumns) columns by \(dataset.scanRows) rows: x from 0 to "
-                    + "\(dataset.scanColumns - 1), y from 0 to \(dataset.scanRows - 1).")
+            let x = call.arguments["x"].flatMap(Int.init) ?? -1, y = call.arguments["y"].flatMap(Int.init) ?? -1
+            let isMaps = appState.navigation.workspaceArea == .maps
+            let shape: (rows: Int, columns: Int)
+            if isMaps {
+                guard appState.maps.hasMap else { return .refusal(status: 404, message: "No orientation map is open.") }
+                shape = appState.maps.gridShape
+            } else {
+                guard let dataset = appState.ebsd.dataset else { return noPatterns }
+                shape = (rows: dataset.scanRows, columns: dataset.scanColumns)
+            }
+            let rows = shape.rows, columns = shape.columns
+            guard (0..<columns).contains(x), (0..<rows).contains(y) else {
+                return .refusal(status: 400, message: "The \(isMaps ? "map" : "scan") is \(columns) columns by \(rows) rows: x from 0 to "
+                    + "\(columns - 1), y from 0 to \(rows - 1).")
             }
             let position = EBSDPosition(row: y, column: x)
-            if appState.navigation.workspaceArea == .indexing {
+            switch appState.navigation.workspaceArea {
+            case .maps:
+                appState.maps.pin(position)
+                appState.followMapsPin()
+                return maps(appState)
+            case .indexing:
                 appState.indexing.pin(position)
                 return indexing(appState)
+            default:
+                appState.ebsd.pin(position)
+                return patterns(appState)
             }
-            session.pin(position)
-            return patterns(appState)
         }),
         AgentTool(name: "set_patterns", title: "Patterns room view",
                   summary: "The Virtual images section and the pattern's Raw/Processed switch; only what is given changes. grid cuts the "

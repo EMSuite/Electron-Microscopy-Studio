@@ -32,6 +32,7 @@ extension MacTEMAgentDoor {
         case eds
         case patterns
         case indexing
+        case maps
 
         var text: String {
             switch self {
@@ -39,6 +40,7 @@ extension MacTEMAgentDoor {
             case .eds: Self.edsText
             case .patterns: Self.patternsText
             case .indexing: Self.indexingText
+            case .maps: Self.mapsText
             }
         }
 
@@ -55,8 +57,8 @@ extension MacTEMAgentDoor {
             as Help > Open Demo Data does, for trying a room.
             3. Move. `select_room` moves the window to a room, as the room bar does; a room the window's files do not fill is refused \
             with the reason the room bar gives.
-            4. Work the room. Topic eds for the EDS room, patterns for the EBSD Patterns room, indexing for the Indexing room. The \
-            other rooms' controls are the person's for now: look at their result with the get tools and ask the person to set and \
+            4. Work the room. Topic eds for the EDS room, patterns for the EBSD Patterns room, indexing for the Indexing room, maps \
+            for the Maps room. The other rooms' controls are the person's for now: look at their result with the get tools and ask the person to set and \
             run them.
             5. Run. `run_room` presses the shown room's toolbar verb (Quantify, Run, Process, Index, Segment), as ⌘R does; it is \
             refused with the button's own words while it cannot run. `stop_run` stops what runs, as ⌘. does.
@@ -163,6 +165,36 @@ extension MacTEMAgentDoor {
             - A Hough and a Dictionary run that agree (a small median disorientation in Compare) support each other; where they \
             disagree, look at those points' patterns.
             - A refinement (refine) is judged by its mean score as indexed and as refined, and by its projection centre's spread.
+            """
+
+        private static let mapsText = """
+            Maps room (orientation maps: an .ang, .ctf, .h5oina or orix .h5 file, a pattern file's own map, or the Indexing room's \
+            run through `open_in_maps`; orix's colours and DefDAP's grain analysis).
+
+            1. `get_maps`: the map and where it came from (a run the Indexing room has moved on from says so in source_stale), the \
+            phases with their points, the points not indexed, the layer and the layers on offer.
+            2. Look. `get_maps_picture` which map draws the layer with its colour key: `set_maps` layer ipf-x, ipf-y or ipf-z shows \
+            the crystal direction along that sample axis, phase the phases, property-<name> a column of the file (image quality, \
+            confidence index, fit). `select_scan_position` picks a point; get_maps then gives its phase and Bunge angles.
+            3. Segment. `set_maps` boundary_angle, minimum_size and kam_max are DefDAP's (5°, 10 points, 5° by default); \
+            `run_room` presses Segment. Wait until not busy; get_maps then holds the number of grains, their mean size and the ASTM \
+            grain size number, and the derived layers (derived-kam, derived-gos, derived-grains, derived-gnd) are on offer.
+            4. Grains. `get_grains` lists the grain table (sort size for the largest first) and, with histogram, the KAM, GOS or \
+            grain size distribution. `select_grains` selects grains as the table does.
+            5. Slip. `set_maps` load picks the load axis and slip_systems with slip_phase the phase's slip-system file; the derived \
+            Schmid layer and each grain's largest Schmid factor follow.
+            6. Texture. `set_maps` texture_phase computes a phase's pole figures, IPF density and ODF sections (orix's); \
+            `get_maps_picture` which texture draws them, and get_maps gives each figure's maximum in multiples of random.
+
+            What to check:
+            - Points not indexed: many, or a band of them, say the map is of limited use there; say so before analysing it.
+            - A phase map with isolated single points of another phase is usually misindexing, not a second phase; ask the person.
+            - The boundary angle decides what a grain is: 5° (DefDAP) is low-angle sensitive, 15° counts only high-angle \
+            boundaries. State the angle with every grain count or size.
+            - Grains of only a few points are noise; the minimum size removes them. Report the minimum size with the counts.
+            - KAM and GOS rise with deformation and with noise: compare a region you expect to be undeformed before reading them \
+            as strain.
+            - A texture from few grains is not a texture: state the points and grains it rests on.
             """
     }
 }
