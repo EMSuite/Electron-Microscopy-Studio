@@ -98,7 +98,7 @@ nonisolated final class AgentDoorMapsTests: XCTestCase {
         XCTAssertTrue(state.maps.layer == .phase)
         XCTAssertEqual(state.maps.analysisSettings.boundaryDegrees, 10)
         XCTAssertEqual(state.maps.analysisSettings.minimumSize, MapAnalysisSettings().minimumSize, "a setting not named stays as it was")
-        XCTAssertTrue(state.activityLog.messages.contains("An agent used Maps room settings (boundary_angle 10; layer phase)."),
+        XCTAssertTrue(state.activityLog.messages.contains { $0.hasSuffix("An agent used Maps room settings (boundary_angle 10; layer phase).") },
                       "\(state.activityLog.messages)")
 
         let kam = try await call("set_maps", ["layer": "derived-kam"])
@@ -129,7 +129,7 @@ nonisolated final class AgentDoorMapsTests: XCTestCase {
         let one = try await call("select_grains", ["grains": "1"])
         XCTAssertFalse(one.refused, one.text)
         XCTAssertEqual(state.maps.selectedGrain, 1)
-        XCTAssertTrue(state.activityLog.messages.contains("An agent used Maps room grain selection (grains 1)."), "\(state.activityLog.messages)")
+        XCTAssertTrue(state.activityLog.messages.contains { $0.hasSuffix("An agent used Maps room grain selection (grains 1).") }, "\(state.activityLog.messages)")
         let missing = try await call("select_grains", ["grains": "\(analysis.table.count + 1)"])
         XCTAssertTrue(missing.refused)
         XCTAssertEqual(state.maps.selectedGrain, 1)

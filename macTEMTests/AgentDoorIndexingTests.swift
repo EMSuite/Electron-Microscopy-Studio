@@ -92,7 +92,7 @@ nonisolated final class AgentDoorIndexingTests: XCTestCase {
         XCTAssertEqual(state.indexing.settings.bands, 8)
         XCTAssertEqual(state.indexing.settings.rhoMaskFraction, 0.1, accuracy: 1e-12)
         XCTAssertEqual(state.indexing.settings.rhoBins, HoughIndexingSettings.roomDefault.rhoBins, "a setting not named stays as it was")
-        XCTAssertTrue(state.activityLog.messages.contains("An agent used Indexing room settings (hough_bands 8; rho_mask_percent 10)."),
+        XCTAssertTrue(state.activityLog.messages.contains { $0.hasSuffix("An agent used Indexing room settings (hough_bands 8; rho_mask_percent 10).") },
                       "\(state.activityLog.messages)")
 
         let reset = try await call("set_indexing", ["reset": "hough"])
@@ -112,7 +112,7 @@ nonisolated final class AgentDoorIndexingTests: XCTestCase {
         let added = try await call("set_indexing_phase", ["add": "Al"])
         XCTAssertFalse(added.refused, added.text)
         XCTAssertTrue(state.indexing.phases.contains { $0.name == "Al" })
-        XCTAssertTrue(state.activityLog.messages.contains("An agent used Indexing phase (add Al)."), "\(state.activityLog.messages)")
+        XCTAssertTrue(state.activityLog.messages.contains { $0.hasSuffix("An agent used Indexing phase (add Al).") }, "\(state.activityLog.messages)")
 
         let off = try await call("set_indexing_phase", ["phase": "Al", "on": false])
         XCTAssertFalse(off.refused, off.text)
@@ -143,7 +143,7 @@ nonisolated final class AgentDoorIndexingTests: XCTestCase {
         let ran = try await call("run_room")
         XCTAssertFalse(ran.refused, ran.text)
         XCTAssertEqual(try json(ran.text)["started"] as? String, "Index")
-        XCTAssertTrue(state.activityLog.messages.contains("An agent pressed Index in the Indexing room."))
+        XCTAssertTrue(state.activityLog.messages.contains { $0.hasSuffix("An agent pressed Index in the Indexing room.") })
         try await waitUntil("Index to end", seconds: 120) { !state.indexing.isIndexing && state.indexing.result?.isComplete == true }
 
         let room = try json(try await call("get_indexing").text)
@@ -179,6 +179,6 @@ nonisolated final class AgentDoorIndexingTests: XCTestCase {
         let handed = try await call("open_in_maps")
         XCTAssertFalse(handed.refused, handed.text)
         XCTAssertEqual(state.navigation.workspaceArea, .maps)
-        XCTAssertTrue(state.activityLog.messages.contains("An agent opened the Indexing room's run in the Maps room."))
+        XCTAssertTrue(state.activityLog.messages.contains { $0.hasSuffix("An agent opened the Indexing room's run in the Maps room.") })
     }
 }

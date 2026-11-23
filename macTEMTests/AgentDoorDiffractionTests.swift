@@ -95,7 +95,7 @@ nonisolated final class AgentDoorDiffractionTests: XCTestCase {
         let calibrate = try await call("set_diffraction", ["inner": 29, "outer": 37, "family": index111, "calibrate": true])
         XCTAssertFalse(calibrate.refused, calibrate.text)
         try await waitUntil("the ring fit to land", seconds: 60) { !item.diffraction.isFitting && !item.diffraction.rings.isEmpty }
-        XCTAssertTrue(state.activityLog.messages.contains("An agent used Diffraction room settings (calibrate true; family \(index111); inner 29; outer 37)."),
+        XCTAssertTrue(state.activityLog.messages.contains { $0.hasSuffix("An agent used Diffraction room settings (calibrate true; family \(index111); inner 29; outer 37).") },
                       "\(state.activityLog.messages)")
         let after = try json(try await call("get_diffraction").text)
         let scale = try XCTUnwrap(after["scale"] as? [String: Any])

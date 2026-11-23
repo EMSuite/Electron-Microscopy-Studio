@@ -92,7 +92,7 @@ nonisolated final class AgentDoorImageTests: XCTestCase {
         XCTAssertEqual(mark["selected"] as? Bool, true, "a new mark is selected, as after a drag")
         let value = try XCTUnwrap(mark["value"] as? String)
         XCTAssertTrue(value.contains("nm") && value.hasSuffix("100 px"), value)
-        XCTAssertTrue(state.activityLog.messages.contains("An agent used Image marks (add distance; points 100 100 200 100)."),
+        XCTAssertTrue(state.activityLog.messages.contains { $0.hasSuffix("An agent used Image marks (add distance; points 100 100 200 100).") },
                       "\(state.activityLog.messages)")
 
         let short = try await call("set_marks", ["add": "angle", "points": "1 1 2 2"])

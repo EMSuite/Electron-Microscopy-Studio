@@ -86,7 +86,7 @@ nonisolated final class AgentDoorEELSTests: XCTestCase {
         let mfp = try await call("set_eels", ["mfp": "given", "lambda_nm": 100])
         XCTAssertFalse(mfp.refused, mfp.text)
         XCTAssertEqual(state.eels.meanFreePath, .given(nanometres: 100))
-        XCTAssertTrue(state.activityLog.messages.contains("An agent used EELS room settings (lambda_nm 100; mfp given)."),
+        XCTAssertTrue(state.activityLog.messages.contains { $0.hasSuffix("An agent used EELS room settings (lambda_nm 100; mfp given).") },
                       "\(state.activityLog.messages)")
 
         let ran = try await call("run_room")

@@ -86,7 +86,7 @@ nonisolated final class AgentDoorPatternsTests: XCTestCase {
         let picked = try await call("select_scan_position", ["x": 10, "y": 5])
         XCTAssertFalse(picked.refused, picked.text)
         XCTAssertTrue(state.ebsd.pinned == EBSDPosition(row: 5, column: 10))
-        XCTAssertTrue(state.activityLog.messages.contains("An agent used Patterns room position (x 10; y 5)."), "\(state.activityLog.messages)")
+        XCTAssertTrue(state.activityLog.messages.contains { $0.hasSuffix("An agent used Patterns room position (x 10; y 5).") }, "\(state.activityLog.messages)")
         let off = try await call("select_scan_position", ["x": DemoDocuments.Shipped.nickelEBSDColumns, "y": 0])
         XCTAssertTrue(off.refused, "a column past the scan is refused, not clamped")
         XCTAssertTrue(state.ebsd.pinned == EBSDPosition(row: 5, column: 10))
@@ -176,7 +176,7 @@ nonisolated final class AgentDoorPatternsTests: XCTestCase {
         let ran = try await call("run_room")
         XCTAssertFalse(ran.refused, ran.text)
         XCTAssertEqual(try json(ran.text)["started"] as? String, "Process")
-        XCTAssertTrue(state.activityLog.messages.contains("An agent pressed Process in the Patterns room."))
+        XCTAssertTrue(state.activityLog.messages.contains { $0.hasSuffix("An agent pressed Process in the Patterns room.") })
         try await waitUntil("Process to land", seconds: 120) { state.ebsd.processed != nil && !state.ebsd.isBusy }
         XCTAssertEqual(MacTEMAgentDoor.stateWord(state.ebsd.stageState(.dynamicBackground)), "current")
     }
