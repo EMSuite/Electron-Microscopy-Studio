@@ -96,10 +96,12 @@ nonisolated final class AgentDoorFolderTests: XCTestCase {
         MacTEMAgentDoor.folder.use(folder: root)
         let opened = try await call("open_file", ["path": "sub/map.ang"])
         XCTAssertFalse(opened.refused, opened.text)
-        XCTAssertTrue(opened.text.contains("sub/map.ang"), opened.text)
+        let answer = try XCTUnwrap(try JSONSerialization.jsonObject(with: Data(opened.text.utf8)) as? [String: Any], opened.text)
+        XCTAssertEqual(answer["opening"] as? String, "sub/map.ang", opened.text)
         await state.lastOpen?.value
         XCTAssertEqual(state.navigation.workspaceArea, .maps, "the orientation map lands in the Maps room, as File > Open puts it")
-        XCTAssertTrue(state.activityLog.lines.contains { $0.text == "An agent opened map.ang." }, "the Output line")
+        // An Output line is "HH:mm:ss  <message>" (ActivityLog.record).
+        XCTAssertTrue(state.activityLog.messages.contains { $0.hasSuffix("  An agent opened map.ang.") }, "\(state.activityLog.messages)")
     }
 
     /// Mutation: a path outside the folder, an absolute one, a link out, a missing file or a folder opening - red.
