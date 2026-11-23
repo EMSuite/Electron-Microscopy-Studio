@@ -276,6 +276,20 @@ package nonisolated enum DemoDocuments {
         return url
     }
 
+    /// A generated `side` x `side` 16-bit TIFF in the demo stack's folder (`--demo-large-image`, the launch and first-picture budgets of
+    /// PerformanceJourney): a ramp with a lattice on it, so the first picture has structure to draw. Written once per side and kept, so
+    /// a launch that measures opening it does not also measure writing it.
+    package static func largeImageFile(side: Int) throws -> URL {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(writtenFolders[0])
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let url = dir.appendingPathComponent("Generated \(side) x \(side).tif")
+        if FileManager.default.fileExists(atPath: url.path) { return url }
+        try writeStackTIFF(to: url, frames: 1, width: side, height: side) { _, x, y in
+            UInt16(1000 + (x + y) % 2048 + ((x % 16 < 4) != (y % 16 < 4) ? 800 : 0))
+        }
+        return url
+    }
+
     /// A multi-page baseline TIFF of 16-bit grey pages, `pixel(frame, x, y)` in every pixel (also what a test writes its planted stacks with).
     package static func writeStackTIFF(to url: URL, frames: Int, width: Int, height: Int, pixel: (Int, Int, Int) -> UInt16) throws {
         // Every offset is a 32-bit TIFF LONG: a stack whose bytes pass 4 GB, or of no page, is refused before anything is written.

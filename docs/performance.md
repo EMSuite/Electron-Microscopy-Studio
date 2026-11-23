@@ -18,6 +18,23 @@ Signposts are the median of five intervals inside the app (`Signposts` in `TEMCo
 `particles.analyse`, `stack.frame`, `open.image`), read by `XCTOSSignpostMetric` beside the clock. The demo documents are small and planted; the
 real-data numbers (a 2048 x 2048 image, a full EDX cube) come with the owner's files.
 
+## Launch and first-picture budgets (2.3)
+
+`PerformanceJourney` also measures the launch itself: `testLaunchToTheWindow` (launch to the empty window's first control) and
+`testLaunchToTheFirstPictureOfA2048Image` / `…4096Image` (launch with `--demo-large-image <n>`, a generated n x n 16-bit TIFF the app
+writes to its temporary folder once, to the Image room's picture reading its size; signpost `open.image`). The file is written by an
+unmeasured launch before the five measured ones, so the clock covers reading and drawing, not writing.
+
+| Launch to (generated file) | Wall clock (driver) | In the app (`open.image`) | Peak memory | CPU time |
+|---|---|---|---|---|
+| The empty window | to come | none | to come | to come |
+| The first picture, 2048 x 2048 16-bit | to come | to come | to come | to come |
+| The first picture, 4096 x 4096 16-bit | to come | to come | to come | to come |
+
+The baseline comes from one Mac pass (`tools/run-tests.sh ui PerformanceJourney/testLaunchToTheWindow
+PerformanceJourney/testLaunchToTheFirstPictureOfA2048Image PerformanceJourney/testLaunchToTheFirstPictureOfA4096Image`); a later
+pass more than 25 % slower on the same Mac is a regression to explain before a release.
+
 ## How to read these
 
 The clock includes XCUITest's own cost: each `waitFor` / `waitValue` is an accessibility query of the window, and a click is a synthesized
