@@ -635,6 +635,48 @@ inventory() {
   done
   if (( pins == 0 )); then echo "  NOT CHECKED  no pin read from Package.resolved"; rc=1; else echo "  $pins pins checked"; fi
 
+  # The download's updater (#761): the project links Vendor/Sparkle, Sparkle built from source with
+  # SPARKLE_NORMALIZE_INSTALLED_APPLICATION_NAME=1 so an update renames macEM.app, never sparkle-project's own package (the same
+  # framework with the setting off). Vendor/Sparkle/build-info.txt, which tools/build-sparkle.sh writes, must name the pinned tag
+  # and commit (tools/lib/sparkle-pin.sh) and the setting; NOTICE must name the same tag and commit; and every file of the
+  # committed framework must be one it hashes, with that hash, so a framework copied by hand or only in part fails here.
+  echo "== the download's Sparkle (Vendor/Sparkle, built with the app-name rename, #761)"
+  local sp_info="$ROOT/Vendor/Sparkle/build-info.txt" sp_kw sp_sum sp_path sp_hashed=0 sp_file
+  local -a sp_listed=()
+  . "$ROOT/tools/lib/sparkle-pin.sh"
+  grep -qF 'relativePath = Vendor/Sparkle;' "$ROOT/macTEM.xcodeproj/project.pbxproj" \
+    || { echo "  LINK      the Xcode project does not link the local package Vendor/Sparkle"; rc=1; }
+  for sp_file in "$ROOT/macTEM.xcodeproj/project.pbxproj" "$ROOT/Package.resolved" \
+      "$ROOT/macTEM.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"; do
+    if grep -qi 'sparkle-project/Sparkle' "$sp_file"; then
+      echo "  STOCK     ${sp_file#$ROOT/} names sparkle-project/Sparkle, the package without the rename"; rc=1
+    fi
+  done
+  if [[ ! -f "$sp_info" ]]; then
+    echo "  MISSING   Vendor/Sparkle/build-info.txt (tools/build-sparkle.sh writes it)"; rc=1
+  else
+    grep -qx "tag $SPARKLE_TAG" "$sp_info" || { echo "  TAG       build-info.txt is not tag $SPARKLE_TAG (tools/lib/sparkle-pin.sh)"; rc=1; }
+    grep -qx "commit $SPARKLE_COMMIT" "$sp_info" || { echo "  COMMIT    build-info.txt is not commit $SPARKLE_COMMIT"; rc=1; }
+    grep -qx 'override SPARKLE_NORMALIZE_INSTALLED_APPLICATION_NAME=1' "$sp_info" \
+      || { echo "  OVERRIDE  build-info.txt does not say SPARKLE_NORMALIZE_INSTALLED_APPLICATION_NAME=1"; rc=1; }
+    while read -r sp_kw sp_sum sp_path; do
+      [[ "$sp_kw" == sha256 ]] || continue
+      sp_hashed=$(( sp_hashed + 1 )); sp_listed+=("$sp_path")
+      if [[ ! -f "$ROOT/Vendor/Sparkle/$sp_path" ]]; then
+        echo "  MISSING   Vendor/Sparkle/$sp_path, which build-info.txt hashes"; rc=1
+      elif [[ "$(shasum -a 256 "$ROOT/Vendor/Sparkle/$sp_path" | cut -d' ' -f1)" != "$sp_sum" ]]; then
+        echo "  HASH      Vendor/Sparkle/$sp_path is not the file build-info.txt hashes"; rc=1
+      fi
+    done < "$sp_info"
+    while IFS= read -r sp_path; do
+      (( ${sp_listed[(Ie)$sp_path]} )) || { echo "  UNLISTED  Vendor/Sparkle/$sp_path is not in build-info.txt"; rc=1; }
+    done < <(cd "$ROOT/Vendor/Sparkle" && find Sparkle.xcframework -type f 2>/dev/null)
+    if (( sp_hashed == 0 )); then echo "  NOT CHECKED  build-info.txt hashes no file"; rc=1; else echo "  $sp_hashed files as build-info.txt hashes them"; fi
+  fi
+  if ! grep -qF "sparkle-project/Sparkle, tag $SPARKLE_TAG, commit" "$ROOT/NOTICE" || ! grep -qF "$SPARKLE_COMMIT" "$ROOT/NOTICE"; then
+    echo "  NOTICE    NOTICE does not name Sparkle tag $SPARKLE_TAG and commit $SPARKLE_COMMIT"; rc=1
+  fi
+
   echo "== bundled folder references (every file must be tracked)"
   local ref bf why
   for ref in $(grep 'lastKnownFileType = folder' "$ROOT/macTEM.xcodeproj/project.pbxproj" | sed -nE 's/.*path = ([^;]+);.*/\1/p' | tr -d '"'); do

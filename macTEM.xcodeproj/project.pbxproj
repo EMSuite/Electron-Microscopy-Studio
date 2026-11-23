@@ -250,7 +250,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				A00000000000000000000007 /* XCLocalSwiftPackageReference "." */,
-				B00000000000000000000182 /* XCRemoteSwiftPackageReference "Sparkle" */,
+				B00000000000000000000182 /* XCLocalSwiftPackageReference "Vendor/Sparkle" */,
 			);
 			preferredProjectObjectVersion = 90;
 			productRefGroup = A00000000000000000000003 /* Products */;
@@ -805,18 +805,11 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = .;
 		};
-/* End XCLocalSwiftPackageReference section */
-
-/* Begin XCRemoteSwiftPackageReference section */
-		B00000000000000000000182 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/sparkle-project/Sparkle";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 2.10.1;
-			};
+		B00000000000000000000182 /* XCLocalSwiftPackageReference "Vendor/Sparkle" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Vendor/Sparkle;
 		};
-/* End XCRemoteSwiftPackageReference section */
+/* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
 		B0000000000000000000000B /* TEMCore */ = {
@@ -861,7 +854,7 @@
 		};
 		B00000000000000000000180 /* Sparkle */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = B00000000000000000000182 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			package = B00000000000000000000182 /* XCLocalSwiftPackageReference "Vendor/Sparkle" */;
 			productName = Sparkle;
 		};
 /* End XCSwiftPackageProductDependency section */

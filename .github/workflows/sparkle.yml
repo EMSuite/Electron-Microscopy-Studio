@@ -1,0 +1,88 @@
+# Sparkle with the app-name rename (#761): tools/build-sparkle.sh on GitHub's macOS runner, its output kept as an artifact.
+#
+# WHY: the website download links Vendor/Sparkle/Sparkle.xcframework, Sparkle built from source at the pinned tag with
+# SPARKLE_NORMALIZE_INSTALLED_APPLICATION_NAME=1, committed so every build of the app (Xcode on a Mac, every CI job, the
+# release scripts) takes the same binary without building Sparkle first. This workflow is where that binary is made, from a
+# public checkout, so nobody's Mac is needed and the run's URL goes into Vendor/Sparkle/build-info.txt.
+#
+# WHAT RUNS: tools/build-sparkle.sh into a scratch folder (it clones Sparkle at the tag, checks the commit, archives, and
+# checks the compiler saw the override on each file that reads it), then the folder zipped with ditto (the framework's
+# symlinks survive) as the artifact `Sparkle-<tag>-normalized`. When the build is of a tag, commit or setting that
+# Vendor/Sparkle/build-info.txt does not record (or there is none), the job commits it to Vendor/Sparkle on the branch that
+# triggered it, with this run's URL in the message: the binary in the repository is the one this public run built. A
+# rebuild of the same pin commits nothing (a rebuild never matches byte for byte: Mach-O UUIDs and signatures change);
+# its artifact is there to compare. Never on main: main takes the commit through the branch's pull request.
+#
+# WHEN: a push to a branch other than main that changes the pin, the script or this file, and by hand. Not on a pull
+# request (the push already ran it) and not a required check: a paths-filtered workflow reports nothing outside its paths.
+#
+# XCODE: 26.6, as ci.yml (DEVELOPER_DIR below), never the image's default.
+name: Sparkle build
+
+on:
+  push:
+    branches-ignore: [main]
+    paths:
+      - 'tools/build-sparkle.sh'
+      - 'tools/lib/sparkle-pin.sh'
+      - '.github/workflows/sparkle.yml'
+  workflow_dispatch:
+
+# Write, for the one commit of a new build to the triggering branch (WHAT RUNS); main is refused in the step itself.
+permissions:
+  contents: write
+
+concurrency:
+  group: sparkle-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Pinned: the macos-26 image's Xcode 26.6, ci.yml's. Bump them together, on purpose.
+  DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+
+jobs:
+  build:
+    name: Sparkle with the app-name rename
+    runs-on: macos-26
+    # Margin, not measurement: Sparkle's framework and its four helpers, Release, from a cold DerivedData.
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - name: Toolchain on record
+        run: |
+          sw_vers
+          xcodebuild -version
+      - name: Build
+        run: tools/build-sparkle.sh "$RUNNER_TEMP/Sparkle"
+      - name: Zip
+        id: zip
+        run: |
+          . tools/lib/sparkle-pin.sh
+          echo "name=Sparkle-$SPARKLE_TAG-normalized" >> "$GITHUB_OUTPUT"
+          ditto -c -k "$RUNNER_TEMP/Sparkle" "$RUNNER_TEMP/Sparkle.zip"
+          unzip -l "$RUNNER_TEMP/Sparkle.zip" | tail -1
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.zip.outputs.name }}
+          path: ${{ runner.temp }}/Sparkle.zip
+          if-no-files-found: error
+          retention-days: 30
+      - name: Commit a new build to the branch
+        if: github.ref != 'refs/heads/main' && startsWith(github.ref, 'refs/heads/')
+        run: |
+          built="$RUNNER_TEMP/Sparkle/build-info.txt"
+          committed=Vendor/Sparkle/build-info.txt
+          if [[ -f "$committed" ]] && diff <(grep -E '^(tag|commit|override) ' "$committed") <(grep -E '^(tag|commit|override) ' "$built") > /dev/null; then
+            echo "Vendor/Sparkle already holds this tag, commit and setting; nothing to commit. Files compared by name:"
+            diff <(awk '$1 == "sha256" { print $3 }' "$committed") <(awk '$1 == "sha256" { print $3 }' "$built") && echo "  the same files"
+            exit 0
+          fi
+          rm -rf Vendor/Sparkle/Sparkle.xcframework
+          ditto "$RUNNER_TEMP/Sparkle/Sparkle.xcframework" Vendor/Sparkle/Sparkle.xcframework
+          cp "$built" "$committed"
+          . tools/lib/sparkle-pin.sh
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A Vendor/Sparkle
+          git commit -q -m "build: Sparkle $SPARKLE_TAG with the app-name rename, built by $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          git push origin "HEAD:$GITHUB_REF_NAME"

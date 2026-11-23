@@ -480,6 +480,24 @@ reachable; the coarse step alone stepped 40 px.
 **Reversal.** If ⌥-arrows clash with a system or app shortcut, change `PaneKey.cursorArrow`'s modifier in `App/PaneKeys.swift`;
 the routers and the tests read the key from there. Turning `StackArrowKeys` back on in these rooms brings back the nested focus.
 
+## 2026-11-23 — The download links Sparkle built with the app-name rename, committed under Vendor/Sparkle (#761)
+
+**What.** The website download links `Vendor/Sparkle`, a local package around a `Sparkle.xcframework` built from Sparkle's
+source at the pinned tag (`tools/lib/sparkle-pin.sh`) by `tools/build-sparkle.sh` with one build setting changed:
+`SPARKLE_NORMALIZE_INSTALLED_APPLICATION_NAME=1`. Sparkle's installer then moves an updated app to `<SUBundleName>.app`, so a
+copy installed as macEM.app becomes `Electron Microscopy Studio.app` from its second update on a build that carries this (the
+installer that runs is the installed app's own). The framework is built on GitHub's macOS runner (`.github/workflows/sparkle.yml`)
+and committed, about 3 MB and no file over 1 MiB, with a `build-info.txt` of hashes that the inventory checks. `tools/release.sh`
+refuses a download whose Sparkle helpers are not that build; `tools/appcast.sh` takes `sign_update` from the same tag's official
+zip, checksum-pinned. The store build has no Sparkle, as before.
+
+**Why.** Committed rather than built on demand: every build of the app (Xcode on any Mac, six CI workflows, both release
+scripts) resolves it with no extra step, and the release signs exactly the binary the inventory checked. Building Sparkle in each
+of those would have added a step to each and a slow, failure-prone first build on every fresh checkout.
+
+**What would reverse it.** The rename having reached the users (Sparkle's own note: turn the setting off once it is done); a
+follow-up issue tracks it. `Vendor/Sparkle/README.md` lists the steps back to the stock package.
+
 ## 2026-11-23 — Show Next Room and Show Previous Room (⇧⌘] and ⇧⌘[) (#837)
 
 **What.** The Workspace menu has Show Next Room (⇧⌘]) and Show Previous Room (⇧⌘[). They step through the rooms of the workspace
