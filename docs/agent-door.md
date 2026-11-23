@@ -1,0 +1,59 @@
+# The agent door
+
+A local API through which an agent on the same Mac (Claude, Codex, a script) looks at what Electron Microscopy Studio's
+windows show and, behind a second switch, works a room. The app is the MCP server itself, over HTTP at
+`http://127.0.0.1:47812/mcp`; nothing is installed beside it. The door itself (listener, token, Settings section, window
+list, MCP endpoint) is EMSuiteUI's `ShellAgentDoor` (EMSuiteUI `docs/agent-door.md`), shared with 4DSTEM Studio, whose
+door this one follows (4DSTEM Studio `docs/agent-door.md`). This app hands the door its tools.
+
+## Turning it on
+
+1. Settings > Agents > "Let agents on this Mac look at open windows". Off by default.
+2. Copy Connection Command, and paste it into Terminal once (Claude Code), or into the Claude desktop extension
+   `macEM.mcpb`; Codex takes the address and token in `~/.codex/config.toml` (EMSuiteUI `docs/agent-door.md`).
+3. For the tools that act, also "Let agents run analyses". The agent's client asks the person before each such call.
+
+## Tools that look
+
+| Tool | Answer |
+|---|---|
+| `get_workflow_guide` | how a person works through a file here and how to judge each step (topics `overview`, `eds`); read first |
+| `list_windows` | the open windows (`w1`, `w2`, ...), each with its shown file, room and number of open files (the door's own tool) |
+| `get_window` | the room, the open files (size, calibration, voltage once read), the shown file's number of results, the status line, any error |
+| `get_image` | the shown image as Export Image… draws it (display window, colormap, scale bar, marks), longest side up to 1024 px per `scale` step |
+| `get_results` | the shown file's finished measurements as Export Results… writes them (CSV) |
+| `get_log` | the window's Output lines |
+| `get_eds` | the EDS room: file, picked elements and roles, region, kept regions, line windows' net counts with σ, Auto ID's suggestions, the results table or why the fit failed |
+| `get_eds_maps` | the EDS maps as the room's Maps as PNG… draws them |
+
+Every picture and number comes from the code that draws or exports it for the person, so the agent judges what the
+person sees. Numbers in JSON fields use a point; the status and Output lines are the window's own text, in the Mac's Region.
+
+## Tools that act
+
+Behind "Let agents run analyses". Each goes through the entry point its control uses and leaves an Output line that starts
+"An agent", so the person can tell the agent's steps from their own.
+
+| Tool | Does |
+|---|---|
+| `select_room` | moves the window to a room, as the room bar does; a room the files do not fill is refused with the room bar's reason |
+| `open_demo` | opens a demo document in its room, as Help > Open Demo Data does |
+| `set_eds` | picks and removes elements, sets an element's role (quantify or fit only), chooses the region (whole, rectangle, ellipse, a kept region) |
+| `run_eds` | Auto ID, Quantify or Stop; answers at once, `get_eds` says busy until done |
+
+The EDS tools are EMSuiteUI's `EDXAgentTools`, written once and registered by both apps.
+
+## Coverage
+
+`macTEM/App/AgentDoorCoverage.swift` lists every control in the app, by its accessibility identifier, with how an agent
+reaches it: the tool that does it, already seen in a get tool's answer, left to the person on purpose (with the reason), or a
+gap with its open issue. `AgentDoorCoverageTests` fails when a control has no row, a row names a tool the door does not have,
+or a row outlives its control, so a new control cannot ship undecided. The gaps are #558's: the Image, FFT, EELS, Diffraction,
+Patterns, Indexing and Maps rooms, which get their tools one room per pull request. The EDS room's own controls are
+EMSuiteUI's and are reached through its tools.
+
+## Code
+
+`macTEM/App/`: `AgentDoorTools.swift` (the door and the tools that look), `AgentDoorRooms.swift` (the tools that act),
+`AgentDoorGuide.swift` (the workflow guide) and `AgentDoorCoverage.swift`. Settings > Agents is `AgentSettingsView` on
+EMSuiteUI's `AgentDoorSettingsSection`.
