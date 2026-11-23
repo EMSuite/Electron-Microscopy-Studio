@@ -54,6 +54,10 @@ package nonisolated struct CrystalMap: Sendable, Equatable {
     /// x and y of every point in the scan unit; nil where the map has no such axis.
     package private(set) var allX: [Double]?
     package private(set) var allY: [Double]?
+    /// orix's `dx` and `dy` (from every point, in or out of data): `stepSize` of `allX` and `allY`, 0 without the axis. Set once
+    /// with the coordinates, which nothing changes after, so an access is not a pass over the map (#624).
+    package private(set) var dx: Double
+    package private(set) var dy: Double
     package var scanUnit: String
     package private(set) var isInData: [Bool]
     /// The shape of the whole map from the coordinates, rows then columns (orix's `_original_shape`).
@@ -81,6 +85,8 @@ package nonisolated struct CrystalMap: Sendable, Equatable {
         self.allPhaseIDs = ids
         self.allX = (x == nil && y == nil) ? (0..<n).map(Double.init) : x
         self.allY = y
+        self.dx = self.allX.map(CrystalMap.stepSize) ?? 0
+        self.dy = y.map(CrystalMap.stepSize) ?? 0
         self.properties = properties
         self.scanUnit = scanUnit
         self.isInData = isInData ?? Array(repeating: true, count: n)
@@ -164,20 +170,17 @@ package nonisolated struct CrystalMap: Sendable, Equatable {
     package func property(_ name: String) -> [Double]? { properties[name].map { inData($0) } }
     package var propertyNames: [String] { properties.keys.sorted() }
 
-    /// orix's `x`: nil when there are none or all are equal.
+    /// orix's `x`: nil when there are none or all are equal (a step of 0: the coordinates are finite, `checkedSlices`, so two
+    /// distinct values are a step above 0).
     package var x: [Double]? {
-        guard let allX, Set(allX).count > 1 else { return nil }
+        guard let allX, dx != 0 else { return nil }
         return inData(allX)
     }
 
     package var y: [Double]? {
-        guard let allY, Set(allY).count > 1 else { return nil }
+        guard let allY, dy != 0 else { return nil }
         return inData(allY)
     }
-
-    /// orix's `dx` and `dy` (from every point, in or out of data).
-    package var dx: Double { allX.map(CrystalMap.stepSize) ?? 0 }
-    package var dy: Double { allY.map(CrystalMap.stepSize) ?? 0 }
 
     /// orix's `shape`: rows then columns of the points in data, from their coordinates.
     package var shape: [Int] { shape(onlyInData: true) }
@@ -326,10 +329,22 @@ package nonisolated struct CrystalMap: Sendable, Equatable {
 
     private func shape(onlyInData: Bool) -> [Int] { slices(onlyInData: onlyInData).map { $0.stop - $0.start } }
 
-    /// orix `_step_size_from_coordinates`.
+    /// orix `_step_size_from_coordinates`: `unique[1] - unique[0]` of the sorted unique values, 0 for fewer than two. The two
+    /// smallest distinct values are found in one pass, without the set and the sort (#624); a NaN is passed over (a map's
+    /// coordinates are finite, `checkedSlices`), and −0 and 0 are one value, as in the set.
     package static func stepSize(_ coordinates: [Double]) -> Double {
-        let unique = Set(coordinates).sorted()
-        return unique.count > 1 ? unique[1] - unique[0] : 0
+        var lowest = 0.0, second = 0.0, distinct = 0
+        for v in coordinates where !v.isNaN {
+            switch distinct {
+            case 0:
+                lowest = v; distinct = 1
+            case 1:
+                if v < lowest { second = lowest; lowest = v; distinct = 2 } else if v > lowest { second = v; distinct = 2 }
+            default:
+                if v < lowest { second = lowest; lowest = v } else if v > lowest, v < second { second = v }
+            }
+        }
+        return distinct == 2 ? second - lowest : 0
     }
 
     private func gridIndices(rows: Bool) -> [Int] {
