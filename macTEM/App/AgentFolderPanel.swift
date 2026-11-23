@@ -1,5 +1,5 @@
 //
-//  AgentFolderPanel.swift
+//  AgentFolderPanel.swift (in App/, beside ExportPanels: AppKit stays out of UI/, docs/architecture.md)
 //  Settings > Agents > Agent folder > Choose… (#739, as mac4DSTEM's, mac4DSTEM#457 there). AppKit's open panel, because SwiftUI's `.fileImporter` on a Section of
 //  the Settings scene's Form never presented: the button did nothing, so the agent folder could not be set.
 //
