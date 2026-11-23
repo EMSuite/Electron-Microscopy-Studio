@@ -1,15 +1,17 @@
-# Audit counts for an app (a copy of the suite's app template; edit it there). REPORT ONLY: every job stays green and
+# Audit counts for an app (a copy of the suite's app template; edit it there). REPORT ONLY but the thread job: every other job stays green and
 # only counts. A count that reaches zero becomes a gate in ci.yml; until then this file measures. The app is the one
 # <Name>.xcodeproj at the root: scheme <Name>, unit tests <Name>Tests, as tools/run-tests.sh unit runs them.
 #   * warnings    the compiler's warnings in a Debug build of the app and its unit tests, the app's own files only.
-#   * thread      the unit tests under the Thread Sanitizer: data races.
+#   * thread      the unit tests under the Thread Sanitizer: data races. The one gate here: it fails when the tests do
+#                 not reach their end or a race is reported (the count gates at zero).
 #   * address     the unit tests under the Address Sanitizer: out-of-bounds and use-after-free (stops at the first).
 #   * analyze     (in the warnings job) `xcodebuild analyze` when the app has C, C++ or Objective-C sources outside tools/.
 #   * lint        SwiftLint candidate rules on the app's sources (not tests, not tools), counted per rule.
 #   * benchmarks  tools/benchmarks/ci.sh <out.json>, if the repo has one: CPU timings compared with the previous
 #                 scheduled run's; a case more than 25 % slower is listed. Runner timings are noisy; GPU timings are
 #                 never taken here (the runner's GPU is virtual).
-# Weekly (Saturday) everything; nightly the benchmarks only. On a scheduled run the counts go into one open issue,
+# Weekly (Saturday) everything; nightly the benchmarks only; by hand the jobs the `jobs` input names; on a pull request
+# that changes this file or tools/benchmarks/ci.sh, the benchmarks only. On a scheduled run the counts go into one open issue,
 # "Audit counts", kept up to date like the Periphery scan's; a nightly run comments there only when a case got slower.
 name: Audit
 
@@ -18,6 +20,10 @@ on:
     - cron: "41 4 * * *"   # nightly: benchmarks
     - cron: "17 5 * * 6"   # weekly: everything
   workflow_dispatch:
+    inputs:
+      jobs:
+        description: "Jobs to run: all, or any of warnings, thread, address, lint, benchmarks (comma-separated)"
+        default: all
   pull_request:
     paths: [".github/workflows/audit.yml", "tools/benchmarks/ci.sh"]
 
@@ -33,7 +39,9 @@ env:
 
 jobs:
   warnings:
-    if: github.event_name != 'schedule' || github.event.schedule == '17 5 * * 6'
+    # Weekly, or by hand when `jobs` names it. Not on a pull request: the four Mac jobs ran for hours on every PR that
+    # touched this file; dispatch the one a change needs instead (gh workflow run audit.yml --ref <branch> -f jobs=warnings).
+    if: (github.event_name == 'schedule' && github.event.schedule == '17 5 * * 6') || (github.event_name == 'workflow_dispatch' && (inputs.jobs == 'all' || contains(inputs.jobs, 'warnings')))
     runs-on: macos-26
     timeout-minutes: 90
     outputs:
@@ -67,9 +75,11 @@ jobs:
           { echo "### Static analyzer: $(wc -l < found.txt | tr -d ' ')"; echo '```'; head -100 found.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
 
   thread:
-    if: github.event_name != 'schedule' || github.event.schedule == '17 5 * * 6'
+    # Weekly, or by hand when `jobs` names it. Not on a pull request: the four Mac jobs ran for hours on every PR that
+    # touched this file; dispatch the one a change needs instead (gh workflow run audit.yml --ref <branch> -f jobs=thread).
+    if: (github.event_name == 'schedule' && github.event.schedule == '17 5 * * 6') || (github.event_name == 'workflow_dispatch' && (inputs.jobs == 'all' || contains(inputs.jobs, 'thread')))
     runs-on: macos-26
-    timeout-minutes: 150
+    timeout-minutes: 330
     outputs:
       count: ${{ steps.count.outputs.count }}
       exit: ${{ steps.run.outputs.exit }}
@@ -79,22 +89,37 @@ jobs:
         run: xcrun -sdk macosx metal --version >/dev/null 2>&1 || sudo xcodebuild -downloadComponent MetalToolchain
       - id: run
         name: Unit tests under the Thread Sanitizer
+        # Runs to its end (Q3): the job's 150 min were not enough (21 Nov: cancelled with no output), so the tests stream
+        # their suite lines to the log as they go, a test stuck for 15 min is stopped and named rather than holding the
+        # job, and the job has 330 of the runner's 360 min. "Executed N tests" in the log is the proof it reached its end.
         run: |
           set +e
           app=$(basename "$(ls -d *.xcodeproj | head -1)" .xcodeproj)
-          xcodebuild -project "$app.xcodeproj" -scheme "$app" -configuration Debug -destination 'platform=macOS' -derivedDataPath "$RUNNER_TEMP/dd" -testLanguage en -testRegion US SWIFT_OPTIMIZATION_LEVEL=-O CODE_SIGNING_ALLOWED=NO -only-testing:"${app}Tests" -enableThreadSanitizer YES test > tsan.log 2>&1
-          echo "exit=$?" >> "$GITHUB_OUTPUT"
+          xcodebuild -project "$app.xcodeproj" -scheme "$app" -configuration Debug -destination 'platform=macOS' -derivedDataPath "$RUNNER_TEMP/dd" -testLanguage en -testRegion US SWIFT_OPTIMIZATION_LEVEL=-O CODE_SIGNING_ALLOWED=NO -only-testing:"${app}Tests" -enableThreadSanitizer YES \
+            -test-timeouts-enabled YES -default-test-execution-time-allowance 900 -maximum-test-execution-time-allowance 900 test 2>&1 \
+            | tee tsan.log | grep --line-buffered -E "^Test Suite '.+' (passed|failed)|^Test Case .+ (failed|exceeded)|WARNING: ThreadSanitizer"
+          echo "exit=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
           grep -E 'TEST (SUCCEEDED|FAILED)|Executed [0-9]+ tests' tsan.log | tail -5; tail -15 tsan.log
       - id: count
-        name: Count
+        name: Count, and gate at zero
+        # A run that did not reach its end has no count. A race found fails the job: the count gates at zero (Q3).
         run: |
+          if ! grep -qE 'Executed [0-9]+ tests' tsan.log; then
+            echo "count=" >> "$GITHUB_OUTPUT"
+            echo "::error::The unit tests did not reach their end under the Thread Sanitizer (exit ${{ steps.run.outputs.exit }})."
+            exit 1
+          fi
           n=$(grep -c 'WARNING: ThreadSanitizer' tsan.log || true)
           echo "count=$n" >> "$GITHUB_OUTPUT"
           { echo "### Thread Sanitizer reports: $n (tests exit ${{ steps.run.outputs.exit }})"; echo '```'
+            grep -E 'Executed [0-9]+ tests' tsan.log | tail -1
             grep -A12 'WARNING: ThreadSanitizer' tsan.log | head -300; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$n" != 0 ]; then echo "::error::$n Thread Sanitizer reports; the count gates at zero."; exit 1; fi
 
   address:
-    if: github.event_name != 'schedule' || github.event.schedule == '17 5 * * 6'
+    # Weekly, or by hand when `jobs` names it. Not on a pull request: the four Mac jobs ran for hours on every PR that
+    # touched this file; dispatch the one a change needs instead (gh workflow run audit.yml --ref <branch> -f jobs=address).
+    if: (github.event_name == 'schedule' && github.event.schedule == '17 5 * * 6') || (github.event_name == 'workflow_dispatch' && (inputs.jobs == 'all' || contains(inputs.jobs, 'address')))
     runs-on: macos-26
     timeout-minutes: 150
     outputs:
@@ -121,7 +146,9 @@ jobs:
             grep -A20 'ERROR: AddressSanitizer' asan.log | head -200; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
 
   lint:
-    if: github.event_name != 'schedule' || github.event.schedule == '17 5 * * 6'
+    # Weekly, or by hand when `jobs` names it. Not on a pull request: the four Mac jobs ran for hours on every PR that
+    # touched this file; dispatch the one a change needs instead (gh workflow run audit.yml --ref <branch> -f jobs=lint).
+    if: (github.event_name == 'schedule' && github.event.schedule == '17 5 * * 6') || (github.event_name == 'workflow_dispatch' && (inputs.jobs == 'all' || contains(inputs.jobs, 'lint')))
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
@@ -165,6 +192,7 @@ jobs:
           PY
 
   benchmarks:
+    if: github.event_name != 'workflow_dispatch' || inputs.jobs == 'all' || contains(inputs.jobs, 'benchmarks')
     runs-on: macos-26
     timeout-minutes: 60
     permissions:
@@ -230,10 +258,10 @@ jobs:
       - name: Summary, and on a scheduled run the "Audit counts" issue
         env:
           GH_TOKEN: ${{ github.token }}
-          WEEKLY: ${{ github.event_name != 'schedule' || github.event.schedule == '17 5 * * 6' }}
+          WEEKLY: ${{ github.event_name == 'workflow_dispatch' || github.event.schedule == '17 5 * * 6' }}
         run: |
           {
-            echo "Audit counts, commit ${GITHUB_SHA::7}, $(date -u +%Y-%m-%d) (run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}). Report only; a count at zero becomes a gate."
+            echo "Audit counts, commit ${GITHUB_SHA::7}, $(date -u +%Y-%m-%d) (run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}). Report only, except the Thread Sanitizer, which gates at zero."
             echo
             echo "| Measure | Count |"; echo "|---|---|"
             if [ "$WEEKLY" = "true" ]; then
