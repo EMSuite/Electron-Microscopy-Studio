@@ -511,3 +511,16 @@ Xcode), and nothing else in the app uses them. ⌘1…⌘9 per room would come b
 
 **Reversal.** Remove the two buttons from the Workspace menu in `macTEMApp.swift`. The keyboard-only journey then cannot reach a
 second room in a workspace.
+
+## 2026-11-23 — CITATION.cff follows the release
+
+**What.** release-please writes `CITATION.cff`'s `version` (a `yaml` extra file in `release-please-config.json`), the file
+carries no `date-released`, and `tools/run-tests.sh inventory` fails when its version differs from
+`.release-please-manifest.json` or when `date-released` comes back. The abstract loses its "not yet in release 1.3.0"
+sentence and the `url` follows the page's move to `/electron-microscopy-studio/`.
+
+**Why.** Suite issue RL17 (reach and launch): a citation that names a release two majors old makes people cite the wrong
+version. A date that release-please cannot write would disagree with the version after every release, which is the reason
+the entry of 2026-11-10 gave for keeping the file by hand. No date is better than a wrong one (CFF does not require it).
+
+**Reversal.** Remove the extra file and the inventory check, and go back to a `docs:` PR after each tag.

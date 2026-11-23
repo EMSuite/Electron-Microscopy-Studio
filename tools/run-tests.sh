@@ -741,6 +741,20 @@ inventory() {
     echo "  ^ live docs claim uncommitted work on a clean tree"; rc=1
   fi
 
+  # CITATION.cff's version is written by release-please (release-please-config.json, a yaml extra file); a hand edit or a
+  # config change that drops it shows here as a version that differs from the manifest. It carries no date-released: release-please
+  # cannot write one, and a date that disagrees with the version is worse than none.
+  echo "== CITATION.cff names the released version"
+  local cff_version manifest_version
+  cff_version="$(sed -nE 's/^version:[[:space:]]*"?([0-9][^"[:space:]]*)"?[[:space:]]*$/\1/p' "$ROOT/CITATION.cff")"
+  manifest_version="$(sed -nE 's/^[[:space:]]*"\.":[[:space:]]*"([^"]+)".*$/\1/p' "$ROOT/.release-please-manifest.json")"
+  if [[ -z "$cff_version" || -z "$manifest_version" ]]; then
+    echo "  NOT CHECKED  CITATION.cff version '$cff_version', manifest version '$manifest_version'"; rc=1
+  elif [[ "$cff_version" != "$manifest_version" ]]; then
+    echo "  CITATION.cff says $cff_version, .release-please-manifest.json says $manifest_version"; rc=1
+  fi
+  if grep -q '^date-released:' "$ROOT/CITATION.cff"; then echo "  CITATION.cff has date-released, which release-please does not keep"; rc=1; fi
+
   if (( rc == 0 )); then echo "inventory: clean"; else echo "inventory: FAILED"; fi
   return $rc
 }
