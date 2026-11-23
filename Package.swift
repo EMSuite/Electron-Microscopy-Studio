@@ -13,7 +13,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/mac4DSTEM/FormatoKit", from: "0.18.0"),
-        .package(url: "https://github.com/mac4DSTEM/DiffractoKit", from: "0.11.0"),
+        .package(url: "https://github.com/mac4DSTEM/DiffractoKit", from: "0.19.0"),
         .package(url: "https://github.com/mac4DSTEM/ImagoKit", from: "0.11.0"),
         .package(url: "https://github.com/mac4DSTEM/SpectroKit", from: "0.16.0"),
         // The window shell, controls and Metal image view both apps share. TEMSession takes ShellMetal (MetalEngine, ColormapKind); TEMCore and
