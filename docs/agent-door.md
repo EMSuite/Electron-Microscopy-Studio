@@ -23,9 +23,10 @@ door this one follows (4DSTEM Studio `docs/agent-door.md`). This app hands the d
 | `get_image` | the shown image as Export Image… draws it (display window, colormap, scale bar, marks), longest side up to 1024 px per `scale` step |
 | `get_results` | the shown file's finished measurements as Export Results… writes them (CSV) |
 | `get_log` | the window's Output lines |
+| `get_session` | the Results room's SEM session table: every SEM result with its group, value, source, time, Info fields, methods and logged lines, and an SEM spectrum's conditions (with the take-off angle) |
 | `get_eds` | the EDS room: file, picked elements and roles, region, kept regions, line windows' net counts with σ, Auto ID's suggestions, the results table or why the fit failed |
 | `get_eds_maps` | the EDS maps as the room's Maps as PNG… draws them |
-| `get_patterns` | the Patterns room: scan and pattern size, the file's calibration, the picked position, the map and grid, the colour mix, every processing setting (in `set_pattern_processing`'s names) with each stage's state, why Process is refused, NLPAR's λ, what is running |
+| `get_patterns` | the Patterns room: scan and pattern size, the file's calibration, the picked position, the map and grid, the colour mix, every processing setting (in `set_pattern_processing`'s names) with each stage's state, why Process is refused, NLPAR's λ, what is running, and the Kikuchi simulation overlay (its mode and settings, what it draws or why it draws nothing) |
 | `get_patterns_picture` | `which` map or pattern: the Patterns room's pane as its Export section draws it (Map PNG…, Pattern PNG…); a small one is enlarged by a whole factor, no smoothing |
 | `get_indexing` | the Indexing room: where its patterns come from, the phases, the method and every Hough, Dictionary and Refine setting (in `set_indexing`'s names), the master patterns open, why Index is refused, the run on screen (state, points indexed per phase, mean confidence or score and fit), the picked point's solution and detected bands, Compare's summary, what is running |
 | `get_eels` | the EELS room: the file's spectra, E₀, α, β and their sources, each stage's state, every Processing and Fitting setting (in `set_eels`' names), the picked and offered edges, the edge results with σ and the fit's reduced χ², the regions and their rows, the notices and refusals |
@@ -60,7 +61,7 @@ Behind "Let agents run analyses". Each goes through the entry point its control 
 | `run_room` | presses the shown room's toolbar verb, as ⌘R does (Quantify, Run, Process, Index, Segment); refused with the button's own words while it cannot run |
 | `stop_run` | Stop, as ⌘. does: the shown room's run or open, or a run left going in another room |
 | `select_scan_position` | picks a scan position (x column, y row) as a click on the Patterns, Indexing or Maps room's map does; in the Indexing room the pattern pane shows it as indexed, in the Maps room the grain under it is selected |
-| `set_patterns` | the Virtual images section (grid, map, tile, colour mix, tiles pane) and the pattern's Raw/Processed switch; says when a new grid also dropped the tile map or the mix |
+| `set_patterns` | the Virtual images section (grid, map, tile, colour mix, tiles pane), the pattern's Raw/Processed switch and the Simulation section (overlay, Min d, Band width, Zone axes, Labels, Blend); says when a new grid also dropped the tile map or the mix |
 | `set_pattern_processing` | the Processing sections' settings (static and dynamic background, intensity, FFT filter, binning, neighbour averaging, NLPAR), only those given |
 | `set_indexing` | the Indexing room's Display (layer, detected bands, simulation, Compare A and B), Method, Hough, Dictionary and Refine settings, only those given; `reset` goes back to a section's defaults first |
 | `set_indexing_phase` | adds a built-in phase; turns a phase on or off, sets its reflector list or its master pattern, or removes it |
@@ -85,15 +86,13 @@ The EDS tools are EMSuiteUI's `EDXAgentTools`, written once and registered by bo
 `macTEM/App/AgentDoorCoverage.swift` lists every control in the app, by its accessibility identifier, with how an agent
 reaches it: the tool that does it, already seen in a get tool's answer, left to the person on purpose (with the reason), or a
 gap with its open issue. `AgentDoorCoverageTests` fails when a control has no row, a row names a tool the door does not have,
-or a row outlives its control, so a new control cannot ship undecided. The gaps are #558's: the Results room's
-session table, the Display target, the SEM EDS rows, the dataset menu, a requirement's action, the welcome screen's Stop and
-the Patterns room's Kikuchi overlay. A CIF is opened by the person. Opening a file
+or a row outlives its control, so a new control cannot ship undecided. No gaps are left. Opening a file
 (an open panel) is the person's; `open_demo` opens the shipped demos. The EDS room's own controls are
 EMSuiteUI's and are reached through its tools.
 
 ## Code
 
 `macTEM/App/`: `AgentDoorTools.swift` (the door and the tools that look), `AgentDoorRooms.swift` (the tools that act),
-`AgentDoorPatterns.swift` (the toolbar verb and the Patterns room), `AgentDoorIndexing.swift` (the Indexing room), `AgentDoorMaps.swift` (the Maps room), `AgentDoorEELS.swift` (the EELS room), `AgentDoorImage.swift` (the Image room), `AgentDoorFFT.swift` (the FFT room), `AgentDoorDiffraction.swift` (the Diffraction room),
+`AgentDoorPatterns.swift` (the toolbar verb and the Patterns room), `AgentDoorIndexing.swift` (the Indexing room), `AgentDoorMaps.swift` (the Maps room), `AgentDoorEELS.swift` (the EELS room), `AgentDoorImage.swift` (the Image room), `AgentDoorFFT.swift` (the FFT room), `AgentDoorDiffraction.swift` (the Diffraction room), `AgentDoorSession.swift` (the SEM session),
 `AgentDoorGuide.swift` (the workflow guide) and `AgentDoorCoverage.swift`. Settings > Agents is `AgentSettingsView` on
 EMSuiteUI's `AgentDoorSettingsSection`.

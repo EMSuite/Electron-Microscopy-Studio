@@ -60,7 +60,8 @@ extension MacTEMAgentDoor {
 
             1. Look. `list_windows` names the windows; `get_window` says the room, the open files with their size, calibration and \
             voltage, the status line and any error. `get_image` draws the shown image as Export Image… draws it; `get_results` gives \
-            the finished numbers as Export Results… writes them; `get_log` gives the Output lines.
+            the finished numbers as Export Results… writes them; `get_session` gives the SEM session's rows as the Results room's \
+            session table lists them; `get_log` gives the Output lines.
             2. Open. The person opens their own files (File > Open). `open_demo` opens one of the shipped demo documents in its room, \
             as Help > Open Demo Data does, for trying a room.
             3. Move. `select_room` moves the window to a room, as the room bar does; a room the window's files do not fill is refused \
@@ -128,6 +129,10 @@ extension MacTEMAgentDoor {
             The room's default is kikuchipy's: the file's static background subtracted, then the dynamic background (a Gaussian \
             blur of width / 8) subtracted. `run_room` (Process) runs them over the whole scan; NLPAR and neighbour averaging show \
             only after that, since they need the neighbours.
+            5. Simulation. For a file that stores orientations, `set_patterns` simulation geometrical draws the Kikuchi bands and \
+            zone axes of the orientation stored at the shown point over its pattern (kinematical adds the simulated pattern under \
+            them); `get_patterns` simulation says what is drawn or why nothing is. Bands that sit on the pattern's bands say the \
+            stored orientation and projection centre fit this point.
 
             What to check:
             - After the backgrounds the bands stand out evenly over the whole pattern, with no bright centre or dark corners left. \

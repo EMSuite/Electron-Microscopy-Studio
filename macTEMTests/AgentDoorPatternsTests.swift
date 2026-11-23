@@ -3,7 +3,8 @@
 //  The agent door's toolbar verb and Patterns room tools (#558), through a real door over MCP on kikuchipy's nickel scan opened as Help >
 //  Open Demo Data opens it: get_patterns reads the room, select_scan_position picks as a click on the map does, set_patterns and
 //  set_pattern_processing go through the session calls the controls make and leave "An agent" Output lines, get_patterns_picture draws
-//  both panes, run_room presses Process as ⌘R does and stop_run refuses when nothing runs.
+//  both panes, run_room presses Process as ⌘R does and stop_run refuses when nothing runs; the Simulation section's overlay and
+//  get_session's SEM session rows.
 //
 
 import Foundation
@@ -130,6 +131,39 @@ nonisolated final class AgentDoorPatternsTests: XCTestCase {
         try await waitUntil("the pattern to be on screen", seconds: 30) { state.ebsd.patternPresentation.canvas != nil }
         let pattern = try await call("get_patterns_picture", ["which": "pattern", "scale": 2])
         XCTAssertTrue(pattern.image, pattern.text)
+    }
+
+    /// The Simulation section through set_patterns, and the SEM session's rows through get_session (#558's last gaps).
+    /// Mutation: simulation not reaching setOverlayOn or setOverlaySettings, get_patterns not reading the overlay the pane draws,
+    /// or get_session not listing the ledger's rows - red.
+    @MainActor func testTheSimulationOverlayAndTheSessionRows() async throws {
+        let state = try await nickelWindow()
+        try await waitUntil("the pattern to be on screen", seconds: 30) { state.ebsd.patternPosition != nil }
+        let off = try XCTUnwrap(try json(try await call("get_patterns").text)["simulation"] as? [String: Any])
+        XCTAssertEqual(off["mode"] as? String, "off")
+        XCTAssertEqual(off["can_overlay"] as? Bool, true, "the nickel scan stores orientations")
+
+        let on = try await call("set_patterns", ["simulation": "geometrical", "simulation_min_d": 1.5, "simulation_labels": false])
+        XCTAssertFalse(on.refused, on.text)
+        XCTAssertTrue(state.ebsd.overlayOn)
+        XCTAssertEqual(state.ebsd.overlaySettings.minDSpacing, 1.5)
+        XCTAssertFalse(state.ebsd.overlaySettings.labels)
+        XCTAssertFalse(state.ebsd.overlaySettings.kinematical)
+        let drawn = try XCTUnwrap(try json(on.text)["simulation"] as? [String: Any])
+        XCTAssertEqual(drawn["mode"] as? String, "geometrical")
+        guard case .success(let pattern)? = state.ebsd.overlay else { return XCTFail("no overlay: \(String(describing: state.ebsd.overlay))") }
+        XCTAssertEqual(drawn["drawn"] as? String, "\(pattern.phase): \(pattern.drawnWords)", "the words the Simulation section says")
+        let offAgain = try await call("set_patterns", ["simulation": "off"])
+        XCTAssertFalse(offAgain.refused, offAgain.text)
+        XCTAssertFalse(state.ebsd.overlayOn)
+
+        let sem = try json(try await call("get_session").text)
+        let rows = try XCTUnwrap(sem["rows"] as? [[String: Any]])
+        XCTAssertEqual(rows.map { $0["id"] as? String }, SEMSessionLedger.rows(of: state).map(\.id))
+        let dataset = try XCTUnwrap(rows.first { $0["id"] as? String == "dataset" }, "the open scan is the session's first row")
+        XCTAssertEqual(dataset["result"] as? String, state.ebsd.document?.fileName)
+        XCTAssertFalse((dataset["fields"] as? [[String: Any]] ?? []).isEmpty, "its Calibration rows")
+        XCTAssertTrue(sem["sem_conditions"] is NSNull, "no SEM spectrum is open")
     }
 
     /// Mutation: run_room going around the toolbar's verb, or stop_run not refusing when nothing runs - red.

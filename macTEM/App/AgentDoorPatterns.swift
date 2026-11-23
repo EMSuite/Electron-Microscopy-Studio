@@ -119,7 +119,8 @@ extension MacTEMAgentDoor {
                       + "detector into 1, 3, 5 or 7 tiles a side (the pass runs again, and the tiles, the colour mix and a tile map are the "
                       + "new grid's). map: mean, bse, image_quality, dot_product (their pass runs the first time), tile (with tile, e.g. "
                       + "\"r2 c1\") or mix. mix_red, mix_green, mix_blue: a tile label or none; with all three the map shows the colour mix. "
-                      + "display raw or processed (the pattern through the processing settings; NLPAR and averaging show after Process).",
+                      + "display raw or processed (the pattern through the processing settings; NLPAR and averaging show after Process). "
+                      + "simulation and its settings: the Simulation section's Kikuchi overlay (the settings are the Indexing room's too).",
                   input: .window,
                   parameters: [
                       AgentParameter("grid", .choice(["1", "3", "5", "7"]), summary: "Tiles per side of the detector grid."),
@@ -130,6 +131,13 @@ extension MacTEMAgentDoor {
                       AgentParameter("mix_blue", .text, summary: "The colour mix's blue tile, or none."),
                       AgentParameter("show_tiles", .boolean, summary: "The pane with every tile's image under the map."),
                       AgentParameter("display", .choice(["raw", "processed"]), summary: "The pattern as stored or through the processing."),
+                      AgentParameter("simulation", .choice(["off", "geometrical", "kinematical"]),
+                                     summary: "The Simulation section's overlay of the orientation the file stores at the shown point."),
+                      AgentParameter("simulation_min_d", .number(0.3...10), summary: "The smallest interplanar spacing drawn, Å."),
+                      AgentParameter("simulation_band_width", .boolean, summary: "Draw the band edges (needs the file's beam energy)."),
+                      AgentParameter("simulation_zone_axes", .boolean, summary: "Draw the zone axes."),
+                      AgentParameter("simulation_labels", .boolean, summary: "Label the bands and zone axes."),
+                      AgentParameter("simulation_blend", .number(0...1), summary: "The kinematical simulation's opacity over the pattern."),
                   ],
                   acts: true) { call in
             guard let appState = call.window?.state as? AppState else { return notAWindowRefusal }
@@ -225,7 +233,58 @@ extension MacTEMAgentDoor {
                         "processing": session.isProcessing, "mean_pattern": session.isComputingMean],
             "progress": AgentJSON.number(RoomProgress.fraction(room: .patterns, appState: appState)),
             "map_failure": AgentJSON.orNull(session.mapFailure),
+            "simulation": simulation(session),
         ])
+    }
+
+    /// The Simulation section: the overlay's mode and settings, and what it draws on the pattern shown or why it draws nothing.
+    static func simulation(_ session: EBSDSession) -> [String: Any] {
+        let s = session.overlaySettings
+        var drawn: Any = NSNull(), absence: Any = NSNull()
+        switch session.overlay {
+        case .success(let p)?: drawn = "\(p.phase): \(p.drawnWords)"
+        case .failure(let a)?: absence = a.sentence
+        case nil: break
+        }
+        return [
+            "mode": session.overlayOn ? (s.kinematical ? "kinematical" : "geometrical") : "off",
+            "min_d_angstroms": AgentJSON.number(s.minDSpacing), "band_width": s.bandWidth, "zone_axes": s.zoneAxes, "labels": s.labels,
+            "blend": AgentJSON.number(s.blend), "can_overlay": session.canOverlay, "can_draw_band_width": session.canDrawBandWidth,
+            "drawn": drawn, "absence": absence,
+        ]
+    }
+
+    /// The Simulation section's settings in `set_patterns`; nil when none was given. Checked before anything changes.
+    static func simulationSettings(_ session: EBSDSession, _ a: [String: String]) -> SimulationAsk {
+        let keys = ["simulation", "simulation_min_d", "simulation_band_width", "simulation_zone_axes", "simulation_labels", "simulation_blend"]
+        guard keys.contains(where: { a[$0] != nil }) else { return .none }
+        var s = session.overlaySettings
+        var on = session.overlayOn
+        if let mode = a["simulation"] {
+            guard mode == "off" || session.canOverlay else {
+                return .refused("This dataset carries no orientations; the overlay draws the solution the file stores at each point.")
+            }
+            on = mode != "off"
+            s.kinematical = mode == "kinematical"
+        }
+        if let v = a["simulation_min_d"].flatMap(Double.init) { s.minDSpacing = min(max(v, 0.3), 10) }
+        if let v = a["simulation_band_width"] {
+            guard v != "true" || session.canDrawBandWidth else {
+                return .refused("The file states no beam energy, so the band edges' Bragg angles are unknown.")
+            }
+            s.bandWidth = v == "true"
+        }
+        if let v = a["simulation_zone_axes"] { s.zoneAxes = v == "true" }
+        if let v = a["simulation_labels"] { s.labels = v == "true" }
+        if let v = a["simulation_blend"].flatMap(Double.init) { s.blend = min(max(v, 0), 1) }
+        return .set(on: on, settings: s)
+    }
+
+    /// What `set_patterns` asked of the Simulation section.
+    enum SimulationAsk {
+        case none
+        case set(on: Bool, settings: KikuchiOverlay.Settings)
+        case refused(String)
     }
 
     /// The map's word in `set_patterns`' terms: "mean", "tile r2 c1", ...
@@ -318,6 +377,8 @@ extension MacTEMAgentDoor {
         let session = appState.ebsd
         guard let dataset = session.dataset else { return noPatterns }
         let mapBefore = session.mapChoice, mixBefore = session.mixTiles
+        let overlay = simulationSettings(session, a)
+        if case .refused(let message) = overlay { return .refusal(status: 409, message: message) }
         if let n = a["grid"].flatMap(Int.init) {
             guard n <= min(dataset.patternRows, dataset.patternColumns) else {
                 return .refusal(status: 409, message: "A \(n) × \(n) grid does not fit \(dataset.patternColumns) × \(dataset.patternRows) px patterns.")
@@ -362,6 +423,10 @@ extension MacTEMAgentDoor {
         }
         if let show = a["show_tiles"] { session.showsTiles = show == "true" }
         if let display = a["display"].flatMap(EBSDSession.PatternDisplay.init(rawValue:)) { session.setPatternDisplay(display) }
+        if case .set(let on, let settings) = overlay {
+            session.setOverlaySettings(settings)
+            session.setOverlayOn(on)
+        }
 
         // What moved without being asked: a new grid drops the colour mix and a tile map.
         var moved: [String] = []
