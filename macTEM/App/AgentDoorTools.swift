@@ -50,6 +50,7 @@ enum MacTEMAgentDoor {
     static func start(with appState: AppState, defaults: UserDefaults = .standard) {
         shared.enroll(appState) { [weak appState] in appState.map { MacTEMAgentDoor.summary(of: $0) } ?? [:] }
         guard !appState.launch.isUITesting else { return }
+        if let refreshed = setFolder(bookmark: defaults.data(forKey: folderKey)) { defaults.set(refreshed, forKey: folderKey) }
         shared.runsAllowed = defaults.bool(forKey: runsKey)
         shared.setEnabled(defaults.bool(forKey: enabledKey))
     }
