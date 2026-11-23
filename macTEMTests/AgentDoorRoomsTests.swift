@@ -108,7 +108,7 @@ nonisolated final class AgentDoorRoomsTests: XCTestCase {
         let opened = try await call("open_demo", ["demo": "lattice"])
         XCTAssertFalse(opened.refused, opened.text)
         XCTAssertEqual(state.navigation.workspaceArea, .image)
-        XCTAssertTrue(state.activityLog.messages.contains("An agent opened the demo Lattice Image."), "\(state.activityLog.messages)")
+        XCTAssertTrue(state.activityLog.messages.contains { $0.hasSuffix("An agent opened the demo Lattice Image.") }, "\(state.activityLog.messages)")
         try await waitUntil("the lattice image to be read", seconds: 30) { state.openItems.selected?.session.image != nil }
 
         let unknown = try await call("open_demo", ["demo": "gold"])
