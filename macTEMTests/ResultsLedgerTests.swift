@@ -319,13 +319,13 @@ nonisolated final class ResultsLedgerTests: XCTestCase {
     /// the room holds, and not while the room is opening another. Red under: another file's composition listed under this one.
     func testTheEDSFitIsListedOnlyUnderItsOwnFile() {
         let a = URL(fileURLWithPath: "/data/one/a.emd"), b = URL(fileURLWithPath: "/data/two/b.emd")
-        XCTAssertTrue(AppState.edsFitBelongs(to: a, edsFiles: [a, b], edsFile: "a.emd", edsOpening: false))
-        XCTAssertFalse(AppState.edsFitBelongs(to: b, edsFiles: [a, b], edsFile: "a.emd", edsOpening: false), "the room holds a")
-        XCTAssertFalse(AppState.edsFitBelongs(to: a, edsFiles: [b], edsFile: "a.emd", edsOpening: false), "a did not open into the EDS room")
-        XCTAssertFalse(AppState.edsFitBelongs(to: a, edsFiles: [a], edsFile: "a.emd", edsOpening: true), "the room is opening")
+        XCTAssertTrue(SpectrumFiles.edsFitBelongs(to: a, edsFiles: [a, b], edsFile: "a.emd", edsOpening: false))
+        XCTAssertFalse(SpectrumFiles.edsFitBelongs(to: b, edsFiles: [a, b], edsFile: "a.emd", edsOpening: false), "the room holds a")
+        XCTAssertFalse(SpectrumFiles.edsFitBelongs(to: a, edsFiles: [b], edsFile: "a.emd", edsOpening: false), "a did not open into the EDS room")
+        XCTAssertFalse(SpectrumFiles.edsFitBelongs(to: a, edsFiles: [a], edsFile: "a.emd", edsOpening: true), "the room is opening")
         let twin = URL(fileURLWithPath: "/data/two/a.emd")
-        XCTAssertTrue(AppState.edsFitBelongs(to: a, edsFiles: [a, twin], edsFile: "a.emd", edsPath: a.path, edsOpening: false))
-        XCTAssertFalse(AppState.edsFitBelongs(to: twin, edsFiles: [a, twin], edsFile: "a.emd", edsPath: a.path, edsOpening: false),
+        XCTAssertTrue(SpectrumFiles.edsFitBelongs(to: a, edsFiles: [a, twin], edsFile: "a.emd", edsPath: a.path, edsOpening: false))
+        XCTAssertFalse(SpectrumFiles.edsFitBelongs(to: twin, edsFiles: [a, twin], edsFile: "a.emd", edsPath: a.path, edsOpening: false),
                        "a file of the same name in another folder")
     }
 }

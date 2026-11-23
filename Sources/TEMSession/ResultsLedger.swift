@@ -23,7 +23,7 @@ import TEMCore
 package enum ResultsLedger {
 
     /// The EDS room's finished fit of one region of this file: the window holds one EDS document, so the app hands it in only when it
-    /// is this file's (`AppState.edsFitBelongs`).
+    /// is this file's (`SpectrumFiles.edsFitBelongs`).
     package struct EDSResults {
         package let regionName: String
         package let fit: PooledQuantification

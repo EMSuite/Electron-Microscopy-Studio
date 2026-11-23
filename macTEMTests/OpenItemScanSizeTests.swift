@@ -47,8 +47,8 @@ nonisolated final class OpenItemScanSizeTests: XCTestCase {
         let url = try FileRoutingTests.temp("eels.dm4", Data(contentsOf: Self.planted))
         let state = AppState(launch: LaunchOptions(arguments: []))
         await state.open(urls: [url])?.value
-        XCTAssertEqual(state.spectrumScans[url]?.width, 3)
-        XCTAssertEqual(state.spectrumScans[url]?.height, 2)
+        XCTAssertEqual(state.spectrumFiles.scans[url]?.width, 3)
+        XCTAssertEqual(state.spectrumFiles.scans[url]?.height, 2)
     }
 
     /// EDS: a Velox spectrum image's image is drawn on the scan grid, so the row's size is the scan the EDS room reads (16 × 16 on the parity
@@ -59,7 +59,7 @@ nonisolated final class OpenItemScanSizeTests: XCTestCase {
         await state.open(urls: [URL(fileURLWithPath: path)])?.value
         await state.openItems.settled()
         let summary = try XCTUnwrap(state.openItems.items.first?.summary)
-        let shown = OpenItemRowFormat.shown(width: summary.width, height: summary.height, x: summary.x, scan: state.spectrumScans[URL(fileURLWithPath: path)])
+        let shown = OpenItemRowFormat.shown(width: summary.width, height: summary.height, x: summary.x, scan: state.spectrumFiles.scans[URL(fileURLWithPath: path)])
         XCTAssertEqual(OpenItemRowFormat.size(width: shown.width, height: shown.height), "16 × 16")
     }
 }

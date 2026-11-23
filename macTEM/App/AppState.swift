@@ -22,6 +22,8 @@
 //    (its view state, App/).
 //  - Maps: `maps` (the orientation map, layer and pictures, TEMSession) and `mapsRoom` (its view state, App/).
 //  - the SEM session: `semRecord` (the SEM rooms' exports and Output lines for the session report, App/).
+//  - the files: `spectrumFiles` (what the Open found out about each file that spans rooms, and the rules that read it,
+//    TEMSession).
 //  `imageSession`, `presentation` and `measurements` are the selected item's, forwarded, so the views that read them did
 //  not change with V1-13.
 //
@@ -29,12 +31,7 @@
 //  `closeRequest` (the question before files with unsaved marks close), `openImageRequest` (the open panel's request
 //  counter) and `lastOpen` (the newest Open in flight, which a test awaits).
 //
-//  Stored here, against the rule, each for its reason:
-//  - `spectrumCompanionImages`, `spectrumScans`, `edsFiles`, `eelsFiles`, what the Open found out about each file (an
-//    image that is also a spectrum image, a spectrum image's scan, the files that opened into the EDS and the EELS room):
-//    they span rooms, since one file can open into several, so no room owns them. The Open writes them and the pure rules
-//    beside it read them (`roomsToFollow`, `edsFitBelongs`, `eelsResultsBelong`, AppState+Open.swift), with the room list;
-//    they belong in one owner together with those rules.
+//  Stored here, against the rule, for its reason:
 //  - `busySince`, when each room last became busy, for the toolbar's busy clock (`RunClock`): it spans the rooms and is
 //    not observed (the clock ticks on its own), so it is no room's view state.
 //
@@ -81,6 +78,9 @@ final class AppState {
     /// The `ProcessInfo` activity held while any room works (`RunActivity`), so App Nap and idle sleep never slow a long run; a test
     /// passes one that counts.
     let runActivity: RunActivity
+    /// What the Open found out about each file that spans rooms (spectrum images, their scans, the files of the EDS and EELS rooms) and
+    /// the rules that read it (TEMSession).
+    let spectrumFiles = SpectrumFiles()
 
     /// The window's title: the file of the room that is shown (the spectrum image in the EDX and EELS rooms, the image elsewhere).
     var windowTitle: String {
@@ -149,13 +149,6 @@ final class AppState {
     /// Exports of this window being rendered and written right now (never more than one: a second is refused with a beep). Per window,
     /// so a write in one window never blocks an export in another (#625).
     @ObservationIgnored var exportsWriting = 0
-    /// Files opened into the Image room that are also spectrum images (the HAADF of a Velox SI): their image is a scan image, which the Diffraction room does not take.
-    var spectrumCompanionImages: Set<URL> = []
-    /// The scan of each opened DM4 spectrum image, from its header: the scan's size, not the survey image's.
-    var spectrumScans: [URL: FileInventory.Scan] = [:]
-    /// The files that opened into the EDS room and into the EELS room: a room follows the selected file (`spectrumRoomsFollowSelection`).
-    var edsFiles: Set<URL> = []
-    var eelsFiles: Set<URL> = []
     /// When each room with a busy line last became busy (`markBusy`): the start of the toolbar's busy clock (`RunClock`). Not
     /// observed: the clock ticks on its own.
     @ObservationIgnored var busySince: [WorkspaceArea: Date] = [:]

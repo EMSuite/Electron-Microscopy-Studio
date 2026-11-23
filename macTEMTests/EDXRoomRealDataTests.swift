@@ -315,14 +315,14 @@ nonisolated final class EDXRoomRealDataTests: XCTestCase {
         await state.open(urls: [a, b])?.value
         try await waitUntil("the EDS room to open the batch's first file", seconds: 60) { !state.edx.isOpening && !state.edx.fileName.isEmpty }
         await state.edx.settled()
-        say("ROOM batch: the EDS room holds '\(state.edx.fileName)', selected '\(state.openItems.selected?.url.lastPathComponent ?? "none")', edsFiles \(state.edsFiles.count)")
+        say("ROOM batch: the EDS room holds '\(state.edx.fileName)', selected '\(state.openItems.selected?.url.lastPathComponent ?? "none")', edsFiles \(state.spectrumFiles.edsFiles.count)")
         XCTAssertEqual(state.edx.fileName, a.lastPathComponent, "the room holds the batch's first file")
-        XCTAssertEqual(state.edsFiles, [a, b])
+        XCTAssertEqual(state.spectrumFiles.edsFiles, [a, b])
         if let selected = state.openItems.selected { XCTAssertEqual(selected.url, a, "Open Files selects the first") }
     }
 
     /// Opens 1339 then 1840 through `AppState.open(urls:)`, selects 1339's item and follows: the EDS room holds 1339 again. If `AppState.open` cannot run
-    /// headless (no security scope, a panel), the follow rule is checked on `AppState.roomsToFollow` alone and the test says so.
+    /// headless (no security scope, a panel), the follow rule is checked on `SpectrumFiles.roomsToFollow` alone and the test says so.
     @MainActor func testSwitchingDocumentsMakesTheEDSRoomFollowTheSelection() async throws {
         try optIn()
         let a = try url(Self.f1339), b = try url(Self.f1840)
@@ -337,17 +337,17 @@ nonisolated final class EDXRoomRealDataTests: XCTestCase {
         try await roomHolds(a.lastPathComponent)
         await state.open(urls: [b])?.value
         try await roomHolds(b.lastPathComponent)
-        say("ROOM switch: after both opens the EDS room holds '\(state.edx.fileName)'; open items \(state.openItems.items.map { $0.url.lastPathComponent }); edsFiles \(state.edsFiles.map(\.lastPathComponent).sorted())")
-        guard state.edsFiles.contains(a), state.edsFiles.contains(b), state.edx.fileName == b.lastPathComponent else {
+        say("ROOM switch: after both opens the EDS room holds '\(state.edx.fileName)'; open items \(state.openItems.items.map { $0.url.lastPathComponent }); edsFiles \(state.spectrumFiles.edsFiles.map(\.lastPathComponent).sorted())")
+        guard state.spectrumFiles.edsFiles.contains(a), state.spectrumFiles.edsFiles.contains(b), state.edx.fileName == b.lastPathComponent else {
             say("ROOM switch: AppState.open did not route both files into the EDS room headless; checking roomsToFollow only")
-            let follow = AppState.roomsToFollow(selected: a, edsFiles: [a, b], eelsFiles: [], edsFile: b.lastPathComponent, eelsFile: "", edsOpening: false, eelsOpening: false)
+            let follow = SpectrumFiles.roomsToFollow(selected: a, edsFiles: [a, b], eelsFiles: [], edsFile: b.lastPathComponent, eelsFile: "", edsOpening: false, eelsOpening: false)
             XCTAssertTrue(follow.eds); XCTAssertFalse(follow.eels)
             XCTFail("AppState.open(urls:) did not open both into the EDS room headless; only roomsToFollow was checked")
             return
         }
         guard let item = state.openItems.items.first(where: { $0.url == a }) else {
             // The EDS file's HAADF companion did not become an open item headless: the follow decision is checked on its own.
-            let follow = AppState.roomsToFollow(selected: a, edsFiles: state.edsFiles, eelsFiles: [], edsFile: state.edx.fileName, eelsFile: "", edsOpening: false, eelsOpening: false)
+            let follow = SpectrumFiles.roomsToFollow(selected: a, edsFiles: state.spectrumFiles.edsFiles, eelsFiles: [], edsFile: state.edx.fileName, eelsFile: "", edsOpening: false, eelsOpening: false)
             say("ROOM switch: no open item for 1339 headless (items \(state.openItems.items.count)); roomsToFollow says eds \(follow.eds)")
             XCTAssertTrue(follow.eds)
             XCTFail("no open item for 1339 headless; only roomsToFollow was checked")

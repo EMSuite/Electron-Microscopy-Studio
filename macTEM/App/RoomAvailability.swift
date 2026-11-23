@@ -94,7 +94,7 @@ extension AppState {
                      eels: eels.hasImage || eels.isOpening,
                      ebsd: ebsd.hasDataset || ebsd.isOpening,
                      maps: maps.hasMap || maps.isOpening,
-                     imagesAreSpectrumCompanions: !openItems.items.isEmpty && openItems.items.allSatisfy { spectrumCompanionImages.contains($0.url) },
+                     imagesAreSpectrumCompanions: !openItems.items.isEmpty && openItems.items.allSatisfy { spectrumFiles.companionImages.contains($0.url) },
                      semResults: SEMSessionLedger.hasRows(self))
     }
 

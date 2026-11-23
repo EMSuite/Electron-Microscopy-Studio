@@ -97,10 +97,10 @@ extension AppState {
                 if inventory.ebsdPatterns { ebsdBatch.append(url) }
                 if inventory.orientationMap { mapBatch.append(url) }
                 if inventory.image { images.append(url) }
-                if inventory.image, inventory.opensInEDS || inventory.eelsSpectrumImage { spectrumCompanionImages.insert(url) }
-                if let scan = inventory.scan { spectrumScans[url] = scan }
-                if inventory.opensInEDS { edsFiles.insert(url); edsBatch.append(url) }
-                if inventory.eelsSpectrumImage { eelsFiles.insert(url); eelsBatch.append(url) }
+                if inventory.image, inventory.opensInEDS || inventory.eelsSpectrumImage { spectrumFiles.companionImages.insert(url) }
+                if let scan = inventory.scan { spectrumFiles.scans[url] = scan }
+                if inventory.opensInEDS { spectrumFiles.edsFiles.insert(url); edsBatch.append(url) }
+                if inventory.eelsSpectrumImage { spectrumFiles.eelsFiles.insert(url); eelsBatch.append(url) }
                 if let found = inventory.landing, found.richness > (landing?.richness ?? Int.min) { landing = found }
             }
             presentRefusals(refused + refusals + (await tabs?.value ?? []))
@@ -541,49 +541,19 @@ extension AppState {
 }
 
 extension AppState {
-    /// Which spectrum rooms must reopen the selected file: the EDS and EELS sessions hold one document each, so a file that opened into a room is
-    /// read into it again when its row is selected while another file holds the room (drive 6, 2026-10-22: clicking another open file did nothing
-    /// in the EDS room). The room holds the file whose path its reader states, so two files of one name in two folders are told apart (as
-    /// `edsFitBelongs`); by name only when the reader states no path. Pure, so a test holds it; a room that is opening is left alone.
-    static func roomsToFollow(selected: URL?, edsFiles: Set<URL>, eelsFiles: Set<URL>, edsFile: String, eelsFile: String,
-                              edsPath: String = "", eelsPath: String = "", edsOpening: Bool, eelsOpening: Bool) -> (eds: Bool, eels: Bool) {
-        guard let url = selected else { return (false, false) }
-        // The open-files list keeps a resolved, standardised URL (symlinks and /private resolved); compare both sides the same way.
-        func key(_ u: URL) -> String { u.resolvingSymlinksInPath().standardizedFileURL.path }
-        let k = key(url), name = url.lastPathComponent
-        func holds(file: String, path: String) -> Bool { path.isEmpty ? file == name : key(URL(fileURLWithPath: path)) == k }
-        let eds = edsFiles.contains { key($0) == k }, eels = eelsFiles.contains { key($0) == k }
-        return (eds && !holds(file: edsFile, path: edsPath) && !edsOpening, eels && !holds(file: eelsFile, path: eelsPath) && !eelsOpening)
-    }
-
-    /// Whether the EDS room's fit is `url`'s: the file opened into the EDS room, the room holds it (by its path when the reader states one,
-    /// so two files of one name in two folders are told apart; else by name, as `roomsToFollow` compares) and is not opening another.
-    /// Pure, so a test holds it.
-    nonisolated static func edsFitBelongs(to url: URL, edsFiles: Set<URL>, edsFile: String, edsPath: String = "", edsOpening: Bool) -> Bool {
-        func key(_ u: URL) -> String { u.resolvingSymlinksInPath().standardizedFileURL.path }
-        let k = key(url)
-        guard !edsOpening, edsFile == url.lastPathComponent, edsFiles.contains(where: { key($0) == k }) else { return false }
-        return edsPath.isEmpty || key(URL(fileURLWithPath: edsPath)) == k
-    }
-
     /// The EDS room's finished fit, when it is `item`'s file's (`edsFitBelongs`) and settled: while a region, pick or setting change is
     /// being fitted again the old fit would be shown under the new region's name, so nothing is listed until it lands.
     func edsResults(for item: OpenItem) -> ResultsLedger.EDSResults? {
         guard let fit = edx.fit, !edx.isRefreshing, !edx.isFitting,
-              Self.edsFitBelongs(to: item.url, edsFiles: edsFiles, edsFile: edx.fileName, edsPath: edx.source?.metadata.filePath ?? "",
+              SpectrumFiles.edsFitBelongs(to: item.url, edsFiles: spectrumFiles.edsFiles, edsFile: edx.fileName, edsPath: edx.source?.metadata.filePath ?? "",
                                  edsOpening: edx.isOpening)
         else { return nil }
         return ResultsLedger.EDSResults(regionName: edx.regionName, fit: fit)
     }
 
-    /// Whether the EELS room's results are `url`'s: the same rule as the EDS room's (`edsFitBelongs`), as the window holds one EELS document too.
-    nonisolated static func eelsResultsBelong(to url: URL, eelsFiles: Set<URL>, eelsFile: String, eelsPath: String = "", eelsOpening: Bool) -> Bool {
-        edsFitBelongs(to: url, edsFiles: eelsFiles, edsFile: eelsFile, edsPath: eelsPath, edsOpening: eelsOpening)
-    }
-
     /// The EELS room's settled results (`ResultsLedger.EELSResults.settled`), when they are `item`'s file's (`eelsResultsBelong`).
     func eelsResults(for item: OpenItem) -> ResultsLedger.EELSResults? {
-        guard Self.eelsResultsBelong(to: item.url, eelsFiles: eelsFiles, eelsFile: eels.fileName, eelsPath: eels.filePath, eelsOpening: eels.isOpening)
+        guard SpectrumFiles.eelsResultsBelong(to: item.url, eelsFiles: spectrumFiles.eelsFiles, eelsFile: eels.fileName, eelsPath: eels.filePath, eelsOpening: eels.isOpening)
         else { return nil }
         return .settled(eels)
     }
@@ -593,10 +563,10 @@ extension AppState {
         ResultsLedger.rows(of: item, eds: edsResults(for: item), eels: eelsResults(for: item))
     }
 
-    /// The spectrum rooms follow the selected file (see `roomsToFollow`); called when the Open Files selection changes.
+    /// The spectrum rooms follow the selected file (see `SpectrumFiles.roomsToFollow`); called when the Open Files selection changes.
     func spectrumRoomsFollowSelection() {
         let url = openItems.selected?.url
-        let follow = Self.roomsToFollow(selected: url, edsFiles: edsFiles, eelsFiles: eelsFiles, edsFile: edx.fileName, eelsFile: eels.fileName,
+        let follow = SpectrumFiles.roomsToFollow(selected: url, edsFiles: spectrumFiles.edsFiles, eelsFiles: spectrumFiles.eelsFiles, edsFile: edx.fileName, eelsFile: eels.fileName,
                                         edsPath: edx.source?.metadata.filePath ?? "", eelsPath: eels.filePath,
                                         edsOpening: edx.isOpening, eelsOpening: eels.isOpening)
         if follow.eds, let url { edx.open(url: url) }

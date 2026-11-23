@@ -174,7 +174,7 @@ nonisolated final class ResultsWiringTests: XCTestCase {
         let demo = try DemoDocuments.eels()
         let loaded = LoadedEELS(fileName: item.url.lastPathComponent, image: demo.image, beamEnergyKeV: demo.beamEnergyKeV,
                                 convergenceMrad: demo.convergenceMrad, collectionMrad: demo.collectionMrad, origin: demo.origin)
-        state.eelsFiles.insert(item.url)
+        state.spectrumFiles.eelsFiles.insert(item.url)
         await state.eels.bind(loaded).value
         await state.eels.settled()
         XCTAssertNil(state.eels.failure)
