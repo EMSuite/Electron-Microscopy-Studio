@@ -5,14 +5,17 @@
 # 2026-11-06; docs/decisions.md). The Mac runner keeps only what needs a screen: the UI journeys and their screenshots
 # (.github/workflows/ui.yml, nightly and by hand, queued while the Mac is offline).
 #
-# WHAT RUNS:
-#   * `tools/run-tests.sh unit`      — the XCTest suite (macTEMTests) through xcodebuild, every declared test run by name;
-#     a compiler warning in the app's own sources or tests fails it (tools/lib/app-warnings.sh).
+# WHAT RUNS, on a pull request as ONE macOS job (`unit`), its steps cheapest first so a red one fails early and holds the
+# runner no longer than it must. GitHub gives the org five macOS runners at once; three jobs per PR (until 23 Nov 2026) let
+# only one or two PRs build together (the suite's engineering-process plan, process item 3):
+#   * `tools/run-tests.sh inventory` — the repo's own review. Its checks are listed in tools/run-tests.sh, not
+#     here, so this comment cannot go stale. It needs no sibling checkout and no reference venv. Under a minute.
 #   * `tools/run-tests.sh core`      — TEMCore and TEMSession built standalone by `swift build` (Package.swift)
 #     from a fresh scratch path: the layering gate. It fails the moment Core reaches into Session or either
-#     reaches into the app, and on any compiler warning.
-#   * `tools/run-tests.sh inventory` — the repo's own review. Its checks are listed in tools/run-tests.sh, not
-#     here, so this comment cannot go stale. It needs no sibling checkout and no reference venv.
+#     reaches into the app, and on any compiler warning. About three minutes.
+#   * `tools/run-tests.sh unit`      — the XCTest suite (macTEMTests) through xcodebuild, every declared test run by name;
+#     a compiler warning in the app's own sources or tests fails it (tools/lib/app-warnings.sh).
+#   Each is its own step, so the job's log names the one that failed. The required check is the job, `unit (XCTest)`.
 #
 # NIGHTLY (cron 01:00 UTC) and by hand (workflow_dispatch) only, never on a push, a tag or a pull request:
 #   * the unit job first restores and fetches the SEM reference datasets (tools/parity/sem/fetch-data.sh into the
@@ -38,12 +41,12 @@
 #   * `tools/run-tests.sh ui-build` — the UI journeys (macTEMUITests) compiled and not run. On a pull request
 #     ui-build.yml runs it, for the paths that can break the journeys' build, and it is not a required check there, so a
 #     pull request can merge with it red; this run is what then says main no longer compiles them. Not a required check.
-# The nightly also runs `core` and `inventory`; the Linux jobs skip the schedule event. Dispatch CI on a branch to run
+# The nightly's `unit` job runs `inventory` and `core` first too; the Linux jobs skip the schedule event. Dispatch CI on a branch to run
 # them before merging, and on main before a tag.
 #
-# MAIN: a push to main runs only the Linux jobs. `unit`, `core` and `inventory` ran on the pull request that made the
-# commit; running them again on main took the same macOS slots a second time, and GitHub gives the org five at once
-# (12 Nov 2026: PR `unit` jobs waited 13-22 min for a slot). They run on tags, by hand and in the nightly, which is
+# MAIN: a push to main runs only the Linux jobs. The `unit` job (inventory, core, unit) ran on the pull request that made
+# the commit; running it again on main took the same macOS slot a second time, and GitHub gives the org five at once
+# (12 Nov 2026: PR `unit` jobs waited 13-22 min for a slot). It runs on tags, by hand and in the nightly, which is
 # where a break between two PRs that each passed alone shows.
 #
 # XCODE: every macOS job uses Xcode 26.6 (DEVELOPER_DIR below), never the image's default, so an image update cannot
@@ -61,7 +64,8 @@
 #   * CI builds with Xcode 26.6 and its macOS 26 SDK; the dev Mac builds with Xcode 27. A source that uses an API only in the macOS 27 SDK, or a Swift 6 language
 #     mode diagnostic (now including a warning) only one of the two compilers emits, will part the two results;
 #     that is the runner's limit, stated here, not a flake.
-#   * Measured 2026-11-06 on macos-26: unit 8-10 min, core about 3 min, inventory under 1 min. The timeouts are margin.
+#   * Measured 2026-11-06 on macos-26, as separate jobs: unit 8-10 min, core about 3 min, inventory under 1 min. The one
+#     job's timeout is their sum with margin.
 #     The scientific job's has not been measured off the dev Mac: tighten it from the `<== name (N s)` lines its first
 #     green runs print. Nor has release-build's: tighten it from its first green runs.
 #   * release-build signs ad hoc, so it cannot see a certificate, provisioning or notarization failure; those stay with
@@ -76,7 +80,7 @@ on:
     tags: ['*']
   pull_request:
   workflow_dispatch:
-  # Nightly: the unit job with the SEM reference data, `scientific`, `release-build` and `ui-build`, `core`, `inventory` (the Linux jobs skip it).
+  # Nightly: the unit job (inventory, core, unit) with the SEM reference data, `scientific`, `release-build` and `ui-build` (the Linux jobs skip it).
   schedule:
     - cron: "0 1 * * *"
 
@@ -98,13 +102,20 @@ env:
 
 jobs:
   unit:
+    # The one macOS job of a pull request: inventory, core, then the XCTest suite (WHAT RUNS in the header). Its name is
+    # the required check's, kept from when it ran the suite alone.
     name: unit (XCTest)
     # Not on a push to main: the PR run tested the change; nightly and tags run it (MAIN in the header).
     if: github.event_name != 'push' || startsWith(github.ref, 'refs/tags/')
     runs-on: macos-26
-    timeout-minutes: 60
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v7
+        with:
+          # mac4DSTEM's inventory reads HEAD^ on a clean tree, which the default depth of 1 does not have; its
+          # job could never pass until this was set (mac4DSTEM, 2026-09-09). Kept so a rule that compares
+          # against the previous commit does not repeat that.
+          fetch-depth: 2
       - name: Toolchain on record
         run: |
           sw_vers
@@ -123,6 +134,13 @@ jobs:
             sudo xcodebuild -downloadComponent MetalToolchain
           fi
           xcrun -sdk macosx metal --version
+      - name: Resolve the pinned MacEMUI
+        # The inventory's UI-journey identifier check reads the shell's sources from .build/checkouts/MacEMUI (no ../MacEMUI here).
+        run: swift package resolve
+      - name: Run the inventory (cheapest first)
+        run: tools/run-tests.sh inventory
+      - name: Build the package layers standalone (core)
+        run: tools/run-tests.sh core
       - name: Restore the SEM reference data (nightly and by hand)
         # sem-parity.yml's cache of what fetch-data.sh downloads; the next step fetches whatever it lacks.
         if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
@@ -252,52 +270,6 @@ jobs:
           xcrun -sdk macosx metal --version
       - name: Compile the UI journeys
         run: tools/run-tests.sh ui-build
-
-  inventory:
-    name: inventory (repo review)
-    # Not on a push to main: the PR run tested the change; nightly and tags run it (MAIN in the header).
-    if: github.event_name != 'push' || startsWith(github.ref, 'refs/tags/')
-    runs-on: macos-26
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          # mac4DSTEM's inventory reads HEAD^ on a clean tree, which the default depth of 1 does not have; its
-          # job could never pass until this was set (mac4DSTEM, 2026-09-09). Kept so a rule that compares
-          # against the previous commit does not repeat that.
-          fetch-depth: 2
-      - name: Restore the SwiftPM repository cache
-        uses: actions/cache@v5
-        with:
-          path: ~/Library/Caches/org.swift.swiftpm
-          key: swiftpm-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
-          restore-keys: swiftpm-${{ runner.os }}-
-      - name: Resolve the pinned MacEMUI
-        # The UI-journey identifier check reads the shell's sources from .build/checkouts/MacEMUI (no ../MacEMUI here).
-        run: swift package resolve
-      - name: Run the inventory
-        run: tools/run-tests.sh inventory
-
-  core:
-    name: core (TEMCore + TEMSession package build)
-    # Not on a push to main: the PR run tested the change; nightly and tags run it (MAIN in the header).
-    if: github.event_name != 'push' || startsWith(github.ref, 'refs/tags/')
-    runs-on: macos-26
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v7
-      - name: Toolchain on record
-        run: |
-          xcode-select -p
-          swift --version
-      - name: Restore the SwiftPM repository cache
-        uses: actions/cache@v5
-        with:
-          path: ~/Library/Caches/org.swift.swiftpm
-          key: swiftpm-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
-          restore-keys: swiftpm-${{ runner.os }}-
-      - name: Build the package layers standalone
-        run: tools/run-tests.sh core
 
   kit-boundary:
     name: kit boundary (no numerics frameworks in the app)
