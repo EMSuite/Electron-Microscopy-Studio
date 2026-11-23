@@ -313,7 +313,7 @@ package final class DiffractionAnalysis {
         package let sentence: String
     }
 
-    private nonisolated struct SimulationKey: Equatable {
+    private struct SimulationKey: Equatable {
         var settings: ZoneAxisOverlay.Settings
         var crystal: DiffractionCrystal
         var centre: DiffractionCentre?
