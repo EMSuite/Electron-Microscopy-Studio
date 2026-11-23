@@ -20,11 +20,6 @@ final class AgentFolder {
     /// No folder.
     init() {}
 
-    /// A folder given directly (tests, or a folder already open to the app).
-    init(folder: URL) {
-        url = Self.canonical(folder)
-    }
-
     /// Why a chosen folder is not open (its bookmark no longer resolves, or macOS refused its access); nil while it is, or none
     /// is chosen.
     private(set) var unavailableReason: String?
