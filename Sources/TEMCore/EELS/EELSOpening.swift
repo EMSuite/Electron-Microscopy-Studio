@@ -48,7 +48,7 @@ package struct LoadedEELS: Sendable {
     package let scanPixelSize: Double?
     package let scanPixelUnit: String?
     /// The file's path as it was opened ("" for a document made in memory): the Results room lists the room's numbers only under this file, so two
-    /// files of one name in two folders are told apart (`AppState.eelsResultsBelong`).
+    /// files of one name in two folders are told apart (`SpectrumFiles.eelsResultsBelong`).
     package let filePath: String
     /// The stage tilts in degrees and the instrument as the file states them (FormatoKit's DM reading, `EELSOpening.stated`); nil where it states none.
     /// Shown in Info and written to the spectrum's MSA file; nothing computes with them.

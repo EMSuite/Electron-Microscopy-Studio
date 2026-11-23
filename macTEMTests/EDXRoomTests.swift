@@ -89,15 +89,15 @@ nonisolated final class EDXRoomTests: XCTestCase {
     @MainActor func testTheSpectrumRoomsFollowTheSelectedFile() {
         let a = URL(fileURLWithPath: "/data/SI 1339.emd"), b = URL(fileURLWithPath: "/data/SI 1840.emd"), image = URL(fileURLWithPath: "/data/Ceta.emd")
         let eds: Set<URL> = [a, b], eels: Set<URL> = [a]
-        XCTAssertEqual(AppState.roomsToFollow(selected: a, edsFiles: eds, eelsFiles: eels, edsFile: "SI 1840.emd", eelsFile: "", edsOpening: false, eelsOpening: false).eds, true)
-        XCTAssertEqual(AppState.roomsToFollow(selected: a, edsFiles: eds, eelsFiles: eels, edsFile: "SI 1840.emd", eelsFile: "", edsOpening: false, eelsOpening: false).eels, true)
-        XCTAssertEqual(AppState.roomsToFollow(selected: b, edsFiles: eds, eelsFiles: eels, edsFile: "SI 1840.emd", eelsFile: "", edsOpening: false, eelsOpening: false).eds, false, "already in the room")
-        XCTAssertEqual(AppState.roomsToFollow(selected: image, edsFiles: eds, eelsFiles: eels, edsFile: "SI 1840.emd", eelsFile: "", edsOpening: false, eelsOpening: false).eds, false, "no spectrum image")
-        XCTAssertEqual(AppState.roomsToFollow(selected: a, edsFiles: eds, eelsFiles: eels, edsFile: "SI 1840.emd", eelsFile: "", edsOpening: true, eelsOpening: false).eds, false, "still opening")
-        XCTAssertEqual(AppState.roomsToFollow(selected: nil, edsFiles: eds, eelsFiles: eels, edsFile: "", eelsFile: "", edsOpening: false, eelsOpening: false).eds, false)
+        XCTAssertEqual(SpectrumFiles.roomsToFollow(selected: a, edsFiles: eds, eelsFiles: eels, edsFile: "SI 1840.emd", eelsFile: "", edsOpening: false, eelsOpening: false).eds, true)
+        XCTAssertEqual(SpectrumFiles.roomsToFollow(selected: a, edsFiles: eds, eelsFiles: eels, edsFile: "SI 1840.emd", eelsFile: "", edsOpening: false, eelsOpening: false).eels, true)
+        XCTAssertEqual(SpectrumFiles.roomsToFollow(selected: b, edsFiles: eds, eelsFiles: eels, edsFile: "SI 1840.emd", eelsFile: "", edsOpening: false, eelsOpening: false).eds, false, "already in the room")
+        XCTAssertEqual(SpectrumFiles.roomsToFollow(selected: image, edsFiles: eds, eelsFiles: eels, edsFile: "SI 1840.emd", eelsFile: "", edsOpening: false, eelsOpening: false).eds, false, "no spectrum image")
+        XCTAssertEqual(SpectrumFiles.roomsToFollow(selected: a, edsFiles: eds, eelsFiles: eels, edsFile: "SI 1840.emd", eelsFile: "", edsOpening: true, eelsOpening: false).eds, false, "still opening")
+        XCTAssertEqual(SpectrumFiles.roomsToFollow(selected: nil, edsFiles: eds, eelsFiles: eels, edsFile: "", eelsFile: "", edsOpening: false, eelsOpening: false).eds, false)
         // The list's URL is resolved and standardised (drive 6 on screen: the raw URL never matched it).
         let viaTmp = URL(fileURLWithPath: "/tmp/../data/SI 1339.emd")
-        XCTAssertEqual(AppState.roomsToFollow(selected: viaTmp, edsFiles: eds, eelsFiles: eels, edsFile: "SI 1840.emd", eelsFile: "", edsOpening: false, eelsOpening: false).eds, true, "another spelling of the same path")
+        XCTAssertEqual(SpectrumFiles.roomsToFollow(selected: viaTmp, edsFiles: eds, eelsFiles: eels, edsFile: "SI 1840.emd", eelsFile: "", edsOpening: false, eelsOpening: false).eds, true, "another spelling of the same path")
         XCTAssertTrue(squeezed((try? source("macTEM/App/AppState.swift")) ?? "").contains("openItems.onSelect = { [weak self] _ in self?.spectrumRoomsFollowSelection() self?.recordLastSession() }"),
                       "the selection reaches the rooms through the list's own callback, not a view's observation (it did not fire on screen)")
     }
@@ -109,18 +109,18 @@ nonisolated final class EDXRoomTests: XCTestCase {
     @MainActor func testTwoSpectrumImagesOfOneNameAreToldApartByTheirFolder() {
         let day1 = URL(fileURLWithPath: "/data/day1/SI.emd"), day2 = URL(fileURLWithPath: "/data/day2/SI.emd")
         let both: Set<URL> = [day1, day2]
-        let toDay2 = AppState.roomsToFollow(selected: day2, edsFiles: both, eelsFiles: both, edsFile: "SI.emd", eelsFile: "SI.emd",
+        let toDay2 = SpectrumFiles.roomsToFollow(selected: day2, edsFiles: both, eelsFiles: both, edsFile: "SI.emd", eelsFile: "SI.emd",
                                             edsPath: day1.path, eelsPath: day1.path, edsOpening: false, eelsOpening: false)
         XCTAssertTrue(toDay2.eds, "day 1's holds the EDS room: day 2's is read into it")
         XCTAssertTrue(toDay2.eels, "and into the EELS room")
-        let toDay1 = AppState.roomsToFollow(selected: day1, edsFiles: both, eelsFiles: both, edsFile: "SI.emd", eelsFile: "SI.emd",
+        let toDay1 = SpectrumFiles.roomsToFollow(selected: day1, edsFiles: both, eelsFiles: both, edsFile: "SI.emd", eelsFile: "SI.emd",
                                             edsPath: day1.path, eelsPath: day1.path, edsOpening: false, eelsOpening: false)
         XCTAssertFalse(toDay1.eds, "day 1's is already in the EDS room")
         XCTAssertFalse(toDay1.eels, "day 1's is already in the EELS room")
-        let respelled = AppState.roomsToFollow(selected: day1, edsFiles: both, eelsFiles: both, edsFile: "SI.emd", eelsFile: "",
+        let respelled = SpectrumFiles.roomsToFollow(selected: day1, edsFiles: both, eelsFiles: both, edsFile: "SI.emd", eelsFile: "",
                                                edsPath: "/data/day2/../day1/SI.emd", edsOpening: false, eelsOpening: false)
         XCTAssertFalse(respelled.eds, "another spelling of the room's path is the same file")
-        let noPath = AppState.roomsToFollow(selected: day2, edsFiles: both, eelsFiles: both, edsFile: "SI.emd", eelsFile: "",
+        let noPath = SpectrumFiles.roomsToFollow(selected: day2, edsFiles: both, eelsFiles: both, edsFile: "SI.emd", eelsFile: "",
                                             edsOpening: false, eelsOpening: false)
         XCTAssertFalse(noPath.eds, "a reader that states no path is told by its name")
         XCTAssertTrue(squeezed((try? source("macTEM/App/AppState+Open.swift")) ?? "")

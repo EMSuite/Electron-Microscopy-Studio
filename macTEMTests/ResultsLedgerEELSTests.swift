@@ -255,9 +255,9 @@ nonisolated final class ResultsLedgerEELSTests: XCTestCase {
     /// file of the same name in another folder by its path. Red under: another file's results listed under this one.
     func testTheEELSResultsAreListedOnlyUnderTheirOwnFile() {
         let a = URL(fileURLWithPath: "/data/one/si.dm4"), twin = URL(fileURLWithPath: "/data/two/si.dm4")
-        XCTAssertTrue(AppState.eelsResultsBelong(to: a, eelsFiles: [a, twin], eelsFile: "si.dm4", eelsPath: a.path, eelsOpening: false))
-        XCTAssertFalse(AppState.eelsResultsBelong(to: twin, eelsFiles: [a, twin], eelsFile: "si.dm4", eelsPath: a.path, eelsOpening: false))
-        XCTAssertFalse(AppState.eelsResultsBelong(to: a, eelsFiles: [], eelsFile: "si.dm4", eelsPath: a.path, eelsOpening: false), "a did not open in the EELS room")
-        XCTAssertFalse(AppState.eelsResultsBelong(to: a, eelsFiles: [a], eelsFile: "si.dm4", eelsPath: a.path, eelsOpening: true), "the room is opening")
+        XCTAssertTrue(SpectrumFiles.eelsResultsBelong(to: a, eelsFiles: [a, twin], eelsFile: "si.dm4", eelsPath: a.path, eelsOpening: false))
+        XCTAssertFalse(SpectrumFiles.eelsResultsBelong(to: twin, eelsFiles: [a, twin], eelsFile: "si.dm4", eelsPath: a.path, eelsOpening: false))
+        XCTAssertFalse(SpectrumFiles.eelsResultsBelong(to: a, eelsFiles: [], eelsFile: "si.dm4", eelsPath: a.path, eelsOpening: false), "a did not open in the EELS room")
+        XCTAssertFalse(SpectrumFiles.eelsResultsBelong(to: a, eelsFiles: [a], eelsFile: "si.dm4", eelsPath: a.path, eelsOpening: true), "the room is opening")
     }
 }

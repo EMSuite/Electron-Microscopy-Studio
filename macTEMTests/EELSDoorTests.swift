@@ -69,9 +69,9 @@ nonisolated final class EELSDoorTests: XCTestCase {
 
         let opening = try XCTUnwrap(EELSDoor.open(url, in: state), "the door started no Open")
         await opening.value
-        XCTAssertTrue(state.eelsFiles.contains(url), "the file is one of the window's EELS files")
+        XCTAssertTrue(state.spectrumFiles.eelsFiles.contains(url), "the file is one of the window's EELS files")
         XCTAssertEqual(state.navigation.workspaceArea, .eels, "the EELS room is in front")
-        XCTAssertTrue(state.edsFiles.isEmpty, "an EELS spectrum is not the EDS room's")
+        XCTAssertTrue(state.spectrumFiles.edsFiles.isEmpty, "an EELS spectrum is not the EDS room's")
         XCTAssertTrue(state.openItems.items.isEmpty, "a spectrum is not an open image")
         XCTAssertNil(state.errorMessage)
 

@@ -66,7 +66,7 @@ enum EELSDoor {
         return Task {
             await opening.value
             let room = appState.navigation.workspaceArea
-            if Self.returnsToFront(inEELS: appState.eelsFiles.contains(url), inEDS: appState.edsFiles.contains(url), room: room) {
+            if Self.returnsToFront(inEELS: appState.spectrumFiles.eelsFiles.contains(url), inEDS: appState.spectrumFiles.edsFiles.contains(url), room: room) {
                 appState.selectWorkspace(.eels)
             }
         }

@@ -57,9 +57,9 @@ nonisolated final class EDSDoorTests: XCTestCase {
         XCTAssertEqual(state.navigation.workspaceArea, .image)
 
         open(url)
-        try await waitUntil("the file to be among the EDS files", seconds: 10) { state.edsFiles.contains(url) }
+        try await waitUntil("the file to be among the EDS files", seconds: 10) { state.spectrumFiles.edsFiles.contains(url) }
         XCTAssertEqual(state.navigation.workspaceArea, .edx, "the EDS room is in front")
-        XCTAssertTrue(state.eelsFiles.isEmpty)
+        XCTAssertTrue(state.spectrumFiles.eelsFiles.isEmpty)
         XCTAssertNil(state.errorMessage)
     }
 }
