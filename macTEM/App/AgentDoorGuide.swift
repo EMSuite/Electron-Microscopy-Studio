@@ -30,11 +30,13 @@ extension MacTEMAgentDoor {
     nonisolated enum Guide: String, CaseIterable {
         case overview
         case eds
+        case patterns
 
         var text: String {
             switch self {
             case .overview: Self.overviewText
             case .eds: Self.edsText
+            case .patterns: Self.patternsText
             }
         }
 
@@ -51,8 +53,10 @@ extension MacTEMAgentDoor {
             as Help > Open Demo Data does, for trying a room.
             3. Move. `select_room` moves the window to a room, as the room bar does; a room the window's files do not fill is refused \
             with the reason the room bar gives.
-            4. Work the room. Topic eds for the EDS room. The other rooms' controls are the person's for now: look at their result \
-            with the get tools and ask the person to set and run them.
+            4. Work the room. Topic eds for the EDS room, topic patterns for the EBSD Patterns room. The other rooms' controls are \
+            the person's for now: look at their result with the get tools and ask the person to set and run them.
+            5. Run. `run_room` presses the shown room's toolbar verb (Quantify, Run, Process, Index, Segment), as ⌘R does; it is \
+            refused with the button's own words while it cannot run. `stop_run` stops what runs, as ⌘. does.
 
             Ways of working the person expects:
             - Read the app's own signals after every step and act on them before the next one: a refusal, a fit failure, a flag, \
@@ -91,6 +95,35 @@ extension MacTEMAgentDoor {
             - A net count whose σ is as large as the count is not a detection.
             - A wt% with an uncertainty as large as itself is not a measurement.
             - A region on the matrix and one on a feature, compared, say more than the whole map.
+            """
+
+        private static let patternsText = """
+            Patterns room (EBSD and TKD pattern scans; kikuchipy's processing). The scan map is on the left, the pattern at the \
+            picked position on the right. The file stays unchanged: processing runs in memory.
+
+            1. `get_patterns`: the scan and pattern size, the file's calibration (detector, projection centre), the picked \
+            position, the map, and every processing setting with each stage's state. Wait until busy is false: the open runs a \
+            pass over the scan for the maps.
+            2. Look. `get_patterns_picture` which map draws the scan map, which pattern the pattern. The mean intensity map shows \
+            the grains and the scan's edges; `set_patterns` map image_quality or dot_product draws the quality maps (Krieger Lassen's \
+            image quality, the average dot product with the four neighbours), where grain boundaries and bad points are dark. \
+            `select_scan_position` picks a position (x the column, y the row): look at a grain's middle, a boundary, a dark point.
+            3. Virtual images. `set_patterns` grid 5 cuts the detector into 5 × 5 tiles (kikuchipy's default); map tile with tile \
+            r2 c1 shows one tile's image, and mix_red, mix_green, mix_blue make the colour mix, which shows orientation contrast \
+            before any indexing.
+            4. Process. `set_pattern_processing` sets the stages; `set_patterns` display processed shows the pattern through them. \
+            The room's default is kikuchipy's: the file's static background subtracted, then the dynamic background (a Gaussian \
+            blur of width / 8) subtracted. `run_room` (Process) runs them over the whole scan; NLPAR and neighbour averaging show \
+            only after that, since they need the neighbours.
+
+            What to check:
+            - After the backgrounds the bands stand out evenly over the whole pattern, with no bright centre or dark corners left. \
+            A pattern that is mostly noise after the dynamic background had too small a blur (raise dynamic_std).
+            - The static background needs one from the file or the scan's mean (static_source mean); get_patterns says when the \
+            file has none (processing_refusal).
+            - Binning trades pattern detail for speed: index at the size the bands still read.
+            - NLPAR's λ is chosen from the scan's noise (nlpar_lambda after Process); compare a processed pattern with and without it.
+            - Processing changes no orientation by itself: judge it on the patterns, then index (the Indexing room).
             """
     }
 }
