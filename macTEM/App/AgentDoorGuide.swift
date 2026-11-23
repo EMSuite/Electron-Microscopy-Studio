@@ -36,6 +36,7 @@ extension MacTEMAgentDoor {
         case eels
         case image
         case fft
+        case diffraction
 
         var text: String {
             switch self {
@@ -47,6 +48,7 @@ extension MacTEMAgentDoor {
             case .eels: Self.eelsText
             case .image: Self.imageText
             case .fft: Self.fftText
+            case .diffraction: Self.diffractionText
             }
         }
 
@@ -64,7 +66,7 @@ extension MacTEMAgentDoor {
             3. Move. `select_room` moves the window to a room, as the room bar does; a room the window's files do not fill is refused \
             with the reason the room bar gives.
             4. Work the room. Topic eds for the EDS room, patterns for the EBSD Patterns room, indexing for the Indexing room, maps \
-            for the Maps room, eels for the EELS room, image for the Image room (marks and particles), fft for the FFT room. The other rooms' controls are the person's for now: look at their result with the get tools and ask the person to set and \
+            for the Maps room, eels for the EELS room, image for the Image room (marks and particles), fft for the FFT room, diffraction for the Diffraction room. The other rooms' controls are the person's for now: look at their result with the get tools and ask the person to set and \
             run them.
             5. Run. `run_room` presses the shown room's toolbar verb (Quantify, Run, Process, Index, Segment), as ⌘R does; it is \
             refused with the button's own words while it cannot run. `stop_run` stops what runs, as ⌘. does.
@@ -282,6 +284,32 @@ extension MacTEMAgentDoor {
             - Spots that are pairs through the centre (kx, ky and −kx, −ky) are one reflection: report it once.
             - A d is a lattice spacing only on a calibrated image; on pixels it is a length in pixels.
             - The filtered images are pictures, not measurements: intensities are not preserved.
+            """
+        private static let diffractionText = """
+            Diffraction room (a selected-area or nanobeam diffraction pattern; DiffractoKit's ring fit, calibration and kinematic \
+            indexing). A ring fitted on a known standard sets the scale; rings and spots are then indexed against a crystal.
+
+            1. `select_room` room diffraction, then `get_diffraction`: the centre and its source, the scale in use (a ring fit, \
+            the file's axis or a typed Δq), the beam energy, the standard and its families (each with its index), the crystal, \
+            and every ring and spot with its readout.
+            2. Centre. It starts at the image centre. `set_diffraction` centre_row and centre_column type one; after a ring fit, \
+            use_ring_centre takes that ring's fitted centre. A wrong centre biases every radius: fit a ring and take its centre first.
+            3. Calibrate. `set_diffraction` inner and outer set an annulus that holds one ring of the standard; family picks that \
+            ring (its index in families) and calibrate true fits it and sets Δq, the wavelength and the camera length from it. \
+            The fit answers at once: ask `get_diffraction` until fitting is false. A file without a reciprocal axis needs this or \
+            delta_q; a file without a voltage needs beam_kv for the camera length. camera or pixel_pitch gives L in mm.
+            4. Measure. fit_ring true fits another ring in a new annulus; `set_diffraction_marks` add_spot "row column" adds a \
+            spot as a click does (its centre refined on the pattern). Each row says radius, q, d, the family indexed, the listed \
+            d and the deviation in %.
+            5. Index. crystal picks the crystal the rows are indexed against; k_max and tolerance (% of q) set the list and the \
+            match. Rows are indexed again at once, with no refit. `get_diffraction` csv true gives Export Readout CSV…'s text.
+
+            What to check:
+            - fit_versus_file_percent compares the ring's Δq with the file's axis: a few % says the file's camera length is off; \
+            report the fitted scale.
+            - A ring with a refusal has no radius: move the annulus so it holds the whole ring and nothing else.
+            - A verdict other than accepted is not an index: report it in the verdict's own words.
+            - Calibrating on a ring indexes that ring by construction: it does not test the scale. A second ring or spot does.
             """
     }
 }
