@@ -66,12 +66,16 @@ package final class DiffractionAnalysis {
     package private(set) var cifRefusal: String?
     /// Why the crystal has no list: a CIF refusal, else the kit's refusal to build the kinematic list at this k_max.
     package var crystalFailure: String? { cifRefusal ?? listResult().failure }
+    /// The simulated spots of a typed zone axis over the pattern (#782): shown or not, the zone axis, its turn, the labels.
+    package var simulation = ZoneAxisOverlay.Settings()
 
     @ObservationIgnored private var generation = 0
     @ObservationIgnored private var fitTask: Task<Void, Never>?
     @ObservationIgnored private var listCache: (key: String, list: KinematicReflectionList?, failure: String?)?
     @ObservationIgnored private var familiesCache: [String: [(name: String, d: Double, family: ReflectionFamily)]] = [:]
     @ObservationIgnored private var readoutCache: (key: ReadoutKey, rows: [DiffractionReadoutRow])?
+    @ObservationIgnored private var simulatorCache: (key: String, simulator: SpotPatternSimulator?, failure: String?)?
+    @ObservationIgnored private var simulationCache: (key: SimulationKey, result: SimulatedSpots)?
     @ObservationIgnored private var boundSize: (Int, Int)?
 
     package init() {}
@@ -298,6 +302,67 @@ package final class DiffractionAnalysis {
         rings = marks.rings; spots = marks.spots
         ringCalibration = marks.ringCalibration; calibratedFamily = marks.calibratedFamily
         lastAdded = nil; failure = nil
+    }
+
+    // MARK: The simulated spots
+
+    /// The overlay's spots, strongest first, or why there are none, in words.
+    package typealias SimulatedSpots = Result<[ZoneAxisOverlay.Spot], SimulationAbsence>
+
+    package nonisolated struct SimulationAbsence: Error, Equatable, Sendable {
+        package let sentence: String
+    }
+
+    private nonisolated struct SimulationKey: Equatable {
+        var settings: ZoneAxisOverlay.Settings
+        var crystal: DiffractionCrystal
+        var centre: DiffractionCentre?
+        var calibration: DiffractionCalibration?
+        var volts: Double?
+        var width: Int
+        var height: Int
+    }
+
+    /// The simulated spots of `simulation`'s zone axis on this image: DiffractoKit's `SpotPatternSimulator` of the crystal at the
+    /// beam energy, placed by the scale and centre in use (`ZoneAxisOverlay`). Made again whenever anything it reads changed (the
+    /// zone axis, the turn, the crystal, the centre, the scale, the beam), else the last answer; nil while the overlay is off. It
+    /// writes no observed state, so a view body may call it.
+    package func simulatedSpots(image: CalibratedImage) -> SimulatedSpots? {
+        guard simulation.isShown else { return nil }
+        let calibration = calibration(for: image)
+        let volts = volts(for: image)
+        let key = SimulationKey(settings: simulation, crystal: crystal, centre: centre, calibration: calibration, volts: volts,
+                                width: image.width, height: image.height)
+        if let simulationCache, simulationCache.key == key { return simulationCache.result }
+        let result = makeSimulatedSpots(calibration: calibration, volts: volts, width: image.width, height: image.height)
+        simulationCache = (key, result)
+        return result
+    }
+
+    private func makeSimulatedSpots(calibration: DiffractionCalibration?, volts: Double?, width: Int, height: Int) -> SimulatedSpots {
+        guard let centre else { return .failure(SimulationAbsence(sentence: "No centre yet")) }
+        guard let calibration, calibration.deltaQ.isFinite, calibration.deltaQ > 0 else {
+            return .failure(SimulationAbsence(sentence: "Needs a scale: calibrate on a standard's ring, or type Δq"))
+        }
+        guard let volts else { return .failure(SimulationAbsence(sentence: "Needs the beam energy: type it under Calibration")) }
+        // The simulator reaches the image's farthest corner, to at most 6 Å⁻¹ (d 0.17 Å), and is kept while the crystal and the
+        // reach (to 0.1 Å⁻¹) stay.
+        let reach = min(6, max(0.2, (ZoneAxisOverlay.reach(width: width, height: height, centre: centre, deltaQ: calibration.deltaQ) * 10).rounded(.up) / 10))
+        let simulatorKey = "\(crystal.name)|\(crystal.sha256 ?? "")|\(reach)"
+        if simulatorCache?.key != simulatorKey {
+            do { simulatorCache = (simulatorKey, try SpotPatternSimulator(structure: crystal.structure, kMax: reach), nil) }
+            catch { simulatorCache = (simulatorKey, nil, error.localizedDescription) }
+        }
+        guard let simulator = simulatorCache?.simulator else {
+            return .failure(SimulationAbsence(sentence: simulatorCache?.failure ?? "The crystal has no reflections"))
+        }
+        do {
+            let spots = try ZoneAxisOverlay.spots(simulator: simulator, settings: simulation, volts: volts, calibration: calibration,
+                                                  centre: centre, width: width, height: height)
+            return spots.isEmpty ? .failure(SimulationAbsence(sentence: "No simulated spot lands on this pattern")) : .success(spots)
+        } catch {
+            return .failure(SimulationAbsence(sentence: (error as? CustomStringConvertible)?.description ?? error.localizedDescription))
+        }
     }
 
     // MARK: The readout
