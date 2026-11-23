@@ -64,12 +64,6 @@ package nonisolated enum PictureImageReader {
         return try read(source: source, fileName: formatoDisplayFileName(path))
     }
 
-    package static func read(data: Data, fileName: String) throws -> CalibratedImage {
-        let options = [kCGImageSourceShouldCache: false] as CFDictionary
-        guard let source = CGImageSourceCreateWithData(data as CFData, options) else { throw Refusal.notPicture }
-        return try read(source: source, fileName: fileName)
-    }
-
     private static func read(source: CGImageSource, fileName: String) throws -> CalibratedImage {
         guard let type = CGImageSourceGetType(source) as String?, let format = Format(type) else { throw Refusal.notPicture }
         // The header's size first, so a picture too large is refused before anything else is asked of it.

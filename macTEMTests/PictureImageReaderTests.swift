@@ -12,7 +12,6 @@ import ImageIO
 import UniformTypeIdentifiers
 import TEMCore
 import TEMSession
-@testable import macTEM
 
 nonisolated final class PictureImageReaderTests: XCTestCase {
 
