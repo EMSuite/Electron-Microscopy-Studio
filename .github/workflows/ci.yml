@@ -20,10 +20,10 @@
 # DOCS ONLY: a pull request that changes only the root's Markdown files (README, CONTRIBUTING, ...), files under docs/
 # (the store texts in docs/app-store/ among them) or the issue templates runs no macOS job (process item 3 again). The
 # Linux job `changes` lists the pull request's files and says whether any needs the Mac; `unit` is then skipped, and GitHub
-# counts a job skipped by its `if` as passing, so the required check `unit (XCTest)` is met with no stand-in. A doc that a
-# test or a tool reads (docs/parity.md, docs/architecture.md, ...: its path named anywhere under macTEMTests*/ or tools/)
-# counts as code, so a pull request that edits it runs `unit`. What the skip gives up is the inventory's live-docs check
-# on that pull request; the nightly runs it on main.
+# counts a job skipped by its `if` as passing, so the required check `unit (XCTest)` is met with no stand-in. A doc that
+# the job's tests or gates read (docs/parity.md, docs/architecture.md, ...: its path named anywhere under macTEMTests*/,
+# tools/run-tests.sh or tools/lib/) counts as code, so a pull request that edits it runs `unit`. What the skip gives up is
+# the inventory's live-docs check on that pull request; the nightly runs it on main.
 #
 # NIGHTLY (cron 01:00 UTC) and by hand (workflow_dispatch) only, never on a push, a tag or a pull request:
 #   * the unit job first restores and fetches the SEM reference datasets (tools/parity/sem/fetch-data.sh into the
@@ -128,7 +128,7 @@ jobs:
         run: |
           set -euo pipefail
           macos=false
-          dirs=$(ls -d macTEMTests* tools 2>/dev/null || true)
+          dirs=$(ls -d macTEMTests* tools/run-tests.sh tools/lib 2>/dev/null || true)
           while IFS= read -r f; do
             [ -n "$f" ] || continue
             if [[ "$f" != */* && "$f" == *.md ]] || [[ "$f" == .github/ISSUE_TEMPLATE/* ]]; then
