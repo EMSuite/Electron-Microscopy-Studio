@@ -741,6 +741,9 @@ inventory() {
     echo "  ^ live docs claim uncommitted work on a clean tree"; rc=1
   fi
 
+  echo "== the store keyword line repeats no word of the name or subtitle and fits 100 characters"
+  "$ROOT/tools/check-store-keywords.sh" || rc=1
+
   if (( rc == 0 )); then echo "inventory: clean"; else echo "inventory: FAILED"; fi
   return $rc
 }
