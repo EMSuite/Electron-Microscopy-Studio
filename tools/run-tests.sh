@@ -442,9 +442,10 @@ inventory() {
   for name in "${all[@]}"; do
     [[ -d "$ROOT/tools/parity/$name" ]] || { echo "  MISSING tools/parity/$name (classified, not present)"; rc=1; }
   done
-  # tools/ holds the scripts, lib/ and parity/, and no other folder; every folder under tools/parity/ is in exactly one array.
+  # tools/ holds the scripts, lib/, parity/ and benchmarks/ (the Audit workflow's ci.sh), and no other folder; every folder under
+  # tools/parity/ is in exactly one array.
   for dir in "$ROOT"/tools/*(/N); do
-    case "${dir:t}" in lib|parity) ;; *) echo "  UNEXPECTED folder tools/${dir:t} — harnesses live in tools/parity/, helpers in tools/lib/"; rc=1 ;; esac
+    case "${dir:t}" in lib|parity|benchmarks) ;; *) echo "  UNEXPECTED folder tools/${dir:t} — harnesses live in tools/parity/, helpers in tools/lib/"; rc=1 ;; esac
   done
   for dir in "$ROOT"/tools/parity/*(/N); do
     name="${dir:t}"
