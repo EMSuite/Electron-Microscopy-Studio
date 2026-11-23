@@ -10,6 +10,7 @@
 
 import Foundation
 import ShellAgentDoor
+import TEMCore
 
 extension MacTEMAgentDoor {
     static let guideTools: [AgentTool] = [
