@@ -146,6 +146,9 @@ package nonisolated enum FileRouting {
             if let why = EBSDOpening.vendorRefusal(url: url) { return FileInventory(refusal: why) }
             return FileInventory(ebsdPatterns: true)
         }
+        // A PNG or JPEG picture (#792; FormatoKit's sniff knows neither): the Image room, and from there the Diffraction room. The reader
+        // refuses in words what it does not take (CMYK, animated, too large).
+        if PictureImageReader.extensions.contains(url.pathExtension.lowercased()) { return FileInventory(image: true) }
         let kind = FormatoLoader.sniff(path: path)
         // An h5ebsd file (kikuchipy, Bruker, EDAX, Oxford H5OINA) or orix's own map file: FormatoKit's sniff knows `.h5` as HDF5 and
         // `.h5oina` not at all, so the EBSD reader's `content` decides for both. A `.h5` that is neither an EBSD file nor a Velox file

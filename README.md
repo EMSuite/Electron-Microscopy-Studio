@@ -27,6 +27,8 @@ and under the one in front its rooms. What the file holds decides the room it op
 
 - **TEM**: DigitalMicrograph (.dm3, .dm4), Velox (.emd), TIFF and MRC images; EDS spectrum images from Velox and GMS,
   EELS spectrum images from GMS, and single .msa spectra.
+- **Pictures**: a diffraction pattern saved as PNG or JPEG (from a paper or a camera export) opens as a picture: not
+  counts and no scale from the file; its scale is typed or fitted to a ring of a known phase in the Diffraction room.
 - **SEM images**: TIFF from Thermo Fisher (FEI), Zeiss and Tescan, read with the microscope's settings, and JEOL .img
   and .map files.
 - **SEM-EDS**: Bruker .bcf and .spx, EDAX .spd, .lsd and .spc, JEOL .pts, .eds and .asw, and a single spectrum in a

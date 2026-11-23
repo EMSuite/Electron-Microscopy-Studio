@@ -80,7 +80,7 @@ private struct DiffractionHeader: View {
         let volts = analysis.volts(for: image)
         HStack(spacing: 8) {
             Text(image.fileName).font(.callout.weight(.semibold)).lineLimit(1).truncationMode(.middle).layoutPriority(1)
-            Text(summary(calibration: calibration, volts: volts))
+            Text(DiffractionHeaderText.summary(image: image, calibration: calibration, volts: volts))
                 .font(.callout).foregroundStyle(.secondary).lineLimit(1).truncationMode(.tail)
                 .accessibilityIdentifier("diffraction.scale")
                 .accessibilityValue(DiffractionValueFormat.scale(calibration?.deltaQ))
@@ -96,9 +96,14 @@ private struct DiffractionHeader: View {
         .padding(.horizontal, LayoutPolicy.infobarHorizontalPadding)
         .frame(height: LayoutPolicy.paneHeaderHeight)
     }
+}
 
-    private func summary(calibration: DiffractionCalibration?, volts: Double?) -> String {
-        var parts = ["\(image.width) × \(image.height) px"]
+/// The header's words after the file name: the size, the beam, where the scale came from. A picture (a PNG or JPEG, #792) says first
+/// that it is a picture, not counts, and, until a scale is typed or fitted, that the file holds none.
+nonisolated enum DiffractionHeaderText {
+    static func summary(image: CalibratedImage, calibration: DiffractionCalibration?, volts: Double?) -> String {
+        var parts = image.isPicture ? ["Picture, not counts"] : []
+        parts.append("\(image.width) × \(image.height) px")
         if let volts { parts.append("\(Num.sig(volts / 1000, 4)) kV\(image.voltage != nil ? " (file)" : "")") }
         if let calibration {
             parts.append("scale: \(calibration.sourceText)")
@@ -106,7 +111,7 @@ private struct DiffractionHeader: View {
             if let l = calibration.ring?.lengthPixels { parts.append("L \(Num.fixed(l, 0)) px") }
             if let mm = calibration.ring?.lengthMillimetres { parts.append("L \(Num.fixed(mm, 0)) mm") }
         } else {
-            parts.append("no scale yet")
+            parts.append(image.isPicture ? "scale not in the file" : "no scale yet")
         }
         return parts.joined(separator: " · ")
     }
