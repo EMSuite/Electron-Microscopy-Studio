@@ -15,12 +15,14 @@
 //  the grid rotations.
 //
 //  Every orientation contributes to every grid point (no cut-off), so the sum is exact to rounding; N x nodes x |G| powers,
-//  split over the cores in bands of nodes.
+//  split over the cores in bands of nodes, the powers taken by vForce (`vvpow`) a batch of orientations at a time and summed
+//  in the same order as one `pow` each (#624).
 //
 //  Parity: `tools/parity/sem` bundles `m5/texture-ti`, `m5/texture-cubic`, `m5/texture-ti-full` (figure F13), ODF values
 //  rtol 1e-4 (docs/parity.md).
 //
 
+import Accelerate
 import Foundation
 import Synchronization
 
@@ -60,29 +62,59 @@ package nonisolated enum OrientationDensity {
         let out = ValueBands(count: grid.count)
         let bands = max(1, min(grid.count, ProcessInfo.processInfo.activeProcessorCount * 4))
         let per = (grid.count + bands - 1) / bands
+        // Orientations per `vvpow` call: |G| ≤ 24 cosines each, so a batch's three buffers stay a few tens of kB per worker.
+        let batch = 256
+        let length = batch * sym.count
+        let exponents = [Double](repeating: exponent, count: length)
         DispatchQueue.concurrentPerform(iterations: bands) { band in
             let lo = band * per, hi = min(grid.count, lo + per)
             guard lo < hi else { return }
             var local = [Double](repeating: 0, count: hi - lo)
+            var cosines = [Double](repeating: 0, count: length)
+            var powers = [Double](repeating: 0, count: length)
             for k in lo..<hi {
                 let (a1, b1, c1, d1) = (grid[k][0], grid[k][1], grid[k][2], grid[k][3])
                 var sum = 0.0
-                for qi in q {
-                    let (a2, b2, c2, d2) = (qi[0], qi[1], qi[2], qi[3])
-                    let mw = a2 * a1 + b2 * b1 + c2 * c1 + d2 * d1
-                    let mx = b2 * a1 - a2 * b1 + d2 * c1 - c2 * d1
-                    let my = c2 * a1 - d2 * b1 - a2 * c1 + b2 * d1
-                    let mz = d2 * a1 + c2 * b1 - b2 * c1 - a2 * d1
-                    for s in sym {
-                        let d = Swift.min(abs(mw * s[0] + mx * s[1] + my * s[2] + mz * s[3]), 1)
-                        sum += pow(d, exponent)
+                var start = 0
+                while start < q.count {
+                    let end = Swift.min(q.count, start + batch)
+                    var n = 0
+                    for i in start..<end {
+                        let qi = q[i]
+                        let (a2, b2, c2, d2) = (qi[0], qi[1], qi[2], qi[3])
+                        let mw = a2 * a1 + b2 * b1 + c2 * c1 + d2 * d1
+                        let mx = b2 * a1 - a2 * b1 + d2 * c1 - c2 * d1
+                        let my = c2 * a1 - d2 * b1 - a2 * c1 + b2 * d1
+                        let mz = d2 * a1 + c2 * b1 - b2 * c1 - a2 * d1
+                        for s in sym {
+                            cosines[n] = Swift.min(abs(mw * s[0] + mx * s[1] + my * s[2] + mz * s[3]), 1)
+                            n += 1
+                        }
                     }
+                    Self.powers(&powers, cosines, exponents, count: n)
+                    // Summed one by one in the order of the scalar loop, so only the powers' last bit can differ.
+                    for t in 0..<n { sum += powers[t] }
+                    start = end
                 }
                 local[k - lo] = scale * sum
             }
             out.set(lo, local)
         }
         return out.values
+    }
+
+    /// `result[i] = bases[i]^exponents[i]` for the first `count` values (vForce's `vvpow`, within an ulp or two of `pow`).
+    private static func powers(_ result: inout [Double], _ bases: [Double], _ exponents: [Double], count: Int) {
+        guard count > 0 else { return }
+        var n = Int32(count)
+        result.withUnsafeMutableBufferPointer { r in
+            bases.withUnsafeBufferPointer { b in
+                exponents.withUnsafeBufferPointer { e in
+                    guard let rp = r.baseAddress, let bp = b.baseAddress, let ep = e.baseAddress else { return }
+                    vvpow(rp, ep, bp, &n)
+                }
+            }
+        }
     }
 
     /// The Bunge (φ1, Φ) nodes of one φ2 section as quaternions (`Rotation.from_euler`, lab to crystal), φ1-major.
