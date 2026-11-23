@@ -11,6 +11,7 @@
 //
 
 import AppKit
+import ShellEDXModel
 import ShellLayout
 import SwiftUI
 import XCTest
