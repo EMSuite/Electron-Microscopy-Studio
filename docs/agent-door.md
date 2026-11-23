@@ -17,7 +17,7 @@ door this one follows (4DSTEM Studio `docs/agent-door.md`). This app hands the d
 
 | Tool | Answer |
 |---|---|
-| `get_workflow_guide` | how a person works through a file here and how to judge each step (topics `overview`, `eds`, `patterns`, `indexing`, `maps`); read first |
+| `get_workflow_guide` | how a person works through a file here and how to judge each step (topics `overview`, `eds`, `patterns`, `indexing`, `maps`, `eels`); read first |
 | `list_windows` | the open windows (`w1`, `w2`, ...), each with its shown file, room and number of open files (the door's own tool) |
 | `get_window` | the room, the open files (size, calibration, voltage once read), the shown file's number of results, the status line, any error |
 | `get_image` | the shown image as Export Image… draws it (display window, colormap, scale bar, marks), longest side up to 1024 px per `scale` step |
@@ -28,6 +28,9 @@ door this one follows (4DSTEM Studio `docs/agent-door.md`). This app hands the d
 | `get_patterns` | the Patterns room: scan and pattern size, the file's calibration, the picked position, the map and grid, the colour mix, every processing setting (in `set_pattern_processing`'s names) with each stage's state, why Process is refused, NLPAR's λ, what is running |
 | `get_patterns_picture` | `which` map or pattern: the Patterns room's pane as its Export section draws it (Map PNG…, Pattern PNG…); a small one is enlarged by a whole factor, no smoothing |
 | `get_indexing` | the Indexing room: where its patterns come from, the phases, the method and every Hough, Dictionary and Refine setting (in `set_indexing`'s names), the master patterns open, why Index is refused, the run on screen (state, points indexed per phase, mean confidence or score and fit), the picked point's solution and detected bands, Compare's summary, what is running |
+| `get_eels` | the EELS room: the file's spectra, E₀, α, β and their sources, each stage's state, every Processing and Fitting setting (in `set_eels`' names), the picked and offered edges, the edge results with σ and the fit's reduced χ², the regions and their rows, the notices and refusals |
+| `get_eels_spectrum` | the selected region's spectrum as Spectrum CSV… writes it, and the regions' rows as Regions CSV… writes them |
+| `get_eels_maps` | the EELS maps the Maps control picks, as Maps… draws them |
 | `get_maps` | the Maps room: the map and its source (stale when the Indexing room moved on), phases, points not indexed, the layer and the layers on offer, the picked point's phase, Bunge angles, grain and KAM, Segment's settings and summary, the selected grains, Slip and Texture |
 | `get_grains` | after Segment: the grain table (a page of it, by number or largest first) and, with `histogram`, the KAM, GOS or grain size bins as the Histogram tab draws them |
 | `get_maps_picture` | `which` map (Export's Map PNG…: the layer with its key or legend, the scale bar, the boundaries when shown) or texture (Texture PNG…) |
@@ -56,6 +59,9 @@ Behind "Let agents run analyses". Each goes through the entry point its control 
 | `set_indexing_phase` | adds a built-in phase; turns a phase on or off, sets its reflector list or its master pattern, or removes it |
 | `open_in_maps` | Open in Maps: the run on screen goes to the Maps room |
 | `set_maps` | the Maps room's source, layer, Segment settings (boundary angle, minimum size, KAM maximum), boundaries, load axis and slip systems, texture phase, and the bottom pane's tab and histogram |
+| `set_eels` | the EELS room's Processing (alignment, threshold, deconvolution, mean free path; `align` runs Align alone), Fitting (model, fit end, background, convolution, E₀, α, β) and Maps (segment, display filter) settings |
+| `set_eels_edges` | the periodic table: adds an element's default edge, removes an element, picks single edges, fit only or quantify, resets the windows, MLLS references |
+| `set_eels_region` | the EELS region: whole map, a rectangle or ellipse, a kept region by name, or removes one |
 | `select_grains` | selects grains as the grain table does, or none |
 
 The EDS tools are EMSuiteUI's `EDXAgentTools`, written once and registered by both apps.
@@ -65,7 +71,7 @@ The EDS tools are EMSuiteUI's `EDXAgentTools`, written once and registered by bo
 `macTEM/App/AgentDoorCoverage.swift` lists every control in the app, by its accessibility identifier, with how an agent
 reaches it: the tool that does it, already seen in a get tool's answer, left to the person on purpose (with the reason), or a
 gap with its open issue. `AgentDoorCoverageTests` fails when a control has no row, a row names a tool the door does not have,
-or a row outlives its control, so a new control cannot ship undecided. The gaps are #558's: the Image, FFT, EELS and Diffraction
+or a row outlives its control, so a new control cannot ship undecided. The gaps are #558's: the Image, FFT and Diffraction
 rooms, which get their tools one room per pull request, and the Patterns room's Kikuchi overlay. Opening a file
 (an open panel) is the person's; `open_demo` opens the shipped demos. The EDS room's own controls are
 EMSuiteUI's and are reached through its tools.
@@ -73,6 +79,6 @@ EMSuiteUI's and are reached through its tools.
 ## Code
 
 `macTEM/App/`: `AgentDoorTools.swift` (the door and the tools that look), `AgentDoorRooms.swift` (the tools that act),
-`AgentDoorPatterns.swift` (the toolbar verb and the Patterns room), `AgentDoorIndexing.swift` (the Indexing room), `AgentDoorMaps.swift` (the Maps room),
+`AgentDoorPatterns.swift` (the toolbar verb and the Patterns room), `AgentDoorIndexing.swift` (the Indexing room), `AgentDoorMaps.swift` (the Maps room), `AgentDoorEELS.swift` (the EELS room),
 `AgentDoorGuide.swift` (the workflow guide) and `AgentDoorCoverage.swift`. Settings > Agents is `AgentSettingsView` on
 EMSuiteUI's `AgentDoorSettingsSection`.

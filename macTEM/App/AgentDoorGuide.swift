@@ -33,6 +33,7 @@ extension MacTEMAgentDoor {
         case patterns
         case indexing
         case maps
+        case eels
 
         var text: String {
             switch self {
@@ -41,6 +42,7 @@ extension MacTEMAgentDoor {
             case .patterns: Self.patternsText
             case .indexing: Self.indexingText
             case .maps: Self.mapsText
+            case .eels: Self.eelsText
             }
         }
 
@@ -58,7 +60,7 @@ extension MacTEMAgentDoor {
             3. Move. `select_room` moves the window to a room, as the room bar does; a room the window's files do not fill is refused \
             with the reason the room bar gives.
             4. Work the room. Topic eds for the EDS room, patterns for the EBSD Patterns room, indexing for the Indexing room, maps \
-            for the Maps room. The other rooms' controls are the person's for now: look at their result with the get tools and ask the person to set and \
+            for the Maps room, eels for the EELS room. The other rooms' controls are the person's for now: look at their result with the get tools and ask the person to set and \
             run them.
             5. Run. `run_room` presses the shown room's toolbar verb (Quantify, Run, Process, Index, Segment), as ⌘R does; it is \
             refused with the button's own words while it cannot run. `stop_run` stops what runs, as ⌘. does.
@@ -195,6 +197,36 @@ extension MacTEMAgentDoor {
             - KAM and GOS rise with deformation and with noise: compare a region you expect to be undeformed before reading them \
             as strain.
             - A texture from few grains is not a texture: state the points and grains it rests on.
+            """
+
+        private static let eelsText = """
+            EELS room (electron energy-loss spectrum images: a low loss and a core loss, or one of them; exSpy's methods through \
+            SpectroKit). Run runs the stages that are not current in order: align the zero-loss peak, map the thickness (t/λ), \
+            deconvolve, fit the picked edges.
+
+            1. `select_room` room eels, then `get_eels`: which spectra the file holds, E₀, α and β with where each comes from, each \
+            stage's state, every setting, and the edges the core loss offers.
+            2. Microscope. The fit's cross-sections need E₀, α and β. Where the file lacks one, fitting.blocker says so; ask the \
+            person for the value before typing it with `set_eels`, never guess it.
+            3. Thickness. `run_room` presses Run. The maps (`get_eels_maps`; `set_eels` maps picks ZLP, t/λ, t, at% or wt%) and \
+            the thickness line say t/λ; t needs a mean free path (`set_eels` mfp given with lambda_nm, or estimate with a density).
+            4. Edges. `set_eels_edges` add picks each element's default edge, as a click on the periodic table does; edges_add a \
+            single edge by id. Pick only edges seen in the spectrum (`get_eels_spectrum`). fit_only keeps an element in the fit and \
+            out of the composition (an overlapping edge that is not wanted).
+            5. Fit. `run_room` again fits the edges. `get_eels` then holds each edge's intensity, areal density, at% and wt% with σ, \
+            the background exponent, and the fit's reduced χ².
+            6. Regions. `set_eels_region` rectangle or ellipse fits a region of the map; whole goes back to the whole map. A region \
+            on a feature beside one on the matrix says more than the whole map.
+
+            What to check:
+            - t/λ above about 1 means strong plural scattering: say so beside any composition; deconvolution (fourierRatio) or \
+            convolve in the fit accounts for it.
+            - An edge whose background exponent sits at its bound (exponent_at_bound), or whose window refusal is set, is not \
+            measured: look at the spectrum around it before reporting it.
+            - A reduced χ² far above 1 says the model misses part of the spectrum (an unpicked edge, fine structure, a wrong \
+            window).
+            - An at% with a σ as large as itself is not a measurement.
+            - Changing a setting makes the stage stale: run again before reading the numbers.
             """
     }
 }
