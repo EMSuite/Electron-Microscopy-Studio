@@ -8,6 +8,7 @@
 
 import Foundation
 import ShellAgentDoor
+import ShellLayout
 import TEMCore
 import TEMSession
 import XCTest
