@@ -1,0 +1,13 @@
+# Public data files the app's demos, recipes and checks read (suite ADR 0006: public data only, each with a DOI and a
+# GPL-compatible licence). tools/lib/fetch-public-data.sh reads this; .github/workflows/public-data.yml runs it on GitHub's
+# Linux runner (workflow_dispatch), so no session opens zenodo.org or datadryad.org itself. Nothing here is committed:
+# the files land under References/public-data/ (gitignored), the run's `public-data` artifact and its Actions cache.
+#
+# One file per line, tab-separated: destination (under References/public-data/), hash, URL, licence, DOI.
+# The hash is `sha256:<hex>`, or `md5:<hex>` where the publisher states only an MD5 (Zenodo's own file checksum, which
+# pyxem's data registry repeats); each run prints every file's sha256, so an md5 entry is moved to sha256 by the PR that
+# first uses the file. docs/data-sources.md names each file's source and citation once the app uses it.
+#
+# The first entry is the 2.3 demo pattern's source (#804, Q21): pyxem's twinned GaAs nanowire 4D-STEM scan, pyxem data
+# 0.9.0 (pyxem/data/_registry.py, `twinned_nanowire.hdf5`).
+pyxem/twinned_nanowire.hdf5	md5:2765fa855db8bc011252dbb425facc81	https://zenodo.org/records/15490547/files/twinned_nanowire.hdf5	CC-BY-4.0	10.5281/zenodo.15490547

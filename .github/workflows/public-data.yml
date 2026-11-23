@@ -1,0 +1,71 @@
+# Public data — fetch the files of tools/public-data.tsv on GitHub's Linux runner (#807, plan row P14 of 2.3; suite ADR 0006).
+#
+# The demos, recipes and checks read public files with a DOI (the first is pyxem's twinned GaAs nanowire scan, the 2.3 demo
+# pattern's source, #804). Their hosts (zenodo.org, datadryad.org) are not opened in the cloud environment, and need not be:
+# this job downloads each file, checks its hash (tools/lib/fetch-public-data.sh) and stores the set twice:
+#   * the Actions cache `public-data-<manifest hash>`, for the macOS jobs that read References/public-data (restore it with
+#     the same key; a manifest change is a new key);
+#   * the run's artifact `public-data` (90 days), for a session or a Mac that needs the files: download it from the run's
+#     page or through the GitHub API, then unpack it into References/public-data.
+# The run's summary lists each file with its sha256, licence and DOI, so an `md5:` line can be pinned to sha256.
+#
+# By hand only (workflow_dispatch): the data changes when the manifest does, never per push. A pull request that touches the
+# manifest or the fetcher runs the fetcher's self-test and the manifest's lint, which need no network.
+
+name: Public data
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'tools/public-data.tsv'
+      - 'tools/lib/fetch-public-data*.sh'
+      - '.github/workflows/public-data.yml'
+
+# Read-only token: the job writes to the cache and the run's artifacts, never to the repository.
+permissions:
+  contents: read
+
+concurrency:
+  group: public-data-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  fetch:
+    name: fetch and check the public data files
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - name: The fetcher holds on planted files, and the manifest is well formed
+        run: tools/lib/fetch-public-data-selftest.sh
+      - name: Restore the files fetched before
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/cache@v5
+        with:
+          path: References/public-data
+          key: public-data-${{ hashFiles('tools/public-data.tsv') }}
+      - name: Fetch and check each file
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          set -o pipefail
+          tools/lib/fetch-public-data.sh | tee "$RUNNER_TEMP/fetch.log"
+          tools/lib/fetch-public-data.sh --check
+      - name: Summary
+        if: github.event_name == 'workflow_dispatch' && always()
+        run: |
+          {
+            echo "### Public data (tools/public-data.tsv)"
+            echo
+            echo '```'
+            grep -E '^fetch-public-data: (ok|MISMATCH|FAILED|MISSING|WRONG)' "$RUNNER_TEMP/fetch.log" || echo "no file line was printed"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload the files as the run's artifact
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v7
+        with:
+          name: public-data
+          path: References/public-data
+          retention-days: 90
+          if-no-files-found: error
