@@ -35,6 +35,7 @@ extension MacTEMAgentDoor {
         case maps
         case eels
         case image
+        case fft
 
         var text: String {
             switch self {
@@ -45,6 +46,7 @@ extension MacTEMAgentDoor {
             case .maps: Self.mapsText
             case .eels: Self.eelsText
             case .image: Self.imageText
+            case .fft: Self.fftText
             }
         }
 
@@ -62,7 +64,7 @@ extension MacTEMAgentDoor {
             3. Move. `select_room` moves the window to a room, as the room bar does; a room the window's files do not fill is refused \
             with the reason the room bar gives.
             4. Work the room. Topic eds for the EDS room, patterns for the EBSD Patterns room, indexing for the Indexing room, maps \
-            for the Maps room, eels for the EELS room, image for the Image room (marks and particles). The other rooms' controls are the person's for now: look at their result with the get tools and ask the person to set and \
+            for the Maps room, eels for the EELS room, image for the Image room (marks and particles), fft for the FFT room. The other rooms' controls are the person's for now: look at their result with the get tools and ask the person to set and \
             run them.
             5. Run. `run_room` presses the shown room's toolbar verb (Quantify, Run, Process, Index, Segment), as ⌘R does; it is \
             refused with the button's own words while it cannot run. `stop_run` stops what runs, as ⌘. does.
@@ -255,6 +257,31 @@ extension MacTEMAgentDoor {
             a region that leaves them out.
             - A result is stale (current false) once a setting changed: show again before reading it.
             - A mark's length in pixels on an uncalibrated image is not a length: say so.
+            """
+        private static let fftText = """
+            FFT room (the power spectrum of an image or a square region of it; ImagoKit's FFT, spot estimator, masked inverse \
+            and D. R. G. Mitchell's HRTEM filters). Spots on the transform give lattice spacings d and the angles between them.
+
+            1. `select_room` room fft, then `get_fft`: the region transformed, Δq and the Nyquist frequency, and whether the \
+            transform is current (it is computed after each change; ask again while computing is true).
+            2. Region. `set_fft` region "x y size" transforms an even square of at least 32 px; centred takes the largest centred \
+            square; whole the whole image. A region on one grain or one crystal gives sharp spots; one across a boundary mixes \
+            two lattices. A window (hann) removes the cross a hard edge draws.
+            3. Look. `get_fft_picture` transform draws the spectrum with a ring and number per measured spot.
+            4. Spots. `set_fft_spots` find true finds the strongest reflections and measures each; measure_at "kx ky" measures \
+            one bin from the centre, as a click does. `get_fft` lists each spot's d, |q| and its angle to the first spot; \
+            `get_fft_data` spots gives them as Spots CSV… writes them.
+            5. Masked inverse. With spots in the mask, `set_fft` view maskedInverse shows the image made of those frequencies; \
+            mask_radius and mask_edge shape the mask. `get_fft_picture` source draws it.
+            6. HRTEM filters. `set_fft` filter true runs ABSF and Wiener on the region (an even square); view absf or wiener \
+            shows each.
+
+            What to check:
+            - A spot flagged neighbour has another peak within 3 bins: its d may be off by up to 0.3 %. Say so.
+            - The accuracy note says how precise d is for the region's size; a small region gives coarse d.
+            - Spots that are pairs through the centre (kx, ky and −kx, −ky) are one reflection: report it once.
+            - A d is a lattice spacing only on a calibrated image; on pixels it is a length in pixels.
+            - The filtered images are pictures, not measurements: intensities are not preserved.
             """
     }
 }
