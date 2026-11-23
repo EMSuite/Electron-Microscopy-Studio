@@ -134,21 +134,8 @@ package nonisolated enum DictionaryIndexing {
         return kept
     }
 
-    /// `prepare_experimental` / `prepare_dictionary` in float64: the kept pixels of `count` patterns (row-major in `values`, a
-    /// pattern of `pixels` values every `pixels`), centred for NCC, divided by their Euclidean norm. A flat pattern divides zero by
-    /// zero, so its values are NaN, as kikuchipy's are.
-    package static func prepare(_ values: UnsafeBufferPointer<Double>, count: Int, pixels: Int, kept: [Int], metric: Metric) -> [Double] {
-        var out = [Double](repeating: 0, count: count * kept.count)
-        guard let source = values.baseAddress else { return out }   // no pattern, nothing to copy
-        out.withUnsafeMutableBufferPointer { o in
-            guard let target = o.baseAddress else { return }
-            prepare(source, count: count, pixels: pixels, kept: kept, metric: metric, into: target)
-        }
-        return out
-    }
-
     /// `prepare` of the patterns `patterns` of a block held at its stored type, each widened to float64 as it is prepared (#620): the
-    /// numbers of `prepare` on the block's doubles, without a float64 copy of the block.
+    /// numbers of `prepare` on the block's raw patterns, without a float64 copy of the block.
     package static func prepare(_ stored: StoredPatterns, patterns: [Int], kept: [Int], metric: Metric) -> [Double] {
         var out = [Double](repeating: 0, count: patterns.count * kept.count)
         out.withUnsafeMutableBufferPointer { o in
@@ -182,9 +169,10 @@ package nonisolated enum DictionaryIndexing {
         let target: UnsafeMutablePointer<Target>
     }
 
-    /// `prepare` of `count` raw patterns (float64, or the float32 a GPU projection gives, widened exactly) written as `U` to `out`,
-    /// row-major: float64 for the CPU, float32 straight into the GPU's buffer. Each pattern is widened and prepared in float64 as
-    /// before; the patterns are spread over the cores (#624).
+    /// `prepare_experimental` / `prepare_dictionary`: the kept pixels of `count` raw patterns (row-major, a pattern every `pixels`
+    /// values; float64, or the float32 a GPU projection gives, widened exactly), centred for NCC and divided by their Euclidean norm
+    /// in float64, written as `U` to `out`: float64 for the CPU, float32 straight into the GPU's buffer. A flat pattern divides zero
+    /// by zero, so its values are NaN, as kikuchipy's are. The patterns are spread over the cores (#624).
     static func prepare<T: BinaryFloatingPoint, U: BinaryFloatingPoint>(_ source: UnsafePointer<T>, count: Int, pixels: Int, kept: [Int],
                                                                         metric: Metric, into out: UnsafeMutablePointer<U>) {
         let n = kept.count

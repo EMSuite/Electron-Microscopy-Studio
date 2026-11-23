@@ -171,7 +171,7 @@ package nonisolated enum MasterPatternProjectionMetal {
                         lowest = min(lowest, row[i]); highest = max(highest, row[i])
                     }
                     guard highest > lowest else {
-                        marks.base[n] = true
+                        (marks.base + n).pointee = true
                         return
                     }
                     let span = highest - lowest
