@@ -83,6 +83,19 @@ nonisolated enum WorkspaceArea: String, CaseIterable, Identifiable, Sendable, Wo
         case .results: .results
         }
     }
+
+    /// Show Next Room (⇧⌘]) and Show Previous Room (⇧⌘[), the system's next and previous tab keys: the next room of the same
+    /// workspace that `canEnter`, in sidebar order, round from the last to the first as Safari's tabs go; nil when no other room of
+    /// the workspace can be entered (one-room workspaces, or only this room holds data). Pure, so a test pins it.
+    func neighbour(forward: Bool, canEnter: (WorkspaceArea) -> Bool) -> WorkspaceArea? {
+        let parts = group.parts
+        guard let index = parts.firstIndex(of: self) else { return nil }
+        for step in 1..<parts.count {
+            let room = parts[(index + (forward ? step : parts.count - step)) % parts.count]
+            if canEnter(room) { return room }
+        }
+        return nil
+    }
 }
 
 /// The sidebar's workspaces, in mac4DSTEM's shape (its Crystal Maps lists Strain, Orientation and Phase mapping under it): one row per
