@@ -42,11 +42,12 @@ xcodebuild archive -project "$WORK/src/Sparkle.xcodeproj" -scheme Sparkle -confi
   || { tail -40 "$WORK/archive.log" >&2; fail "the archive failed"; }
 
 # The override, read from the compiler's own command lines: each file that reads the flag was compiled with 1, and nothing with 0.
-# xcodebuild logs a define as `-D<name>\=<value>`, on the command line or in the response file (`@<path>.resp`) it names.
+# xcodebuild logs a define as `-D<name>\=<value>`, on the command line or in the response file (`@<path>.resp`, a space in the
+# path escaped as `\ `, as in the "Installer Progress" target's) it names.
 compiled_with() { # compiled_with <source> <value>
   local resp
   grep -F -- "/$1" "$WORK/archive.log" | grep -E -- "-D$OVERRIDE\\\\?=$2" > /dev/null && return 0
-  for resp in ${(f)"$(grep -F -- "/$1" "$WORK/archive.log" | grep -oE -- '@[^ ]+\.resp' | cut -c2- | sort -u || true)"}; do
+  for resp in ${(f)"$(grep -F -- "/$1" "$WORK/archive.log" | grep -oE -- '@([^ \\]|\\.)+\.resp' | cut -c2- | sed 's/\\\(.\)/\1/g' | sort -u || true)"}; do
     [[ -f "$resp" ]] && grep -E -- "-D$OVERRIDE\\\\?=$2" "$resp" > /dev/null && return 0
   done
   return 1
@@ -54,7 +55,7 @@ compiled_with() { # compiled_with <source> <value>
 for src in Autoupdate/SUInstaller.m Autoupdate/SUPlainInstaller.m Sparkle/InstallerProgress/InstallerProgressAppController.m; do
   if ! compiled_with "$src" 1; then
     echo "build-sparkle: the log's lines for $src:" >&2
-    grep -F -- "/$src" "$WORK/archive.log" | cut -c1-1500 | head -6 >&2
+    grep -F -- "/$src" "$WORK/archive.log" | grep -oE -- '@([^ \\]|\\.)+|[^ ]*NORMALIZE[^ ]*' | sort -u | head -12 >&2 || true
     fail "$src was not compiled with -D$OVERRIDE=1"
   fi
 done
