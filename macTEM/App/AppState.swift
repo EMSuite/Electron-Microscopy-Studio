@@ -252,6 +252,11 @@ final class AppState {
         recordLastSession()
     }
 
+    /// The room Show Next Room (`forward`) or Show Previous Room goes to (`WorkspaceArea.neighbour`), nil when there is none.
+    func neighbourRoom(forward: Bool) -> WorkspaceArea? {
+        navigation.workspaceArea.neighbour(forward: forward) { roomUnavailableReason($0) == nil }
+    }
+
     /// Go to a workspace: the room it was last in when that can still be entered, else its first room that can. A workspace none of
     /// whose rooms can be entered is not entered (`workspaceUnavailableReason`).
     func selectWorkspaceGroup(_ group: WorkspaceGroup) {

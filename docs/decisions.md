@@ -479,3 +479,17 @@ reachable; the coarse step alone stepped 40 px.
 
 **Reversal.** If ⌥-arrows clash with a system or app shortcut, change `PaneKey.cursorArrow`'s modifier in `App/PaneKeys.swift`;
 the routers and the tests read the key from there. Turning `StackArrowKeys` back on in these rooms brings back the nested focus.
+
+## 2026-11-23 — Show Next Room and Show Previous Room (⇧⌘] and ⇧⌘[) (#837)
+
+**What.** The Workspace menu has Show Next Room (⇧⌘]) and Show Previous Room (⇧⌘[). They step through the rooms of the workspace
+in front, in sidebar order, round from the last to the first, and skip rooms with no data for the open files
+(`WorkspaceArea.neighbour`). Where no other room of the workspace can be entered, both are disabled; that includes Diffraction and
+Results, which have one room each. The rooms keep their place in the Workspace menu's submenus.
+
+**Why.** Rooms had no key of their own after the workspaces came in (2026-11-10), so Indexing could not be reached from the
+keyboard alone (the Q10 keyboard-only journey, #800). ⇧⌘] and ⇧⌘[ are the system's next and previous tab keys (Safari, Finder,
+Xcode), and nothing else in the app uses them. ⌘1…⌘9 per room would come back to the nine flat keys the workspaces replaced.
+
+**Reversal.** Remove the two buttons from the Workspace menu in `macTEMApp.swift`. The keyboard-only journey then cannot reach a
+second room in a workspace.
