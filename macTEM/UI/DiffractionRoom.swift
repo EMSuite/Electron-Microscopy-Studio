@@ -47,8 +47,14 @@ struct DiffractionRoom: View {
         let rows = analysis.readout(image: image)
         VStack(spacing: 0) {
             DiffractionHeader(item: item, analysis: analysis, view: view)
-            DiffractionPatternPane(item: item, analysis: analysis, view: view, rows: rows)
-                .modifier(DiffractionZoomCommands(item: item, view: view))
+            // The crystal beside the pattern (#790), down the same beam: one orientation drives both.
+            HStack(spacing: 0) {
+                DiffractionCrystalPane(analysis: analysis)
+                    .frame(width: LayoutPolicy.diffractionCrystalWidth)
+                Divider()
+                DiffractionPatternPane(item: item, analysis: analysis, view: view, rows: rows)
+                    .modifier(DiffractionZoomCommands(item: item, view: view))
+            }
             Divider()
             DiffractionReadoutTable(analysis: analysis, view: view, rows: rows)
                 .frame(height: LayoutPolicy.diffractionReadoutHeight)
