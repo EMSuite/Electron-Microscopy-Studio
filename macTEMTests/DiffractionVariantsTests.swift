@@ -10,7 +10,6 @@ import XCTest
 import DiffractoCore
 import TEMCore
 import TEMSession
-@testable import macTEM
 
 nonisolated final class DiffractionVariantsTests: XCTestCase {
 

@@ -26,6 +26,11 @@ package final class DiffractionPowder {
         var names: [String]
         var structures: [CrystalStructure]
         var settings: PowderSettings
+
+        // Spelled out, so every input is read where the cache compares it.
+        static func == (a: Key, b: Key) -> Bool {
+            a.names == b.names && a.structures == b.structures && a.settings == b.settings
+        }
     }
 
     package init() {}

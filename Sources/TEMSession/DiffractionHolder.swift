@@ -31,6 +31,12 @@ package final class DiffractionHolder {
         var orientation: CrystalOrientation
         var holder: HolderSettings
         var wavelength: Double?
+
+        // Spelled out, so every input is read where the cache compares it.
+        static func == (a: PlanKey, b: PlanKey) -> Bool {
+            a.phase == b.phase && a.structure == b.structure && a.orientation == b.orientation && a.holder == b.holder
+                && a.wavelength == b.wavelength
+        }
     }
 
     package init() {}

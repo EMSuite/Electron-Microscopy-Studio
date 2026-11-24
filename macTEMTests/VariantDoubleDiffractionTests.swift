@@ -9,7 +9,6 @@ import XCTest
 import DiffractoCore
 import DiffractoGeometry
 import TEMCore
-@testable import macTEM
 
 nonisolated final class VariantDoubleDiffractionTests: XCTestCase {
 
