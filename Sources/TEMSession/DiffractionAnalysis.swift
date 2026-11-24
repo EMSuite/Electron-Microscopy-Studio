@@ -639,9 +639,10 @@ package final class DiffractionAnalysis {
             return .failure(SimulationAbsence(sentence: "Needs a scale: calibrate on a standard's ring, or type Δq"))
         }
         guard let volts else { return .failure(SimulationAbsence(sentence: "Needs the beam energy: type it under Calibration")) }
-        // The simulator reaches the image's farthest corner, to at most 6 Å⁻¹ (d 0.17 Å), and is kept while the crystal and the
-        // reach (to 0.1 Å⁻¹) stay.
-        let reach = min(6, max(0.2, (ZoneAxisOverlay.reach(width: width, height: height, centre: centre, deltaQ: calibration.deltaQ) * 10).rounded(.up) / 10))
+        // The simulator reaches the image's farthest corner, to at most the kit's k_max cap (`ReflectionList.maximumKMax`, 4 Å⁻¹,
+        // d 0.25 Å: past it the kit refuses the whole list, so a wide pattern drew no spot at all), and is kept while the crystal and
+        // the reach (to 0.1 Å⁻¹) stay.
+        let reach = min(ReflectionList.maximumKMax, max(0.2, (ZoneAxisOverlay.reach(width: width, height: height, centre: centre, deltaQ: calibration.deltaQ) * 10).rounded(.up) / 10))
         let simulatorKey = "\(crystal.identity)|\(reach)"
         if simulatorCache?.key != simulatorKey {
             do { simulatorCache = (simulatorKey, try SpotPatternSimulator(structure: crystal.structure, kMax: reach), nil) }

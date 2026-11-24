@@ -65,6 +65,7 @@ The rooms:
   orientation (the found spots stay as marks to remove or add to; clicked spots give the zone axis); step through tied solutions,
   flip 180°, fit the scale or hold it, and drag the simulated spots to tilt them (⌥ drag turns them). Phases come from your
   library: Add Phase… finds one on the Materials Project or opens a CIF, and a phase added once works offline.
+  File > New Simulation (⇧⌘N) opens the simulated spots with no measured pattern under them.
 - **Patterns**: the EBSD or TKD scan beside the live pattern, with mean intensity, virtual BSE, image quality and
   average dot product maps. Remove the static and dynamic backgrounds, rescale or normalise, equalise, filter, bin,
   average neighbouring patterns and denoise with NLPAR. Draw the Kikuchi bands of the file's stored orientations over
