@@ -132,6 +132,7 @@ nonisolated enum AgentDoorCoverage {
         "eels.tool": .gap(558),
         "eels.windows.reset": .gap(558),
         "export.asShownToggle": .personOnly(exportReason),
+        "export.leaveOutFileNames": .personOnly(exportReason),
         "export.profileButton": .personOnly(exportReason),
         "export.scaleBarToggle": .personOnly(exportReason),
         "fft.bandpass": .gap(558),

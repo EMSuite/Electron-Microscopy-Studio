@@ -1,7 +1,7 @@
 // swift-tools-version: 6.2
 // SPDX-License-Identifier: GPL-3.0-only
 // TEMCore and TEMSession, the app's two library targets (`tools/run-tests.sh core` builds them standalone: the layering
-// gate). Kits and MacEMUI by version range (Package.resolved holds the versions built). No UI below the app: TEMCore takes only ShellEDXModel from MacEMUI (the shared EDS room's model, no SwiftUI).
+// gate). Kits and MacEMUI by version range (Package.resolved holds the versions built). No UI below the app: TEMCore takes only ShellEDXModel (the shared EDS room's model) and ShellExport (figures and the methods record) from MacEMUI, neither with SwiftUI.
 import PackageDescription
 
 let package = Package(
@@ -42,6 +42,7 @@ let package = Package(
                 .product(name: "SpectroEDX", package: "SpectroKit"),
                 .product(name: "SpectroEELS", package: "SpectroKit"),
                 .product(name: "ShellEDXModel", package: "MacEMUI"),
+                .product(name: "ShellExport", package: "MacEMUI"),
             ],
             swiftSettings: [
                 // Optimised in Debug too.

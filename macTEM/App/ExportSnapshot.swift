@@ -20,6 +20,7 @@
 import ShellMetal
 import ImagoCore
 import Foundation
+import ShellExport
 import TEMCore
 import TEMSession
 
@@ -46,14 +47,20 @@ nonisolated struct ExportImageSnapshot: Sendable {
     let directory: URL?
     let message: String
     let defaults: ExportImageDefaults
+    /// The methods record the PNG carries (#817), its `drawn` set at the write from the options; nil for an image read from no file.
+    var methods: MethodsRecord?
 }
 
 extension ExportImageSnapshot {
-    /// What the panel's OK does: this snapshot's own source, display and marks, drawn as `options` say, to the chosen file
-    /// and nothing else. The panel only calls it, so a test that calls it pins the one hand-over from the snapshot to the
-    /// renderer.
-    nonisolated func write(to url: URL, options: ImageExport.Options) async throws -> ImageExport.Rendered {
-        try await ImageExport.export(source: source, display: display, marks: marks, options: options, to: url)
+    /// What the panel's OK does: this snapshot's own source, display and marks, drawn as `options` say, with its methods record,
+    /// to the chosen file and nothing else. `leaveOutFileNames` names the source "source 1" in the PNG and in its record. The
+    /// panel only calls it, so a test that calls it pins the one hand-over from the snapshot to the renderer.
+    nonisolated func write(to url: URL, options: ImageExport.Options, leaveOutFileNames: Bool = false) async throws -> ImageExport.Rendered {
+        let named = ExportSnapshot.named(source: source, methods: methods, leaveOutFileNames: leaveOutFileNames)
+        var record = named.methods
+        record?.drawn = ExportSnapshot.drawn(options: options, hasMarks: !marks.isEmpty)
+        return try await ImageExport.export(source: named.source, display: display, marks: marks, options: options, methods: record,
+                                            to: url)
     }
 }
 
@@ -68,13 +75,16 @@ nonisolated struct ExportProfileSnapshot: Sendable {
     let defaultName: String
     let directory: URL?
     let message: String
+    /// The methods record the CSV carries (#817); nil for an image read from no file.
+    var methods: MethodsRecord?
 }
 
 extension ExportProfileSnapshot {
-    /// What the panel's OK does: this snapshot's own profile, ends, source and shown unit to the chosen file and nothing
-    /// else. The panel only calls it, so a test that calls it pins the one hand-over from the snapshot to the writer.
-    nonisolated func write(to url: URL) async throws {
-        try await ProfileCSV.export(profile, start: start, end: end, source: source, shown: shown, to: url)
+    /// What the panel's OK does: this snapshot's own profile, ends, source, shown unit and methods record to the chosen file and
+    /// nothing else. The panel only calls it, so a test that calls it pins the one hand-over from the snapshot to the writer.
+    nonisolated func write(to url: URL, leaveOutFileNames: Bool = false) async throws {
+        let named = ExportSnapshot.named(source: source, methods: methods, leaveOutFileNames: leaveOutFileNames)
+        try await ProfileCSV.export(profile, start: start, end: end, source: named.source, shown: shown, methods: named.methods, to: url)
     }
 }
 
@@ -116,6 +126,42 @@ enum ExportSnapshot {
     /// traced to the build that made it (macEM#616).
     nonisolated static func provenance(info: [String: Any]? = Bundle.main.infoDictionary) -> String {
         "\(softwareName(info: info)) with \(CrystalMapAcquisition.kitVersions)"
+    }
+
+    /// The app as a methods record names it: its name and the version and build the bundle states ("2.2.0 (42)").
+    nonisolated static func methodsApp(info: [String: Any]? = Bundle.main.infoDictionary) -> MethodsRecord.Software {
+        let version = info?["CFBundleShortVersionString"] as? String ?? ""
+        let build = info?["CFBundleVersion"] as? String ?? ""
+        let text = build.isEmpty || version.isEmpty ? version : "\(version) (\(build))"
+        return MethodsRecord.Software(name: AppName.writer, version: text.isEmpty ? "unknown" : text)
+    }
+
+    /// The source and record as written: unchanged, or with the file's name left out of both ("source 1", the save panel's
+    /// "Leave out file names").
+    nonisolated static func named(source: ExportSource, methods: MethodsRecord?, leaveOutFileNames: Bool)
+        -> (source: ExportSource, methods: MethodsRecord?) {
+        guard leaveOutFileNames else { return (source, methods) }
+        var source = source
+        source.fileName = ExportMethods.anonymousName(0)
+        return (source, methods?.withoutFileNames())
+    }
+
+    /// What an Image room PNG draws, as its methods record says it: the image as displayed, the scale bar and the marks when drawn.
+    nonisolated static func drawn(options: ImageExport.Options, hasMarks: Bool) -> [String] {
+        var drawn = ["the image as displayed (window, gamma and colormap)"]
+        if options.scaleBar { drawn.append("a scale bar") }
+        if options.marks, hasMarks { drawn.append("the measurement marks") }
+        return drawn
+    }
+
+    /// The Image room's record of a file's export: nil for an item read from no file (a demo made in memory has no fingerprint).
+    static func imageMethods(of item: OpenItem, image: CalibratedImage, exportKind: String, drawn: [String],
+                             software: String) -> MethodsRecord? {
+        guard let identity = item.openedIdentity else { return nil }
+        let source = ExportMethods.source(ExportSource(image: image, software: software), byteCount: Int(identity.byteSize),
+                                          fingerprint: identity.pixelSHA256, kind: "image")
+        return ExportMethods.imageRecord(app: methodsApp(), exportKind: exportKind, source: source,
+                                         lineage: item.measurements.lineage, drawn: drawn)
     }
 
     /// A method record with the app's version under "software" and the kits under "builtWith" (name: version).
@@ -311,14 +357,20 @@ enum ExportSnapshot {
 
     /// One item's snapshots: its own owners and nothing else.
     static func imageSnapshot(of item: OpenItem, software: String = softwareName()) -> ExportImageSnapshot? {
-        guard let image = item.session.image else { return nil }
-        return imageSnapshot(image: image, url: item.url, presentation: item.presentation,
-                             measurements: item.measurements, software: software)
+        guard let image = item.session.image,
+              var snapshot = imageSnapshot(image: image, url: item.url, presentation: item.presentation,
+                                           measurements: item.measurements, software: software) else { return nil }
+        snapshot.methods = imageMethods(of: item, image: image, exportKind: "image-png", drawn: [], software: software)
+        return snapshot
     }
 
     static func profileSnapshot(of item: OpenItem, software: String = softwareName()) -> ExportProfileSnapshot? {
-        guard let image = item.session.image else { return nil }
-        return profileSnapshot(image: image, url: item.url, measurements: item.measurements, software: software)
+        guard let image = item.session.image,
+              var snapshot = profileSnapshot(image: image, url: item.url, measurements: item.measurements, software: software)
+        else { return nil }
+        snapshot.methods = imageMethods(of: item, image: image, exportKind: "profile-csv",
+                                        drawn: ["the selected line profile's samples"], software: software)
+        return snapshot
     }
 
     /// The window's selected item's: an export is of the file on screen, never of another open one.
