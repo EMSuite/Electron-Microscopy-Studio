@@ -438,6 +438,12 @@ package final class DiffractionAnalysis {
         var volts: Double?
         var width: Int
         var height: Int
+
+        // Written out: Periphery reads a synthesized == as never reading the fields.
+        static func == (a: SimulationKey, b: SimulationKey) -> Bool {
+            a.settings == b.settings && a.crystal == b.crystal && a.centre == b.centre && a.calibration == b.calibration
+                && a.volts == b.volts && a.width == b.width && a.height == b.height
+        }
     }
 
     /// The simulated spots of `simulation`'s zone axis on this image: DiffractoKit's `SpotPatternSimulator` of the crystal at the
