@@ -22,7 +22,6 @@ import ShellEDXModel
 import ShellLayout
 import SwiftUI
 import XCTest
-import TEMCore
 import TEMSession
 @testable import macTEM
 
