@@ -37,12 +37,13 @@ nonisolated final class AgentDoorToolsTests: XCTestCase {
     @MainActor func testTheToolsAreTheFourThatLook() {
         XCTAssertEqual(MacTEMAgentDoor.tools.map(\.name), ["get_window", "get_image", "get_results", "get_log"])
         XCTAssertEqual(MacTEMAgentDoor.allTools.filter(\.acts).map(\.name).sorted(), [
-            "add_phase", "find_phases", "index_pattern", "new_simulation", "open_demo", "open_file", "open_in_maps", "plan_tilt",
-            "powder_pattern", "run_eds", "run_room", "run_simulation", "select_grains", "select_room", "select_scan_position",
-            "set_diffraction", "set_diffraction_marks", "set_eds", "set_eels", "set_eels_edges", "set_eels_region", "set_fft",
-            "set_fft_spots", "set_image_room", "set_indexing", "set_indexing_phase", "set_maps", "set_marks", "set_particles",
-            "set_pattern_processing", "set_patterns", "set_phase_lattice", "set_relationship", "set_simulation", "set_zone_axis",
-            "simulate_pattern", "stop_run",
+            "add_phase", "find_phases", "index_pattern", "measure_thickness", "new_simulation", "open_demo", "open_file",
+            "open_in_maps", "plan_tilt", "powder_pattern", "run_cbed", "run_eds", "run_room", "run_simulation", "run_stem",
+            "select_grains", "select_room", "select_scan_position", "set_cbed", "set_diffraction", "set_diffraction_marks",
+            "set_dynamical", "set_eds", "set_eels", "set_eels_edges", "set_eels_region", "set_fft", "set_fft_spots",
+            "set_image_room", "set_indexing", "set_indexing_phase", "set_maps", "set_marks", "set_particles",
+            "set_pattern_processing", "set_patterns", "set_phase_lattice", "set_relationship", "set_simulation", "set_stem",
+            "set_zone_axis", "simulate_pattern", "stop_cbed", "stop_run", "stop_stem", "use_measured_thickness",
         ])
         XCTAssertEqual(MacTEMAgentDoor.shared.appName, "Electron Microscopy Studio")
     }

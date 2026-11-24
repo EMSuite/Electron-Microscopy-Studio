@@ -19,19 +19,9 @@ struct DiffractionThicknessSection: View {
     @Environment(AppState.self) private var appState
     private static let chartHeight: CGFloat = 120
 
-    private var inputs: Result<CBEDThicknessModel.Inputs, CBEDThickness.Refusal> {
-        CBEDThicknessModel.inputs(image: item.session.imageOrBlank, contentVersion: item.presentation.canvas?.contentVersion ?? 0,
-                                  analysis: item.diffraction)
-    }
-
-    /// The Simulation document whose thickness Use in Simulation sets: this one, or the one this CBED pattern belongs to.
-    private var simulation: OpenItem? {
-        DemoDocuments.isSimulation(item.url) ? item : appState.simulationDocument(ofCBED: item)
-    }
-
     var body: some View {
         let model = item.thickness
-        let inputs = inputs
+        let inputs = item.thicknessInputs
         InspectorSection("Thickness", startsExpanded: false) {
             InspectorActionRow {
                 Button("Measure Thickness") { Task { await model.measure(inputs) } }
@@ -62,7 +52,7 @@ struct DiffractionThicknessSection: View {
         ThicknessProfileChart(measurement: m)
             .frame(height: Self.chartHeight)
         InspectorNote(m.methodLine).accessibilityIdentifier("diffraction.thickness.method")
-        if let nm = m.thicknessNM, !m.isPoor, let simulation {
+        if let nm = m.thicknessNM, !m.isPoor, let simulation = appState.thicknessSimulation(of: item) {
             InspectorActionRow {
                 Button("Use in Simulation") { simulation.multislice.setThickness(nm: nm) }
                     .help("Sets the Simulation document's specimen thickness to \(UnitDisplay.number(nm, digits: 3)) nm")
