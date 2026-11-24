@@ -48,6 +48,8 @@ nonisolated final class DiffractionSimulationTests: XCTestCase {
             ("1 1\u{0304} 2", SIMD3(1, -1, 2)), ("<1 1 1>", SIMD3(1, 1, 1)), ("2 1 10", SIMD3(2, 1, 10)), ("[1 2 3]", SIMD3(1, 2, 3)),
             ("0 0 0", nil), ("000", nil), ("12", nil), ("1 1", nil), ("1 1 0 0", nil), ("abc", nil), ("", nil), ("1 a 0", nil),
             ("0\u{0304}01", nil), ("--110", nil), ("11-", nil), ("1 1 100", nil),
+            // The largest and smallest Int are refused like any index past 99, never a trap (#933).
+            ("-9223372036854775808 1 0", nil), ("1 9223372036854775807 0", nil), ("1 1 -100", nil), ("-99 99 0", SIMD3(-99, 99, 0)),
         ]
         for (text, uvw) in cases { XCTAssertEqual(ZoneAxisText.parse(text), uvw, "\"\(text)\"") }
         XCTAssertEqual(ZoneAxisText.text(SIMD3(-1, 1, 0)), "[-1 1 0]")
