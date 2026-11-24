@@ -115,6 +115,24 @@ package nonisolated enum DiffractionCompute {
         DiffractoGeometry.DiffractionPattern(width: image.width, height: image.height, pixels: image.pixels)
     }
 
+    /// A clicked spot's subpixel centre (`PatternSpot.refine`, window half `half`), read from a crop about the click rather than the whole
+    /// image, so a click copies a few hundred pixels and not a uint8 or uint16 image's whole Float32 widening (#928). Three recentrings move
+    /// the window at most `2 half` from the click and it reaches `half` beyond that, so a crop of `4 half` holds every pixel the whole image
+    /// would have given; the crop is clamped where the image is, so the answer is the whole image's.
+    package static func refineSpot(in image: CalibratedImage, row: Double, column: Double, half: Int = 5) -> (row: Double, column: Double)? {
+        guard row.isFinite, column.isFinite, abs(row) < 1e9, abs(column) < 1e9, half >= 1, half < 10_000 else { return nil }
+        let reach = 4 * half, w = image.width, h = image.height
+        let r0 = max(Int(row.rounded()) - reach, 0), r1 = min(Int(row.rounded()) + reach, h - 1)
+        let c0 = max(Int(column.rounded()) - reach, 0), c1 = min(Int(column.rounded()) + reach, w - 1)
+        guard r0 <= r1, c0 <= c1 else { return nil }
+        let cw = c1 - c0 + 1, ch = r1 - r0 + 1
+        var pixels = [Float](repeating: 0, count: cw * ch)
+        for y in 0 ..< ch { for x in 0 ..< cw { pixels[y * cw + x] = image.value(at: (r0 + y) * w + c0 + x) } }
+        let crop = DiffractoGeometry.DiffractionPattern(width: cw, height: ch, pixels: pixels)
+        guard let local = PatternSpot.refine(pattern: crop, row: row - Double(r0), column: column - Double(c0), half: half) else { return nil }
+        return (local.row + Double(r0), local.column + Double(c0))
+    }
+
     /// A ring in the annulus about the centre, by the kit (`RingFitCalibration.fitRing`), with its refusal in the kit's words.
     package static func fitRing(pattern: DiffractoGeometry.DiffractionPattern, centre: DiffractionCentre, inner: Double, outer: Double,
                                 isCancelled: @escaping @Sendable () -> Bool) -> (fit: RingRadiusFit?, refusal: String?) {
