@@ -81,7 +81,12 @@ package final class DiffractionAnalysis {
     /// The scales Index ran under (a ring's calibration, the typed Δq; the file's axis does not change): its measured |q| over |g|
     /// holds only while they stay (`indexIsStale`).
     private var indexScaleKey: IndexScaleKey?
-    private struct IndexScaleKey: Equatable { var ring: DiffractionCalibration?; var typed: Double? }
+    private struct IndexScaleKey: Equatable {
+        var ring: DiffractionCalibration?
+        var typed: Double?
+        // Written out: Periphery reads a synthesized == as never reading the fields.
+        static func == (a: IndexScaleKey, b: IndexScaleKey) -> Bool { a.ring == b.ring && a.typed == b.typed }
+    }
     private var scaleKey: IndexScaleKey { IndexScaleKey(ring: ringCalibration, typed: typedDeltaQ) }
     @ObservationIgnored private var listCache: (key: String, list: KinematicReflectionList?, failure: String?)?
     @ObservationIgnored private var familiesCache: [String: [(name: String, d: Double, family: ReflectionFamily)]] = [:]

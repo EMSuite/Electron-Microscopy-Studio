@@ -94,7 +94,7 @@ private struct DiffractionHeader: View {
                     .foregroundStyle(outcome.verdict == .found && !analysis.indexIsStale ? Color.primary : Color.orange)
                     .help(line)
                     .accessibilityIdentifier("diffraction.index.verdict")
-                    .accessibilityLabel("Index")
+                    .accessibilityLabel("Index, \(outcome.verdict.word)")
                     .accessibilityValue(line)
             }
             // What the pane shows about the centre, in words (a header holds words only); its value is the half-side to three decimals,
