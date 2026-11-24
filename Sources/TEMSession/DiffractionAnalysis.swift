@@ -81,6 +81,8 @@ package final class DiffractionAnalysis {
     /// The scales Index ran under (a ring's calibration, the typed Δq; the file's axis does not change): its measured |q| over |g|
     /// holds only while they stay (`indexIsStale`).
     private var indexScaleKey: IndexScaleKey?
+    /// The spots Index read, by id (`indexSpotsChanged`).
+    private var indexedSpots: [UUID] = []
     private struct IndexScaleKey: Equatable {
         var ring: DiffractionCalibration?
         var typed: Double?
@@ -303,9 +305,12 @@ package final class DiffractionAnalysis {
         return nil
     }
 
-    /// Index (#783): the kit finds the spots and the crystal's full orientation, off the main actor; the answer lands in
-    /// `indexOutcome`, and a found orientation becomes the simulated spots' (`simulation.indexed`, drawn at its fitted scale). A
-    /// newer Index, Stop or a centre move drops the answer of the one in flight.
+    /// Index (#783), off the main actor: with no spot marked, the kit finds the spots and they become ordinary marks (#784), which
+    /// the user can remove or add to before Index runs again; with spots marked, Index reads those. Found spots carry the kit's
+    /// intensities and give the crystal's full orientation; a clicked spot among them gives the zone axis and the turn only
+    /// (`PatternIndexing.index(marks:)`). The answer lands in `indexOutcome`, and a found orientation becomes the simulated spots'
+    /// (`simulation.indexed`, drawn at its fitted scale). A newer Index, Stop, a centre move, or a scale or spot changed while it
+    /// runs drops the answer of the one in flight.
     @discardableResult
     package func index(image: CalibratedImage) -> Task<Void, Never>? {
         guard indexBlocker(image: image) == nil, let centre, let calibration = calibration(for: image), let volts = volts(for: image)
@@ -315,21 +320,30 @@ package final class DiffractionAnalysis {
         let gen = indexGeneration
         isIndexing = true
         failure = nil
-        let started = scaleKey
+        let started = scaleKey, startedSpots = spots
+        let marked = spots.compactMap { s in
+            s.row.flatMap { r in s.column.map { c in PatternIndexing.Mark(row: r, column: c, intensity: s.intensity) } }
+        }
         let pattern = DiffractionCompute.pattern(of: image)
         let structure = crystal.structure, phase = crystal.name
         let key = "\(crystal.name)|\(crystal.sha256 ?? "")|\(volts)"
         let shortest = list()?.families.first.map { 1 / $0.family.d } ?? 0.2
         let task = Task.detached(priority: .userInitiated) { [weak self] in
             let outcome: PatternIndexing.Outcome
+            var found: [FoundSpot]?
             do {
-                let found = try PatternIndexing.findSpots(pattern: pattern, centre: centre, shortestG: shortest, calibration: calibration)
+                var marks = marked
+                if marks.isEmpty {
+                    let located = try PatternIndexing.findSpots(pattern: pattern, centre: centre, shortestG: shortest, calibration: calibration)
+                    found = located
+                    marks = located.map { PatternIndexing.Mark(row: $0.row, column: $0.column, intensity: $0.intensity) }
+                }
                 if Task.isCancelled { return }
                 let indexer = try PatternIndexerCache.shared.indexer(key: key) {
                     try PatternOrientation(structure: structure, volts: volts, kMax: PatternIndexing.reach)
                 }
                 if Task.isCancelled { return }
-                outcome = PatternIndexing.index(found: found, centre: centre, calibration: calibration, indexer: indexer, phase: phase)
+                outcome = PatternIndexing.index(marks: marks, centre: centre, calibration: calibration, indexer: indexer, phase: phase)
             } catch {
                 let words = String(describing: error)
                 outcome = PatternIndexing.Outcome(phase: phase, verdict: .notFound(words), spots: [], explained: 0, indexed: 0,
@@ -337,20 +351,28 @@ package final class DiffractionAnalysis {
                                                   misfitPercent: nil)
             }
             if Task.isCancelled { return }
-            await self?.landIndex(outcome, generation: gen, scale: started)
+            await self?.landIndex(outcome, found: found, generation: gen, scale: started, spots: startedSpots)
         }
         indexTask = task
         return task
     }
 
-    private func landIndex(_ outcome: PatternIndexing.Outcome, generation gen: Int, scale started: IndexScaleKey) {
+    private func landIndex(_ outcome: PatternIndexing.Outcome, found: [FoundSpot]?, generation gen: Int, scale started: IndexScaleKey,
+                           spots startedSpots: [MeasuredSpot]) {
         guard gen == indexGeneration else { return }
         isIndexing = false
         indexTask = nil
-        // The scale changed while Index ran (a ring fit landed, Δq typed): its answer was measured under the old one.
-        guard started == scaleKey else { return }
+        // The scale or the spots changed while Index ran (a ring fit landed, Δq typed, a spot clicked or removed): its answer was
+        // measured under the old ones.
+        guard started == scaleKey, startedSpots == spots else { return }
+        if let found {
+            // The found spots become ordinary marks, each at the kit's centre, with its intensity.
+            spots = found.map { MeasuredSpot(clickRow: $0.row, clickColumn: $0.column, row: $0.row, column: $0.column, radius: nil, refusal: nil,
+                                             intensity: $0.intensity) }
+        }
         indexOutcome = outcome
         indexScaleKey = started
+        indexedSpots = spots.map(\.id)
         guard let orientation = outcome.orientation else { return }
         simulation.indexed = orientation
         simulation.scale = outcome.scale ?? 1
@@ -361,6 +383,19 @@ package final class DiffractionAnalysis {
     /// The scale changed since Index answered: its fitted |q| over |g|, its misfit and its verdict were measured under the old
     /// one. The overlay draws its orientation at |g| until Index runs again; the header says so.
     package var indexIsStale: Bool { indexOutcome != nil && indexScaleKey != scaleKey }
+
+    /// A spot was removed or added since Index answered (#784): its answer was the old spots'. The header says so; the overlay keeps
+    /// the orientation until Index runs again.
+    package var indexSpotsChanged: Bool { indexOutcome != nil && indexedSpots != spots.map(\.id) }
+
+    /// The header's line for Index's answer, with what changed since: a scale (a ring calibrated, Δq typed) or the spots.
+    package var indexLine: String? {
+        guard let outcome = indexOutcome else { return nil }
+        var line = PatternIndexing.header(outcome)
+        if indexIsStale { line += " · the scale changed since: Index again" }
+        if indexSpotsChanged { line += " · the spots changed since: Index again" }
+        return line
+    }
 
     /// The zone axis typed: the simulated spots are this zone axis's, no longer Index's orientation.
     package func setZoneAxis(_ uvw: SIMD3<Int>) {
@@ -397,6 +432,12 @@ package final class DiffractionAnalysis {
         rings.removeAll { $0.id == id }
         spots.removeAll { $0.id == id }
         if ringCalibration != nil, !rings.contains(where: \.isCalibrating) { clearCalibration() }
+    }
+
+    /// Every spot, the rings and their scale kept (#784): Index then finds the spots again, with the intensities a clicked spot lacks.
+    package func removeSpots() {
+        spots = []
+        if let id = lastAdded, !rings.contains(where: { $0.id == id }) { lastAdded = nil }
     }
 
     package func removeAll() {

@@ -1,6 +1,7 @@
 //
 //  PatternIndexing.swift
-//  Role: Index on one measured spot pattern (plan row R2, #783): the spots DiffractoKit finds (`PatternSpots.find`), their q in the
+//  Role: Index on one measured spot pattern (plan rows R2 and R2b, #783, #784): the spots DiffractoKit finds (`PatternSpots.find`) or
+//        the room's marks, a clicked one giving the zone axis only (`ZoneAxisSolver.solve`, clicked), their q in the
 //        room's scale and centre, and the full orientation of one crystal (`PatternOrientation.index`, the kit's S6), with the
 //        verdict in words and the header's line. Every number is the kit's; this file maps pixels to q (the inverse of
 //        `ZoneAxisOverlay`'s map: qx down the rows, qy along the columns, |q| the readout's `DiffractionCalibration.q(radius:)`) and
@@ -17,11 +18,21 @@ package nonisolated enum PatternIndexing {
     /// The template library's reach (Å⁻¹, the kit's default `kMax`); spots farther out are found and shown but not indexed.
     package static let reach = 1.5
 
-    /// One spot the kit found, in pixels and q, with the hkl the orientation gives it (nil: not explained, or past `reach`).
+    /// One spot Index reads: its centre in pixels and, for a spot the kit found, its intensity (nil: a clicked spot, #784).
+    package struct Mark: Sendable, Equatable {
+        package let row: Double
+        package let column: Double
+        package let intensity: Double?
+        package init(row: Double, column: Double, intensity: Double?) {
+            self.row = row; self.column = column; self.intensity = intensity
+        }
+    }
+
+    /// One spot Index read, in pixels and q, with the hkl the orientation gives it (nil: not explained, or past `reach`).
     package struct Spot: Sendable, Equatable {
         package let row: Double
         package let column: Double
-        package let intensity: Double
+        package let intensity: Double?
         /// (qx, qy), Å⁻¹.
         package let q: SIMD2<Double>
         package var hkl: MillerIndex?
@@ -66,7 +77,7 @@ package nonisolated enum PatternIndexing {
     package struct Outcome: Sendable, Equatable {
         package let phase: String
         package let verdict: Verdict
-        /// Every spot found, brightest first.
+        /// Every spot Index read: the marks, in their order (found ones brightest first).
         package let spots: [Spot]
         /// How many of the spots within `reach` were indexed, and how many there were.
         package let explained: Int
@@ -82,13 +93,15 @@ package nonisolated enum PatternIndexing {
         package let scale: Double?
         /// The rms of the explained spots' Δd/d under the room's scale, percent.
         package let misfitPercent: Double?
+        /// The spots carried no intensities (a clicked one among them): the zone axis and the turn only, the tilt unmeasured.
+        package let zoneAxisOnly: Bool
 
         package init(phase: String, verdict: Verdict, spots: [Spot], explained: Int, indexed: Int, orientation: CrystalOrientation?,
                      alternatives: [CrystalOrientation], zoneAxis: SIMD3<Int>?, zoneAxisAngle: Double?, scale: Double?,
-                     misfitPercent: Double?) {
+                     misfitPercent: Double?, zoneAxisOnly: Bool = false) {
             self.phase = phase; self.verdict = verdict; self.spots = spots; self.explained = explained; self.indexed = indexed
             self.orientation = orientation; self.alternatives = alternatives; self.zoneAxis = zoneAxis
-            self.zoneAxisAngle = zoneAxisAngle; self.scale = scale; self.misfitPercent = misfitPercent
+            self.zoneAxisAngle = zoneAxisAngle; self.scale = scale; self.misfitPercent = misfitPercent; self.zoneAxisOnly = zoneAxisOnly
         }
     }
 
@@ -116,33 +129,68 @@ package nonisolated enum PatternIndexing {
 
     // MARK: Indexing
 
-    /// The full orientation of the found spots for one crystal (`indexer` built for its structure and the beam energy).
-    package static func index(found: [FoundSpot], centre: DiffractionCentre, calibration: DiffractionCalibration,
+    /// The orientation of the marked spots for one crystal (`indexer` built for its structure and the beam energy). Spots that all
+    /// carry the kit's intensities (found ones) give the full orientation (`PatternOrientation.index`, the tilt off the zone axis
+    /// from the intensities); a clicked spot among them gives the zone axis and the turn only (`ZoneAxisSolver.solve`, clicked: a
+    /// subset a person picked, so a predicted spot without a mark does not count against an orientation).
+    package static func index(marks: [Mark], centre: DiffractionCentre, calibration: DiffractionCalibration,
                               indexer: PatternOrientation, phase: String) -> Outcome {
-        var spots = found.compactMap { f -> Spot? in
-            guard let position = Self.q(row: f.row, column: f.column, centre: centre, calibration: calibration) else { return nil }
-            return Spot(row: f.row, column: f.column, intensity: f.intensity, q: position, hkl: nil, dListed: nil)
+        var spots = marks.compactMap { m -> Spot? in
+            guard let position = Self.q(row: m.row, column: m.column, centre: centre, calibration: calibration) else { return nil }
+            return Spot(row: m.row, column: m.column, intensity: m.intensity, q: position, hkl: nil, dListed: nil)
         }
+        let clicked = spots.contains { $0.intensity == nil }
         let inReach = spots.indices.filter { spots[$0].qLength <= reach }
-        let measured = inReach.map { spots[$0].q }, intensities = inReach.map { spots[$0].intensity }
+        let measured = inReach.map { spots[$0].q }
         func refused(_ verdict: Verdict) -> Outcome {
             Outcome(phase: phase, verdict: verdict, spots: spots, explained: 0, indexed: measured.count, orientation: nil, alternatives: [],
-                    zoneAxis: nil, zoneAxisAngle: nil, scale: nil, misfitPercent: nil)
+                    zoneAxis: nil, zoneAxisAngle: nil, scale: nil, misfitPercent: nil, zoneAxisOnly: clicked)
         }
+        func refusal(_ why: ZoneAxisRefusal) -> Verdict { why == .oneRow ? .oneRow : .notFound(why.description) }
         guard measured.count >= 2 else { return refused(.notFound(ZoneAxisRefusal.tooFewSpots(measured.count).description)) }
-        guard let result = indexer.index(spots: measured, intensities: intensities) else {
-            // No start explains two spots: the solver says why (one row, no pair, too little).
-            if case .refused(let why) = indexer.solver.solve(measured).verdict {
-                return refused(why == .oneRow ? .oneRow : .notFound(why.description))
-            }
-            return refused(.notFound(ZoneAxisRefusal.noCandidate.description))
-        }
-        let best = result.best
+
+        // The best orientation, its hkl per spot in reach, its scale, the others the pattern cannot tell from it, and its zone axis.
+        let orientation: CrystalOrientation, assignments: [MillerIndex?], scale: Double, agreement: Double, matched: Int
+        let alternatives: [CrystalOrientation], tie: Int?, flagged: Bool
+        let near: (uvw: SIMD3<Int>, angle: Double)?
         let cell = indexer.solver.structure.cell
+        if clicked {
+            let solution = indexer.solver.solve(measured, clicked: true)
+            guard let best = solution.candidates.first else {
+                if case .refused(let why) = solution.verdict { return refused(refusal(why)) }
+                return refused(.notFound(ZoneAxisRefusal.noCandidate.description))
+            }
+            orientation = best.orientation; assignments = best.assignments; scale = best.scale
+            agreement = best.agreement; matched = best.matched
+            if case .tie(let count) = solution.verdict {
+                tie = count
+                alternatives = solution.candidates.dropFirst().prefix(count - 1).map { $0.orientation }
+            } else {
+                tie = nil
+                alternatives = []
+            }
+            if case .refused = solution.verdict { flagged = true } else { flagged = false }
+            near = best.zoneAxisAngle.isFinite ? (SIMD3(best.zoneAxis.u, best.zoneAxis.v, best.zoneAxis.w), best.zoneAxisAngle) : nil
+        } else {
+            let intensities = inReach.map { spots[$0].intensity ?? 0 }
+            guard let result = indexer.index(spots: measured, intensities: intensities) else {
+                // No start explains two spots: the solver says why (one row, no pair, too little).
+                if case .refused(let why) = indexer.solver.solve(measured).verdict { return refused(refusal(why)) }
+                return refused(.notFound(ZoneAxisRefusal.noCandidate.description))
+            }
+            let best = result.best
+            orientation = best.orientation; assignments = best.positions.assignments; scale = best.scale
+            agreement = best.positions.agreement; matched = best.positions.matched
+            alternatives = result.alternatives.map { $0.orientation }
+            tie = alternatives.isEmpty ? nil : alternatives.count + 1
+            flagged = result.isFlagged()
+            near = best.orientation.nearestZoneAxis(cell: cell)
+        }
+
         // each indexed spot's hkl and listed d (1/|g| of the hkl in the cell)
         var squares: [Double] = []
-        for (k, i) in inReach.enumerated() where k < best.positions.assignments.count {
-            guard let hkl = best.positions.assignments[k] else { continue }
+        for (k, i) in inReach.enumerated() where k < assignments.count {
+            guard let hkl = assignments[k] else { continue }
             let d = cell.d(hkl)
             guard d.isFinite, d > 0 else { continue }
             spots[i].hkl = hkl
@@ -150,27 +198,29 @@ package nonisolated enum PatternIndexing {
             if let delta: Double = spots[i].deltaPercent { squares.append(delta * delta) }
         }
         let misfit = squares.isEmpty ? nil : (squares.reduce(0, +) / Double(squares.count)).squareRoot()
-        let near = best.orientation.nearestZoneAxis(cell: cell)
         let window = indexer.solver.settings.scaleWindow
         let verdict: Verdict
-        if !result.alternatives.isEmpty {
-            verdict = .tied(count: result.alternatives.count + 1)
-        } else if abs(best.scale - 1) >= window - 1e-3 {
+        if let tie {
+            verdict = .tied(count: tie)
+        } else if abs(scale - 1) >= window - 1e-3 {
             verdict = .scaleAtLimit
-        } else if result.isFlagged() || best.positions.agreement < indexer.solver.settings.minimumAgreement {
+        } else if flagged || agreement < indexer.solver.settings.minimumAgreement {
             verdict = .poor
         } else {
             verdict = .found
         }
-        return Outcome(phase: phase, verdict: verdict, spots: spots, explained: best.positions.matched, indexed: measured.count,
-                       orientation: best.orientation, alternatives: result.alternatives.map { $0.orientation },
-                       zoneAxis: near.map { $0.uvw }, zoneAxisAngle: near.map { $0.angle }, scale: best.scale, misfitPercent: misfit)
+        return Outcome(phase: phase, verdict: verdict, spots: spots, explained: matched, indexed: measured.count,
+                       orientation: orientation, alternatives: alternatives, zoneAxis: near.map { $0.uvw },
+                       zoneAxisAngle: near.map { $0.angle }, scale: scale, misfitPercent: misfit, zoneAxisOnly: clicked)
     }
 
     // MARK: Words
 
     /// "[001]", "[1̄10]", "[10 0 1]": the zone axis as the header writes it (the hkl label's digits and bars).
     package static func zoneText(_ uvw: SIMD3<Int>) -> String { "[" + ZoneAxisText.label(MillerIndex(uvw.x, uvw.y, uvw.z)) + "]" }
+
+    /// What the header adds when clicked spots gave the answer.
+    package static let zoneAxisOnlyNote = "zone axis only: clicked spots carry no intensities, so the tilt needs Index on found spots"
 
     /// The header's line: "Al · 2.1° from [001] · 22 of 24 spots explained · misfit 0.07 %", "Al [001] · …" within 0.5° of
     /// the zone axis, the verdict's words before it when it is not a plain find.
@@ -185,6 +235,7 @@ package nonisolated enum PatternIndexing {
             facts.append("\(o.explained) of \(o.indexed) spots explained")
             if let m = o.misfitPercent { facts.append("misfit \(String(format: "%.2f", m)) %") }
         }
+        if o.zoneAxisOnly, o.orientation != nil { facts.append(zoneAxisOnlyNote) }
         let tail = facts.isEmpty ? "" : " · " + facts.joined(separator: " · ")
         switch o.verdict {
         case .found:

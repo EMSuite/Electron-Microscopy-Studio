@@ -61,7 +61,7 @@ The rooms:
   their intensities and at%.
 - **Diffraction**: calibrate on a ring of a standard, then index rings and spots and read their d-spacings; type a zone axis to
   see the crystal's simulated spots, with their hkl, over the pattern, or press Index to find the spots and the crystal's full
-  orientation.
+  orientation (the found spots stay as marks to remove or add to; clicked spots give the zone axis).
 - **Patterns**: the EBSD or TKD scan beside the live pattern, with mean intensity, virtual BSE, image quality and
   average dot product maps. Remove the static and dynamic backgrounds, rescale or normalise, equalise, filter, bin,
   average neighbouring patterns and denoise with NLPAR. Draw the Kikuchi bands of the file's stored orientations over
