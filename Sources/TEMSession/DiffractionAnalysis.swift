@@ -136,6 +136,13 @@ package final class DiffractionAnalysis {
     private var indexScaleKey: IndexScaleKey?
     /// The spots Index read, by id (`indexSpotsChanged`).
     private var indexedSpots: [UUID] = []
+    /// Index fits the scale within ±3 % (#787); off, it holds the room's scale (|q| over |g| at 1). Read when Index runs.
+    package var fitScale = true
+    /// Which of Index's solutions the overlay draws (0 the best; `PatternIndexing.solutions`).
+    package private(set) var solutionIndex = 0
+    /// The overlay's orientation was dragged, turned or flipped by hand since Index or a typed zone axis set it: the header names its
+    /// nearest zone axis (`orientationLine`).
+    package private(set) var isTurnedByHand = false
     private struct IndexScaleKey: Equatable {
         var ring: DiffractionCalibration?
         var typed: Double?
@@ -241,6 +248,8 @@ package final class DiffractionAnalysis {
         indexOutcome = nil
         simulation.indexed = nil
         simulation.scale = 1
+        solutionIndex = 0
+        isTurnedByHand = false
     }
 
     /// k_max in Å⁻¹, kept in the kit's range.
@@ -290,10 +299,11 @@ package final class DiffractionAnalysis {
         fitTask?.cancel()
         failure = nil
         isFitting = true
-        let pattern = DiffractionCompute.pattern(of: image)
         let volts = volts(for: image), pitch = pitchMM
         let standardName = standard.name
         let task = Task.detached(priority: .userInitiated) { [weak self] in
+            // A uint8 or uint16 image's Float32 copy is made here, off the main actor (#928).
+            let pattern = DiffractionCompute.pattern(of: image)
             let result = DiffractionCompute.fitRing(pattern: pattern, centre: centre, inner: inner, outer: outer, isCancelled: { Task.isCancelled })
             if Task.isCancelled { return }
             await self?.landRing(result, inner: inner, outer: outer, family: family, standard: standardName, volts: volts, pitch: pitch, generation: gen)
@@ -377,9 +387,9 @@ package final class DiffractionAnalysis {
         let marked = spots.compactMap { s in
             s.row.flatMap { r in s.column.map { c in PatternIndexing.Mark(row: r, column: c, intensity: s.intensity) } }
         }
-        let pattern = DiffractionCompute.pattern(of: image)
         let structure = crystal.structure, phase = crystal.name
-        let key = "\(crystal.identity)|\(volts)"
+        let fit = fitScale
+        let key = "\(crystal.identity)|\(volts)" + (fit ? "" : "|fixed scale")
         let shortest = list()?.families.first.map { 1 / $0.family.d } ?? 0.2
         let task = Task.detached(priority: .userInitiated) { [weak self] in
             let outcome: PatternIndexing.Outcome
@@ -387,13 +397,16 @@ package final class DiffractionAnalysis {
             do {
                 var marks = marked
                 if marks.isEmpty {
+                    // A uint8 or uint16 image's Float32 copy is made here, off the main actor (#928).
+                    let pattern = DiffractionCompute.pattern(of: image)
                     let located = try PatternIndexing.findSpots(pattern: pattern, centre: centre, shortestG: shortest, calibration: calibration)
                     found = located
                     marks = located.map { PatternIndexing.Mark(row: $0.row, column: $0.column, intensity: $0.intensity) }
                 }
                 if Task.isCancelled { return }
                 let indexer = try PatternIndexerCache.shared.indexer(key: key) {
-                    try PatternOrientation(structure: structure, volts: volts, kMax: PatternIndexing.reach)
+                    try PatternOrientation(structure: structure, volts: volts, kMax: PatternIndexing.reach,
+                                           solverSettings: PatternIndexing.solverSettings(fitScale: fit))
                 }
                 if Task.isCancelled { return }
                 outcome = PatternIndexing.index(marks: marks, centre: centre, calibration: calibration, indexer: indexer, phase: phase)
@@ -426,7 +439,9 @@ package final class DiffractionAnalysis {
         indexOutcome = outcome
         indexScaleKey = started
         indexedSpots = spots.map(\.id)
+        solutionIndex = 0
         guard let orientation = outcome.orientation else { return }
+        isTurnedByHand = false
         simulation.indexed = orientation
         simulation.scale = outcome.scale ?? 1
         if let uvw = outcome.zoneAxis { simulation.zoneAxis = uvw }
@@ -445,6 +460,8 @@ package final class DiffractionAnalysis {
     package var indexLine: String? {
         guard let outcome = indexOutcome else { return nil }
         var line = PatternIndexing.header(outcome)
+        let n = solutions.count
+        if n > 1 { line += " · solution \(solutionIndex + 1) of \(n)" }
         if indexIsStale { line += " · the scale changed since: Index again" }
         if indexSpotsChanged { line += " · the spots changed since: Index again" }
         return line
@@ -455,6 +472,49 @@ package final class DiffractionAnalysis {
         simulation.zoneAxis = uvw
         simulation.indexed = nil
         simulation.scale = 1
+        isTurnedByHand = false
+    }
+
+    // MARK: Solutions, Flip and turning by hand (#787)
+
+    /// Index's solutions the Index section steps through: the best, then those the pattern cannot tell from it (at most five).
+    package var solutions: [CrystalOrientation] { indexOutcome.map(PatternIndexing.solutions) ?? [] }
+
+    /// Draws Index's solution `index` (0 the best) at Index's fitted scale; out of range does nothing.
+    package func selectSolution(_ index: Int) {
+        let all = solutions
+        guard all.indices.contains(index) else { return }
+        solutionIndex = index
+        isTurnedByHand = false
+        simulation.indexed = all[index]
+        simulation.scale = indexOutcome?.scale ?? 1
+        if let near = all[index].nearestZoneAxis(cell: crystal.structure.cell) { simulation.zoneAxis = near.uvw }
+        simulation.isShown = true
+    }
+
+    /// The orientation the overlay draws now: Index's (or a solution, or a hand-turned one), else the typed zone axis and turn.
+    package var drawnOrientation: CrystalOrientation? { try? simulation.orientation(cell: crystal.structure.cell) }
+
+    /// The overlay drawn at `orientation`, set by hand (a drag, ⌥ drag or Flip): the scale stays, the zone axis field shows the nearest.
+    package func turnByHand(to orientation: CrystalOrientation) {
+        simulation.indexed = orientation
+        isTurnedByHand = true
+        if let near = orientation.nearestZoneAxis(cell: crystal.structure.cell) { simulation.zoneAxis = near.uvw }
+        simulation.isShown = true
+    }
+
+    /// Flip: the drawn orientation turned 180° about the beam (the pattern's two-fold look-alike a centrosymmetric pattern cannot tell).
+    package func flip() {
+        guard let o = drawnOrientation else { return }
+        turnByHand(to: o.rotatedInPlane(by: .pi))
+    }
+
+    /// The header's line for the drawn orientation once it was turned by hand, or while no Index answer is shown: "Al · 2.1° from
+    /// [001]", "Al [001]" within 0.5°; nil while the overlay is off.
+    package var orientationLine: String? {
+        guard simulation.isShown, isTurnedByHand || indexOutcome == nil, let o = drawnOrientation,
+              let near = o.nearestZoneAxis(cell: crystal.structure.cell) else { return nil }
+        return PatternIndexing.place(phase: crystal.name, zoneAxis: near.uvw, angle: near.angle) + (isTurnedByHand ? " · set by hand" : "")
     }
 
     /// The turn typed (degrees): as `setZoneAxis`, the typed zone axis turned by it.
@@ -463,6 +523,7 @@ package final class DiffractionAnalysis {
         simulation.inPlaneDegrees = degrees.truncatingRemainder(dividingBy: 360)
         simulation.indexed = nil
         simulation.scale = 1
+        isTurnedByHand = false
     }
 
     /// The excitation error typed (σ, Å⁻¹, #786): the simulated pattern keeps spots with |s| up to three times it. A value that is not a
@@ -478,8 +539,7 @@ package final class DiffractionAnalysis {
 
     /// A click on the pattern: the centre is refined (the kit's `PatternSpot.refine`), and the spot is listed with its radius and indexing.
     package func addSpot(image: CalibratedImage, row: Double, column: Double) {
-        let refined = PatternSpot.refine(pattern: DiffractoGeometry.DiffractionPattern(width: image.width, height: image.height, pixels: image.pixels),
-                                         row: row, column: column)
+        let refined = DiffractionCompute.refineSpot(in: image, row: row, column: column)
         let spot: MeasuredSpot
         if let refined {
             spot = MeasuredSpot(clickRow: row, clickColumn: column, row: refined.row, column: refined.column, radius: nil, refusal: nil)

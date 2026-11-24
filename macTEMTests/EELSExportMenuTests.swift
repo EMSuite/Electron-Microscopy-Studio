@@ -86,7 +86,7 @@ nonisolated final class EELSExportMenuTests: XCTestCase {
         let state = AppState(launch: LaunchOptions(arguments: ["--export-dir", folder.path]))
         await state.eels.bind(try DemoDocuments.eels()).value
         await state.eels.settled()
-        RoomExports.eels(.spectrum, appState: state)
+        await RoomExports.eels(.spectrum, appState: state).value
         XCTAssertEqual(state.statusText, "Exported Demo EELS spectrum.csv")
         XCTAssertTrue(FileManager.default.fileExists(atPath: folder.appendingPathComponent("Demo EELS spectrum.csv").path))
     }

@@ -45,7 +45,7 @@ nonisolated final class ControlPlacementRoomsTests: XCTestCase {
     /// log switch. Red under: the tool back in Display, a labelled row, the section missing from the room's list, the id lost.
     func testDiffractionToolsHaveTheirOwnSection() throws {
         let source = try ui("DiffractionRoomInspector.swift")
-        XCTAssertTrue(source.contains("InspectorSection(\"Tools\") { SegmentedPicker(label: \"Tool\", items: [(DiffractionViewState.Tool.ring, .title(\"Ring\")), (.spot, .title(\"Spot\"))],"))
+        XCTAssertTrue(source.contains("InspectorSection(\"Tools\") { SegmentedPicker(label: \"Tool\", items: [(DiffractionViewState.Tool.ring, .title(\"Ring\")), (.spot, .title(\"Spot\")), (.tilt, .title(\"Tilt\"))],"))
         XCTAssertTrue(source.contains(".accessibilityIdentifier(\"diffraction.tool\")"))
         XCTAssertFalse(source.contains("InspectorRow(\"Tool\")"))
         let display = try XCTUnwrap(source.components(separatedBy: "private struct DiffractionDisplaySection").last?
