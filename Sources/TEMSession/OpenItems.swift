@@ -307,6 +307,8 @@ package final class OpenItem: Identifiable {
     package let diffractionView = DiffractionViewState()
     /// The Diffraction room's double-tilt holder for this file (#815): the stage tilts, limits and tilt axis. Numbers, no pixels.
     package let diffractionHolder = DiffractionHolder()
+    /// The Diffraction room's powder pattern for this file (#810): rings or X-rays, the range, and a phase to compare with.
+    package let diffractionPowder = DiffractionPowder()
     /// The committed zoom and pan; kept per item, through eviction and re-read. Not observed: the pane reads it once,
     /// when it is made, and writes it at the end of every gesture — observing it would re-evaluate the pane's parent
     /// on each write for nothing.
