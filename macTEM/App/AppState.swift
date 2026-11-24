@@ -144,6 +144,9 @@ final class AppState {
     /// This Mac's memory, in bytes, which the size rule holds each file against before it is read (`RoomSizeRule`, #905). A test sets
     /// a smaller one.
     @ObservationIgnored var physicalMemory = ProcessInfo.processInfo.physicalMemory
+    /// The window was closed and its files let go (`AppWindows.windowWillClose`): an Open still on its way loads nothing more into
+    /// this state and leaves the last-session record to the windows on screen (#925).
+    @ObservationIgnored var windowClosed = false
     /// Brings this state's window forward (`WindowTabbing`, the one place the `NSWindow` is known); nil while no window shows it.
     @ObservationIgnored var showWindow: (() -> Void)?
     /// This state's own window (an `NSWindow`, from `WindowTabbing`; typed `AnyObject` so this file needs no AppKit): the window a

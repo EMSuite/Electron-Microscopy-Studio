@@ -57,7 +57,11 @@ extension AppState {
         opensInFlight += 1
         statusText = urls.count == 1 ? "Opening \(urls[0].lastPathComponent)…" : "Opening \(urls.count) files…"
         let task = Task {
-            defer { opensInFlight -= 1; recordLastSession() }
+            // A window closed while this Open ran lets go of what the Open still brought in, and writes no record from this state alone (#925).
+            defer {
+                opensInFlight -= 1
+                if windowClosed { releaseFiles() } else { recordLastSession() }
+            }
             // By content (FormatoKit's sniff), off the main actor: an HDF5 file is opened under the HDF5 lock. The sniff runs inside the
             // security scope the panel, a drop or Finder granted. The FILE decides, not the room the person is in: a file is opened into
             // every room that has data in it (`FileInventory`), and the window lands in the room of the richest dataset.
@@ -82,6 +86,7 @@ extension AppState {
                 }
                 if answered[folder] == true, let again = await Self.inventories([url], memory: physicalMemory).first { inventories[index] = again }
             }
+            guard !windowClosed else { return }
             var images: [URL] = []
             var landing: FileInventory.Landing?
             var edsBatch: [URL] = [], eelsBatch: [URL] = [], ebsdBatch: [URL] = [], mapBatch: [URL] = []

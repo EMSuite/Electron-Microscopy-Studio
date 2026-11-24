@@ -51,6 +51,7 @@ final class AppWindows {
         parked.removeAll { $0 === state }
         if !onScreen.contains(where: { $0 === state }) { onScreen.append(state) }
         state.windows = self
+        state.windowClosed = false
         front = state
     }
 
@@ -80,6 +81,7 @@ final class AppWindows {
     /// what it would lose keeps everything; nothing is released while the app quits.
     func windowWillClose(_ state: AppState) {
         guard !isTerminating, state.quitQuestion == nil else { return }
+        state.windowClosed = true
         state.releaseFiles()
     }
 
