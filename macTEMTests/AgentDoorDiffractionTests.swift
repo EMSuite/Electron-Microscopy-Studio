@@ -196,6 +196,8 @@ nonisolated final class AgentDoorDiffractionTests: XCTestCase {
         let paragraph = try XCTUnwrap(answer["paragraph"] as? String)
         XCTAssertEqual(paragraph, record.paragraph)
         XCTAssertTrue(paragraph.contains("Calibration used a ring fit to the Au {"), paragraph)
+        // The paragraph in the CI log, for reading it as a methods section.
+        print("MACEM_METHODS_PARAGRAPH \(paragraph)")
 
         let copied = CopiedText()
         MethodsRecordExport.copyParagraph(appState: state, writer: copied)
