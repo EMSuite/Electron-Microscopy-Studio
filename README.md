@@ -70,7 +70,10 @@ The rooms:
   its Specimen section builds the phase along that axis into the slab a simulation computes, with its box, atoms and strain,
   and Show HRTEM Image opens the slab's HRTEM image in the Image room, with Defocus and Thickness that redraw it live, the Uncorrected and Cs Corrected optics, an objective aperture, the transfer function strip, a defocus by thickness table that exports as a PNG, and frozen phonons (σ per element, Simulate, Stop and Continue, with the run's plan, progress and convergence), and Place Beside, which shows it beside an open measured image or inset in it at the measured image's nanometres per pixel, one picture that exports with one scale bar.
   Kinematic or Dynamical switches the spots to the multislice's beams at a thickness slider's thickness, with the reflections
-  the crystal forbids as open rings and each spot's dynamical intensity in the Spots table.
+  the crystal forbids as open rings and each spot's dynamical intensity in the Spots table. Convergent turns the beam into a
+  probe: Show CBED Pattern opens its convergent-beam pattern in the Diffraction room, the semiangle set by Fit Discs to keep the
+  discs apart, a pattern stored about every 2 nm to the largest thickness for the thickness slider, and the box the angular step
+  needs named before the run.
 - **Patterns**: the EBSD or TKD scan beside the live pattern, with mean intensity, virtual BSE, image quality and
   average dot product maps. Remove the static and dynamic backgrounds, rescale or normalise, equalise, filter, bin,
   average neighbouring patterns and denoise with NLPAR. Draw the Kikuchi bands of the file's stored orientations over

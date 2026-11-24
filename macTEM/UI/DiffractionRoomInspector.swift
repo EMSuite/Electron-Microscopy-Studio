@@ -346,6 +346,10 @@ private struct DiffractionSimulationSection: View {
         InspectorSection("Simulation") {
             if DemoDocuments.isSimulation(item.url) {
                 dynamicalRows(item.multislice)
+                SimulationCBEDRows(item: item)
+            } else if let simulation = appState.simulationDocument(ofCBED: item) {
+                // The CBED pattern's own item: its document's rows (the slider, Stop, progress, failure), so they stay as it appears.
+                SimulationCBEDRows(item: simulation)
             }
             InspectorRow("Overlay") {
                 Toggle("Show simulated spots", isOn: Binding(get: { analysis.simulation.isShown }, set: { analysis.simulation.isShown = $0 }))
