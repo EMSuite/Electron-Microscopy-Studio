@@ -280,11 +280,18 @@ package final class IndexingSession {
 
     /// A dataset was bound in Patterns: the room starts over on it, with the phases of its crystal map.
     package func bind(_ document: EBSDSession.Document) {
+        bind(document, mapsDocument: OrientationMapSession.patternsDocument(fileName: document.fileName, url: document.url,
+                                                                            dataset: document.dataset))
+    }
+
+    /// The same, with the dataset's crystal map as the Maps room shows it (`OrientationMapSession.patternsDocument`) handed in: the
+    /// app makes it once per bind for both rooms, as making it walks every point of the map (#929).
+    package func bind(_ document: EBSDSession.Document, mapsDocument: OrientationMapSession.Document?) {
         reset()
         let fromFile = document.dataset.crystalMap.map { IndexingPhase.fromCrystalMap($0.phases) } ?? (phases: [], skipped: [])
         phases = fromFile.phases
         skippedPhases = fromFile.skipped
-        fileIndexing = OrientationMapSession.patternsDocument(fileName: document.fileName, url: document.url, dataset: document.dataset)?.map
+        fileIndexing = mapsDocument?.map
         compareA = .hough
         compareB = fileIndexing == nil ? .dictionary : .file
         refreshMap()
