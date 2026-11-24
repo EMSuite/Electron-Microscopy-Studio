@@ -11,7 +11,6 @@ import Foundation
 import ImagoCore
 import ShellExport
 import TEMCore
-import TEMSession
 import XCTest
 @testable import macTEM
 
