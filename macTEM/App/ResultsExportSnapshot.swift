@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import ShellExport
 import TEMCore
 import TEMSession
 
@@ -20,9 +21,13 @@ nonisolated struct ExportResultsSnapshot: Sendable {
     let defaultName: String
     let directory: URL?
     let message: String
+    /// The methods record the CSV carries (#817); nil for an image read from no file.
+    var methods: MethodsRecord?
 
-    nonisolated func write(to url: URL) async throws {
-        try await ResultsCSV.export(rows, source: source, session: session, to: url)
+    /// `leaveOutFileNames` names the source "source 1" in the header and in the record.
+    nonisolated func write(to url: URL, leaveOutFileNames: Bool = false) async throws {
+        let named = ExportSnapshot.named(source: source, methods: methods, leaveOutFileNames: leaveOutFileNames)
+        try await ResultsCSV.export(rows, source: named.source, session: session, methods: named.methods, to: url)
     }
 }
 
@@ -64,11 +69,14 @@ extension ExportSnapshot {
         let rows = ResultsLedger.rows(of: item, eds: eds, eels: eels)
         guard !rows.isEmpty else { return nil }
         let groups = ResultRow.Group.allCases.filter { group in rows.contains { $0.group == group } }
+        var methods = imageMethods(of: item, image: image, exportKind: "results-csv",
+                                   drawn: ["every finished measurement of the file"], software: software)
+        methods?.room = "results"
         return ExportResultsSnapshot(
             rows: rows, source: ExportSource(image: image, software: software), session: sessionHeader(SessionTailInput(item: item)),
             defaultName: ResultsFormat.exportName(fileName: image.fileName),
             directory: ExportPanels.defaultFolder(for: item.url),
-            message: ResultsFormat.exportMessage(rows: rows.count, groups: groups))
+            message: ResultsFormat.exportMessage(rows: rows.count, groups: groups), methods: methods)
     }
 
     /// The window's selected item's: an export is of the file on screen, never of another open one.
