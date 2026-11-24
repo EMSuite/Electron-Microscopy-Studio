@@ -9,6 +9,7 @@
 //
 
 import Foundation
+import TEMCore
 import TEMSession
 
 extension AppState {
