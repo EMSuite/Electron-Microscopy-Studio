@@ -1,7 +1,8 @@
 //
 //  RoomPrimaryAction.swift
 //  Role: the toolbar's one verb for the room that has one (design 2026-10-22, §2.2): EDS has Quantify, EELS has Run (the stages that are not current,
-//        in order), Patterns has Process, Indexing has Index, Maps has Segment, Diffraction has Index (#783); the Image, FFT and Results rooms have none yet. The button and its glass styles are ShellLayout's
+//        in order), Patterns has Process, Indexing has Index, Maps has Segment, Diffraction has Index (#783), the Image room has Simulate for a
+//        frozen-phonon HRTEM image (#896); the FFT and Results rooms have none yet. The button and its glass styles are ShellLayout's
 //        `PrimaryActionButton`; what the verb is, when it is enabled and what it says while blocked is this file's. Workspace > Run (⌘R)
 //        runs the same verb from the menu, on exactly when the button can run it (`canRun`). A room without a verb shows Cancel in the
 //        verb's place while a run left going in another room is the toolbar's busy line (`BusyOperation.backgroundRoom`).
@@ -25,6 +26,7 @@ enum RoomProgress {
         case .eels: appState.eels.isComputing ? min(max(appState.eels.progress, 0), 1) : nil
         case .patterns: patternsFraction(appState.ebsd)
         case .indexing: appState.indexing.isIndexing ? min(max(appState.indexing.progress, 0), 1) : nil
+        case .image: appState.simulatingDocument?.multislice.thermalProgress.map(BusyOperation.simulationFraction)
         default: nil
         }
     }
@@ -127,6 +129,10 @@ enum RoomPrimaryAction {
                 operationName: BusyOperation.name(room: .maps, appState: appState),
                 stop: { session.stop() },
                 run: { session.segment() })
+        case .image:
+            // Simulate (#896): the frozen-phonon configurations of the selected HRTEM image's document; Stop keeps those done.
+            if let action = simulateAction(appState) { return action }
+            return backgroundCancel(appState)
         case .diffraction:
             // Index (#783): the kit finds the spots and the crystal's full orientation, off the main actor; Stop drops the answer.
             guard let item = appState.openItems.selected, let image = item.session.image else { return nil }
@@ -142,18 +148,45 @@ enum RoomPrimaryAction {
                 stop: { analysis.stop() },
                 run: { PendingEdits.run { analysis.index(image: image) } })
         default:
-            // A room without a verb keeps the Cancel of a run left going in another room, the one the toolbar's centre shows (ShellLayout's
-            // `PrimaryAction.title`: nil, "but a run may still be in flight and keep its Cancel"; mac4DSTEM's `isRunning: appState.isBusy`
-            // whatever the room). It is ⌘.'s Stop as a button. A room with a verb keeps its verb: rooms run side by side, the shown room's
-            // verb may start its own run, and ⌘. still reaches the other one.
-            guard let other = BusyOperation.backgroundRoom(appState), canStop(room: other, appState: appState) else { return nil }
-            return PrimaryAction(
-                title: nil,
-                isRunning: true,
-                operationName: BusyOperation.name(room: other, appState: appState).map { "\(other.title) · \($0)" } ?? other.title,
-                stop: { RoomPrimaryAction.stopActive(appState) },
-                run: {})
+            return backgroundCancel(appState)
         }
+    }
+
+    /// A room without a verb keeps the Cancel of a run left going in another room, the one the toolbar's centre shows (ShellLayout's
+    /// `PrimaryAction.title`: nil, "but a run may still be in flight and keep its Cancel"; mac4DSTEM's `isRunning: appState.isBusy`
+    /// whatever the room). It is ⌘.'s Stop as a button. A room with a verb keeps its verb: rooms run side by side, the shown room's
+    /// verb may start its own run, and ⌘. still reaches the other one.
+    @MainActor
+    private static func backgroundCancel(_ appState: AppState) -> PrimaryAction? {
+        guard let other = BusyOperation.backgroundRoom(appState), canStop(room: other, appState: appState) else { return nil }
+        return PrimaryAction(
+            title: nil,
+            isRunning: true,
+            operationName: BusyOperation.name(room: other, appState: appState).map { "\(other.title) · \($0)" } ?? other.title,
+            stop: { RoomPrimaryAction.stopActive(appState) },
+            run: {})
+    }
+
+    /// The Image room's Simulate, for a selected HRTEM image whose document has frozen phonons on (a static lattice is live and
+    /// has no verb): Continue when configurations are stored and more are asked for.
+    @MainActor
+    private static func simulateAction(_ appState: AppState) -> PrimaryAction? {
+        guard let item = appState.openItems.selected, let simulation = appState.simulationDocument(ofHRTEM: item) else { return nil }
+        let model = simulation.multislice
+        guard model.thermal != nil else { return nil }
+        let analysis = simulation.diffraction
+        let crystal = analysis.simulatedPhase, zoneAxis = analysis.simulation.zoneAxis
+        let resumes = model.canContinue(crystal: crystal, zoneAxis: zoneAxis)
+        let blocker = model.isSimulating ? nil : model.simulateBlocker(crystal: crystal, zoneAxis: zoneAxis)
+        return PrimaryAction(
+            title: resumes ? "Continue" : "Simulate",
+            isEnabled: blocker == nil,
+            help: blocker ?? (resumes ? "Run the configurations not yet averaged" : "Run the frozen-phonon configurations and average their images"),
+            hint: "Runs the frozen-phonon configurations one at a time and averages their images",
+            isRunning: model.isSimulating,
+            operationName: BusyOperation.name(room: .image, appState: appState),
+            stop: { model.stop() },
+            run: { Task { await appState.simulateHRTEM(of: simulation) } })
     }
 
     /// Workspace > Run (⌘R): the shown room's verb as its title ("Process", "Index"), "Run" in a room without one or with no window.
@@ -204,6 +237,7 @@ enum RoomPrimaryAction {
             }
         case .maps: appState.maps.stop()
         case .diffraction: appState.openItems.selected?.diffraction.stop()
+        case .image: appState.simulatingDocument?.multislice.stop()
         default: break
         }
     }
@@ -231,6 +265,7 @@ enum RoomPrimaryAction {
         case .indexing: appState.indexing.isBusy || appState.ebsd.isOpening
         case .maps: appState.maps.isOpening || appState.maps.isSegmenting || appState.maps.isTexturing
         case .diffraction: appState.openItems.selected.map { $0.diffraction.isFitting || $0.diffraction.isIndexing } ?? false
+        case .image: appState.simulatingDocument != nil
         default: false
         }
     }

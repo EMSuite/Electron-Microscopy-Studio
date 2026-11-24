@@ -42,6 +42,8 @@ package nonisolated enum SimulationSpecimen {
         package var unitAtoms: Int { slab.unit.structure.atoms.count }
         /// Atoms in the whole slab.
         package var slabAtoms: Int { slab.structure.atoms.count }
+        /// The whole slab's box, Å: the unit's, or the supercell's across the beam.
+        package var slabBox: SIMD3<Double> { slab.structure.box }
         /// Whole periods along the beam.
         package var periods: Int { slab.repeats.z }
         /// The thickness built, nm (whole periods).
@@ -94,12 +96,13 @@ package nonisolated enum SimulationSpecimen {
         return try CrystalCell(a: c.a, b: c.b, c: c.c, alpha: c.alphaDeg, beta: c.betaDeg, gamma: c.gammaDeg, sites: sites)
     }
 
-    /// Builds the slab of `structure` along `zoneAxis` at `thicknessNM` (whole periods, at least one), with at most `maximumStrain`.
+    /// Builds the slab of `structure` along `zoneAxis` at `thicknessNM` (whole periods, at least one), with at most `maximumStrain`;
+    /// one orthogonal unit across, or whole units to at least `lateralSize` Å in x and y (a frozen-phonon supercell).
     package static func build(_ structure: CrystalStructure, zoneAxis: SIMD3<Int>, thicknessNM: Double,
-                              maximumStrain: Double = defaultMaximumStrain) -> Result<Built, Refusal> {
+                              maximumStrain: Double = defaultMaximumStrain, lateralSize: SIMD2<Double>? = nil) -> Result<Built, Refusal> {
         do {
             let crystalCell = try cell(of: structure)
-            let slab = try SlabBuilder.slab(of: crystalCell, zoneAxis: zoneAxis, thickness: thicknessNM * 10,
+            let slab = try SlabBuilder.slab(of: crystalCell, zoneAxis: zoneAxis, lateralSize: lateralSize, thickness: thicknessNM * 10,
                                             sliceThickness: sliceThickness, maximumStrain: maximumStrain)
             let angle = try inPlaneAngle(slab.orientation, zoneAxis: zoneAxis, cell: structure.cell)
             return .success(Built(slab: slab, inPlaneAngle: angle))
