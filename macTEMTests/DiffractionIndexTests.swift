@@ -11,7 +11,6 @@
 //
 
 import XCTest
-import simd
 import DiffractoCore
 import DiffractoGeometry
 import DiffractoOrientation
@@ -109,7 +108,7 @@ nonisolated final class DiffractionIndexTests: XCTestCase {
         let strongest = try XCTUnwrap(try XCTUnwrap(a.simulatedSpots(image: image)).get().first)
         let g = try XCTUnwrap(SpotPatternSimulator(structure: al.structure, kMax: 2.5).pattern(orientation: best, volts: 200_000).spots
             .first { $0.hkl == strongest.hkl })
-        XCTAssertEqual(hypot(strongest.row - 256, strongest.column - 256), simd_length(g.position) / (Self.deltaQ * 1.02), accuracy: 1e-9)
+        XCTAssertEqual(hypot(strongest.row - 256, strongest.column - 256), hypot(g.position.x, g.position.y) / (Self.deltaQ * 1.02), accuracy: 1e-9)
         a.typedDeltaQ = Self.deltaQ
         XCTAssertFalse(a.indexIsStale, "the scale Index ran under again")
 
