@@ -149,6 +149,8 @@ final class AppState {
     /// Exports of this window being rendered and written right now (never more than one: a second is refused with a beep). Per window,
     /// so a write in one window never blocks an export in another (#625).
     @ObservationIgnored var exportsWriting = 0
+    /// A HyperSpy file being written from a cube (#819): File > Stop HyperSpy Export cancels it; nil while none is.
+    var hyperSpyWrite: Task<Void, any Error>?
     /// When each room with a busy line last became busy (`markBusy`): the start of the toolbar's busy clock (`RunClock`). Not
     /// observed: the clock ticks on its own.
     @ObservationIgnored var busySince: [WorkspaceArea: Date] = [:]

@@ -12,6 +12,7 @@ import FormatoHSPY
 import Foundation
 import ImagoCore
 import ShellExport
+import SpectroEELS
 import TEMCore
 import TEMSession
 import XCTest
@@ -119,4 +120,71 @@ nonisolated final class HyperSpyExportTests: XCTestCase {
         try await HyperSpyExportPanel.write(pattern, to: url, leaveOutFileNames: true, software: "test")
         XCTAssertEqual(try HSPYReader.readStored(url: url).title, ExportMethods.anonymousName(0))
     }
+
+    /// A float32 EELS cube is exspy's EELSSpectrum: y and x navigate, the energy loss in eV is the signal axis, the counts stay
+    /// float32 and the fraction written reaches 1. Mutation: the cube widened to float64, the navigation flags lost, or the
+    /// progress not reported - red.
+    func testAnEELSCubeIsWrittenAsEELSSpectrumWithProgress() async throws {
+        let values: [Float] = (0..<24).map { Float($0) * 1.5 }
+        let url = folder.appendingPathComponent("cube.hspy")
+        let axes = HyperSpyExport.CubeAxes(scanStep: 2, scanUnit: "nm", energyOffsetEV: -5, energyScaleEV: 0.25)
+        let options = try HyperSpyExport.options(title: "cube", software: "test", record: Self.record, beamEnergyKeV: 300)
+        let seen = Fractions()
+        try await HyperSpyExport.writeCube(EELSCounts(values), nx: 3, ny: 2, channels: 4, axes: axes, options: options, to: url) {
+            seen.add($0)
+        }
+        let read = try HSPYReader.readStored(url: url)
+        XCTAssertEqual(read.signalType, "EELS")
+        XCTAssertEqual(read.data.dataType, .float32)
+        XCTAssertEqual(read.data.shape, [2, 3, 4])
+        XCTAssertEqual(read.data.bytes, values.withUnsafeBytes { Data($0) })
+        XCTAssertEqual(read.axes.map(\.navigate), [true, true, false])
+        XCTAssertEqual(read.axes.map(\.units), ["nm", "nm", "eV"])
+        XCTAssertEqual(read.axes[2].offset, -5)
+        XCTAssertEqual(read.axes[2].scale, 0.25)
+        XCTAssertEqual(read.metadata[HyperSpyExport.beamEnergyKey]?.value, .number(300))
+        XCTAssertEqual(seen.values.last, 1)
+    }
+
+    /// Stop: a cancelled write throws FormatoCancelled and leaves no file. Mutation: the cancellation not reaching the writer - red.
+    func testAStoppedCubeLeavesNoFile() async throws {
+        let url = folder.appendingPathComponent("stopped.hspy")
+        let axes = HyperSpyExport.CubeAxes(scanStep: nil, scanUnit: nil, energyOffsetEV: 0, energyScaleEV: 1)
+        let options = try HyperSpyExport.options(title: "stopped", software: "test", record: nil, beamEnergyKeV: nil)
+        let task = Task { () async throws in
+            withUnsafeCurrentTask { $0?.cancel() }
+            try await HyperSpyExport.writeCube(EELSCounts([Double](repeating: 1, count: 8)), nx: 2, ny: 2, channels: 2, axes: axes,
+                                               options: options, to: url) { _ in }
+        }
+        let result = await task.result
+        guard case .failure(let error) = result else { return XCTFail("the write went through") }
+        XCTAssertTrue(error is FormatoCancelled, "\(error)")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: url.path))
+    }
+
+    /// The EELS room's item writes the demo spectrum image as EELSSpectrum with its record. Mutation: the room not offering it, or
+    /// the record not made for the cube - red.
+    @MainActor func testTheEELSRoomWritesItsSpectrumImage() async throws {
+        let state = AppState(launch: LaunchOptions(arguments: []))
+        _ = state.openDemo(.eels)
+        state.navigation.workspaceArea = .eels
+        XCTAssertTrue(HyperSpyExportPanel.isAvailable(in: state))
+        XCTAssertFalse(HyperSpyExportPanel.isAvailable(in: state, coreLoss: true), "the demo has no core loss")
+        let snapshot = try XCTUnwrap(try HyperSpyExportPanel.snapshot(of: state))
+        XCTAssertEqual(snapshot.kind, .eels)
+        let url = folder.appendingPathComponent("eels.hspy")
+        try await HyperSpyExportPanel.write(snapshot, to: url, leaveOutFileNames: false, software: "test")
+        let read = try HSPYReader.readStored(url: url)
+        XCTAssertEqual(read.signalType, "EELS")
+        guard case .text(let json)? = read.metadata[HyperSpyExport.recordKey]?.value else { return XCTFail("no record") }
+        XCTAssertEqual(try MethodsRecord.decode(json).room, "eels")
+    }
+}
+
+/// The fractions a write reported, from whichever thread it reported them on.
+nonisolated private final class Fractions: @unchecked Sendable {
+    private let lock = NSLock()
+    private var stored: [Double] = []
+    var values: [Double] { lock.withLock { stored } }
+    func add(_ value: Double) { lock.withLock { stored.append(value) } }
 }

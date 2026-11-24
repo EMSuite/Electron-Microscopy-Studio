@@ -1,8 +1,9 @@
 //
 //  HyperSpyExport.swift
-//  Role: File > Export as HyperSpy File… (#819, plan row X3): an image or a diffraction pattern as a HyperSpy file (.hspy, layout
+//  Role: File > Export as HyperSpy File… (#819, plan row X3): an image, a diffraction pattern or an EELS cube as a HyperSpy file (.hspy, layout
 //        3.3, FormatoKit's `HSPYWriter`) that `hs.load` opens as the class HyperSpy's own reader builds (pin H2: Signal2D for an
-//        image, pyxem's ElectronDiffraction2D for a pattern). The pixels keep their stored type (uint8, uint16 or float32), the
+//        image, pyxem's ElectronDiffraction2D for a pattern, exspy's EELSSpectrum for a cube, written a band of rows at a time with
+//        progress and Stop). The pixels keep their stored type (uint8, uint16 or float32), the
 //        axes their calibration, and the file's metadata tree carries the methods record (`recordKey`, the record's JSON) and the
 //        beam energy where the file states one. The file is built in the system's scratch folder and moved onto the destination
 //        when whole, so a failed or refused write leaves the destination as it was.
@@ -16,6 +17,7 @@ import FormatoHSPY
 import Foundation
 import ImagoCore
 import ShellExport
+import SpectroEELS
 
 package nonisolated enum HyperSpyExport {
     /// The methods record's key in the file's metadata tree: `s.metadata.Processing.methods_record`, the record's JSON.
@@ -24,6 +26,8 @@ package nonisolated enum HyperSpyExport {
     package static let beamEnergyKey = "Acquisition_instrument.TEM.beam_energy"
     /// Room for the file's structure (groups, attributes, the metadata tree) beside its data.
     static let structureBytes = 1 << 20
+    /// About this many bytes a band of a cube: the unit between two progress reports and cancellation checks.
+    static let slabBytes = 16 << 20
 
     /// A refusal before anything is written.
     package enum Refusal: Error, Equatable, LocalizedError {
@@ -110,6 +114,69 @@ package nonisolated enum HyperSpyExport {
     @concurrent package static func write(_ signal: FormatoSignal, kind: HSPYSignalKind, options: HSPYWriteOptions, to url: URL) async throws {
         try checkSpace(for: Int64(signal.data.bytes.count + structureBytes), at: url)
         try HSPYWriter.write(signal, kind: kind, options: options, to: url)
+    }
+
+    // MARK: - A cube
+
+    /// An EELS spectrum image's axes: the scan's y and x (navigation, in the file's scan unit or pixels) and the energy loss.
+    package struct CubeAxes: Sendable, Equatable {
+        package var scanStep: Double?
+        package var scanUnit: String?
+        package var energyOffsetEV: Double
+        package var energyScaleEV: Double
+
+        package init(scanStep: Double?, scanUnit: String?, energyOffsetEV: Double, energyScaleEV: Double) {
+            self.scanStep = scanStep
+            self.scanUnit = scanUnit
+            self.energyOffsetEV = energyOffsetEV
+            self.energyScaleEV = energyScaleEV
+        }
+
+        /// In array order (y, x, energy), as exspy's EELSSpectrum holds a map.
+        func formatoAxes(nx: Int, ny: Int, channels: Int) -> [FormatoAxis] {
+            let step = scanStep ?? 1, unit = scanStep == nil ? "" : scanUnit ?? ""
+            return [FormatoAxis(name: "y", size: ny, scale: step, offset: 0, units: unit, navigate: true),
+                    FormatoAxis(name: "x", size: nx, scale: step, offset: 0, units: unit, navigate: true),
+                    FormatoAxis(name: "Energy loss", size: channels, scale: energyScaleEV, offset: energyOffsetEV, units: "eV", navigate: false)]
+        }
+    }
+
+    /// The EELS-specific metadata exspy reads: the convergence and collection semi-angles in mrad.
+    package static let convergenceKey = "Acquisition_instrument.TEM.convergence_angle"
+    package static let collectionKey = "Acquisition_instrument.TEM.Detector.EELS.collection_angle"
+
+    /// Writes an EELS cube (`counts[(y * nx + x) * channels + c]`) as exspy's EELSSpectrum, a band of scan rows at a time from the
+    /// counts where they lie (a float32 cube stays float32), reporting the fraction written and stopping when the task is
+    /// cancelled (the file is then removed and the destination left as it was).
+    @concurrent package static func writeCube(_ counts: EELSCounts, nx: Int, ny: Int, channels: Int, axes: CubeAxes, options: HSPYWriteOptions,
+                                              to url: URL, progress: @escaping @Sendable (Double) -> Void) async throws {
+        let size = counts.precision.bytes
+        try checkSpace(for: Int64(counts.count * size + structureBytes), at: url)
+        let writer = try HSPYWriter.open(shape: [ny, nx, channels], dataType: size == 4 ? .float32 : .float64,
+                                         axes: axes.formatoAxes(nx: nx, ny: ny, channels: channels), kind: .eels, options: options, to: url)
+        do {
+            let rowBytes = nx * channels * size
+            let rowsPerSlab = max(1, slabBytes / max(1, rowBytes))
+            func bands(_ all: UnsafeRawBufferPointer) throws {
+                var row = 0
+                while row < ny {
+                    let rows = min(rowsPerSlab, ny - row)
+                    let slab = UnsafeRawBufferPointer(rebasing: all[(row * rowBytes)..<((row + rows) * rowBytes)])
+                    try writer.write(bytes: slab, count: [rows, nx, channels], at: [row, 0, 0])
+                    row += rows
+                    progress(Double(row) / Double(ny))
+                }
+            }
+            if let singles = counts.singles {
+                try singles.withUnsafeBytes { try bands($0) }
+            } else {
+                try counts.withDoubles { try bands(UnsafeRawBufferPointer($0)) }
+            }
+            try writer.publish()
+        } catch {
+            writer.cancel()
+            throw error
+        }
     }
 
     /// Refuses a write the destination's volume has no room for; a volume that does not say how much it has is not refused.
