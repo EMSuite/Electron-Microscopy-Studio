@@ -158,7 +158,7 @@ nonisolated final class EELSExportInfoTests: XCTestCase {
             let record = try XCTUnwrap(ExportMethods.record(inText: text), "the spectrum CSV carries its methods record")
             XCTAssertEqual(record.room, "eels")
             XCTAssertEqual(record.exportKind, "eels-spectrum")
-            XCTAssertEqual(record.sources.first?.kind, "EELS spectrum image")
+            XCTAssertTrue(record.sources.first?.kind.hasPrefix("EELS spectrum image") == true, record.sources.first?.kind ?? "")
             XCTAssertEqual(Data(text.split(separator: "\n", omittingEmptySubsequences: false).filter { !$0.hasPrefix(ExportMethods.textPrefix) }
                 .joined(separator: "\n").utf8), bytes, name)
         }
@@ -293,5 +293,25 @@ nonisolated final class EELSExportInfoTests: XCTestCase {
         guard let dir = ProcessInfo.processInfo.environment["MACEM_SHOT_DIR"] else { return }
         let data = try XCTUnwrap(rep.representation(using: .png, properties: [:]))
         try data.write(to: URL(fileURLWithPath: dir).appendingPathComponent("macTEM-98-export-info.png"))
+    }
+
+    /// The record's settings keep their types and units (#817 review): counts per eV is not eV, a switch is a flag, a list of
+    /// elements stays a list, and a text where an energy could stand has no unit. Mutation: "_eV" tested before "_per_eV", or a
+    /// flag written as "yes" - red.
+    func testTheEELSRecordKeepsEachSettingsTypeAndUnit() throws {
+        let json = #"{"method":"log-ratio","estimated_tolerance_counts_per_eV":2.5,"mean_free_path_nm":105,"angular_correction":true,"#
+            + #""zero_loss":"fitted","edge_fit":{"model":"power law","fit_to_eV":"axis end","window_eV":[280,320],"elements":["C","N"]}}"#
+        let source = MethodsRecord.Source(fileName: "a.dm4", byteCount: 1, fingerprint: String(repeating: "0", count: 64), kind: "EELS spectrum image",
+                                          shape: [1, 1, 1])
+        let record = ExportMethods.eelsRecord(app: MethodsRecord.Software(name: "test", version: "0"), exportKind: "eels-results",
+                                              source: source, methodJSON: json)
+        let settings = Dictionary(uniqueKeysWithValues: record.steps.flatMap(\.settings).map { ($0.name, $0) })
+        XCTAssertEqual(settings["estimated_tolerance_counts_per_eV"]?.units, "counts/eV")
+        XCTAssertEqual(settings["mean_free_path_nm"]?.units, "nm")
+        XCTAssertEqual(settings["angular_correction"]?.value, .flag(true))
+        XCTAssertEqual(settings["fit_to_eV"]?.value, .text("axis end"))
+        XCTAssertNil(settings["fit_to_eV"]?.units)
+        XCTAssertEqual(settings["window_eV"]?.units, "eV")
+        XCTAssertEqual(settings["elements"]?.value, .texts(["C", "N"]))
     }
 }

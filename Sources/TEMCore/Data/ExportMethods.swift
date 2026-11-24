@@ -233,28 +233,30 @@ package nonisolated enum ExportMethods {
                              drawn: drawn, citations: citations)
     }
 
-    /// A JSON object's plain values as quantities, by key: a number as a number, a text or a list of plain values as text; a nested
-    /// object is left out. A key ending "_nm" or "_eV" states its unit.
+    /// A JSON object's plain values as quantities, by key: a number as a number, a boolean as a flag, a text as text, a list of texts
+    /// as texts and a list of numbers as one text; a nested object is left out. A number's key states its unit: "_per_eV" counts per
+    /// eV, "_eV" eV, "_nm" nm. A text has none ("axis end" where an energy could stand).
     static func quantities(_ object: [String: Any]) -> [MethodsRecord.Quantity] {
-        func text(_ value: Any) -> String? {
-            switch value {
-            case let number as NSNumber where CFGetTypeID(number) == CFBooleanGetTypeID(): number.boolValue ? "yes" : "no"
-            case let number as NSNumber: "\(number.doubleValue)"
-            case let string as String: string
-            default: nil
-            }
+        func isFlag(_ number: NSNumber) -> Bool { CFGetTypeID(number) == CFBooleanGetTypeID() }
+        func units(_ key: String) -> String? {
+            key.hasSuffix("_per_eV") ? "counts/eV" : key.hasSuffix("_eV") ? "eV" : key.hasSuffix("_nm") ? "nm" : nil
         }
-        return object.keys.sorted().compactMap { key in
-            let value = object[key] as Any
-            let units = key.hasSuffix("_nm") ? "nm" : key.hasSuffix("_eV") ? "eV" : nil
-            if let number = value as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID(), number.doubleValue.isFinite {
-                return MethodsRecord.Quantity(name: key, value: .number(number.doubleValue), units: units)
+        return object.sorted { $0.key < $1.key }.compactMap { key, value in
+            switch value {
+            case let number as NSNumber where isFlag(number):
+                return MethodsRecord.Quantity(name: key, value: .flag(number.boolValue))
+            case let number as NSNumber where number.doubleValue.isFinite:
+                return MethodsRecord.Quantity(name: key, value: .number(number.doubleValue), units: units(key))
+            case let text as String:
+                return MethodsRecord.Quantity(name: key, value: .text(text))
+            case let texts as [String]:
+                return MethodsRecord.Quantity(name: key, value: .texts(texts))
+            case let numbers as [NSNumber] where numbers.allSatisfy({ !isFlag($0) && $0.doubleValue.isFinite }):
+                return MethodsRecord.Quantity(name: key, value: .text(numbers.map { "\($0.doubleValue)" }.joined(separator: ", ")),
+                                              units: units(key))
+            default:
+                return nil
             }
-            if let list = value as? [Any] {
-                let words = list.compactMap(text)
-                return words.count == list.count ? MethodsRecord.Quantity(name: key, value: .text(words.joined(separator: ", ")), units: units) : nil
-            }
-            return text(value).map { MethodsRecord.Quantity(name: key, value: .text($0), units: units) }
         }
     }
 
@@ -308,14 +310,11 @@ package nonisolated enum ExportMethods {
         return (hasher.finalize().map { String(format: "%02x", $0) }.joined(), count)
     }
 
-    /// The SHA-256 of counts held in memory (each a little-endian float64, in order): a spectrum image's fingerprint when its file
-    /// is no longer open to read, as the Image room's is of its pixels.
-    package static func fingerprint(ofCounts counts: [Double]) -> String {
+    /// The SHA-256 of bytes held in memory, hashed in place: a spectrum image's stored counts when its file cannot be read again.
+    /// The build is arm64 only, so the bytes are already little-endian.
+    package static func fingerprint(ofBytes bytes: UnsafeRawBufferPointer) -> String {
         var hasher = SHA256()
-        counts.withUnsafeBufferPointer { buffer in
-            let little = buffer.map(\.bitPattern.littleEndian)
-            little.withUnsafeBytes { hasher.update(bufferPointer: $0) }
-        }
+        hasher.update(bufferPointer: bytes)
         return hasher.finalize().map { String(format: "%02x", $0) }.joined()
     }
 

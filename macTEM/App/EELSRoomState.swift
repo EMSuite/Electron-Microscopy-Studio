@@ -12,6 +12,7 @@ import ShellSpectroscopy
 import TEMCore
 import TEMSession
 import ShellEDXModel
+import ShellExport
 
 @Observable
 final class EELSRoomState {
@@ -52,6 +53,11 @@ final class EELSRoomState {
     var spectrumYZoom = 1.0
     /// The export whose save panel is up.
     var exporting: EELSExportKind?
+    /// An export being made (its record's fingerprint can take a second on a large file): a second click waits for it.
+    private(set) var isMakingExport = false
+    /// The spectrum image's source as its records name it, kept for the file it was worked out for, so the next export does not
+    /// hash the file again; a fingerprint of the counts held is never kept, since Align replaces the cube.
+    @ObservationIgnored private var keptSource: (filePath: String, source: MethodsRecord.Source)?
     /// The bytes of the export in flight (made before the panel opens, as the EDS room's).
     private(set) var exportData = Data()
     /// What the maps export draws besides the pictures: the scale bar (when the file states a pixel size) and the selected region.
@@ -77,12 +83,28 @@ final class EELSRoomState {
                 .flatMap { EDXMapsFigure.png($0) }
         }
         guard let made else { report("Nothing to export yet for \(kind.title.dropLast())."); return }
+        guard !isMakingExport else { return }
         let ext = kind.contentType.preferredFilenameExtension ?? "txt"
+        // Taken before the wait: another file opened meanwhile drops this export rather than naming its bytes after the new file.
+        let fileName = session.fileName, loaded = session.source, methodJSON = session.methodJSON
+        var data = made
         // The bytes with their methods record inside (#817).
-        let data = await ExportSnapshot.eelsExport(made, exportKind: "eels-" + kind.rawValue, fileExtension: ext, source: session.source,
-                                                   methodJSON: session.methodJSON)
+        if let loaded, ExportSnapshot.eelsExportCarriesRecord(fileExtension: ext) {
+            isMakingExport = true
+            defer { isMakingExport = false }
+            let source: MethodsRecord.Source
+            if let kept = keptSource, kept.filePath == loaded.filePath, !kept.filePath.isEmpty {
+                source = kept.source
+            } else {
+                source = await ExportSnapshot.eelsSource(loaded)
+                if !source.kind.contains("as held") { keptSource = (loaded.filePath, source) }
+            }
+            data = await ExportSnapshot.eelsExport(made, exportKind: "eels-" + kind.rawValue, fileExtension: ext, source: source,
+                                                   methodJSON: methodJSON)
+            guard session.source?.filePath == loaded.filePath, session.fileName == fileName else { return }
+        }
         if let directory {
-            let name = (session.fileName as NSString).deletingPathExtension + kind.suffix + "." + ext
+            let name = (fileName as NSString).deletingPathExtension + kind.suffix + "." + ext
             do {
                 let url = try ExportDirectoryFile.write(data, named: name, into: directory)
                 report("Exported \(url.lastPathComponent)")
