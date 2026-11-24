@@ -287,11 +287,11 @@ extension MacTEMAgentDoor {
                                                       spectrum: analysis.spectrum, inverse: analysis.maskedInverse, filtered: analysis.filtered) else {
                     return .refusal(status: 404, message: "The \(analysis.sourceView.rawValue) view has nothing to show yet; get_fft says what is computing.")
                 }
-                let shown = layer.canvas
-                let picture = CalibratedImage(width: shown.width, height: shown.height, pixels: shown.normalized, x: image.x, y: image.y,
+                let shown = layer.canvas, values = shown.normalized   // one Float copy for the picture and its display (#928)
+                let picture = CalibratedImage(width: shown.width, height: shown.height, pixels: values, x: image.x, y: image.y,
                                               fileName: image.fileName, source: "FFT room source pane, \(analysis.sourceView.rawValue)",
                                               voltage: image.voltage, notes: [])
-                let display = ImageExport.Display(normalized: shown.normalized, width: shown.width, height: shown.height,
+                let display = ImageExport.Display(normalized: values, width: shown.width, height: shown.height,
                                                   low: layer.window.low, high: layer.window.high, gamma: Double(layer.gamma),
                                                   lut: Colormaps.lutRGBA(layer.colormap), colormap: layer.colormap.rawValue,
                                                   rawRange: shown.rawRange)

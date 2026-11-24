@@ -667,12 +667,13 @@ package final class FFTAnalysis {
         findRun?.cancel()
         guard isSpectrumCurrent, let product = spectrum else { findRun = nil; isFindingSpots = false; return Task {} }
         let settings = spotFinder, key = product.key
-        let values = product.canvas.normalized, width = product.width, height = product.height
+        // The canvas holds native levels (#685): its Float copy is made off the main actor with the finder (#928).
+        let canvas = product.canvas, width = product.width, height = product.height
         isFindingSpots = true
         let run = Task { [weak self] in
             let found: Result<[FFTSpotFinder.Found], any Error> = await offMainActor {
                 let interval = Signposts.begin("fft.find"); defer { Signposts.end(interval) }
-                return Result { try FFTSpotFinder.find(values: values, width: width, height: height, settings: settings) }
+                return Result { try FFTSpotFinder.find(values: canvas.normalized, width: width, height: height, settings: settings) }
             }
             guard let self, !Task.isCancelled else { return }
             isFindingSpots = false
