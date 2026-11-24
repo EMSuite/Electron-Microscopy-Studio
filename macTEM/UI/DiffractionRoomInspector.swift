@@ -38,6 +38,7 @@ struct DiffractionRoomSettings: View {
 }
 
 private let pixelFormat = FloatingPointFormatStyle<Double>.number.precision(.fractionLength(0...2))
+private let excitationFormat = FloatingPointFormatStyle<Double>.number.precision(.fractionLength(0...4))
 private let qFormat = FloatingPointFormatStyle<Double>.number.precision(.fractionLength(0...6))
 
 private struct DiffractionCentreSection: View {
@@ -252,6 +253,17 @@ private struct DiffractionSimulationSection: View {
                     .help("Each simulated spot's hkl beside it (the 60 strongest)")
                     .accessibilityIdentifier("diffraction.simulation.labels")
             }
+            InspectorRow("Double diffraction") {
+                Toggle("Show double diffraction", isOn: Binding(get: { analysis.simulation.doubleDiffraction }, set: { analysis.simulation.doubleDiffraction = $0 }))
+                    .toggleStyle(.switch).labelsHidden()
+                    .help("Also draws, as dashed rings, the spots a twice-diffracted beam adds (g₁ + g₂) where the crystal forbids a reflection, such as 002 in silicon down [1 1 0]")
+                    .accessibilityIdentifier("diffraction.simulation.doubleDiffraction")
+            }
+            InspectorRow("Excitation error") {
+                OptionalNumericField(title: "Excitation error", value: settings.excitationError, format: excitationFormat, unit: "Å⁻¹") { analysis.setExcitationError($0) }
+                    .help("σ of the excitation envelope; spots whose excitation error is up to three times this are kept (0.02 Å⁻¹ by default, as py4DSTEM; 0.001 to 1)")
+                    .accessibilityIdentifier("diffraction.simulation.excitationError")
+            }
             if let line = DiffractionSimulationText.summary(simulated, crystal: analysis.crystal.name, zoneAxis: settings.zoneAxis) {
                 switch simulated {
                 case .failure?: InspectorWarning(line)
@@ -282,7 +294,8 @@ nonisolated enum DiffractionSimulationText {
     static func summary(_ result: DiffractionAnalysis.SimulatedSpots?, crystal: String, zoneAxis: SIMD3<Int>) -> String? {
         switch result {
         case nil: nil
-        case .success(let spots)?: "\(crystal) \(ZoneAxisText.text(zoneAxis)): \(UnitDisplay.count(spots.count, "spot", "spots")) on the pattern."
+        case .success(let spots)?: "\(crystal) \(ZoneAxisText.text(zoneAxis)): \(UnitDisplay.count(spots.count, "spot", "spots")) on the pattern"
+            + doubleDiffraction(spots, of: " of them") + "."
         case .failure(let absence)?: absence.sentence + "."
         }
     }
@@ -290,7 +303,13 @@ nonisolated enum DiffractionSimulationText {
     /// What VoiceOver adds to the pattern's value: ", 24 simulated spots of [0 1 1]"; nothing while the overlay is off or has none.
     static func spoken(_ result: DiffractionAnalysis.SimulatedSpots?, zoneAxis: SIMD3<Int>) -> String {
         guard case .success(let spots)? = result else { return "" }
-        return ", \(UnitDisplay.count(spots.count, "simulated spot", "simulated spots")) of \(ZoneAxisText.text(zoneAxis))"
+        return ", \(UnitDisplay.count(spots.count, "simulated spot", "simulated spots")) of \(ZoneAxisText.text(zoneAxis))" + doubleDiffraction(spots, of: "")
+    }
+
+    /// ", 4 of them by double diffraction"; nothing when none is.
+    static func doubleDiffraction(_ spots: [ZoneAxisOverlay.Spot], of: String) -> String {
+        let n = spots.filter(\.isDoubleDiffraction).count
+        return n == 0 ? "" : ", \(n)\(of) by double diffraction"
     }
 }
 
@@ -370,7 +389,7 @@ private struct DiffractionExportSection: View {
     }
 
     private func export() {
-        let text = analysis.exportText(image: image)
+        let text = ExportSnapshot.diffractionCSV(analysis, image: image, openItems: appState.openItems)
         if let directory = appState.exportDirectory {
             do {
                 let url = try DiffractionReadoutExport.write(text, imageFileName: image.fileName, into: directory)

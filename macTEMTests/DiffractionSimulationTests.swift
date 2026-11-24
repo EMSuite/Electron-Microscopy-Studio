@@ -144,4 +144,57 @@ nonisolated final class DiffractionSimulationTests: XCTestCase {
                        "Au [0 0 1]: \(count) spots on the pattern.")
         XCTAssertEqual(DiffractionSimulationText.spoken(result, zoneAxis: SIMD3(0, 0, 1)), ", \(count) simulated spots of [0 0 1]")
     }
+
+    // MARK: Double diffraction and the excitation error (#786)
+
+    /// Silicon down [1 1 0] forbids 002 (diamond: h + k + l = 4n + 2 with all even), yet 1̄11 + 11̄1 lands there: the overlay draws it
+    /// only with Double diffraction on, as a spot of no intensity at |q| = 2 / 5.4309 Å⁻¹, 36.8263 px out at Δq 0.01. Red before #786:
+    /// the settings had no such switch and the overlay drew only the kinematical spots.
+    @MainActor func testDoubleDiffractionAddsSilicons002DownOneOneZero() throws {
+        let image = blankPattern()
+        let analysis = shown(image, zone: SIMD3(1, 1, 0))
+        analysis.setCrystal(.preset(try XCTUnwrap(StandardCrystals.named("Si"))))
+        let forbidden: Set<MillerIndex> = [MillerIndex(0, 0, 2), MillerIndex(0, 0, -2)]
+        let kinematical = try spots(analysis, image)
+        XCTAssertFalse(kinematical.contains { forbidden.contains($0.hkl) }, "002 is forbidden in silicon")
+        XCTAssertFalse(kinematical.contains(where: \.isDoubleDiffraction))
+        XCTAssertFalse(analysis.simulation.doubleDiffraction, "off by default")
+
+        analysis.simulation.doubleDiffraction = true
+        let both = try spots(analysis, image)
+        let added = both.filter(\.isDoubleDiffraction)
+        XCTAssertEqual(Set(added.map(\.hkl)).intersection(forbidden), forbidden, "both 002 and 002̄ are added")
+        for s in added {
+            XCTAssertEqual(s.relative, 0); XCTAssertEqual(s.intensity, 0)
+            XCTAssertFalse(kinematical.contains { $0.hkl == s.hkl }, "\(s.hkl) is a kinematical spot too")
+            XCTAssertEqual(s.hkl.h + s.hkl.k, 0, "\(s.hkl) is not in [1 1 0]")
+        }
+        let s002 = try XCTUnwrap(added.first { $0.hkl == MillerIndex(0, 0, 2) })
+        XCTAssertEqual(hypot(s002.row - 128, s002.column - 128), 2 / 5.4309 / 0.01, accuracy: 1e-6)
+        XCTAssertEqual(Array(both.prefix(kinematical.count)).map(\.hkl), kinematical.map(\.hkl), "the kinematical spots come first, as before")
+
+        let result = analysis.simulatedSpots(image: image)
+        XCTAssertEqual(DiffractionSimulationText.summary(result, crystal: "Si", zoneAxis: SIMD3(1, 1, 0)),
+                       "Si [1 1 0]: \(both.count) spots on the pattern, \(added.count) of them by double diffraction.")
+        XCTAssertEqual(DiffractionSimulationText.spoken(result, zoneAxis: SIMD3(1, 1, 0)),
+                       ", \(both.count) simulated spots of [1 1 0], \(added.count) by double diffraction")
+    }
+
+    /// The excitation error is σ of the kit's envelope, 0.02 Å⁻¹ by default (py4DSTEM's), and spots with |s| ≤ 3σ are kept: down
+    /// [0 0 1] at the exact zone |s| = λg²/2 (λ 0.02508 Å at 200 kV), so σ = 0.002 Å⁻¹ keeps |s| ≤ 0.006: {2 0 0} of Au (|s| 0.00302) is
+    /// kept, {2 2 0} (0.00603) is not. A value outside 0.001...1 is not taken.
+    @MainActor func testTheExcitationErrorSetsWhichSpotsAreKept() throws {
+        XCTAssertEqual(ZoneAxisOverlay.Settings().excitationError, 0.02)
+        let image = blankPattern()
+        let analysis = shown(image)
+        let wide = try spots(analysis, image)
+        XCTAssertTrue(wide.contains { $0.hkl == MillerIndex(2, 2, 0) })
+        XCTAssertTrue(analysis.setExcitationError(0.002))
+        let narrow = try spots(analysis, image)
+        XCTAssertLessThan(narrow.count, wide.count, "a narrower window keeps fewer spots")
+        XCTAssertTrue(narrow.contains { $0.hkl == MillerIndex(2, 0, 0) })
+        XCTAssertFalse(narrow.contains { $0.hkl == MillerIndex(2, 2, 0) })
+        for bad: Double in [0, -0.02, 0.0005, 2, .nan, .infinity] { XCTAssertFalse(analysis.setExcitationError(bad), "\(bad)") }
+        XCTAssertEqual(analysis.simulation.excitationError, 0.002, "a refused value leaves the last one")
+    }
 }

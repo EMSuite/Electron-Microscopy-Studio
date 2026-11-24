@@ -73,8 +73,8 @@ nonisolated final class EDXJourney: Journey {
         }
     }
 
-    /// Regions are compared: two rectangles and a line (the launch draws them with the room's own calls, `--demo-regions`; a drag with real mouse events is checked
-    /// by hand, because XCUITest's synthesized drag does not reach SwiftUI's DragGesture). Since 1.0 there is no Regions list in the inspector: the Results area has a
+    /// Regions are compared: two rectangles and a line (the launch draws them with the room's own calls, `--demo-regions`; EDXRegionDragJourney draws one by dragging,
+    /// #634). Since 1.0 there is no Regions list in the inspector: the Results area has a
     /// Regions table with a row for each region and its pixel count (planted: 4 x 4 = 16 and 8 x 8 = 64 of the 16 x 16 scan) and, the pixels all alike, a net count
     /// that scales with the pixels (64/16 = 4, within 30 %: the demo's Mg varies across the scan, the right region holds brighter pixels); a line is not a row; the
     /// profile along the line (selected when drawn) is the inset over the spectrum.
