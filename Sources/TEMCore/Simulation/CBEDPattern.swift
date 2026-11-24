@@ -267,7 +267,9 @@ package nonisolated enum CBEDRun {
         let probe = try Probe(beam: beam, grid: potential.grid, aperture: Aperture(semiangleCutoff: semiangleMrad))
             .build(at: plan.box / 2)
         let onMetal = !reference && Multislice.metalIsAvailable
-        let report: SimulationProgressHandler? = progress.map { handler in { handler($0.fraction) } }
+        let report: SimulationProgressHandler? = progress.map { handler -> SimulationProgressHandler in
+            { (step: SimulationProgress) in handler(step.fraction) }
+        }
         let waves = try Multislice.run(probe, through: potential, exitPlanes: .afterSlices(plan.planePeriods.map { $0 * perPeriod - 1 }),
                                        backend: onMetal ? .metal : .cpu, progress: report)
         var patterns: [[Float]] = []
