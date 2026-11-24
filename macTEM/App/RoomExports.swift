@@ -292,8 +292,8 @@ enum RoomExports {
         return Task {
             switch kind {
             case .map: await room.exportMap(from: appState.maps, directory: appState.exportDirectory) { appState.statusText = $0 }
-            case .grains: room.exportGrains(from: appState.maps, directory: appState.exportDirectory) { appState.statusText = $0 }
-            case .histogram: room.exportHistogram(from: appState.maps, directory: appState.exportDirectory) { appState.statusText = $0 }
+            case .grains: await room.exportGrains(from: appState.maps, directory: appState.exportDirectory) { appState.statusText = $0 }
+            case .histogram: await room.exportHistogram(from: appState.maps, directory: appState.exportDirectory) { appState.statusText = $0 }
             case .texture: await room.exportTexture(from: appState.maps, directory: appState.exportDirectory) { appState.statusText = $0 }
             }
         }
