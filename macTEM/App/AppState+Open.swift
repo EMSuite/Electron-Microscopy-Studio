@@ -163,6 +163,7 @@ extension AppState {
             // Not awaited: the probe's run can take minutes, and the Open (its status line, Recents, the door's folder tool) ends
             // when the files are in. The pattern lands when its run does.
             landCBED(made)
+            landSTEM(made)
             let closed = made.filter { openItems.item($0.id) == nil }.map { $0.url }
             var opened: String?
             if let image = imageSession.image {
@@ -445,7 +446,7 @@ extension AppState {
         if DemoDocuments.isDemo(request.url) {
             let name = request.url.lastPathComponent
             let image = DemoDocuments.isSimulation(request.url) ? DemoDocuments.simulationCanvas(name: name)
-                : DemoDocuments.isHRTEM(request.url) ? DemoDocuments.hrtemPlaceholder(name: name)
+                : DemoDocuments.isHRTEM(request.url) || DemoDocuments.isSTEM(request.url) ? DemoDocuments.hrtemPlaceholder(name: name)
                 : DemoDocuments.isCBED(request.url) ? DemoDocuments.cbedPlaceholder(name: name)
                 : request.url == DemoDocuments.patternURL ? DemoDocuments.diffractionPattern() : DemoDocuments.lattice()
             let canvas = canvas(for: image)
