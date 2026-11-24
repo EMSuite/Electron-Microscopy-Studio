@@ -377,7 +377,7 @@ private struct DiffractionToolsSection: View {
                             selection: Binding(get: { view.tool }, set: { view.tool = $0 }))
                 .accessibilityIdentifier("diffraction.tool")
             if view.tool == .tilt {
-                InspectorNote("Drag the pattern to tilt the simulated spots, 0.05° per point; ⌥ drag turns them about the beam.")
+                InspectorNote("Drag the pattern to tilt the simulated spots, 0.05° per point; ⌥ drag turns them about the beam. ⌥ and an arrow tilt 0.1°, ⌥⇧ 1°.")
             }
         }
     }

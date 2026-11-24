@@ -48,6 +48,8 @@ nonisolated final class DiffractionSimulationTests: XCTestCase {
             ("1 1\u{0304} 2", SIMD3(1, -1, 2)), ("<1 1 1>", SIMD3(1, 1, 1)), ("2 1 10", SIMD3(2, 1, 10)), ("[1 2 3]", SIMD3(1, 2, 3)),
             ("0 0 0", nil), ("000", nil), ("12", nil), ("1 1", nil), ("1 1 0 0", nil), ("abc", nil), ("", nil), ("1 a 0", nil),
             ("0\u{0304}01", nil), ("--110", nil), ("11-", nil), ("1 1 100", nil),
+            // The largest and smallest Int are refused like any index past 99, never a trap (#933).
+            ("-9223372036854775808 1 0", nil), ("1 9223372036854775807 0", nil), ("1 1 -100", nil), ("-99 99 0", SIMD3(-99, 99, 0)),
         ]
         for (text, uvw) in cases { XCTAssertEqual(ZoneAxisText.parse(text), uvw, "\"\(text)\"") }
         XCTAssertEqual(ZoneAxisText.text(SIMD3(-1, 1, 0)), "[-1 1 0]")
@@ -82,6 +84,20 @@ nonisolated final class DiffractionSimulationTests: XCTestCase {
         XCTAssertTrue(zip(all, all.dropFirst()).allSatisfy { $0.intensity >= $1.intensity })
         // Every spot lands on the image.
         XCTAssertTrue(all.allSatisfy { $0.row >= -0.5 && $0.row <= 255.5 && $0.column >= -0.5 && $0.column <= 255.5 })
+    }
+
+    /// The Tilt tool's keyboard twin (#787): `tilt(down:across:)` tilts the drawn orientation as a drag of that many degrees would,
+    /// set by hand; two opposite steps come back to the zone axis. Red before: only a drag could tilt.
+    @MainActor func testATiltOfOneDegreeLeavesTheZoneAxisByOneDegree() throws {
+        let analysis = shown(blankPattern())
+        let cell = analysis.crystal.structure.cell
+        XCTAssertTrue(analysis.tilt(down: 1, across: 0))
+        XCTAssertTrue(analysis.isTurnedByHand)
+        let near = try XCTUnwrap(analysis.drawnOrientation?.nearestZoneAxis(cell: cell))
+        XCTAssertEqual(near.uvw, SIMD3(0, 0, 1))
+        XCTAssertEqual(near.angle * 180 / .pi, 1, accuracy: 1e-6)
+        XCTAssertTrue(analysis.tilt(down: -1, across: 0))
+        XCTAssertEqual(try XCTUnwrap(analysis.drawnOrientation?.nearestZoneAxis(cell: cell)).angle * 180 / .pi, 0, accuracy: 1e-6)
     }
 
     /// The overlay is drawn again on every change: a turn, another zone axis, another crystal and another centre each give the spots
