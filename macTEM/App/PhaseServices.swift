@@ -1,13 +1,26 @@
 //
 //  PhaseServices.swift
-//  Role: the app's one Materials Project client and key store (#778). Settings > Materials Project and the Add Phase sheet
-//        share them, so a saved key, the client's pacing and its day of cached searches hold across every window. The key
-//        store is EMSuiteUI's `KeychainAPIKeyStore`, the same item in the App Store build and the website download.
+//  Role: the app's one Materials Project client, key store and phase library (#778, #779). Settings > Materials Project, the Add
+//        Phase sheet and the Diffraction room's Phases section share them, so a saved key, the client's pacing and its day of
+//        cached searches, and every added phase hold across every window. The key store is EMSuiteUI's `KeychainAPIKeyStore`,
+//        the same item in the App Store build and the website download. The library is a folder per phase in Application
+//        Support, read once per launch: a phase added once works offline.
 //
 
+import Foundation
 import ShellPhaseLibrary
 
 enum PhaseServices {
     static let keyStore: any APIKeyStore = KeychainAPIKeyStore()
     static let client = MaterialsProjectClient()
+    static let library = PhaseLibrary(store: PhaseLibraryStore.standard()
+        ?? PhaseLibraryStore(folder: FileManager.default.temporaryDirectory.appending(path: "Phases", directoryHint: .isDirectory)))
+    private static var loaded = false
+
+    /// Reads the library from disk the first time a window asks; later calls return at once.
+    static func loadLibrary() async {
+        guard !loaded else { return }
+        loaded = true
+        await library.load()
+    }
 }
