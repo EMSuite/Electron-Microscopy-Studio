@@ -61,6 +61,8 @@ nonisolated enum AgentDoorCoverage {
         "diffraction.holder.zoneAxis": .gap(816),
         "diffraction.holder.export": .personOnly(exportReason),
         "diffraction.powder.compare": .gap(816),
+        "diffraction.powder.exportCSV": .personOnly(exportReason),
+        "diffraction.powder.exportXY": .personOnly(exportReason),
         "diffraction.powder.from": .gap(816),
         "diffraction.powder.kind": .gap(816),
         "diffraction.powder.markOverlaps": .gap(816),

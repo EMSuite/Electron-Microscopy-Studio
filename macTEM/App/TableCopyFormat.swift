@@ -59,7 +59,7 @@ nonisolated enum ParticleTableFormat {
 /// The Diffraction room's readout table: its columns in the table's order, each cell as the table shows it, and ⌘C's text.
 nonisolated enum DiffractionReadoutFormat {
     nonisolated enum Column: CaseIterable, Sendable {
-        case name, radius, q, d, family, dListed, delta, odds, verdict
+        case name, radius, q, d, family, dListed, intensity, delta, odds, verdict
 
         /// The header the table draws. The first column's is empty: its cells name themselves ("Ring 1", "Spot 2").
         var title: String {
@@ -70,6 +70,7 @@ nonisolated enum DiffractionReadoutFormat {
             case .d: "d Å"
             case .family: "family"
             case .dListed: "d listed"
+            case .intensity: "Σ|F|² listed"
             case .delta: "Δd/d %"
             case .odds: "odds"
             case .verdict: "verdict"
@@ -89,6 +90,7 @@ nonisolated enum DiffractionReadoutFormat {
             case .d: "d, ångströms"
             case .family: "family"
             case .dListed: "d listed"
+            case .intensity: "listed sum of F squared, of a hundred"
             case .delta: "delta d over d, percent"
             case .odds: "odds"
             case .verdict: "verdict"
@@ -104,7 +106,8 @@ nonisolated enum DiffractionReadoutFormat {
     static func spokenMark(_ row: DiffractionReadoutRow) -> String { row.isCalibrating ? "sets the scale" : "" }
 
     /// One cell as the table shows it: "Ring 1 ●" (the ● marks the ring that sets the scale), R to two decimals, q to five, d and the
-    /// listed d to four, the family, Δd/d with its sign, the odds and the verdict; a dash where there is no value.
+    /// listed d to four, the family, its listed Σ|F|² of 100 (kinematic, as diffsims lists it: outer rings read strong against a
+    /// measured profile, DiffractoKit#223), Δd/d with its sign, the odds and the verdict; a dash where there is no value.
     static func cell(_ column: Column, _ row: DiffractionReadoutRow, locale: Locale = .autoupdatingCurrent) -> String {
         switch column {
         case .name: return "\(spokenName(row))\(row.isCalibrating ? " ●" : "")"
@@ -113,6 +116,7 @@ nonisolated enum DiffractionReadoutFormat {
         case .d: return row.d.map { Num.fixed($0, 4, locale: locale) } ?? UnitDisplay.noValue
         case .family: return row.family ?? UnitDisplay.noValue
         case .dListed: return row.dListed.map { Num.fixed($0, 4, locale: locale) } ?? UnitDisplay.noValue
+        case .intensity: return row.listedIntensity.map { Num.fixed($0, 0, locale: locale) } ?? UnitDisplay.noValue
         case .delta: return row.deltaPercent.map { Num.signed($0, 2, locale: locale) } ?? UnitDisplay.noValue
         case .odds: return row.oddsText ?? UnitDisplay.noValue
         case .verdict: return row.verdict

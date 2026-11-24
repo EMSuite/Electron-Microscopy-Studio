@@ -14,10 +14,15 @@ import DiffractoCore
 import DiffractoScattering
 import TEMCore
 import TEMSession
+import UniformTypeIdentifiers
 
 struct DiffractionPowderSection: View {
     let item: OpenItem
     @Environment(AppState.self) private var appState
+    @State private var exporting = false
+    @State private var document = RoomExportFile(text: "")
+    @State private var exportType: UTType = .commaSeparatedText
+    @State private var exportName = ""
 
     private static let degrees = FloatingPointFormatStyle<Double>.number.precision(.fractionLength(0...2))
     private static let reach = FloatingPointFormatStyle<Double>.number.precision(.fractionLength(0...3))
@@ -66,8 +71,8 @@ struct DiffractionPowderSection: View {
                     .accessibilityIdentifier("diffraction.powder.to")
                 }
             } else {
-                InspectorRow("Reach") {
-                    OptionalNumericField(title: "Ring reach", value: settings.ringReach, format: Self.reach, unit: "Å⁻¹") {
+                InspectorRow("q max") {
+                    OptionalNumericField(title: "Rings to q max", value: settings.ringReach, format: Self.reach, unit: "Å⁻¹") {
                         powder.setReach($0)
                     }
                     .help("The rings out to this q (no 2π), 0.2 to 4 Å⁻¹")
@@ -100,6 +105,46 @@ struct DiffractionPowderSection: View {
             }
             DiffractionPowderPeakList(table: table, limit: Self.listed)
             InspectorNote("A line pattern for planning and comparison: no instrument profile, no texture, no absorption, no thermal motion.")
+            InspectorActionRow {
+                Button("Export Powder CSV…") { exportCSV(table) }
+                    .disabled(table.rows.isEmpty)
+                    .help("The peak table of the shown phases, with how it was computed")
+                    .accessibilityIdentifier("diffraction.powder.exportCSV")
+                Button("Export .xy…") { exportXY(table) }
+                    .disabled((table.patterns.first ?? nil) == nil)
+                    .help("This crystal's drawn profile: two columns, position and intensity, a tenth of the peak width apart")
+                    .accessibilityIdentifier("diffraction.powder.exportXY")
+            }
+        }
+        .fileExporter(isPresented: $exporting, document: document, contentType: exportType, defaultFilename: exportName) { result in
+            if case .failure(let error) = result { appState.present(error) }
+        }
+    }
+
+    private var imageName: String { item.session.imageOrBlank.fileName }
+
+    private func exportCSV(_ table: PowderTable) {
+        let text = ExportSnapshot.powderCSV(table, image: item.session.imageOrBlank, openItems: appState.openItems)
+        save(text, name: DiffractionPowderExport.baseName(of: imageName), extension: "csv", type: .commaSeparatedText)
+    }
+
+    private func exportXY(_ table: PowderTable) {
+        guard let text = table.xy(phase: 0) else { return }
+        save(text, name: DiffractionPowderExport.baseName(of: imageName, phase: table.phases[0].name), extension: "xy",
+             type: DiffractionPowderExport.xyType)
+    }
+
+    private func save(_ text: String, name: String, extension ext: String, type: UTType) {
+        if let directory = appState.exportDirectory {
+            do {
+                let url = try DiffractionPowderExport.write(text, named: name + "." + ext, into: directory)
+                appState.statusText = "Exported \(url.lastPathComponent)"
+            } catch { appState.present(error) }
+        } else {
+            document = RoomExportFile(text: text)
+            exportType = type
+            exportName = name
+            exporting = true
         }
     }
 
@@ -175,7 +220,7 @@ struct DiffractionPowderPeakList: View {
 nonisolated enum DiffractionPowderText {
     /// "Al 111  d 2.338 Å  38.51°  100 ◆", or "… ⧉ Au" for a peak another phase overlaps.
     static func line(_ row: PowderRow, table: PowderTable) -> String {
-        var parts = ["\(row.phase) \(row.hkl)", String(format: "d %.3f Å", row.d), table.positionText(row.position), String(format: "%.0f", row.intensity)]
+        var parts = ["\(row.phase) \(row.hkl)", "d \(Num.fixed(row.d, 3)) Å", table.positionText(row.position), Num.fixed(row.intensity, 0)]
         if row.isDiagnostic { parts.append("◆") }
         if row.isOverlapped { parts.append("⧉ " + row.overlaps.joined(separator: ", ")) }
         return parts.joined(separator: "  ")
@@ -183,8 +228,8 @@ nonisolated enum DiffractionPowderText {
 
     /// The line for VoiceOver: "Al 111, d 2.338 ångström, at 38.51°, intensity 100, diagnostic".
     static func spoken(_ row: PowderRow, table: PowderTable) -> String {
-        var parts = ["\(row.phase) \(row.hkl)", String(format: "d %.3f ångström", row.d), "at " + table.positionText(row.position),
-                     String(format: "intensity %.0f", row.intensity)]
+        var parts = ["\(row.phase) \(row.hkl)", "d \(Num.fixed(row.d, 3)) ångström", "at " + table.positionText(row.position),
+                     "intensity \(Num.fixed(row.intensity, 0))"]
         if row.isDiagnostic { parts.append("diagnostic") }
         if row.isOverlapped { parts.append("overlapped by " + row.overlaps.joined(separator: ", ")) }
         return parts.joined(separator: ", ")

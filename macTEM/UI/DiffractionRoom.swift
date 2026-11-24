@@ -721,6 +721,7 @@ private struct DiffractionReadoutTable: View {
                     .accessibilityValue(row.family ?? "")
             }.width(min: 46, ideal: 52)
             TableColumn(header(.dListed)) { row in Text(DiffractionReadoutFormat.cell(.dListed, row)).monospacedDigit() }.width(min: 52, ideal: 58)
+            TableColumn(header(.intensity)) { row in Text(DiffractionReadoutFormat.cell(.intensity, row)).monospacedDigit() }.width(min: 40, ideal: 46)
             TableColumn(header(.delta)) { row in Text(DiffractionReadoutFormat.cell(.delta, row)).monospacedDigit() }.width(min: 48, ideal: 54)
             TableColumn(header(.odds)) { row in Text(DiffractionReadoutFormat.cell(.odds, row)).monospacedDigit() }.width(min: 60, ideal: 68)
             TableColumn(header(.verdict)) { row in

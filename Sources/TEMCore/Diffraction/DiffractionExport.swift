@@ -21,6 +21,8 @@ package nonisolated struct DiffractionReadoutRow: Sendable, Equatable, Identifia
     package var d: Double?
     package var family: String?
     package var dListed: Double?
+    /// The listed family's kinematic intensity, of 100 for the list's strongest family (#811).
+    package var listedIntensity: Double?
     package var deltaPercent: Double?
     package var oddsText: String?
     package var verdict: String
@@ -28,10 +30,12 @@ package nonisolated struct DiffractionReadoutRow: Sendable, Equatable, Identifia
     package var isCalibrating: Bool
 
     package init(id: UUID, kind: Kind, number: Int, radiusPx: Double?, q: Double?, d: Double?, family: String?, dListed: Double?,
-                 deltaPercent: Double?, oddsText: String?, verdict: String, validation: String, isCalibrating: Bool = false) {
+                 deltaPercent: Double?, oddsText: String?, verdict: String, validation: String, isCalibrating: Bool = false,
+                 listedIntensity: Double? = nil) {
         self.id = id; self.kind = kind; self.number = number; self.radiusPx = radiusPx; self.q = q; self.d = d
         self.family = family; self.dListed = dListed; self.deltaPercent = deltaPercent; self.oddsText = oddsText
         self.verdict = verdict; self.validation = validation; self.isCalibrating = isCalibrating
+        self.listedIntensity = listedIntensity
     }
 }
 
