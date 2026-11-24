@@ -177,10 +177,12 @@ package nonisolated enum NLPAR {
     // MARK: - Noise estimate (`sigma_numba`, `calcsigma_cpu`)
 
     /// `sigma_numba` with nn = 1 on one tile of `rows` x `columns` patterns: σ per pattern (the square root of the smallest
-    /// d² / 2n over its neighbours), the normalised distances and the neighbour counts (9 per pattern). `isCancelled` is asked
-    /// before each row; a yes ends the tile with `CancellationError`.
+    /// d² / 2n over its neighbours), the normalised distances and the neighbour counts (9 per pattern). The rows run in parallel
+    /// (#624; each pattern writes only its own σ and its own nine slots, with the arithmetic of the serial loop), then the
+    /// normalisation, which reads the neighbours' σ, in parallel bands. `isCancelled` is asked before each row; a yes ends the tile
+    /// with `CancellationError`, even if a later question says no.
     static func tileSigma(_ data: [Float], rows: Int, columns: Int, pixels: Int, indices: [Int], saturationProtect: Bool,
-                          isCancelled: () -> Bool) throws -> (sigma: [Float], distances: [Float], counts: [Float]) {
+                          isCancelled: @Sendable () -> Bool) throws -> (sigma: [Float], distances: [Float], counts: [Float]) {
         let nn = 1, slots = 9
         let n = rows * columns
         var sigma = [Float](repeating: 0, count: n)
@@ -190,18 +192,26 @@ package nonisolated enum NLPAR {
         let n0 = Float(pixels)
         let top = Double(data.max() ?? 0)
         let mxval = saturationProtect ? top * 0.9961 : top + 1.0
-        var stopped = false
+        let stops = UnsafeMutableBufferPointer<UInt8>.allocate(capacity: max(rows, 1))   // a row that saw a yes marks its own slot
+        stops.initialize(repeating: 0)
+        defer { stops.deallocate() }
         data.withUnsafeBufferPointer { d in
             indices.withUnsafeBufferPointer { idx in
                 sigma.withUnsafeMutableBufferPointer { sg in
                     dout.withUnsafeMutableBufferPointer { dOut in
                         nout.withUnsafeMutableBufferPointer { nOut in
                             dij.withUnsafeMutableBufferPointer { dIJ in
-                                for j in 0..<rows {
+                                guard n > 0, let dp = d.baseAddress, let sp = sg.baseAddress, let op = dOut.baseAddress,
+                                      let np = nOut.baseAddress, let jp = dIJ.baseAddress, let tp = stops.baseAddress else { return }
+                                let shared = SigmaBuffers(data: dp, indices: idx.baseAddress, indexCount: idx.count, sigma: sp,
+                                                          distances: op, counts: np, neighbours: jp, stops: tp)
+                                DispatchQueue.concurrentPerform(iterations: rows) { j in
                                     if isCancelled() {
-                                        stopped = true
+                                        shared.stops[j] = 1
                                         return
                                     }
+                                    let d = shared.data, sg = shared.sigma, dOut = shared.distances, nOut = shared.counts
+                                    let dIJ = shared.neighbours
                                     let r0 = max(j - nn, 0), r1 = min(j + nn, rows - 1) + 1
                                     for i in 0..<columns {
                                         let c0 = max(i - nn, 0), c1 = min(i + nn, columns - 1) + 1
@@ -218,12 +228,15 @@ package nonisolated enum NLPAR {
                                                 if b != a {
                                                     var n2 = Double(Float(Double(1e-12)))
                                                     let pa = a * pixels, pb = b * pixels
-                                                    for q in idx {
-                                                        let d0 = d[pa + q], d1 = d[pb + q]
-                                                        if Double(d1) < mxval && Double(d0) < mxval {
-                                                            n2 += 1.0
-                                                            let df = d0 - d1
-                                                            d2 += df * df
+                                                    if let ip = shared.indices {
+                                                        for k in 0..<shared.indexCount {
+                                                            let q = ip[k]
+                                                            let d0 = d[pa + q], d1 = d[pb + q]
+                                                            if Double(d1) < mxval && Double(d0) < mxval {
+                                                                n2 += 1.0
+                                                                let df = d0 - d1
+                                                                d2 += df * df
+                                                            }
                                                         }
                                                     }
                                                     nOut[slot] = Float(n2)
@@ -239,13 +252,18 @@ package nonisolated enum NLPAR {
                                         sg[a] = mind.squareRoot()
                                     }
                                 }
-                                for a in 0..<n {
-                                    for q in 0..<slots where nOut[a * slots + q] > 0 {
-                                        let slot = a * slots + q
-                                        let b = dIJ[slot]
-                                        let s12 = sg[a] * sg[a] + sg[b] * sg[b]
-                                        let v = dOut[slot] - nOut[slot] * s12
-                                        dOut[slot] = Float(Double(v) / (Double(s12) * (2.0 * Double(nOut[slot])).squareRoot()))
+                                if UnsafeBufferPointer(start: tp, count: rows).contains(1) { return }
+                                let band = 256
+                                DispatchQueue.concurrentPerform(iterations: (n + band - 1) / band) { job in
+                                    let sg = shared.sigma, dOut = shared.distances, nOut = shared.counts, dIJ = shared.neighbours
+                                    for a in (job * band)..<min(n, (job + 1) * band) {
+                                        for q in 0..<slots where nOut[a * slots + q] > 0 {
+                                            let slot = a * slots + q
+                                            let b = dIJ[slot]
+                                            let s12 = sg[a] * sg[a] + sg[b] * sg[b]
+                                            let v = dOut[slot] - nOut[slot] * s12
+                                            dOut[slot] = Float(Double(v) / (Double(s12) * (2.0 * Double(nOut[slot])).squareRoot()))
+                                        }
                                     }
                                 }
                             }
@@ -254,15 +272,29 @@ package nonisolated enum NLPAR {
                 }
             }
         }
-        if stopped { throw CancellationError() }
+        // A row that saw a yes skipped its patterns, so the tile is thrown away.
+        if stops.contains(1) { throw CancellationError() }
         return (sigma, dout, nout)
+    }
+
+    /// The tile's buffers handed to the parallel rows of `tileSigma`: each pattern writes only its own σ and slots, each row only
+    /// its own stop mark.
+    private struct SigmaBuffers: @unchecked Sendable {
+        let data: UnsafePointer<Float>
+        let indices: UnsafePointer<Int>?
+        let indexCount: Int
+        let sigma: UnsafeMutablePointer<Float>
+        let distances: UnsafeMutablePointer<Float>
+        let counts: UnsafeMutablePointer<Float>
+        let neighbours: UnsafeMutablePointer<Int>
+        let stops: UnsafeMutablePointer<UInt8>
     }
 
     /// `calcsigma_cpu(nn=1)`: the tile estimates merged as pyebsdindex merges them (σ the smaller one where tiles overlap, the
     /// distances of the later tile wherever it has a neighbour). `isCancelled` is asked before each tile and each of its rows; a yes
     /// ends the estimate with `CancellationError`.
     package static func estimateNoise(_ scan: Scan, mask: [UInt8]? = nil, saturationProtect: Bool = true,
-                                      isCancelled: () -> Bool = { false }) throws -> NoiseEstimate {
+                                      isCancelled: @Sendable () -> Bool = { false }) throws -> NoiseEstimate {
         let px = scan.pixels
         let m = mask ?? autoMask(patternRows: scan.patternRows, patternColumns: scan.patternColumns)
         guard m.count == px else { throw Error.shape }
@@ -293,20 +325,34 @@ package nonisolated enum NLPAR {
 
     // MARK: - λ (`opt_lambda_cpu`)
 
-    /// `loptfunc`: mean over the patterns of |target − 1 / Σ exp(−max(d², dthresh) / λ²)|, numpy's pairwise sums.
+    /// `loptfunc`: mean over the patterns of |target − 1 / Σ exp(−max(d², dthresh) / λ²)|, numpy's pairwise sums. The patterns' terms
+    /// are computed in parallel bands (#624), each with the serial loop's arithmetic, and summed in numpy's order as before.
     static func lambdaObjective(_ lambda: Double, distances: [Float], count: Int, target: Double, dthresh: Float) -> Double {
         let l2 = lambda * lambda
         var terms = [Double](repeating: 0, count: count)
-        var w = [Double](repeating: 0, count: 9)
-        for p in 0..<count {
-            for q in 0..<9 {
-                let temp = max(distances[p * 9 + q], dthresh)
-                w[q] = exp(Double(-temp) / l2)
+        terms.withUnsafeMutableBufferPointer { t in
+            guard let base = t.baseAddress else { return }   // no pattern, no term
+            let out = TermBuffer(base: base)
+            let band = 1024
+            DispatchQueue.concurrentPerform(iterations: (count + band - 1) / band) { job in
+                var w = [Double](repeating: 0, count: 9)
+                w.withUnsafeMutableBufferPointer { wb in
+                    guard let wp = wb.baseAddress else { return }
+                    for p in (job * band)..<min(count, (job + 1) * band) {
+                        for q in 0..<9 {
+                            let temp = max(distances[p * 9 + q], dthresh)
+                            wp[q] = exp(Double(-temp) / l2)
+                        }
+                        out.base[p] = abs(target - 1.0 / (pairwiseSum(UnsafePointer(wp), 9) + 1e-12))
+                    }
+                }
             }
-            terms[p] = abs(target - 1.0 / (pairwiseSum(w) + 1e-12))
         }
         return pairwiseSum(terms) / Double(count)
     }
+
+    /// The terms' buffer handed to the parallel bands of `lambdaObjective`: each pattern writes only its own term.
+    private struct TermBuffer: @unchecked Sendable { let base: UnsafeMutablePointer<Double> }
 
     /// numpy's `pairwise_sum` (blocks of 128, eight accumulators below that), the order `np.sum` and `np.mean` add in.
     static func pairwiseSum(_ a: [Double]) -> Double {
@@ -314,16 +360,20 @@ package nonisolated enum NLPAR {
         return a.withUnsafeBufferPointer { b in b.baseAddress.map { pairwiseSum($0, a.count) } ?? 0 }
     }
 
+    /// The eight accumulators are one SIMD8 (lane k adds what `r[k]` added, in the same order), so no array is made per call: λ's
+    /// objective calls this once per pattern per evaluation (#624).
     private static func pairwiseSum(_ a: UnsafePointer<Double>, _ n: Int) -> Double {
         if n < 8 {
             var res = 0.0
             for i in 0..<n { res += a[i] }
             return res
         } else if n <= 128 {
-            var r = (0..<8).map { a[$0] }
+            let raw = UnsafeRawPointer(a)
+            let stride = MemoryLayout<Double>.stride
+            var r = raw.loadUnaligned(as: SIMD8<Double>.self)
             var i = 8
             while i < n - (n % 8) {
-                for k in 0..<8 { r[k] += a[i + k] }
+                r += raw.loadUnaligned(fromByteOffset: i * stride, as: SIMD8<Double>.self)
                 i += 8
             }
             var res = ((r[0] + r[1]) + (r[2] + r[3])) + ((r[4] + r[5]) + (r[6] + r[7]))
