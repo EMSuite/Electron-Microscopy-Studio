@@ -14,7 +14,6 @@ import SimulatoMultislice
 import TEMCore
 import TEMSession
 import simd
-@testable import macTEM
 
 nonisolated final class SimulationSpecimenTests: XCTestCase {
 
