@@ -9,6 +9,7 @@
 //
 
 import Foundation
+import ShellExport
 import TEMCore
 import TEMSession
 import XCTest
@@ -257,6 +258,14 @@ nonisolated final class MapsRoomTests: XCTestCase {
         XCTAssertEqual(reports, ["Exported ebsd-sdss-ferrite-austenite map IPF-Z.png"])
         let data = try Data(contentsOf: dir.appendingPathComponent("ebsd-sdss-ferrite-austenite map IPF-Z.png"))
         XCTAssertEqual(Array(data.prefix(4)), [0x89, 0x50, 0x4E, 0x47])
+        // The figure carries its methods record (#817): the map file by name and grid, the orientation map's method and orix.
+        let record = try XCTUnwrap(ExportMethods.record(inPNG: data), "the map PNG carries its methods record")
+        XCTAssertEqual(record.room, "maps")
+        XCTAssertEqual(record.exportKind, "maps-map-png")
+        XCTAssertEqual(record.sources.first?.fileName, "ebsd-sdss-ferrite-austenite.ang")
+        XCTAssertEqual(record.sources.first?.kind, "orientation map")
+        XCTAssertEqual(record.sources.first?.shape, [session.document?.columns ?? 0, session.document?.rows ?? 0])
+        XCTAssertTrue(record.references.contains { $0.name == "orix" }, "\(record.references)")
         XCTAssertEqual(MapsFigure.scale(columns: 117), 6)
         XCTAssertEqual(MapsFigure.niceLength(175.5), 20)
         XCTAssertEqual(MapsFigure.niceLength(1000), 200)

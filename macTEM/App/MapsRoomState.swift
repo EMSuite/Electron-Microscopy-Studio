@@ -74,7 +74,7 @@ final class MapsRoomState {
             report("Export failed: \(error.localizedDescription)"); return
         }
         let record = SEMExportedFile(room: "Maps", what: "Map PNG", source: document.fileName, fields: fields, methods: methods, png: data)
-        write(data, name: name, type: .png, record: record, directory: directory, report: report)
+        await write(data, name: name, type: .png, record: record, document: document, directory: directory, report: report)
     }
 
     /// The map figure's PNG, off the main actor: up to 4096 px wide.
@@ -88,7 +88,7 @@ final class MapsRoomState {
     }
 
     /// The grain table as CSV (`MapsRoomFormat.grainsCSV`), to the save panel or the journeys' folder.
-    @MainActor func exportGrains(from session: OrientationMapSession, directory: URL? = nil, report: (String) -> Void) {
+    @MainActor func exportGrains(from session: OrientationMapSession, directory: URL? = nil, report: (String) -> Void) async {
         guard let document = session.document, let analysis = session.analysis else {
             report("Nothing to export yet: segment the map first."); return
         }
@@ -98,11 +98,12 @@ final class MapsRoomState {
         if !session.slip.isEmpty { fields.append(SEMSessionField("Load", "Sample \(session.loadDirection.rawValue.uppercased())")) }
         let record = SEMExportedFile(room: "Maps", what: "Grains CSV", source: document.fileName, fields: fields,
                                      methods: [.orientationMap, .grains, .gos] + (session.slip.isEmpty ? [] : [.schmid]))
-        write(Data(csv.utf8), name: name, type: .commaSeparatedText, record: record, directory: directory, report: report)
+        await write(Data(csv.utf8), name: name, type: .commaSeparatedText, record: record, document: document, directory: directory,
+                    report: report)
     }
 
     /// The Histogram tab's distribution as CSV.
-    @MainActor func exportHistogram(from session: OrientationMapSession, directory: URL? = nil, report: (String) -> Void) {
+    @MainActor func exportHistogram(from session: OrientationMapSession, directory: URL? = nil, report: (String) -> Void) async {
         guard let document = session.document, let analysis = session.analysis else {
             report("Nothing to export yet: segment the map first."); return
         }
@@ -118,7 +119,8 @@ final class MapsRoomState {
         let record = SEMExportedFile(room: "Maps", what: "Histogram CSV", source: document.fileName,
                                      fields: [SEMSessionField("Histogram", kind.rawValue)] + MapsRoomFormat.analysisFields(analysis.settings),
                                      methods: methods)
-        write(Data(csv.utf8), name: name, type: .commaSeparatedText, record: record, directory: directory, report: report)
+        await write(Data(csv.utf8), name: name, type: .commaSeparatedText, record: record, document: document, directory: directory,
+                    report: report)
     }
 
     /// The pole figures, the IPF density and the ODF sections of the texture shown, as one PNG, drawn off the main actor (#251).
@@ -135,14 +137,21 @@ final class MapsRoomState {
                                                   SEMSessionField("ODF points", "\(texture.odfPoints)"),
                                                   SEMSessionField("Figures", figures.joined(separator: ", "))],
                                          methods: [.orientationMap, .texture], png: data)
-            write(data, name: name, type: .png, record: record, directory: directory, report: report)
+            await write(data, name: name, type: .png, record: record, document: document, directory: directory, report: report)
         } catch {
             report("Export failed: \(error.localizedDescription)")
         }
     }
 
-    /// Writes to the journeys' folder (the record kept at once) or opens the save panel (the record kept once it has written).
-    @MainActor private func write(_ data: Data, name: String, type: UTType, record: SEMExportedFile, directory: URL?, report: (String) -> Void) {
+    /// Writes to the journeys' folder (the record kept at once) or opens the save panel (the record kept once it has written), the
+    /// bytes with their methods record inside (#817, `ExportSnapshot.semExport`); the session's record keeps the figure as written.
+    @MainActor private func write(_ made: Data, name: String, type: UTType, record draft: SEMExportedFile, document: OrientationMapSession.Document,
+                                  directory: URL?, report: (String) -> Void) async {
+        let data = await ExportSnapshot.semExport(made, file: draft, fileExtension: type.preferredFilenameExtension ?? "png",
+                                                  sourceURL: document.url, sourceKind: Self.sourceKind(document.source),
+                                                  shape: [document.columns, document.rows])
+        var record = draft
+        if record.png != nil { record.png = data }
         if let directory {
             do {
                 let url = try ExportDirectoryFile.write(data, named: name + "." + (type.preferredFilenameExtension ?? "png"), into: directory)
@@ -158,6 +167,11 @@ final class MapsRoomState {
         exportName = name
         exportType = type
         isExporting = true
+    }
+
+    /// What the methods record calls the map's source: a map file, or the patterns the map was read or indexed from.
+    nonisolated static func sourceKind(_ source: OrientationMapSession.Document.Source) -> String {
+        source.followsPatterns ? "EBSD patterns" : "orientation map"
     }
 }
 

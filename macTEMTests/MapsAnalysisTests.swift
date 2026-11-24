@@ -10,6 +10,7 @@
 import FormatoCore
 import Foundation
 import TEMCore
+import ShellExport
 import ShellLayout
 import TEMSession
 import XCTest
@@ -324,12 +325,14 @@ nonisolated final class MapsAnalysisTests: XCTestCase {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("maps-analysis-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: dir) }
         var reports: [String] = []
-        state.exportGrains(from: session, directory: dir) { reports.append($0) }
+        await state.exportGrains(from: session, directory: dir) { reports.append($0) }
         await state.exportTexture(from: session, directory: dir) { reports.append($0) }
         XCTAssertEqual(reports.count, 2)
         XCTAssertEqual(reports.first, "Exported ebsd-sdss-ferrite-austenite grains.csv")
         let csv = try String(contentsOf: dir.appendingPathComponent("ebsd-sdss-ferrite-austenite grains.csv"), encoding: .utf8)
-        let lines = csv.split(separator: "\n")
+        // The methods record is the file's one `#` line (#817); the table follows as it was.
+        XCTAssertEqual(ExportMethods.record(inText: csv)?.exportKind, "maps-grains-csv")
+        let lines = csv.split(separator: "\n").filter { !$0.hasPrefix("#") }
         XCTAssertEqual(lines.count, 1 + (session.analysis?.table.count ?? 0))
         XCTAssertTrue(lines[0].hasPrefix("grain,phase,points,area_"))
         XCTAssertTrue(reports[1].hasPrefix("Exported ebsd-sdss-ferrite-austenite texture "))
@@ -454,7 +457,7 @@ nonisolated final class MapsAnalysisTests: XCTestCase {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("maps-histogram-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: dir) }
         var reports: [String] = []
-        state.exportHistogram(from: session, directory: dir) { reports.append($0) }
+        await state.exportHistogram(from: session, directory: dir) { reports.append($0) }
         XCTAssertEqual(reports, ["Exported ebsd-sdss-ferrite-austenite histogram GOS.csv"])
     }
 

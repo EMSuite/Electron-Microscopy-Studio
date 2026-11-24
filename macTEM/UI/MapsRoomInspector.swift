@@ -106,7 +106,7 @@ struct MapsExportSection: View {
             }
             InspectorActionRow {
                 Button("Grains CSV…") {
-                    state.exportGrains(from: session, directory: appState.exportDirectory, report: { appState.statusText = $0 })
+                    Task { await state.exportGrains(from: session, directory: appState.exportDirectory, report: { appState.statusText = $0 }) }
                 }
                 .disabled(session.analysis == nil)
                 .help("The grain table as CSV: size, equivalent diameter, mean orientation, GOS, neighbours and the largest Schmid factor of each grain")
@@ -114,7 +114,7 @@ struct MapsExportSection: View {
             }
             InspectorActionRow {
                 Button("Histogram CSV…") {
-                    state.exportHistogram(from: session, directory: appState.exportDirectory, report: { appState.statusText = $0 })
+                    Task { await state.exportHistogram(from: session, directory: appState.exportDirectory, report: { appState.statusText = $0 }) }
                 }
                 .disabled(session.analysis == nil)
                 .help("The Histogram tab's distribution (KAM, GOS or grain size) as CSV: each bin's edges and count")
