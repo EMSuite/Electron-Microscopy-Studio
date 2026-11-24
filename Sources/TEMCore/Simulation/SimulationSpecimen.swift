@@ -71,7 +71,7 @@ package nonisolated enum SimulationSpecimen {
             case .strain(let strain, let limit, let repetitions):
                 "The closest box that repeats along this zone axis strains the crystal by \(SimulationSpecimen.percent(strain)) "
                     + "(searched to \(repetitions) repetitions), more than the \(SimulationSpecimen.percent(limit)) limit. "
-                    + "Build with Strain builds it with that strain."
+                    + "Build with Strain builds it strained so."
             case .refused(let words):
                 "The specimen cannot be built: \(words)."
             }
