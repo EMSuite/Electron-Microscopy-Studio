@@ -6,7 +6,7 @@
 //        room, Export Transform… (⌥⌘E), Export Radial Profile… and Export Spots… in the FFT room, Export Results… (⇧⌥⌘E) in the
 //        Results room, and Export Session Report… in the Results room and the rooms that feed it (`FixedExports.listed(in:)`);
 //        each still enabled only where it can act (`ExportSnapshot.availability`, `ExportSnapshot.fftAvailability`,
-//        `SEMSessionLedger.hasRows`). The EDS room's five (`ExportSnapshot.edsAvailability`), the EELS room's seven
+//        `SEMSessionLedger.hasRows`). The EDS room's nine (`ExportSnapshot.edsAvailability`), the EELS room's eleven
 //        (`eelsAvailability`), the Patterns room's six (`patternsAvailability`), the Indexing room's five
 //        (`indexingAvailability`) and the Maps room's six (`mapsAvailability`) are listed while their room shows its document,
 //        each through the room's own export (`RoomExports`), the call its inspector button makes. Every room ends the group with
@@ -96,9 +96,9 @@ struct ExportCommands: Commands {
                 }
                 .disabled(session != true)
             }
-            // The EDS room's five, in the menu only while that room shows a spectrum image.
+            // The EDS room's nine, in the menu only while that room shows a spectrum image.
             if let appState, let eds { edsItems(eds, appState: appState) }
-            // The EELS room's seven, on the same terms.
+            // The EELS room's eleven, on the same terms.
             if let appState, let eels { eelsItems(eels, appState: appState) }
             // The Patterns room's six, while that room shows a dataset.
             if let appState, let patterns { patternsItems(patterns, appState: appState) }
@@ -160,6 +160,15 @@ struct ExportCommands: Commands {
             .disabled(!eds.results)
         Button("Export Regions CSV…") { RoomExports.eds(.pins, appState: appState) }
             .disabled(!eds.regions)
+        // The figures for a paper (#902), named as the inspector's buttons.
+        Button("Export Spectrum PDF…") { RoomExports.eds(.spectrumPDF, appState: appState) }
+            .disabled(!eds.spectrum)
+        Button("Export Spectrum SVG…") { RoomExports.eds(.spectrumSVG, appState: appState) }
+            .disabled(!eds.spectrum)
+        Button("Export Maps PDF…") { RoomExports.eds(.mapsPDF, appState: appState) }
+            .disabled(!eds.maps)
+        Button("Export Maps SVG…") { RoomExports.eds(.mapsSVG, appState: appState) }
+            .disabled(!eds.maps)
     }
 
     /// The EELS room's exports, each named "Export" and its inspector button's title, in the EDS items' order with the two the EELS

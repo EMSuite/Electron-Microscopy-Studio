@@ -61,7 +61,8 @@ The rooms:
   table or let Auto ID suggest them, then get net, wt%, at% and thickness maps, regions, and the Cliff-Lorimer
   composition.
 - **EELS**: Dual-EELS spectrum images. Align the zero-loss peak, map t/λ, pick edges from the periodic table, and fit
-  their intensities and at%.
+  their intensities and at%. In both rooms the spectrum and the maps export as PDF or SVG figures for a paper, the
+  spectrum as one path and every label as live text.
 - **Diffraction**: calibrate on a ring of a standard, then index rings and spots and read their d-spacings; type a zone axis to
   see the crystal's simulated spots, with their hkl, over the pattern (with the spots double diffraction adds, and an excitation
   error to set), or press Index to find the spots and the crystal's full

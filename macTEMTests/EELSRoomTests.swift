@@ -206,7 +206,10 @@ nonisolated final class EELSRoomTests: XCTestCase {
 
     @MainActor func testTheExportKindsNameTheirFiles() {
         // The EDS room's exports (Paul's drive, 2026-10-23), the per-pixel thickness and the method keeping their old names.
-        XCTAssertEqual(EELSExportKind.allCases.map(\.suffix), [" results", " spectrum", " spectrum", " regions", " maps", " thickness", " thickness method"])
+        XCTAssertEqual(EELSExportKind.allCases.map(\.suffix), [" results", " spectrum", " spectrum", " regions", " maps", " thickness", " thickness method",
+                                                              " spectrum", " spectrum", " maps", " maps"])
+        XCTAssertEqual(EELSExportKind.mapsPDF.contentType, .pdf)
+        XCTAssertEqual(EELSExportKind.spectrumSVG.contentType, .svg)
         XCTAssertEqual(EELSExportKind.mapsPNG.contentType, .png)
         XCTAssertEqual(EELSExportKind.method.contentType, .json)
         XCTAssertEqual(EELSExportKind.diagnostics.contentType, .commaSeparatedText)

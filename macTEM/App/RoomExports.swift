@@ -72,13 +72,14 @@ nonisolated struct EELSExportAvailability: Sendable, Equatable {
     let regions: Bool
 
     /// The menu's items in order: the EDS room's five where the EELS room has them, the `.msa` after the CSV, the per-pixel table last.
-    static let menuKinds: [EELSExportKind] = [.spectrum, .spectrumMSA, .mapsPNG, .results, .method, .regions, .diagnostics]
+    static let menuKinds: [EELSExportKind] = [.spectrum, .spectrumMSA, .spectrumPDF, .spectrumSVG, .mapsPNG, .mapsPDF, .mapsSVG, .results, .method,
+                                              .regions, .diagnostics]
 
     /// Whether the item of `kind` is enabled.
     func isEnabled(_ kind: EELSExportKind) -> Bool {
         switch kind {
-        case .spectrum, .spectrumMSA: spectrum
-        case .mapsPNG, .diagnostics: maps
+        case .spectrum, .spectrumMSA, .spectrumPDF, .spectrumSVG: spectrum
+        case .mapsPNG, .mapsPDF, .mapsSVG, .diagnostics: maps
         case .results: results
         case .method: method
         case .regions: regions

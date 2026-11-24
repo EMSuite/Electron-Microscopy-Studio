@@ -8,11 +8,11 @@
 import Foundation
 import Observation
 import UniformTypeIdentifiers
+import ShellExport
 import ShellSpectroscopy
 import TEMCore
 import TEMSession
 import ShellEDXModel
-import ShellExport
 
 @Observable
 final class EELSRoomState {
@@ -69,6 +69,7 @@ final class EELSRoomState {
     @MainActor func export(_ kind: EELSExportKind, from session: EELSSession, maps: [EELSMapTile], directory: URL? = nil,
                            report: (String) -> Void) async {
         let made: Data?
+        var figure: (scene: FigureScene, format: FigureExport.Format)?
         switch kind {
         case .results: made = session.resultsCSV.map { Data($0.utf8) }
         case .spectrum: made = session.spectrumCSV.map { Data($0.utf8) }
@@ -78,9 +79,14 @@ final class EELSRoomState {
         case .diagnostics: made = session.diagnosticsCSV.map { Data($0.utf8) }
         case .method: made = session.methodJSON.map { Data($0.utf8) }
         case .mapsPNG:
-            let chosen = Set(EELSMixComposition.selection(appearance.mix, maps: maps))
-            made = session.figureContent(maps: maps, mix: maps.filter { chosen.contains($0.id) }, appearance: appearance, scaleBar: exportScaleBar, regions: exportRegions)
-                .flatMap { EDXMapsFigure.png($0) }
+            made = mapsContent(session, maps: maps).flatMap { EDXMapsFigure.png($0) }
+        case .spectrumPDF, .spectrumSVG, .mapsPDF, .mapsSVG:
+            // The figures for a paper (#902): the scene here, the bytes below, with the methods record in their metadata.
+            let scene = kind == .spectrumPDF || kind == .spectrumSVG
+                ? session.plot.map { FigurePlot.spectrum(EELSFigures.spectrum($0), style: FigureStyle(width: .mm90)) }
+                : mapsContent(session, maps: maps)?.vectorScene()
+            if let scene, let format = kind.figureFormat { figure = (scene, format) }
+            made = figure == nil ? nil : Data()
         }
         guard let made else { report("Nothing to export yet for \(kind.title.dropLast())."); return }
         guard !isMakingExport else { return }
@@ -88,17 +94,26 @@ final class EELSRoomState {
         // Taken before the wait: another file opened meanwhile drops this export rather than naming its bytes after the new file.
         let fileName = session.fileName, loaded = session.source, methodJSON = session.methodJSON
         var data = made
-        // The bytes with their methods record inside (#817).
-        if let loaded, ExportSnapshot.eelsExportCarriesRecord(fileExtension: ext) {
+        if let figure {
+            // A figure is drawn with its methods record in its metadata (#902): PDF Subject, SVG <metadata>.
             isMakingExport = true
             defer { isMakingExport = false }
-            let source: MethodsRecord.Source
-            if let kept = keptSource, kept.filePath == loaded.filePath, !kept.filePath.isEmpty {
-                source = kept.source
-            } else {
-                source = await ExportSnapshot.eelsSource(loaded)
-                if !source.kind.contains("as held") { keptSource = (loaded.filePath, source) }
+            var record: String?
+            if let loaded {
+                let source = await recordSource(loaded)
+                record = try? ExportMethods.eelsRecord(app: ExportSnapshot.methodsApp(), exportKind: "eels-" + kind.rawValue, source: source,
+                                                       methodJSON: methodJSON).json()
             }
+            let metadata = FigureMetadata(title: fileName, creator: ExportSnapshot.provenance(), methodsRecord: record)
+            do { data = try FigureExport.data(figure.scene, format: figure.format, metadata: metadata) } catch {
+                report("Export failed: \(error.localizedDescription)"); return
+            }
+            guard session.source?.filePath == loaded?.filePath, session.fileName == fileName else { return }
+        } else if let loaded, ExportSnapshot.eelsExportCarriesRecord(fileExtension: ext) {
+            // The bytes with their methods record inside (#817).
+            isMakingExport = true
+            defer { isMakingExport = false }
+            let source = await recordSource(loaded)
             data = await ExportSnapshot.eelsExport(made, exportKind: "eels-" + kind.rawValue, fileExtension: ext, source: source,
                                                    methodJSON: methodJSON)
             guard session.source?.filePath == loaded.filePath, session.fileName == fileName else { return }
@@ -113,6 +128,21 @@ final class EELSRoomState {
         }
         exportData = data
         exporting = kind
+    }
+
+    /// The source a record names, kept per file: the file is hashed once, and a fingerprint of the counts held never kept.
+    @MainActor private func recordSource(_ loaded: LoadedEELS) async -> MethodsRecord.Source {
+        if let kept = keptSource, kept.filePath == loaded.filePath, !kept.filePath.isEmpty { return kept.source }
+        let source = await ExportSnapshot.eelsSource(loaded)
+        if !source.kind.contains("as held") { keptSource = (loaded.filePath, source) }
+        return source
+    }
+
+    /// What the maps figure draws: the maps the Maps control shows, the colour mix the person chose, by the export's two toggles.
+    @MainActor private func mapsContent(_ session: EELSSession, maps: [EELSMapTile]) -> EDXFigureContent? {
+        let chosen = Set(EELSMixComposition.selection(appearance.mix, maps: maps))
+        return session.figureContent(maps: maps, mix: maps.filter { chosen.contains($0.id) }, appearance: appearance, scaleBar: exportScaleBar,
+                                     regions: exportRegions)
     }
 
     /// The save panel is done, written or not: the export's bytes are let go (#619), not kept until the next export.

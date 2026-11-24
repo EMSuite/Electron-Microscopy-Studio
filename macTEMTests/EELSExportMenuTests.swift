@@ -47,8 +47,8 @@ nonisolated final class EELSExportMenuTests: XCTestCase {
         XCTAssertEqual(Array(EELSExportAvailability.menuKinds.prefix(2)), [EELSExportKind.spectrum, EELSExportKind.spectrumMSA],
                        "the spectrum first, as the EDS items")
         let flags: [(EELSExportAvailability, Set<EELSExportKind>)] = [
-            (EELSExportAvailability(spectrum: true, maps: false, results: false, method: false, regions: false), [.spectrum, .spectrumMSA]),
-            (EELSExportAvailability(spectrum: false, maps: true, results: false, method: false, regions: false), [.mapsPNG, .diagnostics]),
+            (EELSExportAvailability(spectrum: true, maps: false, results: false, method: false, regions: false), [.spectrum, .spectrumMSA, .spectrumPDF, .spectrumSVG]),
+            (EELSExportAvailability(spectrum: false, maps: true, results: false, method: false, regions: false), [.mapsPNG, .mapsPDF, .mapsSVG, .diagnostics]),
             (EELSExportAvailability(spectrum: false, maps: false, results: true, method: false, regions: false), [.results]),
             (EELSExportAvailability(spectrum: false, maps: false, results: false, method: true, regions: false), [.method]),
             (EELSExportAvailability(spectrum: false, maps: false, results: false, method: false, regions: true), [.regions]),
@@ -91,6 +91,26 @@ nonisolated final class EELSExportMenuTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: folder.appendingPathComponent("Demo EELS spectrum.csv").path))
     }
 
+    /// The figures (#902): Spectrum SVG… writes the spectrum as one path with live text, Maps PDF… the maps as a PDF, both under the
+    /// room's names. Red under: a figure kind falling through to no bytes, or written under the PNG's type.
+    @MainActor func testTheFiguresAreVectors() async throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("EELSFigures-\(UUID().uuidString)", isDirectory: true)
+        addTeardownBlock { try? FileManager.default.removeItem(at: folder) }
+        let state = AppState(launch: LaunchOptions(arguments: ["--export-dir", folder.path]))
+        await state.eels.bind(try DemoDocuments.eels()).value
+        await state.eels.settled()
+        RoomExports.eels(.spectrumSVG, appState: state)
+        XCTAssertEqual(state.statusText, "Exported Demo EELS spectrum.svg")
+        let svg = try String(contentsOf: folder.appendingPathComponent("Demo EELS spectrum.svg"), encoding: .utf8)
+        XCTAssertTrue(svg.contains("<path"), "the spectrum is a path")
+        XCTAssertTrue(svg.contains("Energy loss (eV)"), "its titles are text")
+        XCTAssertFalse(svg.contains("<image"), "no picture of the plot")
+        RoomExports.eels(.mapsPDF, appState: state)
+        XCTAssertEqual(state.statusText, "Exported Demo EELS maps.pdf")
+        let pdf = try Data(contentsOf: folder.appendingPathComponent("Demo EELS maps.pdf"))
+        XCTAssertEqual(Array(pdf.prefix(4)), Array("%PDF".utf8))
+    }
+
     /// The File menu draws the room's kinds behind the rule, each named as its inspector button and calling the room's export.
     /// Red under: the condition dropped (the items listed in every room); the items not following the rule.
     func testTheFileMenuDrawsTheKindsBehindTheRule() throws {
@@ -100,7 +120,8 @@ nonisolated final class EELSExportMenuTests: XCTestCase {
         XCTAssertTrue(commands.contains("Divider() ForEach(EELSExportAvailability.menuKinds) { kind in"))
         XCTAssertTrue(commands.contains("{ RoomExports.eels(kind, appState: appState) } .disabled(!eels.isEnabled(kind))"))
         XCTAssertEqual(EELSExportKind.allCases.map { "Export \($0.title)" }.sorted(),
-                       ["Export Maps…", "Export Method JSON…", "Export Per-pixel CSV…", "Export Regions CSV…", "Export Results CSV…",
-                        "Export Spectrum CSV…", "Export Spectrum MSA…"], "the inspector buttons' own titles")
+                       ["Export Maps PDF…", "Export Maps SVG…", "Export Maps…", "Export Method JSON…", "Export Per-pixel CSV…", "Export Regions CSV…",
+                        "Export Results CSV…", "Export Spectrum CSV…", "Export Spectrum MSA…", "Export Spectrum PDF…", "Export Spectrum SVG…"],
+                       "the inspector buttons' own titles")
     }
 }
