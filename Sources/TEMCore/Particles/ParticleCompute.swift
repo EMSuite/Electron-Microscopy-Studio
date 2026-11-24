@@ -102,10 +102,17 @@ package nonisolated enum ParticleRegion {
     package static func clamped(_ region: PixelCrop?, width: Int, height: Int) -> PixelCrop? {
         guard let region else { return nil }
         let c0 = max(region.col, 0), r0 = max(region.row, 0)
-        let c1 = min(region.col + region.width, width), r1 = min(region.row + region.height, height)
+        // The far edges saturate: a region typed through the agent door may hold any Int, and a plain sum traps (#924).
+        let c1 = min(farEdge(region.col, region.width), width), r1 = min(farEdge(region.row, region.height), height)
         guard c1 > c0, r1 > r0 else { return nil }
         if c0 == 0, r0 == 0, c1 == width, r1 == height { return nil }
         return PixelCrop(row: r0, col: c0, height: r1 - r0, width: c1 - c0)
+    }
+
+    /// `start + length`, held to Int's range where the sum would overflow.
+    private static func farEdge(_ start: Int, _ length: Int) -> Int {
+        let (sum, overflow) = start.addingReportingOverflow(length)
+        return overflow ? (length > 0 ? Int.max : Int.min) : sum
     }
 
     /// "x 10, y 20 · 500 × 400 px", or "Whole image".
