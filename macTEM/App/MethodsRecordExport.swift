@@ -68,27 +68,27 @@ enum MethodsRecordExport {
             return ExportMethods.sessionRecord(app: app, room: area.rawValue, exportKind: exportKind, source: source, rows: rows)
         }
         guard let item = appState.openItems.selected, let image = item.session.image else { return nil }
-        let source = source(of: item, image: image, software: software)
+        let origin = source(of: item, image: image, software: software)
         switch appState.navigation.workspaceArea {
         case .image, .results:
-            var record = ExportMethods.imageRecord(app: app, exportKind: exportKind, source: source, lineage: item.measurements.lineage,
+            var record = ExportMethods.imageRecord(app: app, exportKind: exportKind, source: origin, lineage: item.measurements.lineage,
                                                    drawn: [])
             record.room = appState.navigation.workspaceArea.rawValue
             return record
         case .fft:
             // The measured spots when there are some (their record holds the transform's steps too), else the transform.
             if let spots = ExportSnapshot.spotsSnapshot(image: image, url: item.url, analysis: item.fft, software: software) {
-                return ExportMethods.fftRecord(app: app, exportKind: exportKind, source: source, header: spots.header,
+                return ExportMethods.fftRecord(app: app, exportKind: exportKind, source: origin, header: spots.header,
                                                product: .spots(count: spots.rows.count, maskRadius: spots.maskRadius, maskEdge: spots.maskEdge),
                                                drawn: [])
             }
             guard item.fft.isSpectrumCurrent, let spectrum = item.fft.spectrum else { return nil }
-            return ExportMethods.fftRecord(app: app, exportKind: exportKind, source: source,
+            return ExportMethods.fftRecord(app: app, exportKind: exportKind, source: origin,
                                            header: ExportSnapshot.fftHeader(image: image, spectrum: spectrum, software: software),
                                            product: .transform, drawn: [])
         case .diffraction:
             let analysis = item.diffraction
-            return ExportMethods.diffractionRecord(app: app, source: source, header: analysis.exportHeader(image: image),
+            return ExportMethods.diffractionRecord(app: app, source: origin, header: analysis.exportHeader(image: image),
                                                    rows: analysis.readout(image: image), exportKind: exportKind)
         case .eels, .edx, .patterns, .indexing, .maps:
             return nil
