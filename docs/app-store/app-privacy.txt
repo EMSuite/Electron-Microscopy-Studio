@@ -4,7 +4,9 @@ Do you or your third-party partners collect data from this app? No.
 Label shown on the store: Data Not Collected.
 
 Why this is correct:
-- macEM connects to no other computer. Its sandbox entitlements are the App Sandbox, user-selected file read-write, app-scoped bookmarks and network.server for the agent door (Settings > Agents, off by default: it listens on 127.0.0.1 only, for an AI agent the person runs on the same Mac, and sends nothing itself; what that agent sends to its own provider is between the person and that agent); it has no network client entitlement.
+- macEM's sandbox entitlements are the App Sandbox, user-selected file read-write, app-scoped bookmarks, network.client and network.server.
+- network.client (#778): the app connects to the Materials Project (materialsproject.org, a public crystal-structure database), and to nothing else, only when the person searches for a phase or adds one. It sends the element symbols or formula typed, or the chosen entry's id, and the person's own API key if they saved one in Settings (kept in their login keychain). Nothing is sent to the developer; no identifier, usage or device data is sent; the answers (public structures, CC BY 4.0) are stored in the person's own phase library.
+- network.server is the agent door (Settings > Agents, off by default: it listens on 127.0.0.1 only, for an AI agent the person runs on the same Mac, and sends nothing itself; what that agent sends to its own provider is between the person and that agent).
 - No analytics, telemetry, advertising, crash reporting, accounts or tracking identifiers.
 - Files, sessions and exports are read from and written to the user's own storage only, reached through the system Open and Save panels.
 

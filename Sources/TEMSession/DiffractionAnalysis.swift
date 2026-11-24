@@ -19,26 +19,79 @@ import DiffractoGeometry
 import DiffractoOrientation
 import TEMCore
 
-/// The crystal indexing is done against: a standard of the room, or one opened from a CIF.
-package enum DiffractionCrystal: Sendable, Equatable {
+/// A phase of the person's library (#779), as the room uses it: its id, its name and its structure, with the structure's
+/// fingerprint (an edited lattice is another fingerprint). The library itself is EMSuiteUI's; the room needs only these.
+package nonisolated struct PhaseCrystal: Sendable, Equatable {
+    package let id: String
+    package let name: String
+    package let structure: CrystalStructure
+    package let fingerprint: String
+
+    package init(id: String, name: String, structure: CrystalStructure) {
+        self.id = id
+        self.name = name
+        self.structure = structure
+        self.fingerprint = CrystalStructure.Snapshot(structure).fingerprint
+    }
+}
+
+/// The crystal indexing is done against: a standard of the room, one opened from a CIF, or a phase of the library.
+package nonisolated enum DiffractionCrystal: Sendable, Equatable {
     case preset(StandardCrystal)
     case cif(LoadedCrystal)
+    case phase(PhaseCrystal)
 
     package var name: String {
         switch self {
         case .preset(let s): s.name
         case .cif(let c): c.displayName
+        case .phase(let p): p.name
         }
     }
     package var structure: CrystalStructure {
         switch self {
         case .preset(let s): s.structure
         case .cif(let c): c.structure
+        case .phase(let p): p.structure
         }
     }
     package var sha256: String? {
         if case .cif(let c) = self { return c.sha256 }
         return nil
+    }
+    /// The library phase's id, when the crystal is one.
+    package var phaseID: String? {
+        if case .phase(let p) = self { return p.id }
+        return nil
+    }
+    /// The lattice in one line, as the kit holds it: "a 4.0782 Å" for a cubic cell, all six otherwise (#780: every result and
+    /// export names the lattice it used). `ascii` writes "A" and "deg", as the CSV headers do.
+    package static func latticeText(_ cell: UnitCell, ascii: Bool = false) -> String {
+        let angstrom = ascii ? "A" : "Å", degree = ascii ? " deg" : "°"
+        func f(_ x: Double) -> String { String(format: "%.4f", x) }
+        func g(_ x: Double) -> String { String(format: "%.2f", x) + degree }
+        let cubic = abs(cell.a - cell.b) < 1e-6 && abs(cell.b - cell.c) < 1e-6
+            && [cell.alphaDeg, cell.betaDeg, cell.gammaDeg].allSatisfy { abs($0 - 90) < 1e-6 }
+        if cubic { return "a \(f(cell.a)) \(angstrom)" }
+        return "a \(f(cell.a)), b \(f(cell.b)), c \(f(cell.c)) \(angstrom); \(g(cell.alphaDeg)), \(g(cell.betaDeg)), \(g(cell.gammaDeg))"
+    }
+
+    /// The lattice this crystal computes with.
+    package var lattice: String { Self.latticeText(structure.cell) }
+
+    /// Where a library phase came from, for the exports: "phase mp-81, fingerprint …"; nil for a standard or a loose CIF.
+    package var phaseText: String? {
+        if case .phase(let p) = self { return "phase \(p.id), fingerprint \(p.fingerprint)" }
+        return nil
+    }
+
+    /// What tells two crystals of the same name apart for the simulator's cache: the CIF's hash or the phase's fingerprint.
+    package var identity: String {
+        switch self {
+        case .preset(let s): "preset|\(s.name)"
+        case .cif(let c): "cif|\(c.sha256)"
+        case .phase(let p): "phase|\(p.id)|\(p.fingerprint)"
+        }
     }
 }
 
@@ -213,7 +266,7 @@ package final class DiffractionAnalysis {
     /// The kinematic list of the crystal at the current k_max and why there is none. Cached by crystal and k_max; it writes no observed state, so a
     /// view body may call it (the build runs on the first call after the crystal or k_max changed).
     private func listResult() -> (list: KinematicReflectionList?, failure: String?) {
-        let key = "\(crystal.name)|\(crystal.sha256 ?? "")|\(kMax)"
+        let key = "\(crystal.identity)|\(kMax)"
         if let listCache, listCache.key == key { return (listCache.list, listCache.failure) }
         let built: (list: KinematicReflectionList?, failure: String?)
         do { built = (try DiffractionCompute.list(of: crystal.structure, kMax: kMax), nil) }
@@ -336,7 +389,7 @@ package final class DiffractionAnalysis {
         }
         let structure = crystal.structure, phase = crystal.name
         let fit = fitScale
-        let key = "\(crystal.name)|\(crystal.sha256 ?? "")|\(volts)" + (fit ? "" : "|fixed scale")
+        let key = "\(crystal.identity)|\(volts)" + (fit ? "" : "|fixed scale")
         let shortest = list()?.families.first.map { 1 / $0.family.d } ?? 0.2
         let task = Task.detached(priority: .userInitiated) { [weak self] in
             let outcome: PatternIndexing.Outcome
@@ -599,7 +652,7 @@ package final class DiffractionAnalysis {
         // d 0.25 Å: past it the kit refuses the whole list, so a wide pattern drew no spot at all), and is kept while the crystal and
         // the reach (to 0.1 Å⁻¹) stay.
         let reach = min(ReflectionList.maximumKMax, max(0.2, (ZoneAxisOverlay.reach(width: width, height: height, centre: centre, deltaQ: calibration.deltaQ) * 10).rounded(.up) / 10))
-        let simulatorKey = "\(crystal.name)|\(crystal.sha256 ?? "")|\(reach)"
+        let simulatorKey = "\(crystal.identity)|\(reach)"
         if simulatorCache?.key != simulatorKey {
             do { simulatorCache = (simulatorKey, try SpotPatternSimulator(structure: crystal.structure, kMax: reach), nil) }
             catch { simulatorCache = (simulatorKey, nil, error.localizedDescription) }
@@ -703,7 +756,8 @@ package final class DiffractionAnalysis {
             calibration: calibration?.sourceText ?? "none", deltaQ: calibration?.deltaQ, wavelengthAngstroms: calibration?.ring?.wavelengthAngstroms,
             lengthPixels: calibration?.ring?.lengthPixels, lengthMM: calibration?.ring?.lengthMillimetres,
             fitVersusFilePercent: fitVersusFilePercent(for: image), crystal: crystal.name, crystalSHA256: crystal.sha256, kMax: kMax,
-            tolerancePercent: tolerancePercent)
+            tolerancePercent: tolerancePercent, crystalLattice: DiffractionCrystal.latticeText(crystal.structure.cell, ascii: true),
+            crystalPhase: crystal.phaseText)
     }
 
     package func exportText(image: CalibratedImage) -> String {
@@ -721,7 +775,8 @@ package final class DiffractionAnalysis {
         for r in readout(image: image) {
             let refusal = r.d == nil ? r.verdict : nil
             out.append(.ring(id: "diffraction:\(r.id.uuidString)", label: "\(r.kind == .ring ? "Ring" : "Spot") \(r.number)", radius: r.radiusPx, q: r.q,
-                             d: r.d, family: r.family, dListed: r.dListed, deltaPercent: r.deltaPercent, odds: r.oddsText, verdict: r.verdict, refusal: refusal))
+                             d: r.d, family: r.family, dListed: r.dListed, deltaPercent: r.deltaPercent, odds: r.oddsText, verdict: r.verdict, refusal: refusal,
+                             crystal: "\(crystal.name), \(crystal.lattice)"))
         }
         return out
     }

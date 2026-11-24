@@ -64,6 +64,7 @@ The rooms:
   error to set), or press Index to find the spots and the crystal's full
   orientation (the found spots stay as marks to remove or add to; clicked spots give the zone axis); step through tied solutions,
   flip 180°, fit the scale or hold it, and drag the simulated spots to tilt them (⌥ drag turns them; ⌥ and an arrow tilt by a step).
+  Phases come from your library: Add Phase… finds one on the Materials Project or opens a CIF, and a phase added once works offline.
   The crystal pane beside the pattern shows the phase in 3D down the same beam, and turning it turns the spots.
   File > New Simulation (⇧⌘N) opens the simulated spots with no measured pattern under them.
 - **Patterns**: the EBSD or TKD scan beside the live pattern, with mean intensity, virtual BSE, image quality and
@@ -84,6 +85,14 @@ The rooms:
 
 An AI agent on the same Mac (Claude, Codex, a script) can look at what a window shows, and with your leave work a room,
 through the agent door: Settings > Agents, off by default. What it can reach is in [`docs/agent-door.md`](docs/agent-door.md).
+
+## Privacy
+
+No telemetry, no account. The app connects to one other service on its own: the
+[Materials Project](https://materialsproject.org), and only when you search for a phase or add one. It sends the
+elements or formula you type, or the entry's id, and your own API key if you saved one in Settings > Materials Project
+(the key is optional and stays in your login keychain). A phase once added works offline. The website download also
+fetches its update feed. Details are in [`SECURITY.md`](SECURITY.md).
 
 ## Where the numbers come from
 
