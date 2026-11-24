@@ -13,8 +13,10 @@
 import Foundation
 import FormatoCore
 import ShellAgentDoor
+import ShellEDXModel
 import ShellLayout
 import SpectroCore
+import SpectroEELS
 import TEMCore
 import TEMSession
 import XCTest
@@ -201,7 +203,8 @@ nonisolated final class TIASpectraTests: XCTestCase {
         // Picked with one of its own series, the .emi opens it once.
         let both = [emi, dir.appendingPathComponent("run_1.ser")]
         XCTAssertEqual(TIASpectra.withoutSeriesOfPickedEMI(both), [emi])
-        XCTAssertEqual((await AppState.inventories(both)).map { $0.url.lastPathComponent }, ["run_1.ser", "run_2.ser"])
+        let routedBoth = await AppState.inventories(both)
+        XCTAssertEqual(routedBoth.map { $0.url.lastPathComponent }, ["run_1.ser", "run_2.ser"])
     }
 
     // MARK: The agent door
