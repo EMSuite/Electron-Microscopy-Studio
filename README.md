@@ -38,6 +38,10 @@ and under the one in front its rooms. What the file holds decides the room it op
 - **Orientation maps**: .ang, .ctf, Oxford .h5oina saved without patterns (AZtec's map export), and .h5 maps from orix, Bruker
   Esprit and EDAX OIM saved without patterns, and EMsoft's dictionary indexing.
 
+In Finder, a .dm3, .dm4, .mrc, .emd or .ser file shows its image as its icon, and the space bar shows a card with the image, its
+scale bar and what the file's header says (Quick Look), without opening the app. A .ser file shows its image without its .emi
+(no calibration then), and an .emd that is not a Velox file shows the header card without an image.
+
 TKD patterns are read and indexed as EBSD patterns are; no TKD dataset has been checked in the app yet.
 
 Some files are read together with a file of the same name beside them, so keep them in one folder: an EDAX .spd or

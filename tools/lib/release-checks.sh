@@ -2,13 +2,14 @@
 # tools/lib/release-checks.sh — what both release scripts check on the app they built: the product, not the settings.
 # Adapted from mac4DSTEM (tools/lib/release-arch.sh, assert_mac4dstem_bundle_arm64_only).
 #
-#   assert_mactem_bundle_arm64_only <app>      the executable and FormatoKit's three HDF5 frameworks: each there, each arm64 alone
+#   assert_mactem_bundle_arm64_only <app>      the executable, FormatoKit's three HDF5 frameworks and the two Quick Look
+#                                              extensions: each there, each arm64 alone
 #   assert_mactem_demo_data <app>              the four shipped demo files (DemoDocuments.Shipped) in Contents/Resources/DemoData
 #   assert_mactem_store_entitlements <plist>   the store app's sandbox entitlements (com.apple.security.*): exactly these four
 #   assert_mactem_store_names <app> <root>     the store app's names (Config/Version.xcconfig), none with "mac", and its identifier
 #   assert_mactem_bundle_developer_id_signed <app> <identity>
-#                                              the app and the three frameworks: each signed by the Developer ID identity, with
-#                                              the hardened runtime and a secure timestamp
+#                                              the app, the three frameworks and the two extensions: each signed by the
+#                                              Developer ID identity, with the hardened runtime and a secure timestamp
 #
 # tools/release.sh calls the first two and the last, tools/release-store.sh the first three (its package is signed for the store,
 # not with Developer ID). Each prints one line per failure and returns non-zero after checking everything, so a caller under
@@ -36,6 +37,9 @@ assert_mactem_arm64_only() {  # <Mach-O>
 }
 
 # Every Mach-O a user receives: the executable and the three frameworks, each named.
+# The app extensions every build embeds in Contents/PlugIns (#903: Quick Look's thumbnail and preview).
+MACTEM_EXTENSIONS=(QuickLookThumbnail QuickLookPreview)
+
 assert_mactem_bundle_arm64_only() {  # <app>
   local app="$1" library arch_failures=0
   # The executable is named after the app ("Electron Microscopy Studio" since 2.1.1; macEM before): read it.
@@ -50,6 +54,15 @@ assert_mactem_bundle_arm64_only() {  # <app>
       continue
     fi
     assert_mactem_arm64_only "$app/Contents/Frameworks/$library.framework/$library" || arch_failures=1
+  done
+  # The two Quick Look extensions (#903), each by name.
+  for extension in "${MACTEM_EXTENSIONS[@]}"; do
+    if [[ ! -f "$app/Contents/PlugIns/$extension.appex/Contents/MacOS/$extension" ]]; then
+      echo "The app is missing $extension.appex." >&2
+      arch_failures=1
+      continue
+    fi
+    assert_mactem_arm64_only "$app/Contents/PlugIns/$extension.appex/Contents/MacOS/$extension" || arch_failures=1
   done
   return $arch_failures
 }
@@ -118,6 +131,9 @@ assert_mactem_bundle_developer_id_signed() {  # <app> <identity>
   assert_mactem_developer_id_signed "$app" "$identity" || bundle_sign_failures=1
   for library in FormatoLibHDF5 FormatoLibSZ FormatoLibAEC; do
     assert_mactem_developer_id_signed "$app/Contents/Frameworks/$library.framework" "$identity" || bundle_sign_failures=1
+  done
+  for extension in "${MACTEM_EXTENSIONS[@]}"; do
+    assert_mactem_developer_id_signed "$app/Contents/PlugIns/$extension.appex" "$identity" || bundle_sign_failures=1
   done
   return $bundle_sign_failures
 }
