@@ -1,7 +1,7 @@
 //
 //  MenuActionRelay.swift
 //  Role: the actions a menu command can hand to a window that does not exist yet (Open Image…, an Open Recent
-//        entry, Reopen Last Session, a Help > Open Demo Data entry). The relay itself (the one app-scoped hand-off,
+//        entry, Reopen Last Session, a Help > Open Demo Data entry, New Simulation). The relay itself (the one app-scoped hand-off,
 //        with the request counter a minimised window watches) is ShellLayout's `MenuActionRelay` (suite task 8,
 //        MacEMUI), generic over this enum; where an action meets a window's state (`run`) is this app's.
 //
@@ -17,6 +17,8 @@ nonisolated enum MenuAction: Equatable {
     case reopenLastSession
     /// Help > Open Demo Data > (a document): opened in its room, in the window that takes the action.
     case openDemo(DemoDocument)
+    /// File > New Simulation: a simulated pattern with no measured one, in the Diffraction room (#788).
+    case newSimulation
 }
 
 typealias MenuActionRelay = ShellLayout.MenuActionRelay<MenuAction>
@@ -29,6 +31,7 @@ extension ShellLayout.MenuActionRelay where Action == MenuAction {
         case .openRecent(let entry): appState.openRecent(entry)
         case .reopenLastSession: appState.reopenLastSession()
         case .openDemo(let demo): appState.openDemo(demo)
+        case .newSimulation: appState.newSimulation()
         }
     }
 }
