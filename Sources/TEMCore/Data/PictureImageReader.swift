@@ -144,7 +144,8 @@ package nonisolated enum PictureImageReader {
             }
             let channels = base.model == .rgb ? 3 : 1
             let table = space.colorTable ?? []
-            let count = min(space.colorTableCount, table.count / channels)
+            // The Swift overlay's `colorTable` holds every entry (CGColorSpaceGetColorTableCount of them), `channels` bytes each.
+            let count = table.count / channels
             palette = (0..<count).map { Array(table[$0 * channels..<($0 + 1) * channels]) }
             colourChannels = 1
         case .cmyk: throw Refusal.cmyk
