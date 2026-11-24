@@ -479,3 +479,35 @@ reachable; the coarse step alone stepped 40 px.
 
 **Reversal.** If ⌥-arrows clash with a system or app shortcut, change `PaneKey.cursorArrow`'s modifier in `App/PaneKeys.swift`;
 the routers and the tests read the key from there. Turning `StackArrowKeys` back on in these rooms brings back the nested focus.
+
+## 2026-11-23 — The download links Sparkle built with the app-name rename, committed under Vendor/Sparkle (#761)
+
+**What.** The website download links `Vendor/Sparkle`, a local package around a `Sparkle.xcframework` built from Sparkle's
+source at the pinned tag (`tools/lib/sparkle-pin.sh`) by `tools/build-sparkle.sh` with one build setting changed:
+`SPARKLE_NORMALIZE_INSTALLED_APPLICATION_NAME=1`. Sparkle's installer then moves an updated app to `<SUBundleName>.app`, so a
+copy installed as macEM.app becomes `Electron Microscopy Studio.app` from its second update on a build that carries this (the
+installer that runs is the installed app's own). The framework is built on GitHub's macOS runner (`.github/workflows/sparkle.yml`)
+and committed, about 3 MB and no file over 1 MiB, with a `build-info.txt` of hashes that the inventory checks. `tools/release.sh`
+refuses a download whose Sparkle helpers are not that build; `tools/appcast.sh` takes `sign_update` from the same tag's official
+zip, checksum-pinned. The store build has no Sparkle, as before.
+
+**Why.** Committed rather than built on demand: every build of the app (Xcode on any Mac, six CI workflows, both release
+scripts) resolves it with no extra step, and the release signs exactly the binary the inventory checked. Building Sparkle in each
+of those would have added a step to each and a slow, failure-prone first build on every fresh checkout.
+
+**What would reverse it.** The rename having reached the users (Sparkle's own note: turn the setting off once it is done); a
+follow-up issue tracks it. `Vendor/Sparkle/README.md` lists the steps back to the stock package.
+
+## 2026-11-23 — Show Next Room and Show Previous Room (⇧⌘] and ⇧⌘[) (#837)
+
+**What.** The Workspace menu has Show Next Room (⇧⌘]) and Show Previous Room (⇧⌘[). They step through the rooms of the workspace
+in front, in sidebar order, round from the last to the first, and skip rooms with no data for the open files
+(`WorkspaceArea.neighbour`). Where no other room of the workspace can be entered, both are disabled; that includes Diffraction and
+Results, which have one room each. The rooms keep their place in the Workspace menu's submenus.
+
+**Why.** Rooms had no key of their own after the workspaces came in (2026-11-10), so Indexing could not be reached from the
+keyboard alone (the Q10 keyboard-only journey, #800). ⇧⌘] and ⇧⌘[ are the system's next and previous tab keys (Safari, Finder,
+Xcode), and nothing else in the app uses them. ⌘1…⌘9 per room would come back to the nine flat keys the workspaces replaced.
+
+**Reversal.** Remove the two buttons from the Workspace menu in `macTEMApp.swift`. The keyboard-only journey then cannot reach a
+second room in a workspace.

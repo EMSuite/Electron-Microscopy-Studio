@@ -17,6 +17,14 @@
 #     a compiler warning in the app's own sources or tests fails it (tools/lib/app-warnings.sh).
 #   Each is its own step, so the job's log names the one that failed. The required check is the job, `unit (XCTest)`.
 #
+# DOCS ONLY: a pull request that changes only the root's Markdown files (README, CONTRIBUTING, ...), files under docs/
+# (the store texts in docs/app-store/ among them) or the issue templates runs no macOS job (process item 3 again). The
+# Linux job `changes` lists the pull request's files and says whether any needs the Mac; `unit` is then skipped, and GitHub
+# counts a job skipped by its `if` as passing, so the required check `unit (XCTest)` is met with no stand-in. A doc that
+# the job's tests or gates read (docs/parity.md, docs/architecture.md, ...: its path named anywhere under macTEMTests*/,
+# tools/run-tests.sh or tools/lib/) counts as code, so a pull request that edits it runs `unit`. What the skip gives up is
+# the inventory's live-docs check on that pull request; the nightly runs it on main.
+#
 # NIGHTLY (cron 01:00 UTC) and by hand (workflow_dispatch) only, never on a push, a tag or a pull request:
 #   * the unit job first restores and fetches the SEM reference datasets (tools/parity/sem/fetch-data.sh into the
 #     gitignored References/sem-data, sem-parity.yml's cache), so the parity cases whose input is a fetched dataset
@@ -101,12 +109,52 @@ env:
   DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
 
 jobs:
+  changes:
+    # DOCS ONLY in the header: whether this pull request changes anything the macOS job checks. Pull requests only; on every
+    # other event `unit` runs as before.
+    name: changes (does the PR need the macOS job)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      macos: ${{ steps.files.outputs.macos }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The pull request's merge commit and its first parent, the base: their difference is the PR's files.
+          fetch-depth: 2
+      - name: List the files and decide
+        id: files
+        run: |
+          set -euo pipefail
+          macos=false
+          dirs=$(ls -d macTEMTests* tools/run-tests.sh tools/lib 2>/dev/null || true)
+          while IFS= read -r f; do
+            [ -n "$f" ] || continue
+            if [[ "$f" != */* && "$f" == *.md ]] || [[ "$f" == .github/ISSUE_TEMPLATE/* ]]; then
+              echo "docs only: $f"
+            elif [[ "$f" == docs/* ]]; then
+              # A doc a test or a tool reads is code to them.
+              if [ -n "$dirs" ] && git grep -q -F "$f" -- $dirs; then
+                echo "needs macOS: $f (a test or a tool names it)"; macos=true
+              else
+                echo "docs only: $f"
+              fi
+            else
+              echo "needs macOS: $f"; macos=true
+            fi
+          done < <(git diff --name-only --no-renames HEAD^1 HEAD)
+          echo "macos=$macos" | tee -a "$GITHUB_OUTPUT"
+
   unit:
     # The one macOS job of a pull request: inventory, core, then the XCTest suite (WHAT RUNS in the header). Its name is
     # the required check's, kept from when it ran the suite alone.
     name: unit (XCTest)
-    # Not on a push to main: the PR run tested the change; nightly and tags run it (MAIN in the header).
-    if: github.event_name != 'push' || startsWith(github.ref, 'refs/tags/')
+    needs: changes
+    # Not on a push to main: the PR run tested the change; nightly and tags run it (MAIN in the header). Not on a docs-only
+    # pull request (DOCS ONLY in the header). `!cancelled()` runs it although `changes` is skipped (every event but a pull
+    # request) or failed (then its answer is empty and the job runs, the safe side).
+    if: ${{ !cancelled() && needs.changes.outputs.macos != 'false' && (github.event_name != 'push' || startsWith(github.ref, 'refs/tags/')) }}
     runs-on: macos-26
     timeout-minutes: 90
     steps:

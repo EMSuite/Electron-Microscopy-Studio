@@ -61,4 +61,24 @@ nonisolated final class WorkspaceGroupTests: XCTestCase {
         XCTAssertEqual(state.navigation.workspaceArea, .fft)
         XCTAssertEqual(state.sidebarRoute.wrappedValue, .room(.fft))
     }
+
+    /// Show Next Room and Show Previous Room (⇧⌘] and ⇧⌘[) step through the workspace in front, round from the last room to the
+    /// first, past rooms with no data, and stop where no other room can be entered. Red under: stepping into another workspace; no
+    /// wrap; landing on a room with no data; a key that acts in a one-room workspace.
+    func testNextAndPreviousRoomStayInTheWorkspace() {
+        let all: (WorkspaceArea) -> Bool = { _ in true }
+        XCTAssertEqual(WorkspaceArea.patterns.neighbour(forward: true, canEnter: all), .indexing)
+        XCTAssertEqual(WorkspaceArea.maps.neighbour(forward: true, canEnter: all), .patterns)
+        XCTAssertEqual(WorkspaceArea.patterns.neighbour(forward: false, canEnter: all), .maps)
+        XCTAssertEqual(WorkspaceArea.indexing.neighbour(forward: false, canEnter: all), .patterns)
+        XCTAssertEqual(WorkspaceArea.image.neighbour(forward: true, canEnter: all), .fft)
+        XCTAssertEqual(WorkspaceArea.fft.neighbour(forward: true, canEnter: all), .image)
+        XCTAssertEqual(WorkspaceArea.eels.neighbour(forward: false, canEnter: all), .edx)
+        XCTAssertNil(WorkspaceArea.diffraction.neighbour(forward: true, canEnter: all))
+        XCTAssertNil(WorkspaceArea.results.neighbour(forward: false, canEnter: all))
+        let noIndexing: (WorkspaceArea) -> Bool = { $0 != .indexing }
+        XCTAssertEqual(WorkspaceArea.patterns.neighbour(forward: true, canEnter: noIndexing), .maps)
+        XCTAssertEqual(WorkspaceArea.maps.neighbour(forward: false, canEnter: noIndexing), .patterns)
+        XCTAssertNil(WorkspaceArea.edx.neighbour(forward: true) { $0 == .edx })
+    }
 }

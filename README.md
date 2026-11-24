@@ -10,8 +10,7 @@ Apple silicon.
 ## Download
 
 Get the signed and notarised DMG from the [latest release](https://github.com/EMSuite/Electron-Microscopy-Studio/releases/latest). It needs
-macOS 26 or later on an Apple silicon Mac. The SEM rooms and SEM files below are not in a release yet: to use them
-now, build the app yourself.
+macOS 26 or later on an Apple silicon Mac. Release 2.1.1 has everything below, the SEM and EBSD rooms included.
 
 From 2.1 the download checks for updates itself (Microscopy Studio > Check for Updates…, and a daily check you can turn off
 in Settings); the App Store version updates through the store.
@@ -72,6 +71,11 @@ The rooms:
   carries one, or from the Indexing room.
 - **Results**: every measurement of a file in one table, exported as CSV. The SEM results have a table of their own and
   a session report, as PDF or Markdown.
+
+## Agents
+
+An AI agent on the same Mac (Claude, Codex, a script) can look at what a window shows, and with your leave work a room,
+through the agent door: Settings > Agents, off by default. What it can reach is in [`docs/agent-door.md`](docs/agent-door.md).
 
 ## Where the numbers come from
 

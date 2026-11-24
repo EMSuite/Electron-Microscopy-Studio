@@ -8,8 +8,22 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DMG="$1" VERSION="$2" FEED="$3"
-SIGN_UPDATE="$ROOT/build/SourcePackages/artifacts/sparkle/Sparkle/bin/sign_update"
-[[ -x "$SIGN_UPDATE" ]] || { echo "No $SIGN_UPDATE (tools/release.sh clones the packages there)." >&2; exit 1; }
+# sign_update from the pinned tag's official Swift Package Manager zip, held to the checksum Sparkle's Package.swift states for it
+# (tools/lib/sparkle-pin.sh): the binary SwiftPM fetched while the app linked that package. The app's own Sparkle is built from
+# source (Vendor/Sparkle, #761), and signing a DMG does not depend on how the framework was built.
+. "$ROOT/tools/lib/sparkle-pin.sh"
+TOOLS="$ROOT/build/sparkle-tools/$SPARKLE_TAG"
+SIGN_UPDATE="$TOOLS/bin/sign_update"
+if [[ ! -x "$SIGN_UPDATE" ]]; then
+  mkdir -p "$TOOLS"
+  curl -fsSL -o "$TOOLS/spm.zip" "https://github.com/sparkle-project/Sparkle/releases/download/$SPARKLE_TAG/Sparkle-for-Swift-Package-Manager.zip" \
+    || { echo "Could not download Sparkle $SPARKLE_TAG's Swift Package Manager zip." >&2; exit 1; }
+  [[ "$(shasum -a 256 "$TOOLS/spm.zip" | cut -d' ' -f1)" == "$SPARKLE_SPM_ZIP_SHA256" ]] \
+    || { echo "Sparkle $SPARKLE_TAG's zip does not match the checksum in tools/lib/sparkle-pin.sh." >&2; rm -f "$TOOLS/spm.zip"; exit 1; }
+  ditto -x -k "$TOOLS/spm.zip" "$TOOLS"
+  rm -f "$TOOLS/spm.zip"
+fi
+[[ -x "$SIGN_UPDATE" ]] || { echo "No $SIGN_UPDATE in Sparkle $SPARKLE_TAG's zip." >&2; exit 1; }
 
 # sign_update prints the enclosure's two attributes: sparkle:edSignature="…" length="…".
 ATTRIBUTES="$("$SIGN_UPDATE" "$DMG")"

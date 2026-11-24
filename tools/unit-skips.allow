@@ -4,6 +4,7 @@
 # real-data (the owner's data folder, the suite's References or an opt-in variable: never on a runner), metal, sandbox. Seeded from a
 # pull-request run's `unit: SKIPPED` lines (2026-11-10): the Metal tests and the security-scoped bookmark tests run on GitHub's macos-26
 # runner, so none of them is listed, and a skip of one fails the gate.
+BenchmarkTests.testTheNightlyBenchmarks	real-data	opt-in (MACTEM_BENCHMARKS=1, which tools/benchmarks/ci.sh sets for the Audit workflow's nightly benchmarks job)
 CTFReaderTests.testTheWholeTiFileReadsAsOrix	real-data	opt-in (MACTEM_REAL_DATA=1 or $TMPDIR/macTEM-real-data.flag), then the owner's $MACEM_DATA/sem/Ti_orientations.ctf
 CrystalMapParityTests.testFigureF7NeighbourMisorientationHistogramOfTheTiMap	sem-data	figure F7 on orix-data's whole Ti map, References/sem-data/orix/Ti_orientations.ctf (fetch-data.sh)
 EDXRealDataTests.testTheOwnersVeloxSpectrumImageEndToEnd	real-data	opt-in (MACTEM_REAL_DATA=1 or $TMPDIR/macTEM-real-data.flag), then the owner's spectrum images under $MACEM_DATA/stem-edx
