@@ -172,6 +172,9 @@ extension MacTEMAgentDoor {
         AgentParameter("ro", .number(FFTRoomFormat.FilterParameter.ro.range), summary: "HRTEM filters: the low-pass's half-point radius."),
         AgentParameter("low_frequency", .number(FFTRoomFormat.FilterParameter.lowFrequency.range), summary: "HRTEM filters: Low frequency, %."),
         AgentParameter("filter", .boolean, summary: "Press Filter (ABSF and Wiener)."),
+        AgentParameter("strain_reference", .choice(FFTStrainReference.allCases.map(\.rawValue)),
+                       summary: "Strain: the window taken as undistorted, the whole region or its centred quarter."),
+        AgentParameter("strain", .boolean, summary: "Press Map Strain (GPA with the first two measured spots as g1 and g2)."),
     ]
 
     private static let fftPoint = Locale(identifier: "en_US_POSIX")
@@ -228,7 +231,32 @@ extension MacTEMAgentDoor {
                  "status": FFTRoomFormat.filterStatus(n: $0.n, passes: $0.passes, finalDelta: $0.finalDelta, locale: fftPoint)] as [String: Any]
             }),
         ] as [String: Any]
+        answer["strain"] = strain(analysis)
         return answer
+    }
+
+    /// The Strain section as the room shows it, with each map's drawn range (± the 99th percentile of its magnitudes, the plates'):
+    /// strain in %, rotation in degrees, clockwise positive on screen.
+    private static func strain(_ analysis: FFTAnalysis) -> [String: Any] {
+        let reflections = analysis.strainReflections
+        return [
+            "reference": analysis.strainReference.rawValue,
+            "spots": AgentJSON.orNull(reflections.map { [$0.0.spot, $0.1.spot] }),
+            "computing": analysis.isComputingStrain, "failure": AgentJSON.orNull(analysis.strainFailure),
+            "validation": strainValidationNote,
+            "last_run": AgentJSON.orNull(analysis.strain.map { product -> [String: Any] in
+                func largest(_ c: FFTStrainProduct.Component, _ scale: Double) -> Any {
+                    AgentJSON.number(product.canvas(c).rawRange.map { Double($0.upperBound) * scale })
+                }
+                return [
+                    "spots": [product.key.g1.spot, product.key.g2.spot],
+                    "g1": [product.key.g1.row, product.key.g1.column], "g2": [product.key.g2.row, product.key.g2.column],
+                    "exx_range_percent": largest(.exx, 100), "eyy_range_percent": largest(.eyy, 100),
+                    "exy_range_percent": largest(.exy, 100), "rotation_range_degrees_clockwise": largest(.rotation, 180 / .pi),
+                    "pixels_without_phase": product.unmeasured, "status": FFTRoomFormat.strainStatus(product),
+                ]
+            }),
+        ]
     }
 
     private static func spots(_ analysis: FFTAnalysis, image: CalibratedImage) -> [String: Any] {
@@ -284,7 +312,8 @@ extension MacTEMAgentDoor {
                 guard let canvas = item.presentation.canvas,
                       let layer = FFTSourceLayer.make(analysis.sourceView, original: canvas, colormap: item.presentation.colormap,
                                                       window: item.presentation.displayFractions, gamma: Float(item.presentation.gamma),
-                                                      spectrum: analysis.spectrum, inverse: analysis.maskedInverse, filtered: analysis.filtered) else {
+                                                      spectrum: analysis.spectrum, inverse: analysis.maskedInverse, filtered: analysis.filtered,
+                                                      strain: analysis.strain) else {
                     return .refusal(status: 404, message: "The \(analysis.sourceView.rawValue) view has nothing to show yet; get_fft says what is computing.")
                 }
                 let shown = layer.canvas, values = shown.normalized   // one Float copy for the picture and its display (#928)
@@ -353,7 +382,8 @@ extension MacTEMAgentDoor {
         }
         if let view = a["view"].flatMap(FFTAnalysis.SourceView.init(rawValue:)),
            let entry = FFTSourceViewControl.entries(for: analysis).first(where: { $0.view == view }), !entry.isEnabled,
-           a["filter"] != "true" {
+           !(a["filter"] == "true" && (view == .absf || view == .wiener)),
+           !(a["strain"] == "true" && view.strainComponent != nil) {
             return .refusal(status: 409, message: "\(entry.title) is not available yet: it needs " + needs(view) + ".")
         }
 
@@ -388,6 +418,8 @@ extension MacTEMAgentDoor {
         if let s = a["filter_smoothing"] { f.smoothing = s == "true" }
         analysis.setFilterParameters(f)
         if a["filter"] == "true" { analysis.runFilter() }
+        if let r = a["strain_reference"].flatMap(FFTStrainReference.init(rawValue:)) { analysis.setStrainReference(r) }
+        if a["strain"] == "true" { analysis.runStrain() }
         if let view = a["view"].flatMap(FFTAnalysis.SourceView.init(rawValue:)) { analysis.setSourceView(view) }
         return nil
     }
@@ -408,6 +440,7 @@ extension MacTEMAgentDoor {
         case .region: "the transform"
         case .maskedInverse: "a measured spot in the mask"
         case .absf, .wiener: "a Filter run (set_fft filter true)"
+        case .strainXX, .strainYY, .strainXY, .rotation: "a Map Strain run (set_fft strain true)"
         }
     }
 
