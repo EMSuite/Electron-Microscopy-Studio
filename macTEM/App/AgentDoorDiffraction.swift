@@ -233,9 +233,10 @@ extension MacTEMAgentDoor {
             return .refusal(status: 409, message: "The file states its beam energy; a typed one is only for a file without it.")
         }
         let standard = a["standard"].flatMap(StandardCrystals.named) ?? analysis.standard
-        // A new standard's rings are known once it is set; the current one's are checked here.
-        if let f = a["family"].flatMap(Int.init), a["standard"] == nil, !analysis.standardFamilies().indices.contains(f) {
-            return .refusal(status: 400, message: "The standard has rings 0 to \(analysis.standardFamilies().count - 1) (get_diffraction's families).")
+        // The ring is checked against the standard the call sets, before anything changes (#927).
+        let families = analysis.standardFamilies(of: standard)
+        if let f = a["family"].flatMap(Int.init), !families.indices.contains(f) {
+            return .refusal(status: 400, message: "The standard has rings 0 to \(families.count - 1) (get_diffraction's families).")
         }
         let inner = number("inner") ?? view.annulusInner, outer = number("outer") ?? view.annulusOuter
         if a["inner"] != nil || a["outer"] != nil, !(inner < outer) {
@@ -248,12 +249,7 @@ extension MacTEMAgentDoor {
         if let row = number("centre_row"), let column = number("centre_column") { analysis.setCentre(row: row, column: column) }
         if let n = a["use_ring_centre"].flatMap(Int.init) { analysis.useCentre(ofRing: analysis.rings[n - 1].id) }
         if a["standard"] != nil { analysis.setStandard(standard) }
-        if let f = a["family"].flatMap(Int.init) {
-            guard analysis.standardFamilies().indices.contains(f) else {
-                return .refusal(status: 400, message: "The standard has rings 0 to \(analysis.standardFamilies().count - 1) (get_diffraction's families).")
-            }
-            analysis.familyIndex = f
-        }
+        if let f = a["family"].flatMap(Int.init) { analysis.familyIndex = f }
         if a["clear_calibration"] == "true" { DiffractionUndo.clearCalibration(in: analysis, undoManager: nil) }
         if let dq = number("delta_q") { analysis.typedDeltaQ = dq }
         if let kv = number("beam_kv") { analysis.typedBeamKV = kv }

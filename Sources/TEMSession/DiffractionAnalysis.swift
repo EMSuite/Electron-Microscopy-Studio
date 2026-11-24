@@ -225,7 +225,8 @@ package final class DiffractionAnalysis {
     package func list() -> KinematicReflectionList? { listResult().list }
 
     /// The standard's first families (the ones a ring is picked from): name, d. Cached by standard and k_max.
-    package func standardFamilies() -> [(name: String, d: Double, family: ReflectionFamily)] {
+    package func standardFamilies(of other: StandardCrystal? = nil) -> [(name: String, d: Double, family: ReflectionFamily)] {
+        let standard = other ?? self.standard
         let reach = max(kMax, 2.5)
         let key = "\(standard.name)|\(reach)"
         if let hit = familiesCache[key] { return hit }

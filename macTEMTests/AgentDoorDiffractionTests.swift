@@ -133,8 +133,8 @@ nonisolated final class AgentDoorDiffractionTests: XCTestCase {
         XCTAssertFalse(item.diffraction.ringCalibrationExists, "removing the calibrating ring drops its scale")
     }
 
-    /// Mutation: a typed Δq or beam energy taken over the file's own, a refused call changing a setting given beside the refused one,
-    /// or a setting not reaching the analysis' intent - red.
+    /// Mutation: a typed Δq or beam energy taken over the file's own, a refused call changing a setting given beside the refused one
+    /// (the centre and the standard before a ring the new standard lacks, #927), or a setting not reaching the analysis' intent - red.
     @MainActor func testSettingsAndTheirRefusals() async throws {
         let (_, item) = try await diffractionWindow()
         let typed = try await call("set_diffraction", ["delta_q": 0.02, "k_max": 2])
@@ -167,6 +167,12 @@ nonisolated final class AgentDoorDiffractionTests: XCTestCase {
         XCTAssertFalse(standard.refused, standard.text)
         XCTAssertEqual(item.diffraction.standard.name, "Al")
         XCTAssertNil(item.diffraction.pitchMM)
+        // A ring the new standard does not list is refused before the centre or the standard moves (#927).
+        let family = try await call("set_diffraction", ["standard": "Si", "family": 6, "centre_row": 10, "centre_column": 10])
+        XCTAssertTrue(family.refused, "the standards list at most six rings")
+        XCTAssertEqual(item.diffraction.standard.name, "Al", "a refused call keeps the standard")
+        XCTAssertEqual(item.diffraction.centre?.row, 255, "a refused call keeps the centre")
+        XCTAssertEqual(item.diffraction.centre?.column, 257)
         let noRing = try await call("set_diffraction", ["use_ring_centre": 1])
         XCTAssertTrue(noRing.refused, "no ring is fitted")
     }
