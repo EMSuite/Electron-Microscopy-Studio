@@ -299,9 +299,12 @@ ui_build() (
   local work rc
   work="$(mktemp -d "${TMPDIR:-/tmp}/mactem-ui-build.XXXXXX")"
   trap 'rm -rf "$work"' EXIT
+  # -continueBuildingAfterErrors: one run names every file that fails, not the first batch's errors alone.
   xcodebuild build-for-testing -project "$ROOT/macTEM.xcodeproj" -scheme macTEMUI -configuration Debug -destination 'platform=macOS' \
+    -continueBuildingAfterErrors \
     -derivedDataPath "$work/DerivedData" SWIFT_OPTIMIZATION_LEVEL=-O CODE_SIGNING_ALLOWED=NO > "$work/ui-build.log" 2>&1 && rc=0 || rc=$?
-  grep -E "error:|: error|BUILD (SUCCEEDED|FAILED)" "$work/ui-build.log" | tail -40 || true
+  grep -E "error:|: error" "$work/ui-build.log" | sort -u | head -200 || true
+  grep -E "BUILD (SUCCEEDED|FAILED)" "$work/ui-build.log" | tail -1 || true
   grep -A12 "^The following build commands failed:" "$work/ui-build.log" | head -30 || true
   # A compiler crash prints no `error:`: its signal and stack dump are the reason.
   grep -E -A8 "Stack dump|PLEASE submit|Segmentation fault|Assertion failed|terminated due to signal|Illegal instruction" "$work/ui-build.log" | head -40 || true
