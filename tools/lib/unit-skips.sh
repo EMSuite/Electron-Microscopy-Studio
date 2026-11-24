@@ -3,7 +3,8 @@
 #
 # The allow file lists each test that may skip, one per line: Class.method<TAB>condition<TAB>reason, the condition one of
 # sem-data (the SEM reference data under References/sem-data, which tools/parity/sem/fetch-data.sh fetches), real-data (the owner's
-# data folder or an opt-in variable, never on a runner), metal (no Metal device), sandbox (no security-scoped bookmark) or snapshots
+# data folder or an opt-in variable, never on a runner), metal (no Metal device), sandbox (no security-scoped bookmark), appkit (a newer
+# macOS draws the SwiftUI control without the AppKit view the test reads; macOS 26 on main and the nightly still runs it) or snapshots
 # (the room snapshots, compared only where SNAPSHOTS=1 is set, #805). Lines that start with # and empty lines are comments. With
 # MACTEM_REQUIRE_SEM_DATA=1 (the nightly unit job, after it fetched that data) a sem-data line allows nothing; with
 # TEST_RUNNER_SNAPSHOTS=1 (CI's unit job) a snapshots line allows nothing.
@@ -34,8 +35,8 @@ unit_skips_check() {
         lines++
         if (line ~ /^#/ || line ~ /^[[:space:]]*$/) continue
         if (split(line, f, "\t") != 3 || f[1] !~ /^[^.[:space:]]+\.test[^.[:space:]]*$/ ||
-            f[2] !~ /^(sem-data|real-data|metal|sandbox|snapshots)$/ || f[3] ~ /^[[:space:]]*$/) {
-          print "unit-skips: " allow ":" lines ": not Class.method<TAB>condition<TAB>reason (sem-data, real-data, metal, sandbox or snapshots): " line > "/dev/stderr"
+            f[2] !~ /^(sem-data|real-data|metal|sandbox|appkit|snapshots)$/ || f[3] ~ /^[[:space:]]*$/) {
+          print "unit-skips: " allow ":" lines ": not Class.method<TAB>condition<TAB>reason (sem-data, real-data, metal, sandbox, appkit or snapshots): " line > "/dev/stderr"
           bad = 1; continue
         }
         if (f[1] in condition) { print "unit-skips: " allow ":" lines ": " f[1] " is listed twice" > "/dev/stderr"; bad = 1; continue }

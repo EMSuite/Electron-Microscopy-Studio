@@ -1,7 +1,8 @@
 # Tests that may skip in `tools/run-tests.sh unit`, each with what it lacks: Class.method<TAB>condition<TAB>reason. A skip not listed
 # here fails the unit gate by name; a listed test that runs is named and passes. condition: sem-data (References/sem-data, which
 # tools/parity/sem/fetch-data.sh fetches; the nightly sets MACTEM_REQUIRE_SEM_DATA=1 after it, and then no sem-data line allows a skip),
-# real-data (the owner's data folder, the suite's References or an opt-in variable: never on a runner), metal, sandbox. Seeded from a
+# real-data (the owner's data folder, the suite's References or an opt-in variable: never on a runner), metal, sandbox, appkit (a
+# newer macOS than macos-26 draws the SwiftUI control without the AppKit view the test reads: the org's Mac runner on a pull request). Seeded from a
 # pull-request run's `unit: SKIPPED` lines (2026-11-10): the Metal tests and the security-scoped bookmark tests run on GitHub's macos-26
 # runner, so none of them is listed, and a skip of one fails the gate.
 BenchmarkTests.testTheNightlyBenchmarks	real-data	opt-in (MACTEM_BENCHMARKS=1, which tools/benchmarks/ci.sh sets for the Audit workflow's nightly benchmarks job)
@@ -37,6 +38,7 @@ SEMBackgroundParityTests.testWholeSetF2ChainWithinOneGreyLevel	real-data	the who
 SEMGrainParityTests.testFiguresF11AndF12GrainsKAMAndGOSOfTheTiMap	sem-data	figures F11 and F12 on orix-data's whole Ti map, References/sem-data/orix/Ti_orientations.ctf (fetch-data.sh)
 SEMTextureParityTests.testFigureF13OnTheTiMap	sem-data	figure F13 on orix-data's whole Ti map, References/sem-data/orix/Ti_orientations.ctf (fetch-data.sh)
 VeloxAcquisitionReadTests.testAVeloxFileNowReadsMagnificationCameraLengthExposureAndMode	real-data	the Velox example files under References/mac4DSTEM/velox-parity, which no repository commits
+FFTRoomWiringTests.testTheViewMenusFaceIsThePlainNameOfTheViewShown	appkit	macOS 27 draws SwiftUI's menu Picker without an NSPopUpButton; macos-26 (main, the nightly) still reads the face (#959)
 RoomSnapshotTests.testEDSRoomEmpty	snapshots	compared only where SNAPSHOTS=1 is set (CI's unit job on macos-26); a Mac's run skips them
 RoomSnapshotTests.testEELSRoomEmpty	snapshots	compared only where SNAPSHOTS=1 is set (CI's unit job on macos-26); a Mac's run skips them
 RoomSnapshotTests.testImageRoomEmpty	snapshots	compared only where SNAPSHOTS=1 is set (CI's unit job on macos-26); a Mac's run skips them

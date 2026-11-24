@@ -97,6 +97,19 @@ package nonisolated enum DemoDocuments {
     package static let patternURL = URL(fileURLWithPath: "/macTEM-demo/Demo Au pattern")
     package static let ebsdURL = URL(fileURLWithPath: "/macTEM-demo/Demo EBSD")
     package static func isDemo(_ url: URL) -> Bool { url.path.hasPrefix("/macTEM-demo/") }
+    /// File > New Simulation's documents (#788): "Simulation 1", "Simulation 2", …, markers like the demos', answered from memory by
+    /// `simulationCanvas`. Numbered, so a second New Simulation is a document of its own and never brings the first one forward.
+    package static func simulationURL(_ number: Int) -> URL { URL(fileURLWithPath: "/macTEM-demo/Simulation \(number)") }
+    package static func isSimulation(_ url: URL) -> Bool { url.path.hasPrefix("/macTEM-demo/Simulation ") }
+
+    /// What a simulation is drawn on: no measured pattern, an empty 512 x 512 canvas with the demo pattern's Δq (0.0125 Å⁻¹/px, its
+    /// axis in 1/nm), the centre in the middle. No beam energy of its own: the room's typed one is the simulation's, set when it lands.
+    package static func simulationCanvas(name: String) -> CalibratedImage {
+        let n = Truth.patternSide
+        let axis = AxisCalibration(scale: Truth.patternDeltaQ * 10, unit: "1/nm", origin: Truth.patternCentre)
+        return CalibratedImage(width: n, height: n, pixels: [Float](repeating: 0, count: n * n), x: axis, y: axis, fileName: name,
+                               source: "simulation", voltage: nil, notes: ["simulation, no measured pattern"])
+    }
 
     /// The folders in the app's temporary folder that Help > Open Demo Data writes its on-disk demos to (the stack, the SEM image, the
     /// spectrum): opened through the File menu's own path, but scratch, never a folder to save into (#507).

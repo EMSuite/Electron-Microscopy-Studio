@@ -1,9 +1,11 @@
 # Adapted from mac4DSTEM (.github/workflows/ci.yml).
 #
 # CI — what a public checkout can reproduce, on every pull request (a push to main: MAIN below). Every job here runs on
-# GitHub's own runners (macos-26 or ubuntu-latest), never on the org's Mac, so no PR waits on that Mac being awake (SEM program,
-# 2026-11-06; docs/decisions.md). The Mac runner keeps only what needs a screen: the UI journeys and their screenshots
-# (.github/workflows/ui.yml, nightly and by hand, queued while the Mac is offline).
+# GitHub's own runners (macos-26 or ubuntu-latest), except `unit` on a pull request: while the org variable
+# MACEM_MAC_RUNNER is set, that one runs on the org's Mac runner (never for a fork PR), because GitHub's five macOS
+# machines for the whole org were the queue (docs/decisions.md, 2026-11-24; the suite's tools/ci-runner). Deleting the
+# variable puts it back on macos-26 with no PR. On main, tags and the nightly `unit` stays on macos-26, the macOS 26
+# runtime proof (the Mac runs a newer macOS).
 #
 # WHAT RUNS, on a pull request as ONE macOS job (`unit`), its steps cheapest first so a red one fails early and holds the
 # runner no longer than it must. GitHub gives the org five macOS runners at once; three jobs per PR (until 23 Nov 2026) let
@@ -157,7 +159,8 @@ jobs:
     # changes only docs (DOCS ONLY in the header). `!cancelled()` runs it although `changes` is skipped (a tag, by hand,
     # nightly) or failed (then its answer is empty and the job runs, the safe side).
     if: ${{ !cancelled() && needs.changes.outputs.macos != 'false' }}
-    runs-on: macos-26
+    # A same-repo pull request: the org's Mac runner while MACEM_MAC_RUNNER is set; anything else: GitHub's macos-26.
+    runs-on: ${{ github.event_name == 'pull_request' && vars.MACEM_MAC_RUNNER && !github.event.pull_request.head.repo.fork && fromJSON(vars.MACEM_MAC_RUNNER) || 'macos-26' }}
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v7
