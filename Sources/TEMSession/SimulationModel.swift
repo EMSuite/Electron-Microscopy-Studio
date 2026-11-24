@@ -203,7 +203,7 @@ package final class SimulationModel {
     }
 
     /// The widest field of view, nm: 20 nm (at the finest sampling 4 000 pixels across; the image is made off the main actor).
-    package static let largestFieldOfViewNM = 20.0
+    package nonisolated static let largestFieldOfViewNM = 20.0
 
     /// Edits the optics, every control's one path: the edit is kept only when every value stays valid (a positive voltage, a finite
     /// Cs, spreads of at least 0, an aperture above 0 or none, a field of view above 0 and at most `largestFieldOfViewNM`).

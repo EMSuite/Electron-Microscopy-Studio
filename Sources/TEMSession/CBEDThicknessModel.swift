@@ -94,6 +94,7 @@ extension OpenItem {
     /// What Measure Thickness measures for this item now: its pattern, its canvas's content version, its phase, calibration,
     /// centre and beam energy; or why not. The room's section and the door read this one.
     package var thicknessInputs: Result<CBEDThicknessModel.Inputs, CBEDThickness.Refusal> {
-        CBEDThicknessModel.inputs(image: session.imageOrBlank, contentVersion: presentation.canvas?.contentVersion ?? 0, analysis: diffraction)
+        guard let image = session.image else { return .failure(.kit("The pattern is still loading.")) }
+        return CBEDThicknessModel.inputs(image: image, contentVersion: presentation.canvas?.contentVersion ?? 0, analysis: diffraction)
     }
 }
