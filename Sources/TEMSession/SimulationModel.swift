@@ -94,6 +94,15 @@ package final class SimulationModel {
 
     /// Raised each time new exit waves land: what a view keys work on the stored waves by.
     package private(set) var wavesRevision = 0
+    /// Kinematic or Dynamical (#911, MA8): the Diffraction room's simulated spots from the kit's kinematical pattern, or from the
+    /// zone-axis beams of the stored exit waves at the shown thickness.
+    package private(set) var isDynamical = false
+    /// The zone-axis beams of the stored exit waves at every stored thickness, or why the kit read none; nil with no waves.
+    package private(set) var dynamicalSpots: Result<DynamicalSpots, DynamicalAbsence>?
+
+    package nonisolated struct DynamicalAbsence: Error, Equatable, Sendable {
+        package let sentence: String
+    }
     /// The run going now and what it computes for.
     @ObservationIgnored private var running: (key: ExitKey, number: Int, task: Task<Void, Never>)?
     /// Counts the runs started, so each one's answer is told apart from a cancelled run's of the same key.
@@ -159,6 +168,31 @@ package final class SimulationModel {
     }
 
     // MARK: HRTEM
+
+    /// The Simulation section's Kinematic | Dynamical switch.
+    package func setDynamical(_ on: Bool) { isDynamical = on }
+
+    /// Why Dynamical draws the kinematical spots, in the room's words; nil while it is off, while a run goes, and when the beams are
+    /// drawn. Thermal vibrations first (the beams are read on the static lattice, and their waves are not live), then the specimen's
+    /// refusal, the run's failure and the kit's absence. Writes no observed state.
+    package func dynamicalAbsence(crystal: DiffractionCrystal?, zoneAxis: SIMD3<Int>) -> String? {
+        guard isDynamical, !isComputing else { return nil }
+        if thermal != nil { return Self.thermalDynamicalSentence }
+        if case .failure(let refusal) = specimen(crystal: crystal, zoneAxis: zoneAxis) { return refusal.sentence }
+        if let computeFailure { return "No dynamical intensities: \(computeFailure)" }
+        if exitWavesAreCurrent(crystal: crystal, zoneAxis: zoneAxis), case .failure(let absence)? = dynamicalSpots {
+            return "No dynamical intensities: \(absence.sentence)"
+        }
+        return nil
+    }
+
+    /// The beams the Diffraction room draws in place of the kinematical intensities: those of the shown thickness, while Dynamical
+    /// is on and the stored waves are this crystal's along this axis; else nil (the kinematical pattern). Writes no observed state.
+    package func dynamicalBeams(crystal: DiffractionCrystal?, zoneAxis: SIMD3<Int>) -> DynamicalBeams? {
+        guard isDynamical, exitWavesAreCurrent(crystal: crystal, zoneAxis: zoneAxis), case .success(let spots)? = dynamicalSpots,
+              let index = shownThicknessIndex else { return nil }
+        return spots.beams(at: index)
+    }
 
     /// The defocus the image is drawn at, nm: the one set, else Scherzer defocus (0 when the optics give none).
     package var effectiveDefocusNM: Double { defocusNM ?? ((try? optics.scherzerDefocusNM()) ?? 0) }
@@ -282,6 +316,7 @@ package final class SimulationModel {
         guard case .success(let built) = specimen(crystal: crystal, zoneAxis: zoneAxis) else {
             cancelRun()
             exitWaves = nil
+            dynamicalSpots = nil
             exitKey = nil
             return
         }
@@ -297,8 +332,13 @@ package final class SimulationModel {
         runNumber += 1
         let number = runNumber
         let task = Task { [weak self] in
-            let result: Result<HRTEMExitWaves, any Error> = await offMainActor {
-                Result { try HRTEMImage.exitWaves(built, optics: optics, specimen: specimen) }
+            // The beams are read in the same waves (one forward FFT each), so the pattern and the image are one run (#911).
+            let result: Result<(HRTEMExitWaves, Result<DynamicalSpots, DynamicalAbsence>), any Error> = await offMainActor {
+                Result {
+                    let waves = try HRTEMImage.exitWaves(built, optics: optics, specimen: specimen)
+                    let spots = Result { try DynamicalSpots(waves, built: built) }.mapError { DynamicalAbsence(sentence: ErrorDetail.text($0)) }
+                    return (waves, spots)
+                }
             }
             self?.land(result, key: key, run: number)
         }
@@ -314,13 +354,14 @@ package final class SimulationModel {
     }
 
     /// A run's answer: kept when it is the run going now (by its number: a cancelled run of the same key is not), dropped otherwise.
-    private func land(_ result: Result<HRTEMExitWaves, any Error>, key: ExitKey, run number: Int) {
+    private func land(_ result: Result<(HRTEMExitWaves, Result<DynamicalSpots, DynamicalAbsence>), any Error>, key: ExitKey, run number: Int) {
         guard running?.number == number else { return }
         running = nil
         isComputing = false
         switch result {
-        case .success(let waves):
+        case .success(let (waves, spots)):
             exitWaves = waves
+            dynamicalSpots = spots
             wavesRevision += 1
             exitKey = key
             computeFailure = nil
@@ -328,6 +369,7 @@ package final class SimulationModel {
         case .failure(let error):
             guard !(error is CancellationError) else { return }
             exitWaves = nil
+            dynamicalSpots = nil
             exitKey = nil
             computeFailure = ErrorDetail.text(error)
         }
@@ -535,11 +577,16 @@ package final class SimulationModel {
 
     private func landConfiguration(_ ensemble: HRTEMExitWaves, key: ExitKey, convergence: Convergence?) {
         exitWaves = ensemble
+        // The beams are read on the static lattice only (#911): a thermal ensemble's would need the mean over configurations.
+        dynamicalSpots = .failure(DynamicalAbsence(sentence: Self.thermalDynamicalSentence))
         exitKey = key
         wavesRevision += 1
         self.convergence = convergence
         if let thicknessIndex, thicknessIndex >= ensemble.planePeriods.count { self.thicknessIndex = nil }
     }
+
+    /// Why a frozen-phonon run gives no dynamical spot intensities.
+    package static let thermalDynamicalSentence = "Dynamical intensities are read on the static lattice; switch Thermal vibrations off to see them."
 
     private func endSimulation() {
         thermalTask = nil

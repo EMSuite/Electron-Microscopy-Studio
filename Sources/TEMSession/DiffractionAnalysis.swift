@@ -680,34 +680,37 @@ package final class DiffractionAnalysis {
         var volts: Double?
         var width: Int
         var height: Int
+        var dynamical: DynamicalBeams?
 
         // Written out: Periphery reads a synthesized == as never reading the fields.
         static func == (a: SimulationKey, b: SimulationKey) -> Bool {
             a.settings == b.settings && a.crystal == b.crystal && a.centre == b.centre && a.calibration == b.calibration
-                && a.volts == b.volts && a.width == b.width && a.height == b.height
+                && a.volts == b.volts && a.width == b.width && a.height == b.height && a.dynamical == b.dynamical
         }
     }
 
     /// The simulated spots of `simulation`'s zone axis on this image: DiffractoKit's `SpotPatternSimulator` of the crystal at the
     /// beam energy, placed by the scale and centre in use (`ZoneAxisOverlay`). Made again whenever anything it reads changed (the
     /// zone axis, the turn, the crystal, the centre, the scale, the beam), else the last answer; nil while the overlay is off. It
-    /// writes no observed state, so a view body may call it.
-    package func simulatedSpots(image: CalibratedImage) -> SimulatedSpots? {
+    /// writes no observed state, so a view body may call it. With `dynamical` (a Simulation document's Dynamical switch, #911) the
+    /// spots are its beams at its thickness, placed the same way.
+    package func simulatedSpots(image: CalibratedImage, dynamical: DynamicalBeams? = nil) -> SimulatedSpots? {
         guard simulation.isShown else { return nil }
         let calibration = calibration(for: image)
         let volts = volts(for: image)
         var settings = simulation
         if indexIsStale { settings.scale = 1 }
         let key = SimulationKey(settings: settings, crystal: crystal, centre: centre, calibration: calibration, volts: volts,
-                                width: image.width, height: image.height)
+                                width: image.width, height: image.height, dynamical: dynamical)
         if let simulationCache, simulationCache.key == key { return simulationCache.result }
-        let result = makeSimulatedSpots(settings: settings, calibration: calibration, volts: volts, width: image.width, height: image.height)
+        let result = makeSimulatedSpots(settings: settings, calibration: calibration, volts: volts, width: image.width, height: image.height,
+                                        dynamical: dynamical)
         simulationCache = (key, result)
         return result
     }
 
     private func makeSimulatedSpots(settings: ZoneAxisOverlay.Settings, calibration: DiffractionCalibration?, volts: Double?, width: Int,
-                                    height: Int) -> SimulatedSpots {
+                                    height: Int, dynamical: DynamicalBeams?) -> SimulatedSpots {
         guard let centre else { return .failure(SimulationAbsence(sentence: "No centre yet")) }
         guard let calibration, calibration.deltaQ.isFinite, calibration.deltaQ > 0 else {
             return .failure(SimulationAbsence(sentence: "Needs a scale: calibrate on a standard's ring, or type Δq"))
@@ -727,7 +730,7 @@ package final class DiffractionAnalysis {
         }
         do {
             let spots = try ZoneAxisOverlay.spots(simulator: simulator, settings: settings, volts: volts, calibration: calibration,
-                                                  centre: centre, width: width, height: height)
+                                                  centre: centre, width: width, height: height, dynamical: dynamical)
             return spots.isEmpty ? .failure(SimulationAbsence(sentence: "No simulated spot lands on this pattern")) : .success(spots)
         } catch {
             return .failure(SimulationAbsence(sentence: String(describing: error)))

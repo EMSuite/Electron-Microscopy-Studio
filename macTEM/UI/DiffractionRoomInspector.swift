@@ -43,7 +43,7 @@ struct DiffractionRoomSettings: View {
                 DiffractionIndexSection(analysis: analysis)
             }
             DiffractionHolderSection(item: item)
-            DiffractionSimulationSection(session: item.session, analysis: analysis)
+            DiffractionSimulationSection(item: item)
             if isSimulation { SimulationSpecimenSection(item: item) }
             DiffractionCrystalViewSection(view: view)
             DiffractionPrecipitateSection(item: item)
@@ -405,15 +405,23 @@ private struct DiffractionCrystalViewSection: View {
 
 /// The simulated spots over the pattern (#782): on or off, and the hkl labels. The crystal is the Phases section's, the scale and
 /// beam the Calibration's, the orientation the Index section's; the overlay is drawn again on every change of any of them.
+///
+/// A Simulation document adds Kinematic | Dynamical (#911, MA8): Dynamical draws the multislice's zone-axis beams at the thickness the
+/// slider picks (the same stored exit waves as the HRTEM image, so moving it is a lookup), forbidden reflections as open rings, and
+/// the method line names the thickness.
 private struct DiffractionSimulationSection: View {
-    let session: ImageSession
-    private var image: CalibratedImage { session.imageOrBlank }
-    let analysis: DiffractionAnalysis
+    let item: OpenItem
+    private var image: CalibratedImage { item.session.imageOrBlank }
+    private var analysis: DiffractionAnalysis { item.diffraction }
+    @Environment(AppState.self) private var appState
 
     var body: some View {
         let settings = analysis.simulation
-        let simulated = analysis.simulatedSpots(image: image)
+        let simulated = item.simulatedSpots(image: image)
         InspectorSection("Simulation") {
+            if DemoDocuments.isSimulation(item.url) {
+                dynamicalRows(item.multislice)
+            }
             InspectorRow("Overlay") {
                 Toggle("Show simulated spots", isOn: Binding(get: { analysis.simulation.isShown }, set: { analysis.simulation.isShown = $0 }))
                     .toggleStyle(.switch).labelsHidden()
@@ -443,7 +451,71 @@ private struct DiffractionSimulationSection: View {
                 default: InspectorNote(line)
                 }
             }
+            if let beams = item.dynamicalBeams {
+                InspectorNote(beams.methodLine).accessibilityIdentifier("diffraction.simulation.method")
+            }
+            if settings.isShown, let offAxis = item.dynamicalOffAxis { InspectorWarning(offAxis) }
         }
+    }
+
+    /// Kinematic | Dynamical and, for Dynamical, the thickness of the stored exit waves; the run is the HRTEM image's own
+    /// (`AppState.computeHRTEMImage`'s multislice, without the image), started here when Dynamical is on.
+    @ViewBuilder
+    private func dynamicalRows(_ model: SimulationModel) -> some View {
+        let crystal = analysis.simulatedPhase
+        let zoneAxis = analysis.simulation.zoneAxis
+        SegmentedPicker(label: "Intensities",
+                        items: [(false, .title("Kinematic", help: "The kit's |F|² with the excitation envelope")),
+                                (true, .title("Dynamical", help: "The multislice's zone-axis beams at a thickness, the same run as the HRTEM image"))],
+                        selection: Binding(get: { model.isDynamical }, set: { model.setDynamical($0) }))
+            .accessibilityIdentifier("diffraction.simulation.dynamical")
+        .task(id: DynamicalRunKey(on: model.isDynamical, crystal: crystal?.identity, zoneAxis: zoneAxis, thicknessNM: model.thicknessNM,
+                                  beamKV: analysis.typedBeamKV, apertureMrad: model.optics.apertureMrad,
+                                  strain: crystal.map { model.maximumStrain(crystal: $0, zoneAxis: zoneAxis) },
+                                  thermal: model.thermal?.sigmas)) {
+            guard model.isDynamical else { return }
+            model.adoptVoltage(kV: analysis.typedBeamKV)
+            await model.updateExitWaves(crystal: crystal, zoneAxis: zoneAxis)
+            appState.refreshHRTEMImage(of: item)
+        }
+        if model.isDynamical {
+            if let waves = model.exitWaves, waves.waves.count > 1, let index = model.shownThicknessIndex,
+               model.exitWavesAreCurrent(crystal: crystal, zoneAxis: zoneAxis) {
+                InspectorRow("Thickness") {
+                    Text("\(UnitDisplay.number(waves.thicknessNM(at: index), digits: 3)) nm").monospacedDigit()
+                        .accessibilityIdentifier("diffraction.simulation.thicknessValue")
+                }
+                Slider(value: Binding(get: { Double(index) }, set: {
+                    model.setThicknessIndex(Int($0.rounded()))
+                    appState.refreshHRTEMImage(of: item)
+                }),
+                       in: 0 ... Double(waves.waves.count - 1), step: 1) {
+                    Text("Thickness")
+                }
+                .labelsHidden()
+                .help("Steps through the exit waves stored at whole periods of the specimen; the HRTEM image shares this thickness")
+                .accessibilityValue("\(UnitDisplay.number(waves.thicknessNM(at: index), digits: 3)) nanometres, "
+                                    + "\(index + 1) of \(waves.waves.count) stored thicknesses")
+                .accessibilityIdentifier("diffraction.simulation.thickness")
+            }
+            if model.isComputing {
+                InspectorNote("Computing the exit waves…")
+            } else if let absence = model.dynamicalAbsence(crystal: crystal, zoneAxis: zoneAxis) {
+                InspectorWarning(absence)
+            }
+        }
+    }
+
+    /// What a change of runs the multislice again (the HRTEM section's key, and the switch).
+    private struct DynamicalRunKey: Equatable {
+        let on: Bool
+        let crystal: String?
+        let zoneAxis: SIMD3<Int>
+        let thicknessNM: Double
+        let beamKV: Double?
+        let apertureMrad: Double?
+        let strain: Double?
+        let thermal: [Int: Double]?
     }
 }
 
