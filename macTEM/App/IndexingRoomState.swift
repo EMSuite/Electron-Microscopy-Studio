@@ -166,10 +166,14 @@ final class IndexingRoomState {
         exportLayer = layer
         let record = Self.record(kind, data: data, layer: exportLayer, method: result.method, refined: refined,
                                  fileName: document.fileName)
+        let written = await ExportSnapshot.semExport(data, file: record, fileExtension: kind.fileExtension, sourceURL: document.url,
+                                                     sourceKind: "EBSD patterns",
+                                                     shape: [document.dataset.scanColumns, document.dataset.scanRows,
+                                                             document.dataset.patternColumns, document.dataset.patternRows])
         if let directory {
             let name = (document.fileName as NSString).deletingPathExtension + kind.suffix(layer: exportLayer)
             do {
-                let url = try ExportDirectoryFile.write(data, named: name + "." + kind.fileExtension, into: directory)
+                let url = try ExportDirectoryFile.write(written, named: name + "." + kind.fileExtension, into: directory)
                 onWritten?(record.written(to: url, at: Date()))
                 report("Exported \(url.lastPathComponent)")
             } catch {
@@ -178,7 +182,7 @@ final class IndexingRoomState {
             return
         }
         pendingRecord = record
-        exportData = data
+        exportData = written
         exporting = kind
     }
 

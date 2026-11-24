@@ -164,6 +164,20 @@ enum ExportSnapshot {
                                          lineage: item.measurements.lineage, drawn: drawn)
     }
 
+    /// An SEM room's export with its methods record inside (#817), from the record the session keeps of it: the source file's
+    /// fingerprint is read off the main actor (a pattern file is gigabytes). The bytes come back as they were when the source cannot be
+    /// read again or the kind holds no record (a method JSON, a `.ctf`): an export never fails for its record.
+    @concurrent nonisolated static func semExport(_ data: Data, file: SEMExportedFile, fileExtension: String, sourceURL: URL?,
+                                                  sourceKind: String, shape: [Int]) async -> Data {
+        guard ["png", "csv", "ang"].contains(fileExtension.lowercased()), let sourceURL,
+              let print = try? ExportMethods.fingerprint(ofFileAt: sourceURL) else { return data }
+        let source = MethodsRecord.Source(fileName: file.source, byteCount: print.byteCount, fingerprint: print.sha256, kind: sourceKind,
+                                          shape: shape)
+        let exportKind = "\(file.room) \(file.what)".lowercased().replacingOccurrences(of: " ", with: "-")
+        let record = ExportMethods.semRecord(file, app: methodsApp(), exportKind: exportKind, source: source)
+        return (try? ExportMethods.embedding(record, inFileWithExtension: fileExtension, data: data)) ?? data
+    }
+
     /// A method record with the app's version under "software" and the kits under "builtWith" (name: version).
     nonisolated static func stampingProvenance(_ json: Data, info: [String: Any]? = Bundle.main.infoDictionary) throws -> Data {
         guard var object = try JSONSerialization.jsonObject(with: json) as? [String: Any] else { return json }

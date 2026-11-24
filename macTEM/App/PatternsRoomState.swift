@@ -133,7 +133,7 @@ final class PatternsRoomState {
                 let record = exportRecord(kind, session: session, fileName: document.fileName)
                 let name = (document.fileName as NSString).deletingPathExtension + kind.suffix(position: exportPosition, map: exportMap)
                 guard let png = try await Self.png(picture) else { report("Export failed: the pattern could not be encoded."); return }
-                finish(kind, data: png, record: record, name: name, directory: directory, report: report)
+                await finish(kind, data: png, record: record, name: name, document: document, directory: directory, report: report)
                 return
             case .overlayPNG:
                 guard let canvas = session.patternPresentation.canvas, let position = session.patternPosition,
@@ -156,7 +156,7 @@ final class PatternsRoomState {
                       let png = KikuchiOverlayExport.png(patternPNG: plain, fileName: document.fileName, overlay: overlay, settings: settings) else {
                     report("Export failed: the pattern with its overlay could not be encoded."); return
                 }
-                finish(kind, data: png, record: record, name: name, directory: directory, report: report)
+                await finish(kind, data: png, record: record, name: name, document: document, directory: directory, report: report)
                 return
             case .overlayCSV:
                 guard let position = session.patternPosition, session.overlayOn, let csv = session.overlayCSV else {
@@ -181,25 +181,30 @@ final class PatternsRoomState {
                 let record = exportRecord(kind, session: session, fileName: document.fileName)
                 let name = (document.fileName as NSString).deletingPathExtension + kind.suffix(position: exportPosition, map: exportMap)
                 guard let png = try await Self.png(picture) else { report("Export failed: the colour mix could not be encoded."); return }
-                finish(kind, data: png, record: record, name: name, directory: directory, report: report)
+                await finish(kind, data: png, record: record, name: name, document: document, directory: directory, report: report)
                 return
             }
         } catch {
             report("Export failed: \(error.localizedDescription)"); return
         }
-        finish(kind, data: data, record: exportRecord(kind, session: session, fileName: document.fileName),
-               name: (document.fileName as NSString).deletingPathExtension + kind.suffix(position: exportPosition, map: exportMap),
-               directory: directory, report: report)
+        await finish(kind, data: data, record: exportRecord(kind, session: session, fileName: document.fileName),
+                     name: (document.fileName as NSString).deletingPathExtension + kind.suffix(position: exportPosition, map: exportMap),
+                     document: document, directory: directory, report: report)
     }
 
-    /// The bytes made: written into `directory` (a UI journey's export folder) as `name`, or handed to the save panel.
+    /// The bytes made, with their methods record inside (`ExportSnapshot.semExport`): written into `directory` (a UI journey's export
+    /// folder) as `name`, or handed to the save panel.
     @MainActor private func finish(_ kind: PatternsExportKind, data: Data, record makeRecord: (Data) -> SEMExportedFile, name: String,
-                                   directory: URL?, report: (String) -> Void) {
+                                   document: EBSDSession.Document, directory: URL?, report: (String) -> Void) async {
         let record = makeRecord(data)
+        let fileExtension = kind.contentType.preferredFilenameExtension ?? "txt"
+        let dataset = document.dataset
+        let data = await ExportSnapshot.semExport(data, file: record, fileExtension: fileExtension, sourceURL: document.url,
+                                                  sourceKind: "EBSD patterns",
+                                                  shape: [dataset.scanColumns, dataset.scanRows, dataset.patternColumns, dataset.patternRows])
         if let directory {
             do {
-                let url = try ExportDirectoryFile.write(data, named: name + "." + (kind.contentType.preferredFilenameExtension ?? "txt"),
-                                                        into: directory)
+                let url = try ExportDirectoryFile.write(data, named: name + "." + fileExtension, into: directory)
                 onWritten?(record.written(to: url, at: Date()))
                 report("Exported \(url.lastPathComponent)")
             } catch {
