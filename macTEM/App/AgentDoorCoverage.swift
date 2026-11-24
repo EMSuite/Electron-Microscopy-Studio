@@ -76,6 +76,8 @@ nonisolated enum AgentDoorCoverage {
         "diffraction.simulation.zone": .gap(791),
         "diffraction.spotCursor": .personOnly(pointerReason),
         "diffraction.lowerTable": .personOnly(layoutReason),
+        "diffraction.microscope.cameraLength": .gap(846),
+        "diffraction.microscope.voltage": .gap(846),
         "diffraction.spots": .gap(791),
         "diffraction.spots.\\(row.number).delta": .gap(791),
         "diffraction.spots.\\(row.number).hkl": .gap(791),

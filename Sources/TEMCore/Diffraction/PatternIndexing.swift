@@ -224,13 +224,17 @@ package nonisolated enum PatternIndexing {
 
     // MARK: The Spots table (#785)
 
-    /// One row of the Spots table: the spot's number in the readout ("Spot 3"), its hkl, R, q, d, the expected d of its hkl, Δd/d
-    /// and its phase. The sort keys are never nil (an unexplained spot sorts after every explained one).
+    /// One row of the Spots table: the spot's number in the readout ("Spot 3"), its hkl, R (px, and mm when the detector's
+    /// scale is known), q, d, the expected d of its hkl, Δd/d and its phase. The sort keys are never nil (an unexplained spot sorts
+    /// after every explained one).
     package struct SpotRow: Sendable, Equatable, Identifiable {
         package let id: UUID
         package let number: Int
         package let hkl: MillerIndex?
         package let radiusPx: Double
+        /// R on the detector, mm: R px times the pixel pitch on a measured pattern, λ L |g| on a simulated one (#907); nil when
+        /// neither is known.
+        package let radiusMM: Double?
         package let q: Double
         package let d: Double
         package let dExpected: Double?
@@ -238,43 +242,73 @@ package nonisolated enum PatternIndexing {
         /// The phase the hkl is of; "" for a spot the orientation does not explain.
         package let phase: String
 
-        package init(id: UUID, number: Int, hkl: MillerIndex?, radiusPx: Double, q: Double, d: Double, dExpected: Double?,
-                     deltaPercent: Double?, phase: String) {
-            self.id = id; self.number = number; self.hkl = hkl; self.radiusPx = radiusPx; self.q = q; self.d = d
+        package init(id: UUID, number: Int, hkl: MillerIndex?, radiusPx: Double, radiusMM: Double? = nil, q: Double, d: Double,
+                     dExpected: Double?, deltaPercent: Double?, phase: String) {
+            self.id = id; self.number = number; self.hkl = hkl; self.radiusPx = radiusPx; self.radiusMM = radiusMM; self.q = q; self.d = d
             self.dExpected = dExpected; self.deltaPercent = deltaPercent; self.phase = phase
         }
 
         package var hklText: String { hkl.map { ZoneAxisText.label($0) } ?? "" }
         package var dExpectedKey: Double { dExpected ?? .infinity }
         package var deltaKey: Double { deltaPercent ?? .infinity }
+        package var radiusMMKey: Double { radiusMM ?? .infinity }
     }
 
     /// The rows of `outcome`'s spots that are still marked, numbered as the readout numbers them (`numbers`: a mark's id to its
-    /// number), in the marks' order.
-    package static func rows(_ outcome: Outcome, numbers: [UUID: Int]) -> [SpotRow] {
-        outcome.spots.compactMap { s in
+    /// number), in the marks' order. With the camera's pixel pitch (mm), R in mm is R px times it.
+    package static func rows(_ outcome: Outcome, numbers: [UUID: Int], pitchMM: Double? = nil) -> [SpotRow] {
+        let pitch = pitchMM.flatMap { $0.isFinite && $0 > 0 ? $0 : nil }
+        return outcome.spots.compactMap { s in
             guard let number = numbers[s.id] else { return nil }
-            return SpotRow(id: s.id, number: number, hkl: s.hkl, radiusPx: s.radiusPx, q: s.qLength, d: s.d, dExpected: s.dListed,
-                           deltaPercent: s.deltaPercent, phase: s.hkl == nil ? "" : outcome.phase)
+            return SpotRow(id: s.id, number: number, hkl: s.hkl, radiusPx: s.radiusPx, radiusMM: pitch.map { s.radiusPx * $0 },
+                           q: s.qLength, d: s.d, dExpected: s.dListed, deltaPercent: s.deltaPercent, phase: s.hkl == nil ? "" : outcome.phase)
         }.sorted { $0.number < $1.number }
     }
 
+    /// The rows of a Simulation document's spots (#907): every kinematic spot drawn (double diffraction's added spots have no
+    /// intensity and are left out), numbered strongest first, R from the pattern's centre, q = R Δq, d = 1 / q, and R in mm =
+    /// λ L |g| on a detector at camera length L. A simulated spot is its own reflection, so it has no expected d and no misfit.
+    package static func simulatedRows(_ spots: [ZoneAxisOverlay.Spot], centreRow: Double, centreColumn: Double, deltaQ: Double,
+                                      volts: Double, cameraLengthMM: Double, phase: String) -> [SpotRow] {
+        let lambda = RingCalibration.wavelengthAngstroms(volts: volts)
+        let kinematic = spots.filter { !$0.isDoubleDiffraction }
+            .sorted { $0.intensity != $1.intensity ? $0.intensity > $1.intensity : ($0.hkl.h, $0.hkl.k, $0.hkl.l) < ($1.hkl.h, $1.hkl.k, $1.hkl.l) }
+        return kinematic.enumerated().map { i, spot in
+            let r = hypot(spot.row - centreRow, spot.column - centreColumn)
+            let q = r * deltaQ
+            return SpotRow(id: simulatedID(spot.hkl), number: i + 1, hkl: spot.hkl, radiusPx: r,
+                           radiusMM: lambda.isFinite && cameraLengthMM > 0 ? lambda * cameraLengthMM * q : nil,
+                           q: q, d: q > 0 ? 1 / q : .infinity, dExpected: nil, deltaPercent: nil, phase: phase)
+        }
+    }
+
+    /// A simulated spot's row id: the same hkl keeps its row (and its selection) as the orientation moves.
+    private static func simulatedID(_ hkl: MillerIndex) -> UUID {
+        func bytes(_ v: Int) -> (UInt8, UInt8, UInt8, UInt8) {
+            let u = UInt32(bitPattern: Int32(truncatingIfNeeded: v))
+            return (UInt8(u >> 24), UInt8((u >> 16) & 0xff), UInt8((u >> 8) & 0xff), UInt8(u & 0xff))
+        }
+        let h = bytes(hkl.h), k = bytes(hkl.k), l = bytes(hkl.l)
+        return UUID(uuid: (0x53, 0x49, 0x4d, 0x00, h.0, h.1, h.2, h.3, k.0, k.1, k.2, k.3, l.0, l.1, l.2, l.3))
+    }
+
     /// The Spots CSV's columns, the table's in its order.
-    package static let csvColumns = "spot,hkl,R_px,q_per_A,d_A,d_expected_A,delta_percent,phase"
+    package static let csvColumns = "spot,hkl,R_px,R_mm,q_per_A,d_A,d_expected_A,delta_percent,phase"
 
     /// The Spots CSV: the file, the crystal and Index's line as `#` lines, then one line per row in the order given.
-    package static func csv(rows: [SpotRow], fileName: String, line: String) -> String {
+    /// `lineName` names the line: "index" for Index's answer, "simulation" for a Simulation document's settings.
+    package static func csv(rows: [SpotRow], fileName: String, line: String, lineName: String = "index") -> String {
         func g(_ v: Double?) -> String { v.map { String(format: "%.9g", $0) } ?? "" }
         var lines = [
             "# \(AppName.writer) diffraction spots",
             "# file: \(CSVText.headerValue(fileName))",
-            "# index: \(CSVText.headerValue(line))",
+            "# \(lineName): \(CSVText.headerValue(line))",
             csvColumns,
         ]
         for r in rows {
             // The hkl as plain signed integers ("1 -1 1"): a reader parses it without the overbar.
             let hkl = r.hkl.map { "\($0.h) \($0.k) \($0.l)" } ?? ""
-            lines.append(["\(r.number)", hkl, g(r.radiusPx), g(r.q), g(r.d), g(r.dExpected), g(r.deltaPercent),
+            lines.append(["\(r.number)", hkl, g(r.radiusPx), g(r.radiusMM), g(r.q), g(r.d), g(r.dExpected), g(r.deltaPercent),
                           CSVText.quoted(r.phase)].joined(separator: ","))
         }
         return lines.joined(separator: "\n") + "\n"

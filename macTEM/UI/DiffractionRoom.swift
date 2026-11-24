@@ -59,8 +59,11 @@ struct DiffractionRoom: View {
             // One table under the pattern: the readout, or once Index has an answer, its Spots table (#785: hkl, expected d and
             // misfit per spot), picked in the strip's header. Never both side by side: they share R, q, d and Δd/d and do not fit a
             // small window.
+            // A Simulation document lists its simulated spots there (#907); a measured pattern lists Index's once it answers.
+            let isSimulation = DemoDocuments.isSimulation(item.url)
+            let hasSpots = isSimulation || analysis.indexOutcome != nil
             VStack(spacing: 0) {
-                if analysis.indexOutcome != nil {
+                if hasSpots {
                     HStack {
                         SegmentedPicker(label: "Table", items: [(DiffractionViewState.LowerTable.readout, .title("Readout")),
                                                                 (.spots, .title("Spots"))],
@@ -73,8 +76,13 @@ struct DiffractionRoom: View {
                     .frame(height: LayoutPolicy.paneHeaderHeight)
                     Divider()
                 }
-                if analysis.indexOutcome != nil && view.lowerTable == .spots {
-                    DiffractionSpotTable(view: view, rows: analysis.indexSpotRows)
+                if hasSpots && view.lowerTable == .spots {
+                    if isSimulation {
+                        DiffractionSpotTable(view: view, rows: analysis.simulatedSpotRows(image: image),
+                                             empty: "Add a phase and show the simulated spots to list them.", selectsMarks: false)
+                    } else {
+                        DiffractionSpotTable(view: view, rows: analysis.indexSpotRows)
+                    }
                 } else {
                     DiffractionReadoutTable(analysis: analysis, view: view, rows: rows)
                 }
@@ -811,18 +819,24 @@ private struct DiffractionReadoutTable: View {
 
 // MARK: - The Spots table
 
-/// Index's spots (#785): Spot, hkl, R px, q, d, d expected, Δd/d % and Phase, sortable by any column (ties by the spot's number, so
-/// the rows keep their order). A row's selection is the mark's: selecting it selects the spot on the pattern and in the readout.
+/// Index's spots (#785), or a Simulation document's (#907): Spot, hkl, R px, R mm, q, d, d expected, Δd/d % and Phase, sortable by
+/// any column (ties by the spot's number, so the rows keep their order). A row's selection is the mark's: selecting it selects the spot on the pattern and in the readout.
 /// The table is the pattern's text alternative: VoiceOver reads each row's cells, and the pane says the spots are listed here.
 private struct DiffractionSpotTable: View {
     let view: DiffractionViewState
     let rows: [PatternIndexing.SpotRow]
+    /// What the empty table says.
+    var empty = "Index found no spot still marked: Index again."
+    /// A row is a mark (Index's spots): selecting it selects the spot. A Simulation document's rows are no marks, so they keep a
+    /// selection of their own and never reach the Rings section's Remove (#907).
+    var selectsMarks = true
+    @State private var ownSelection: UUID?
     @State private var sortOrder = [KeyPathComparator(\PatternIndexing.SpotRow.number)]
 
     private typealias Column = DiffractionSpotFormat.Column
 
     var body: some View {
-        let selection = Binding<UUID?>(get: { view.selection }, set: { view.selection = $0 })
+        let selection = selectsMarks ? Binding<UUID?>(get: { view.selection }, set: { view.selection = $0 }) : $ownSelection
         let sorted = DiffractionSpotFormat.sorted(rows, by: sortOrder)
         Table(sorted, selection: selection, sortOrder: $sortOrder) {
             TableColumn(header(.spot), value: \.number) { row in
@@ -835,6 +849,8 @@ private struct DiffractionSpotTable: View {
             }.width(min: 44, ideal: 52)
             TableColumn(header(.radius), value: \.radiusPx) { row in Text(DiffractionSpotFormat.cell(.radius, row)).monospacedDigit() }
                 .width(min: 44, ideal: 50)
+            TableColumn(header(.radiusMM), value: \.radiusMMKey) { row in Text(DiffractionSpotFormat.cell(.radiusMM, row)).monospacedDigit() }
+                .width(min: 44, ideal: 52)
             TableColumn(header(.q), value: \.q) { row in Text(DiffractionSpotFormat.cell(.q, row)).monospacedDigit() }.width(min: 56, ideal: 62)
             TableColumn(header(.d), value: \.d) { row in Text(DiffractionSpotFormat.cell(.d, row)).monospacedDigit() }.width(min: 52, ideal: 56)
             TableColumn(header(.dExpected), value: \.dExpectedKey) { row in
@@ -848,7 +864,7 @@ private struct DiffractionSpotTable: View {
         }
         .overlay {
             if rows.isEmpty {
-                Text("Index found no spot still marked: Index again.")
+                Text(empty)
                     .font(.callout).foregroundStyle(.secondary).padding(10).allowsHitTesting(false)
             }
         }

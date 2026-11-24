@@ -64,10 +64,12 @@ The rooms:
   error to set), or press Index to find the spots and the crystal's full
   orientation (the found spots stay as marks to remove or add to; clicked spots give the zone axis); step through tied solutions,
   flip 180°, fit the scale or hold it, and drag the simulated spots to tilt them (⌥ drag turns them; ⌥ and an arrow tilt by a step); the Spots table lists each
-  spot's hkl, expected d and misfit, and exports as a Spots CSV.
+  spot's hkl, R (in mm with the camera's pixel pitch), expected d and misfit, and exports as a Spots CSV.
   Phases come from your library: Add Phase… finds one on the Materials Project or opens a CIF, and a phase added once works offline.
   The crystal pane beside the pattern shows the phase in 3D down the same beam, and turning it turns the spots.
-  File > New Simulation (⇧⌘N) opens the simulated spots with no measured pattern under them.
+  File > New Simulation (⇧⌘N) opens the simulated spots with no measured pattern under them: its Microscope section sets the
+  voltage and camera length, its Orientation section the zone axis and turn, and its Spots table lists each spot's hkl, R in px and
+  in mm (R = λ L |g|), q and d, and exports as a Spots CSV.
 - **Patterns**: the EBSD or TKD scan beside the live pattern, with mean intensity, virtual BSE, image quality and
   average dot product maps. Remove the static and dynamic backgrounds, rescale or normalise, equalise, filter, bin,
   average neighbouring patterns and denoise with NLPAR. Draw the Kikuchi bands of the file's stored orientations over

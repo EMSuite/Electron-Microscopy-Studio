@@ -24,16 +24,27 @@ struct DiffractionRoomSettings: View {
     var body: some View {
         let analysis = item.diffraction
         let view = item.diffractionView
+        // A Simulation document (#907) has no measured pattern: its Microscope section stands where the Centre and Calibration do,
+        // and its Orientation section where Index's.
+        let isSimulation = DemoDocuments.isSimulation(item.url)
         Group {
-            DiffractionCentreSection(analysis: analysis, view: view)
-            DiffractionCalibrationSection(session: item.session, analysis: analysis, view: view)
+            if isSimulation {
+                DiffractionMicroscopeSection(analysis: analysis)
+            } else {
+                DiffractionCentreSection(analysis: analysis, view: view)
+                DiffractionCalibrationSection(session: item.session, analysis: analysis, view: view)
+            }
             DiffractionDisplaySection(view: view)
             DiffractionToolsSection(view: view)
             DiffractionPhasesSection(analysis: analysis)
-            DiffractionIndexSection(analysis: analysis)
+            if isSimulation {
+                InspectorSection("Orientation") { DiffractionOrientationRows(analysis: analysis) }
+            } else {
+                DiffractionIndexSection(analysis: analysis)
+            }
             DiffractionSimulationSection(session: item.session, analysis: analysis)
             DiffractionRingsSection(session: item.session, analysis: analysis, view: view)
-            DiffractionExportSection(session: item.session, analysis: analysis)
+            DiffractionExportSection(session: item.session, analysis: analysis, isSimulation: isSimulation)
         }
         .onAppear { analysis.bind(image) }
     }
@@ -138,6 +149,32 @@ private struct DiffractionCalibrationSection: View {
                 OptionalNumericField(title: "Pixel pitch", value: analysis.pitchMM, format: FloatingPointFormatStyle<Double>.number.precision(.fractionLength(0...4)), unit: "mm") { analysis.pitchMM = $0 }
             }
             if let why = analysis.failure { InspectorWarning(why) }
+        }
+    }
+}
+
+/// A Simulation document's microscope (#907): the beam energy and the camera length, in place of a measured pattern's Centre and
+/// Calibration. The voltage is the document's own (the HRTEM image's Microscope section sets the same one); the camera length sets
+/// R in mm in the Spots table and its CSV (R = λ L |g|).
+private struct DiffractionMicroscopeSection: View {
+    let analysis: DiffractionAnalysis
+
+    var body: some View {
+        InspectorSection("Microscope") {
+            InspectorRow("Voltage") {
+                OptionalNumericField(title: "Voltage", value: analysis.typedBeamKV, format: pixelFormat, unit: "kV") { kV in
+                    if let kV, kV.isFinite, kV > 0 { analysis.typedBeamKV = kV }
+                }
+                .help("The accelerating voltage: it sets the wavelength of the simulated pattern")
+                .accessibilityIdentifier("diffraction.microscope.voltage")
+            }
+            InspectorRow("Camera length") {
+                OptionalNumericField(title: "Camera length", value: analysis.cameraLengthMM, format: pixelFormat, unit: "mm") {
+                    analysis.setCameraLength(mm: $0)
+                }
+                .help("The distance a spot's R in mm is measured at: R = λ L |g| (\(UnitDisplay.number(DiffractionAnalysis.cameraLengthRangeMM.lowerBound, digits: 3)) to \(UnitDisplay.number(DiffractionAnalysis.cameraLengthRangeMM.upperBound, digits: 6)) mm)")
+                .accessibilityIdentifier("diffraction.microscope.cameraLength")
+            }
         }
     }
 }
@@ -251,35 +288,16 @@ private struct DiffractionPhaseRow: View {
 }
 
 /// The orientation the simulated spots are drawn at (#782, #783; the mockup's Index section): the zone axis ("[1 1 0]", "110",
-/// "1̄10") and its turn in the plane, which Index fills with what it found and the person types over. The zone axis commits on
-/// Return or when the field loses focus; a text that is not a zone axis is named and the last one stays. Typing either takes
-/// the drawn spots off Index's orientation.
+/// "1̄10") and its turn in the plane (`DiffractionOrientationRows`), which Index fills with what it found and the person types over,
+/// then Index's solutions, Flip and Fit scale. Typing either takes the drawn spots off Index's orientation.
 private struct DiffractionIndexSection: View {
     let analysis: DiffractionAnalysis
     @Environment(\.undoManager) private var undoManager
-    @State private var draft: String?
-    @State private var refused: String?
-    @FocusState private var editing: Bool
 
     var body: some View {
         let settings = analysis.simulation
         InspectorSection("Index") {
-            InspectorRow("Zone axis") {
-                TextField("Zone axis", text: Binding(get: { draft ?? ZoneAxisText.text(settings.zoneAxis) }, set: { draft = $0 }),
-                          prompt: Text("[0 0 1]"))
-                    .labelsHidden().textFieldStyle(.roundedBorder).monospacedDigit()
-                    .focused($editing)
-                    .onSubmit { commit() }
-                    .onChange(of: editing) { if !editing { commit() } }
-                    .help("The beam direction [u v w]: \"[1 1 0]\", \"1 1 0\", \"110\" or \"1̄10\"")
-                    .accessibilityIdentifier("diffraction.simulation.zone")
-            }
-            if let refused { InspectorWarning(refused) }
-            InspectorRow("Turn") {
-                OptionalNumericField(title: "In-plane turn", value: settings.inPlaneDegrees, format: pixelFormat, unit: "°") { analysis.setTurn(degrees: $0) }
-                    .help("The pattern's turn about the beam, counter-clockwise from down the rows toward along the columns")
-                    .accessibilityIdentifier("diffraction.simulation.turn")
-            }
+            DiffractionOrientationRows(analysis: analysis)
             // Index's solutions, Flip and Fit scale (#787).
             let solutions = analysis.solutions.count
             InspectorRow("Solution") {
@@ -311,6 +329,36 @@ private struct DiffractionIndexSection: View {
                     .accessibilityIdentifier("diffraction.index.fitScale")
             }
             InspectorNote(DiffractionIndexText.note(spots: analysis.spots, outcome: analysis.indexOutcome, indexed: settings.indexed != nil))
+        }
+    }
+}
+
+/// The zone axis and its in-plane turn the simulated spots are drawn at: the Index section's first rows, and a Simulation document's
+/// Orientation section (#907). The zone axis commits on Return or when the field loses focus; a text that is not a zone axis is named
+/// and the last one stays.
+private struct DiffractionOrientationRows: View {
+    let analysis: DiffractionAnalysis
+    @State private var draft: String?
+    @State private var refused: String?
+    @FocusState private var editing: Bool
+
+    var body: some View {
+        let settings = analysis.simulation
+        InspectorRow("Zone axis") {
+            TextField("Zone axis", text: Binding(get: { draft ?? ZoneAxisText.text(settings.zoneAxis) }, set: { draft = $0 }),
+                      prompt: Text("[0 0 1]"))
+                .labelsHidden().textFieldStyle(.roundedBorder).monospacedDigit()
+                .focused($editing)
+                .onSubmit { commit() }
+                .onChange(of: editing) { if !editing { commit() } }
+                .help("The beam direction [u v w]: \"[1 1 0]\", \"1 1 0\", \"110\" or \"1̄10\"")
+                .accessibilityIdentifier("diffraction.simulation.zone")
+        }
+        if let refused { InspectorWarning(refused) }
+        InspectorRow("Turn") {
+            OptionalNumericField(title: "In-plane turn", value: settings.inPlaneDegrees, format: pixelFormat, unit: "°") { analysis.setTurn(degrees: $0) }
+                .help("The pattern's turn about the beam, counter-clockwise from down the rows toward along the columns")
+                .accessibilityIdentifier("diffraction.simulation.turn")
         }
     }
 
@@ -476,6 +524,8 @@ private struct DiffractionExportSection: View {
     let session: ImageSession
     private var image: CalibratedImage { session.imageOrBlank }
     let analysis: DiffractionAnalysis
+    /// A Simulation document exports its simulated spots (#907).
+    var isSimulation = false
     @Environment(AppState.self) private var appState
     @State private var exporting = false
     @State private var document = RoomExportFile(text: "")
@@ -490,8 +540,9 @@ private struct DiffractionExportSection: View {
             }
             InspectorActionRow {
                 Button("Export Spots CSV…") { export(spots: true) }
-                    .disabled(analysis.indexSpotRows.isEmpty)
-                    .help("Index's spots as the Spots table lists them: hkl, R, q, d, the expected d, Δd/d and the phase")
+                    .disabled(isSimulation ? analysis.simulatedSpotRows(image: image).isEmpty : analysis.indexSpotRows.isEmpty)
+                    .help(isSimulation ? "The simulated spots as the Spots table lists them: hkl, R in px and mm, q, d and the phase"
+                          : "Index's spots as the Spots table lists them: hkl, R, q, d, the expected d, Δd/d and the phase")
                     .accessibilityIdentifier("diffraction.export.spots")
             }
         }
@@ -502,7 +553,8 @@ private struct DiffractionExportSection: View {
     }
 
     private func export(spots: Bool) {
-        let text = spots ? ExportSnapshot.diffractionSpotsCSV(analysis, image: image, openItems: appState.openItems)
+        let text = spots ? ExportSnapshot.diffractionSpotsCSV(analysis, image: image, openItems: appState.openItems,
+                                                                       simulation: isSimulation)
                          : ExportSnapshot.diffractionCSV(analysis, image: image, openItems: appState.openItems)
         exportName = spots ? DiffractionReadoutExport.spotsBaseName(of: image.fileName) : DiffractionReadoutExport.baseName(of: image.fileName)
         if let directory = appState.exportDirectory {
