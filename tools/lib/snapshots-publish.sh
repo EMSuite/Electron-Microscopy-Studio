@@ -1,5 +1,5 @@
 #!/bin/bash
-# publish.sh <snapshots folder> <PR number>
+# snapshots-publish.sh <snapshots folder> <PR number>
 # Attaches the new and changed snapshot pictures of a CI run to its pull request: they go on the repo's one pr-pictures
 # branch under <PR>/snapshots/ (created on first use, never merged), and one comment on the PR, kept up to date, shows
 # them. A run with no new or changed picture removes nothing and says so. Needs GH_TOKEN with contents and
