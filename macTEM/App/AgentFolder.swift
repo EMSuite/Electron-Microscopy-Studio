@@ -107,26 +107,46 @@ final class AgentFolder {
         return candidate.path == url.path || candidate.path.hasPrefix(root)
     }
 
-    /// The files in the folder and its subfolders (hidden ones and packages' insides left out), at most `limit`, sorted by path:
-    /// relative path, size in bytes and modification date (ISO 8601).
-    func listing(limit: Int = 2000) -> (files: [[String: Any]], truncated: Bool)? {
+    /// The most entries (files and folders) one listing visits, so a huge tree cannot hold the main actor for long (#926).
+    static let visitLimit = 50_000
+
+    /// The files in the folder and its subfolders (hidden ones and packages' insides left out), the first `limit` by path:
+    /// relative path, size in bytes and modification date (ISO 8601). `truncated` says files were left out: more than `limit`,
+    /// or a tree of more than `visitLimit` entries, of which only the ones visited are sorted.
+    func listing(limit: Int = 2000, visitLimit: Int = AgentFolder.visitLimit) -> (files: [[String: Any]], truncated: Bool)? {
         guard let url else { return nil }
         let keys: [URLResourceKey] = [.isRegularFileKey, .fileSizeKey, .contentModificationDateKey]
+        let keySet = Set(keys)
         guard let walk = FileManager.default.enumerator(at: url, includingPropertiesForKeys: keys,
                                                         options: [.skipsHiddenFiles, .skipsPackageDescendants]) else { return nil }
-        let dates = ISO8601DateFormatter()
-        var files: [[String: Any]] = []
+        let root = url.path.hasSuffix("/") ? url.path : url.path + "/"
+        var found: [(path: String, bytes: Int, modified: Date?)] = []
+        var visited = 0
         var truncated = false
         for case let file as URL in walk {
-            guard let values = try? file.resourceValues(forKeys: Set(keys)), values.isRegularFile == true else { continue }
-            let inside = Self.canonical(file)
-            guard contains(inside) else { continue }   // a link that leads out is not listed
-            guard files.count < limit else { truncated = true; break }
-            var entry: [String: Any] = ["path": relativePath(of: inside), "bytes": values.fileSize ?? 0]
-            if let date = values.contentModificationDate { entry["modified"] = dates.string(from: date) }
-            files.append(entry)
+            visited += 1
+            guard visited <= visitLimit else { truncated = true; break }
+            // A symbolic link is not a regular file, and the walk does not follow one, so nothing listed leads out of the folder.
+            guard let values = try? file.resourceValues(forKeys: keySet), values.isRegularFile == true else { continue }
+            let path: String
+            if file.path.hasPrefix(root) {
+                path = String(file.path.dropFirst(root.count))
+            } else {
+                // The walk spelled the folder another way (/private/var for /var): the slow, link-resolving way, as before #926.
+                let inside = Self.canonical(file)
+                guard contains(inside) else { continue }
+                path = relativePath(of: inside)
+            }
+            found.append((path, values.fileSize ?? 0, values.contentModificationDate))
         }
-        files.sort { ($0["path"] as? String ?? "") < ($1["path"] as? String ?? "") }
+        found.sort { $0.path < $1.path }
+        if found.count > limit { truncated = true }
+        let dates = ISO8601DateFormatter()
+        let files = found.prefix(limit).map { file -> [String: Any] in
+            var entry: [String: Any] = ["path": file.path, "bytes": file.bytes]
+            if let date = file.modified { entry["modified"] = dates.string(from: date) }
+            return entry
+        }
         return (files, truncated)
     }
 

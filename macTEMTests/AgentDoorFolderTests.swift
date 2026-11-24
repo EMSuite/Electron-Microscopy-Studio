@@ -90,6 +90,25 @@ nonisolated final class AgentDoorFolderTests: XCTestCase {
         XCTAssertEqual(files.compactMap { $0["path"] as? String }, ["sub/map.ang"])
     }
 
+    /// A truncated listing holds the first files by path, not the first the walk met, and a tree past the visit limit says so
+    /// (#926). Mutation: truncating before the sort, or no visit limit - red.
+    @MainActor func testATruncatedListingHoldsTheFirstFilesByPath() throws {
+        for name in ["c.txt", "a.txt", "e.txt", "b.txt", "d.txt"] {
+            try Data(name.utf8).write(to: root.appendingPathComponent(name))
+        }
+        MacTEMAgentDoor.folder.use(folder: root)
+        let short = try XCTUnwrap(MacTEMAgentDoor.folder.listing(limit: 3))
+        XCTAssertEqual(short.files.compactMap { $0["path"] as? String }, ["a.txt", "b.txt", "c.txt"])
+        XCTAssertTrue(short.truncated)
+        let whole = try XCTUnwrap(MacTEMAgentDoor.folder.listing())
+        XCTAssertEqual(whole.files.compactMap { $0["path"] as? String }, ["a.txt", "b.txt", "c.txt", "d.txt", "e.txt", "sub/map.ang"])
+        XCTAssertFalse(whole.truncated)
+        XCTAssertEqual(whole.files.first?["bytes"] as? Int, 5)
+        let capped = try XCTUnwrap(MacTEMAgentDoor.folder.listing(visitLimit: 2))
+        XCTAssertTrue(capped.truncated, "the walk stopped early")
+        XCTAssertLessThanOrEqual(capped.files.count, 2)
+    }
+
     /// Mutation: open_file going around the folder check, or not through the app's Open, or leaving no Output line - red.
     @MainActor func testOpenFileOpensAFileOfTheFolderAsFileOpenDoes() async throws {
         let state = window()
