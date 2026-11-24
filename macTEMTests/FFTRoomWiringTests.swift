@@ -161,7 +161,11 @@ nonisolated final class FFTRoomWiringTests: XCTestCase {
             func popUp(in view: NSView) -> NSPopUpButton? {
                 (view as? NSPopUpButton) ?? view.subviews.lazy.compactMap { popUp(in: $0) }.first
             }
-            let button = try XCTUnwrap(popUp(in: host), "the control draws a pop-up button")
+            func tree(_ view: NSView, _ depth: Int = 0) -> String {
+                ([String(repeating: "  ", count: depth) + String(describing: type(of: view))]
+                    + view.subviews.map { tree($0, depth + 1) }).joined(separator: "\n")
+            }
+            let button = try XCTUnwrap(popUp(in: host), "the control draws a pop-up button; the host draws:\n\(tree(host))")
             // How far the pop-up reaches from the row's leading edge: inside the row, or the row overflows the inspector.
             return (button.title, Double(button.convert(button.bounds, to: host).maxX))
         }
