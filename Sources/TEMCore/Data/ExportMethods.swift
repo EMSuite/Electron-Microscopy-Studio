@@ -313,7 +313,7 @@ package nonisolated enum ExportMethods {
     package static func fingerprint(ofCounts counts: [Double]) -> String {
         var hasher = SHA256()
         counts.withUnsafeBufferPointer { buffer in
-            var little = buffer.map(\.bitPattern.littleEndian)
+            let little = buffer.map(\.bitPattern.littleEndian)
             little.withUnsafeBytes { hasher.update(bufferPointer: $0) }
         }
         return hasher.finalize().map { String(format: "%02x", $0) }.joined()
