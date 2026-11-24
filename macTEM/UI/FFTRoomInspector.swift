@@ -59,6 +59,7 @@ struct FFTRoomInspectorSettings: View {
                 case .spots: FFTSpotsSection(session: session, analysis: analysis)
                 case .radialProfile: FFTRadialProfileSection(session: session, analysis: analysis)
                 case .maskedInverse: FFTMaskSection(analysis: analysis)
+                case .strain: FFTStrainSection(analysis: analysis)
                 case .filters: FFTFiltersSection(session: session, analysis: analysis)
                 case .display: FFTDisplaySection(analysis: analysis)
                 }
@@ -646,6 +647,52 @@ private struct FFTMaskSection: View {
 
     private var edge: Binding<Double> {
         Binding(get: { analysis.maskEdge }, set: { analysis.setMask(radius: analysis.maskRadius, edge: $0) })
+    }
+}
+
+// MARK: - Strain (GPA)
+
+/// Strain maps by geometric phase analysis (MA16): the validation note first, the two spots taken as g₁ and g₂, the reference
+/// window, Map Strain, the last run's ranges and any refusal. Shown once a spot is measured, as the Masked Inverse is.
+private struct FFTStrainSection: View {
+    let analysis: FFTAnalysis
+
+    var body: some View {
+        if analysis.hasMeasuredSpot {
+            let reflections = analysis.strainReflections
+            let isComputing = analysis.isComputingStrain
+            InspectorSection("Strain (GPA)") {
+                InspectorNote(strainValidationNote)
+                InspectorValueRow("g₁, g₂", reflections.map { "spots \($0.0.spot) and \($0.1.spot)" } ?? "measure a second spot at an angle")
+                InspectorRow("Reference") {
+                    Picker("Reference", selection: Binding(get: { analysis.strainReference },
+                                                           set: { analysis.setStrainReference($0) })) {
+                        ForEach(FFTStrainReference.allCases, id: \.self) { Text($0.title).tag($0) }
+                    }
+                    .labelsHidden().fixedSize()
+                    .help("The part of the region taken as undistorted: its mean strain and rotation are zero")
+                    .accessibilityIdentifier("fft.strain.reference")
+                }
+                InspectorActionRow {
+                    Button { PendingEdits.run { analysis.runStrain() } } label: {
+                        HStack(spacing: 6) {
+                            Text("Map Strain")
+                            if isComputing { ProgressView().controlSize(.small) }
+                        }
+                    }
+                    .disabled(isComputing || reflections == nil)
+                    .help("Strain and rotation maps from the first two measured spots at an angle, shown in the left pane")
+                    .accessibilityIdentifier("fft.strain.run")
+                    .accessibilityValue(isComputing ? "Running" : "")
+                }
+                if let strain = analysis.strain {
+                    InspectorValueRow("Last run", FFTRoomFormat.strainStatus(strain))
+                }
+                if let failure = analysis.strainFailure {
+                    InspectorWarning(failure, systemImage: "exclamationmark.circle")
+                }
+            }
+        }
     }
 }
 
