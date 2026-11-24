@@ -23,6 +23,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// launch, with no window on screen and none enrolled, the app chooses File > New Window itself, as ⌘N did, so the window and its
     /// launch file arrive. AppKit: SwiftUI's scene API has no launch hook that can open a window without a view.
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // The system's crash and hang reports are kept in the app's folder, for the offer at the next launch (#801).
+        CrashReportOffer.startCollecting()
         DispatchQueue.main.asyncAfter(deadline: .now() + LaunchWindow.grace) {
             LaunchWindow.ensureOne(enrolled: Self.windows?.onScreen.count ?? 0)
         }

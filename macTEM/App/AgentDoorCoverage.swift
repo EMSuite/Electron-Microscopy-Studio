@@ -38,6 +38,8 @@ nonisolated enum AgentDoorCoverage {
     static let openReason = "opens a file the person picks in the open panel; the agent uses open_file (its Agent folder) or open_demo"
     static let openCloseReason = "opens or closes the window's files, which stay the person's; the agent uses open_file (its Agent folder) or open_demo"
     static let displayTargetReason = "picks which picture the person's Display rows set; the agent's pictures are drawn as the panes show them"
+    /// The crash report offer (#801): the person's own report of the app's crash, sent from their own mail app or browser.
+    static let crashReportReason = "the person's report of a crash, which only they may send or dismiss"
     static let resultsFilterReason = "filters what the person's results table shows; get_results gives every row whatever the filter"
 
     static let controls: [String: Reach] = [
@@ -410,6 +412,9 @@ nonisolated enum AgentDoorCoverage {
         "settings.images.cropDatabar": .personOnly(settingsReason),
         "settings.sidebar.\\(section.rawValue)": .personOnly(settingsReason),
         "toolbar.datasetMenu": .personOnly(openCloseReason),
+        "welcome.crashReport": .personOnly(crashReportReason),
+        "welcome.crashReport.dismiss": .personOnly(crashReportReason),
+        "welcome.crashReport.report": .personOnly(crashReportReason),
         "welcome.loadingStage": .seen,
         "welcome.loadingStatus": .seen,
         "welcome.openImage": .tool("open_file"),

@@ -1,3 +1,4 @@
+import ShellHelp
 import ShellLayout
 import SwiftUI
 import TEMCore
@@ -195,10 +196,31 @@ nonisolated enum OpeningStatus {
 /// The canvas before any image: the app's name, its door, and the demo data beside it for someone with no file at hand.
 struct WelcomeWorkspace: View {
     @Environment(AppState.self) private var appState
+    @Environment(\.openWindow) private var openWindow
+    @Environment(\.appearsActive) private var appearsActive
+    private let crash = CrashReportOffer.shared
 
     var body: some View {
         ScrollView {
             VStack(spacing: 28) {
+                // After a crash or a hang: one line offering the report, until it is dismissed (#801).
+                if crash.isOffered {
+                    HStack(spacing: 10) {
+                        Label(CrashReportOffer.line, systemImage: "exclamationmark.bubble")
+                            .font(.callout)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Button("Report a Problem…") { openWindow(id: FeedbackWindow.id) }
+                            .accessibilityIdentifier("welcome.crashReport.report")
+                        Button("Dismiss") { crash.dismiss() }
+                            .accessibilityIdentifier("welcome.crashReport.dismiss")
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
+                    .frame(maxWidth: LayoutPolicy.readableWidth)
+                    .accessibilityElement(children: .contain)
+                    .accessibilityIdentifier("welcome.crashReport")
+                }
                 VStack(spacing: 12) {
                     Image(systemName: "circle.dotted")
                         .font(.system(size: 54, weight: .light))
@@ -235,6 +257,8 @@ struct WelcomeWorkspace: View {
             .padding(.vertical, 44)
             .frame(maxWidth: .infinity)
         }
+        // macOS hands the report over a little after the launch: read the folder again whenever the window comes forward.
+        .onChange(of: appearsActive) { _, active in if active { crash.refresh() } }
     }
 }
 
