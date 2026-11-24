@@ -90,6 +90,15 @@ struct ExportImageOptions: View {
     private static let spacing: CGFloat = 16
     private static let padding: CGFloat = 8
 
+    /// A journal's column widths, named as journals name them.
+    static func widthTitle(_ width: FigureStyle.Width) -> String {
+        switch width {
+        case .mm90: "One column (90 mm)"
+        case .mm140: "1.5 columns (140 mm)"
+        case .mm190: "Two columns (190 mm)"
+        }
+    }
+
     var body: some View {
         HStack(spacing: Self.spacing) {
             if choices.offersFigure {
@@ -103,7 +112,7 @@ struct ExportImageOptions: View {
                 // Left out, never dimmed, for PNG: the PNG has the image's own pixels, not a width.
                 if choices.format.isVector || choices.pngIsFigure {
                     Picker("Width", selection: $choices.width) {
-                        ForEach(FigureStyle.Width.allCases, id: \.self) { Text("\(Int($0.rawValue)) mm").tag($0) }
+                        ForEach(FigureStyle.Width.allCases, id: \.self) { Text(Self.widthTitle($0)).tag($0) }
                     }
                     .fixedSize()
                     .help("The figure's width on the page: one column (90 mm), one and a half (140 mm) or two (190 mm)")
