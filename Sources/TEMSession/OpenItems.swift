@@ -317,6 +317,8 @@ package final class OpenItem: Identifiable {
     package let diffractionVariants = DiffractionVariants()
     /// A Simulation document's convergent-beam pattern (#912, MA9); unused by a measured file.
     package let cbed = CBEDModel()
+    /// The two-beam CBED thickness measured on this pattern (#916, MA15); any pattern, measured or simulated.
+    package let thickness = CBEDThicknessModel()
     /// The committed zoom and pan; kept per item, through eviction and re-read. Not observed: the pane reads it once,
     /// when it is made, and writes it at the end of every gesture — observing it would re-evaluate the pane's parent
     /// on each write for nothing.

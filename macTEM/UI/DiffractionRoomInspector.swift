@@ -49,6 +49,7 @@ struct DiffractionRoomSettings: View {
             DiffractionPrecipitateSection(item: item)
             DiffractionPowderSection(item: item)
             DiffractionRingsSection(session: item.session, analysis: analysis, view: view)
+            DiffractionThicknessSection(item: item)
             DiffractionExportSection(session: item.session, analysis: analysis, isSimulation: isSimulation)
         }
         .onAppear { analysis.bind(image) }

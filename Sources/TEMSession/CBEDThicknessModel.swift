@@ -1,0 +1,91 @@
+//
+//  CBEDThicknessModel.swift
+//  Role: the Diffraction room's Measure Thickness (#916, plan row MA15) for one open pattern: the inputs read from the room (the
+//        centre, the scale, the phase and its first families, the beam energy), the measurement off the main actor, newest wins,
+//        and its outcome until the pattern, the phase or the calibration changes. The numbers are `CBEDThickness`'s, and its fit
+//        is DiffractoKit's.
+//
+
+import DiffractoCore
+import DiffractoScattering
+import Foundation
+import Observation
+import TEMCore
+
+@Observable
+package final class CBEDThicknessModel {
+    /// The last measurement, or why there is none; nil before Measure Thickness or after its inputs changed.
+    package private(set) var outcome: Result<CBEDThickness.Measurement, CBEDThickness.Refusal>?
+    package private(set) var isMeasuring = false
+    /// What the outcome was measured for: a change of any of it clears the outcome (`isCurrent`).
+    @ObservationIgnored private var outcomeKey: Inputs.Key?
+    @ObservationIgnored private var running: Task<Void, Never>?
+
+    package init() {}
+
+    /// What a measurement reads from the room.
+    package struct Inputs: Sendable {
+        let image: CalibratedImage
+        let centre: SIMD2<Double>
+        let deltaQ: Double
+        let structure: CrystalStructure
+        let families: [ReflectionFamily]
+        let phase: String
+        let volts: Double
+        let key: Key
+
+        /// The pattern's content (the canvas's version), the phase, the centre, the scale and the voltage.
+        package struct Key: Equatable, Sendable {
+            let contentVersion: Int
+            let phase: String
+            let centre: SIMD2<Double>
+            let deltaQ: Double
+            let volts: Double
+        }
+    }
+
+    /// The inputs on `image` (shown at `contentVersion`) in `analysis`, or why none: no library phase, no scale, no beam energy.
+    package static func inputs(image: CalibratedImage, contentVersion: Int, analysis: DiffractionAnalysis)
+        -> Result<Inputs, CBEDThickness.Refusal> {
+        guard let phase = analysis.simulatedPhase else { return .failure(.noPhase) }
+        guard let deltaQ = analysis.calibration(for: image)?.deltaQ, deltaQ.isFinite, deltaQ > 0, let centre = analysis.centre
+        else { return .failure(.noScale) }
+        guard let volts = analysis.volts(for: image) else { return .failure(.noVoltage) }
+        let families = analysis.list()?.families.map(\.family) ?? []
+        let at = SIMD2(centre.row, centre.column)
+        return .success(Inputs(image: image, centre: at, deltaQ: deltaQ, structure: phase.structure, families: families, phase: phase.name,
+                               volts: volts, key: Inputs.Key(contentVersion: contentVersion, phase: phase.identity, centre: at, deltaQ: deltaQ,
+                                                             volts: volts)))
+    }
+
+    /// Whether the outcome is that of these inputs.
+    package func isCurrent(_ inputs: Inputs?) -> Bool { inputs != nil && inputs?.key == outcomeKey }
+
+    /// Measure Thickness on `inputs`, off the main actor; a newer call cancels this one's landing. Returns when it has landed.
+    package func measure(_ inputs: Result<Inputs, CBEDThickness.Refusal>) async {
+        running?.cancel()
+        switch inputs {
+        case .failure(let refusal):
+            outcome = .failure(refusal)
+            outcomeKey = nil
+            isMeasuring = false
+        case .success(let inputs):
+            isMeasuring = true
+            let task = Task { [weak self] in
+                let result = await offMainActor {
+                    Result { () throws(CBEDThickness.Refusal) in
+                        try CBEDThickness.measure(image: inputs.image, centre: inputs.centre, deltaQ: inputs.deltaQ,
+                                                  structure: inputs.structure, families: inputs.families, phase: inputs.phase,
+                                                  volts: inputs.volts)
+                    }
+                }
+                guard !Task.isCancelled, let self else { return }
+                self.outcome = result
+                self.outcomeKey = inputs.key
+                self.isMeasuring = false
+            }
+            running = task
+            await task.value
+        }
+    }
+}
