@@ -211,6 +211,14 @@ enum ExportSnapshot {
         }
     }
 
+    /// The Diffraction room's Spots CSV (#785) with the same methods record inside as its readout CSV.
+    static func diffractionSpotsCSV(_ analysis: DiffractionAnalysis, image: CalibratedImage, openItems: OpenItems) -> String {
+        let rings = analysis.rings.count, spots = analysis.spots.count
+        return embeddingMethods(in: analysis.spotsExportText(image: image), of: image, openItems: openItems) {
+            ExportMethods.diffractionRecord(app: $0, source: $1, rings: rings, spots: spots)
+        }
+    }
+
     /// Whether an EELS export carries a methods record: a CSV or the maps PNG (an MSA's header and the method JSON stay as they are).
     nonisolated static func eelsExportCarriesRecord(fileExtension: String) -> Bool { ["png", "csv"].contains(fileExtension.lowercased()) }
 
