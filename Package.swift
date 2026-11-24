@@ -20,7 +20,7 @@ let package = Package(
         // TEMSession take ShellEDXModel (the shared EDS room; the EELS room reuses its regions and pins).
         .package(url: "https://github.com/mac4DSTEM/MacEMUI", from: "0.15.0"),
         // The Simulation document's specimen and HRTEM image (2.5): the slab builder, the multislice and the transfer function.
-        .package(url: "https://github.com/EMSuite/SimulatoKit", from: "0.6.0"),
+        .package(url: "https://github.com/EMSuite/SimulatoKit", from: "0.7.0"),
     ],
     targets: [
         .target(
@@ -49,6 +49,7 @@ let package = Package(
                 .product(name: "SimulatoCore", package: "SimulatoKit"),
                 .product(name: "SimulatoMultislice", package: "SimulatoKit"),
                 .product(name: "SimulatoProbe", package: "SimulatoKit"),
+                .product(name: "SimulatoDetector", package: "SimulatoKit"),
             ],
             swiftSettings: [
                 // Optimised in Debug too.

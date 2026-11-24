@@ -131,6 +131,15 @@ package nonisolated enum DemoDocuments {
         URL(fileURLWithPath: "/macTEM-demo/" + url.lastPathComponent.replacingOccurrences(of: "CBED of ", with: ""))
     }
 
+    /// A Simulation document's STEM image (#913): its own item of Open Files ("STEM of Simulation 1"), shown in the Image room as
+    /// the HRTEM image is; its pixels are computed, never read, and before the first slice lands it holds the HRTEM placeholder.
+    package static func stemURL(of simulation: URL) -> URL { URL(fileURLWithPath: "/macTEM-demo/STEM of " + simulation.lastPathComponent) }
+    package static func isSTEM(_ url: URL) -> Bool { url.path.hasPrefix("/macTEM-demo/STEM of ") }
+    /// The Simulation document a STEM image belongs to.
+    package static func simulationURL(ofSTEM url: URL) -> URL {
+        URL(fileURLWithPath: "/macTEM-demo/" + url.lastPathComponent.replacingOccurrences(of: "STEM of ", with: ""))
+    }
+
     /// What a CBED item holds before its first pattern lands: 64 pixels of 0 a side at 0.1 1/nm, the centre in the middle.
     package static func cbedPlaceholder(name: String) -> CalibratedImage {
         let axis = AxisCalibration(scale: 0.1, unit: "1/nm", origin: 32)

@@ -75,6 +75,9 @@ The rooms:
   discs apart, a pattern stored about every 2 nm to the largest thickness for the thickness slider, and the box the angular step
   needs named before the run. Measure Thickness reads a two-beam CBED pattern's diffracted disc and fits its fringes for the
   specimen thickness (Kelly et al. 1975), with the profile, the fitted curve and Use in Simulation.
+  Show STEM Image opens the slab's STEM image in the Image room: Simulate scans the probe over one projected unit, the image
+  filling as it is computed, with or without frozen phonons, and Stop and Continue keep what is done; BF, ABF, ADF and HAADF are
+  bands on the scattered intensity against angle, moved after the run with no new run, and the scan step starts at Nyquist.
 - **Patterns**: the EBSD or TKD scan beside the live pattern, with mean intensity, virtual BSE, image quality and
   average dot product maps. Remove the static and dynamic backgrounds, rescale or normalise, equalise, filter, bin,
   average neighbouring patterns and denoise with NLPAR. Draw the Kikuchi bands of the file's stored orientations over

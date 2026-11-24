@@ -28,6 +28,7 @@ struct ImageRoomSettings: View {
         ImageRoomCalibrationSection(session: session)
         // A Simulation document's HRTEM image (#894): Defocus and Thickness, live.
         if let item = appState.openItems.selected, DemoDocuments.isHRTEM(item.url) { SimulationHRTEMSection(item: item) }
+        if let item = appState.openItems.selected, DemoDocuments.isSTEM(item.url) { SimulationSTEMSection(item: item) }
         // An image stack read on demand (a multi-page TIFF): the frame shown and the slider that moves it.
         if let item = appState.openItems.selected, item.stack != nil { ImageRoomStackSection(item: item, items: appState.openItems) }
         // A render's bar starts hidden (`ImagePresentation.startsWithScaleBar`), and its Display section says why.
