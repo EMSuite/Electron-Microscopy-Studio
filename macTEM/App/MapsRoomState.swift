@@ -12,6 +12,7 @@ import CoreText
 import Foundation
 import ImagoCore
 import Observation
+import ShellExport
 import ShellMetal
 import UniformTypeIdentifiers
 import TEMCore
@@ -55,7 +56,8 @@ final class MapsRoomState {
     /// Makes the map figure of the shown layer and opens the save panel, or, with `directory` (the UI journeys' export folder), writes it
     /// there; says why when there is nothing to write. The figure is drawn off the main actor (#251) from what the session shows when the
     /// export is asked for; the record is of that moment too.
-    @MainActor func exportMap(from session: OrientationMapSession, directory: URL? = nil, report: (String) -> Void) async {
+    @MainActor func exportMap(from session: OrientationMapSession, format: FigureExport.Format = .png, directory: URL? = nil,
+                              report: (String) -> Void) async {
         guard let document = session.document, let raster = session.raster else {
             report("Nothing to export yet: the map has not landed."); return
         }
@@ -67,14 +69,24 @@ final class MapsRoomState {
                                          boundaries: session.showsBoundaries ? (session.grainBoundaryEdges, session.phaseBoundaryEdges) : ([], []),
                                          grainCount: session.analysis?.table.count)
         let fields = MapsRoomFormat.recordFields(of: layer, session: session), methods = MapsRoomFormat.methods(of: layer)
+        var record = SEMExportedFile(room: "Maps", what: "Map \(format.title)", source: document.fileName, fields: fields, methods: methods)
         let data: Data
         do {
-            data = try await Self.mapPNG(figure)
+            if format.isVector {
+                // A vector figure (#902) carries its methods record in its metadata as it is drawn; the session keeps no thumbnail of it.
+                let methodsRecord = await ExportSnapshot.semRecord(record, sourceURL: document.url, sourceKind: Self.sourceKind(document.source),
+                                                                   shape: [document.columns, document.rows])
+                data = try await MapsFigure.vector(figure, width: .mm90, format: format, software: ExportSnapshot.provenance(),
+                                                   methodsRecord: try methodsRecord?.json())
+            } else {
+                data = try await Self.mapPNG(figure)
+                record.png = data
+            }
         } catch {
             report("Export failed: \(error.localizedDescription)"); return
         }
-        let record = SEMExportedFile(room: "Maps", what: "Map PNG", source: document.fileName, fields: fields, methods: methods, png: data)
-        await write(data, name: name, type: .png, record: record, document: document, directory: directory, report: report)
+        await write(data, name: name, type: format.isVector ? ExportPanels.contentType(of: format) : .png, record: record, document: document,
+                    directory: directory, report: report)
     }
 
     /// The map figure's PNG, off the main actor: up to 4096 px wide.

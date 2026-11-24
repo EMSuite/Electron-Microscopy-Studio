@@ -250,13 +250,20 @@ enum ExportSnapshot {
     /// read again or the kind holds no record (a method JSON, a `.ctf`): an export never fails for its record.
     @concurrent nonisolated static func semExport(_ data: Data, file: SEMExportedFile, fileExtension: String, sourceURL: URL?,
                                                   sourceKind: String, shape: [Int]) async -> Data {
-        guard ["png", "csv", "ang"].contains(fileExtension.lowercased()), let sourceURL,
-              let print = try? ExportMethods.fingerprint(ofFileAt: sourceURL) else { return data }
+        guard ["png", "csv", "ang"].contains(fileExtension.lowercased()),
+              let record = await semRecord(file, sourceURL: sourceURL, sourceKind: sourceKind, shape: shape) else { return data }
+        return (try? ExportMethods.embedding(record, inFileWithExtension: fileExtension, data: data)) ?? data
+    }
+
+    /// The methods record of an SEM room's export, its source fingerprinted off the main actor; nil when the source cannot be read
+    /// again. A vector figure takes it into its metadata as it is drawn (#902); `semExport` embeds it in a PNG, CSV or `.ang`.
+    @concurrent nonisolated static func semRecord(_ file: SEMExportedFile, sourceURL: URL?, sourceKind: String, shape: [Int]) async
+        -> MethodsRecord? {
+        guard let sourceURL, let print = try? ExportMethods.fingerprint(ofFileAt: sourceURL) else { return nil }
         let source = MethodsRecord.Source(fileName: file.source, byteCount: print.byteCount, fingerprint: print.sha256, kind: sourceKind,
                                           shape: shape)
         let exportKind = "\(file.room) \(file.what)".lowercased().replacingOccurrences(of: " ", with: "-")
-        let record = ExportMethods.semRecord(file, app: methodsApp(), exportKind: exportKind, source: source)
-        return (try? ExportMethods.embedding(record, inFileWithExtension: fileExtension, data: data)) ?? data
+        return ExportMethods.semRecord(file, app: methodsApp(), exportKind: exportKind, source: source)
     }
 
     /// A method record with the app's version under "software" and the kits under "builtWith" (name: version).

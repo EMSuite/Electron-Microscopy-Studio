@@ -279,6 +279,8 @@ nonisolated enum AgentDoorCoverage {
         "maps.export.grains": .personOnly(exportReason),
         "maps.export.histogram": .personOnly(exportReason),
         "maps.export.map": .personOnly(exportReason),
+        "maps.export.mapPDF": .personOnly(exportReason),
+        "maps.export.mapSVG": .personOnly(exportReason),
         "maps.export.texture": .personOnly(exportReason),
         "maps.grain.outline": .tool("get_maps_picture"),
         "maps.grains": .tool("get_grains"),

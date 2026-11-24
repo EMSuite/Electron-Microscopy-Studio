@@ -19,11 +19,11 @@ nonisolated final class RoomExportTests: XCTestCase {
         return text.split(whereSeparator: \.isWhitespace).joined(separator: " ")
     }
 
-    /// Every type a room's export kind names, and the Maps room's PNG and CSV, is one the file writes. Red under: a kind's type left out.
+    /// Every type a room's export kind names, and the Maps room's PNG, PDF, SVG and CSV, is one the file writes. Red under: a kind's type left out.
     @MainActor func testTheExportFileWritesEveryTypeARoomExports() {
         let types = Set(RoomExportFile.readableContentTypes)
         let rooms = PatternsExportKind.allCases.map(\.contentType) + IndexingExportKind.allCases.map(\.contentType)
-            + EELSExportKind.allCases.map(\.contentType) + [.png, .commaSeparatedText]
+            + EELSExportKind.allCases.map(\.contentType) + [.png, .pdf, .svg, .commaSeparatedText]
         for type in rooms { XCTAssertTrue(types.contains(type), "\(type.identifier)") }
         XCTAssertEqual(RoomExportFile.readableContentTypes.count, types.count, "each type once")
         XCTAssertEqual(RoomExportFile(text: "a,µ\n").data, Data("a,µ\n".utf8))

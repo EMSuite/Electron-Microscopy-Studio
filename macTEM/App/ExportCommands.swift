@@ -8,7 +8,7 @@
 //        each still enabled only where it can act (`ExportSnapshot.availability`, `ExportSnapshot.fftAvailability`,
 //        `SEMSessionLedger.hasRows`). The EDS room's five (`ExportSnapshot.edsAvailability`), the EELS room's seven
 //        (`eelsAvailability`), the Patterns room's six (`patternsAvailability`), the Indexing room's five
-//        (`indexingAvailability`) and the Maps room's four (`mapsAvailability`) are listed while their room shows its document,
+//        (`indexingAvailability`) and the Maps room's six (`mapsAvailability`) are listed while their room shows its document,
 //        each through the room's own export (`RoomExports`), the call its inspector button makes. Every room ends the group with
 //        Export Methods Record… and puts Copy Methods Paragraph (⌥⌘C, the design's F3) in the Edit menu after the pasteboard's items (#818,
 //        `MethodsRecordExport`), both enabled while the room holds a result. The Image, Diffraction and EELS rooms list Export
@@ -104,7 +104,7 @@ struct ExportCommands: Commands {
             if let appState, let patterns { patternsItems(patterns, appState: appState) }
             // The Indexing room's five, on the same terms.
             if let appState, let indexing { indexingItems(indexing, appState: appState) }
-            // The Maps room's four, while that room shows a map.
+            // The Maps room's six, while that room shows a map.
             if let appState, let maps { mapsItems(maps, appState: appState) }
             // Every room's methods record of its result (#818), last: it describes what the exports above hold. Before it, in the
             // Image and Diffraction rooms, the image or pattern as a HyperSpy file (#819).

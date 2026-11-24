@@ -105,6 +105,22 @@ struct MapsExportSection: View {
                 .accessibilityIdentifier("maps.export.map")
             }
             InspectorActionRow {
+                Button("Map PDF…") {
+                    Task { await state.exportMap(from: session, format: .pdf, directory: appState.exportDirectory, report: { appState.statusText = $0 }) }
+                }
+                .disabled(session.raster == nil)
+                .help("The map on screen as a 90 mm vector figure: the map, its boundaries as lines, a scale bar and the key below, with live text")
+                .accessibilityIdentifier("maps.export.mapPDF")
+            }
+            InspectorActionRow {
+                Button("Map SVG…") {
+                    Task { await state.exportMap(from: session, format: .svg, directory: appState.exportDirectory, report: { appState.statusText = $0 }) }
+                }
+                .disabled(session.raster == nil)
+                .help("The same vector figure as SVG, for Illustrator or Inkscape")
+                .accessibilityIdentifier("maps.export.mapSVG")
+            }
+            InspectorActionRow {
                 Button("Grains CSV…") {
                     Task { await state.exportGrains(from: session, directory: appState.exportDirectory, report: { appState.statusText = $0 }) }
                 }
