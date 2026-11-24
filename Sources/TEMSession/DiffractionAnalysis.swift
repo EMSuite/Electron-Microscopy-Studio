@@ -246,10 +246,11 @@ package final class DiffractionAnalysis {
         fitTask?.cancel()
         failure = nil
         isFitting = true
-        let pattern = DiffractionCompute.pattern(of: image)
         let volts = volts(for: image), pitch = pitchMM
         let standardName = standard.name
         let task = Task.detached(priority: .userInitiated) { [weak self] in
+            // A uint8 or uint16 image's Float32 copy is made here, off the main actor (#928).
+            let pattern = DiffractionCompute.pattern(of: image)
             let result = DiffractionCompute.fitRing(pattern: pattern, centre: centre, inner: inner, outer: outer, isCancelled: { Task.isCancelled })
             if Task.isCancelled { return }
             await self?.landRing(result, inner: inner, outer: outer, family: family, standard: standardName, volts: volts, pitch: pitch, generation: gen)
@@ -333,7 +334,6 @@ package final class DiffractionAnalysis {
         let marked = spots.compactMap { s in
             s.row.flatMap { r in s.column.map { c in PatternIndexing.Mark(row: r, column: c, intensity: s.intensity) } }
         }
-        let pattern = DiffractionCompute.pattern(of: image)
         let structure = crystal.structure, phase = crystal.name
         let fit = fitScale
         let key = "\(crystal.name)|\(crystal.sha256 ?? "")|\(volts)" + (fit ? "" : "|fixed scale")
@@ -344,6 +344,8 @@ package final class DiffractionAnalysis {
             do {
                 var marks = marked
                 if marks.isEmpty {
+                    // A uint8 or uint16 image's Float32 copy is made here, off the main actor (#928).
+                    let pattern = DiffractionCompute.pattern(of: image)
                     let located = try PatternIndexing.findSpots(pattern: pattern, centre: centre, shortestG: shortest, calibration: calibration)
                     found = located
                     marks = located.map { PatternIndexing.Mark(row: $0.row, column: $0.column, intensity: $0.intensity) }
@@ -484,8 +486,7 @@ package final class DiffractionAnalysis {
 
     /// A click on the pattern: the centre is refined (the kit's `PatternSpot.refine`), and the spot is listed with its radius and indexing.
     package func addSpot(image: CalibratedImage, row: Double, column: Double) {
-        let refined = PatternSpot.refine(pattern: DiffractoGeometry.DiffractionPattern(width: image.width, height: image.height, pixels: image.pixels),
-                                         row: row, column: column)
+        let refined = DiffractionCompute.refineSpot(in: image, row: row, column: column)
         let spot: MeasuredSpot
         if let refined {
             spot = MeasuredSpot(clickRow: row, clickColumn: column, row: refined.row, column: refined.column, radius: nil, refusal: nil)
