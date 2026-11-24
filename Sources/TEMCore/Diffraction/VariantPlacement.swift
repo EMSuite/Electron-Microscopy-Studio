@@ -80,8 +80,6 @@ package nonisolated struct VariantRow: Sendable, Equatable, Identifiable {
     /// "[1 0 0] ∥ [3 2 0] Al": where this variant puts the first pair.
     package let label: String
     package let isHidden: Bool
-    /// Its drawn spots at the display cut (1 % of its strongest).
-    package let spotCount: Int
 }
 
 /// A predicted spot of the shown variants: spots of several variants within the grouping tolerance are one, naming each.
@@ -97,16 +95,12 @@ package nonisolated struct VariantSpot: Sendable, Equatable {
         a.position == b.position && a.intensity == b.intensity && a.members.map(\.variant) == b.members.map(\.variant)
             && a.members.map(\.hkl) == b.members.map(\.hkl)
     }
-
-    /// "Variant 3" or "Variants 2 and 3".
-    package var variantsText: String { VariantPlacement.variantsText(members.map(\.variant)) }
 }
 
 /// The variants of one precipitate placed on the matrix's orientation.
 package nonisolated struct VariantSet: Sendable, Equatable {
     package let precipitate: String
     package let matrix: String
-    package let relationship: PrecipitateRelationship
     /// The kit's variants, in its order.
     package let variants: [VariantOrientation]
     package let rows: [VariantRow]
@@ -191,11 +185,10 @@ package nonisolated enum VariantPlacement {
         let rows = variants.map { v -> VariantRow in
             let label = relationship.firstPrecipitate.text + " ∥ "
                 + (v.firstPairInMatrix.map { RelationshipVector.describe($0) } ?? relationship.firstMatrix.text) + " \(matrix)"
-            return VariantRow(id: v.index, group: v.group, label: label, isHidden: hidden.contains(v.index),
-                              spotCount: drawn(v.pattern).count)
+            return VariantRow(id: v.index, group: v.group, label: label, isHidden: hidden.contains(v.index))
         }
         let spots = merge(variants.filter { !hidden.contains($0.index) })
-        return .success(VariantSet(precipitate: precipitate, matrix: matrix, relationship: relationship, variants: variants,
+        return .success(VariantSet(precipitate: precipitate, matrix: matrix, variants: variants,
                                    rows: rows, secondPairMisfitDeg: misfit * 180 / Double.pi, spots: spots))
     }
 

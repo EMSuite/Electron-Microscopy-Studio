@@ -79,7 +79,6 @@ package nonisolated struct PowderRow: Sendable, Equatable, Identifiable {
     package let id: String
     package let phase: String
     package let phaseIndex: Int
-    package let peakIndex: Int
     /// The peak's families, pymatgen's labels: "111" or "111, 115" (four indices on a hexagonal lattice).
     package let hkl: String
     package let multiplicity: Int
@@ -147,7 +146,7 @@ package nonisolated struct PowderTable: Sendable, Equatable {
                     let j = computed[ref.pattern]
                     return "\(phases[j].name) \(label(patterns[j]!.peaks[ref.peak]))"
                 }
-                rows.append(PowderRow(id: "\(i):\(k)", phase: phases[i].name, phaseIndex: i, peakIndex: k, hkl: label(peak),
+                rows.append(PowderRow(id: "\(i):\(k)", phase: phases[i].name, phaseIndex: i, hkl: label(peak),
                                       multiplicity: peak.multiplicity, d: peak.d, position: peak.position, intensity: peak.intensity,
                                       overlaps: overlaps, isDiagnostic: mark?.isDiagnostic ?? false))
             }
@@ -240,11 +239,6 @@ package nonisolated struct PowderTable: Sendable, Equatable {
         case .rings:
             return "Lattice calculated (Materials Project). A 1 % cell error moves every ring by 1 % of q."
         }
-    }
-
-    /// What every powder pattern is and is not, under the plot.
-    package var lineSentence: String {
-        "A line pattern for planning and comparison: no instrument profile, no texture, no absorption, no thermal motion."
     }
 
     // MARK: Files

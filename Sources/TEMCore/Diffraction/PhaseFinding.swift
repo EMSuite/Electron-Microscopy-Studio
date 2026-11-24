@@ -89,8 +89,6 @@ package nonisolated struct PhaseFindingRow: Sendable, Equatable, Identifiable {
     package let rmsDistance: Double?
     /// Measured |q| over the candidate's |g|.
     package let scale: Double
-    /// The kit's agreement, 0 to 1.
-    package let agreement: Double
     /// Spots: the zone axis of the solver's best orientation.
     package let zoneAxis: ZoneAxis?
     /// Rows with the same tie number are one tie; numbered from 0 in rank order.
@@ -203,7 +201,7 @@ package nonisolated enum PhaseFinding {
             rows = scores.map { s in
                 row(candidates[s.candidate], id: s.candidate, explained: s.explained, measured: s.measured,
                     strongMissing: s.strongMissing, strongExpected: s.strongExpected, misfitPercent: 100 * s.misfit, rmsDistance: nil,
-                    scale: s.scale, agreement: s.agreement, zoneAxis: nil, tie: s.tie, refusal: s.refusal)
+                    scale: s.scale, zoneAxis: nil, tie: s.tie, refusal: s.refusal)
             }
         case .spots(let spots, let volts):
             let scores = try PhaseFinder.rank(spots: spots, candidates: structures, volts: volts, kMax: reach,
@@ -211,19 +209,19 @@ package nonisolated enum PhaseFinding {
             rows = scores.map { s in
                 row(candidates[s.candidate], id: s.candidate, explained: s.explained, measured: s.measured, strongMissing: nil,
                     strongExpected: nil, misfitPercent: nil, rmsDistance: s.best == nil ? nil : s.rmsDistance, scale: s.scale,
-                    agreement: s.agreement, zoneAxis: s.best?.zoneAxis, tie: s.tie, refusal: s.refusal)
+                    zoneAxis: s.best?.zoneAxis, tie: s.tie, refusal: s.refusal)
             }
         }
         return PhaseFindingResult(pattern: pattern, fitScale: fitScale, rows: rows)
     }
 
     private static func row(_ c: PhaseCandidate, id: Int, explained: Int, measured: Int, strongMissing: Int?, strongExpected: Int?,
-                            misfitPercent: Double?, rmsDistance: Double?, scale: Double, agreement: Double, zoneAxis: ZoneAxis?,
+                            misfitPercent: Double?, rmsDistance: Double?, scale: Double, zoneAxis: ZoneAxis?,
                             tie: Int, refusal: String?) -> PhaseFindingRow {
         PhaseFindingRow(id: id, name: c.name, formula: c.formula ?? c.structure.formula,
                         spaceGroup: c.spaceGroup ?? c.structure.spaceGroupType?.internationalSymbol ?? "", source: c.source,
                         explained: explained, measured: measured, strongMissing: strongMissing, strongExpected: strongExpected,
-                        misfitPercent: misfitPercent, rmsDistance: rmsDistance, scale: scale, agreement: agreement, zoneAxis: zoneAxis,
+                        misfitPercent: misfitPercent, rmsDistance: rmsDistance, scale: scale, zoneAxis: zoneAxis,
                         tie: tie, refusal: refusal)
     }
 }
