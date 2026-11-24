@@ -301,7 +301,9 @@ package nonisolated enum STEMImage {
     /// `CancellationError`. `progress` gets the fraction of the whole run done, when the kit reports one.
     package static func advance(_ scan: STEMScan, slice: Duration = .seconds(1),
                                 progress: (@Sendable (Double?) -> Void)? = nil) async throws -> STEMScan {
-        let report: SimulationProgressHandler? = progress.map { handler in { handler($0.fraction) } }
+        let report: SimulationProgressHandler? = progress.map { handler -> SimulationProgressHandler in
+            { (step: SimulationProgress) in handler(step.fraction) }
+        }
         let worker = Task.detached { () -> (STEMScan, (any Error)?) in
             var running = scan
             do { _ = try running.run.run(progress: report); return (running, nil) }
