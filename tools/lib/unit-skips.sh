@@ -3,9 +3,10 @@
 #
 # The allow file lists each test that may skip, one per line: Class.method<TAB>condition<TAB>reason, the condition one of
 # sem-data (the SEM reference data under References/sem-data, which tools/parity/sem/fetch-data.sh fetches), real-data (the owner's
-# data folder or an opt-in variable, never on a runner), metal (no Metal device) or sandbox (no security-scoped bookmark). Lines that
-# start with # and empty lines are comments. With MACTEM_REQUIRE_SEM_DATA=1 (the nightly unit job, after it fetched that data) a
-# sem-data line allows nothing.
+# data folder or an opt-in variable, never on a runner), metal (no Metal device), sandbox (no security-scoped bookmark) or snapshots
+# (the room snapshots, compared only where SNAPSHOTS=1 is set, #805). Lines that start with # and empty lines are comments. With
+# MACTEM_REQUIRE_SEM_DATA=1 (the nightly unit job, after it fetched that data) a sem-data line allows nothing; with
+# TEST_RUNNER_SNAPSHOTS=1 (CI's unit job) a snapshots line allows nothing.
 
 # The tests a result bundle skipped, one line each, sorted: "unit: SKIPPED Class.method: <reason>", named as run-tests.sh's
 # executed_tests_from_json names them. The reason is the case's first "Failure Message" node (where xcresulttool puts the XCTSkip
@@ -27,14 +28,14 @@ skipped_tests_from_json() {
 # not Class.method<TAB>condition<TAB>reason (a malformed line would otherwise allow nothing, or the wrong test). Plain POSIX awk:
 # macOS's awk runs it, and so does Linux's mawk.
 unit_skips_check() {
-  awk -v mode="$1" -v allow="$2" -v require="${MACTEM_REQUIRE_SEM_DATA:-}" '
+  awk -v mode="$1" -v allow="$2" -v require="${MACTEM_REQUIRE_SEM_DATA:-}" -v snap="${TEST_RUNNER_SNAPSHOTS:-}" '
     BEGIN {
       while ((got = (getline line < allow)) > 0) {
         lines++
         if (line ~ /^#/ || line ~ /^[[:space:]]*$/) continue
         if (split(line, f, "\t") != 3 || f[1] !~ /^[^.[:space:]]+\.test[^.[:space:]]*$/ ||
-            f[2] !~ /^(sem-data|real-data|metal|sandbox)$/ || f[3] ~ /^[[:space:]]*$/) {
-          print "unit-skips: " allow ":" lines ": not Class.method<TAB>condition<TAB>reason (sem-data, real-data, metal or sandbox): " line > "/dev/stderr"
+            f[2] !~ /^(sem-data|real-data|metal|sandbox|snapshots)$/ || f[3] ~ /^[[:space:]]*$/) {
+          print "unit-skips: " allow ":" lines ": not Class.method<TAB>condition<TAB>reason (sem-data, real-data, metal, sandbox or snapshots): " line > "/dev/stderr"
           bad = 1; continue
         }
         if (f[1] in condition) { print "unit-skips: " allow ":" lines ": " f[1] " is listed twice" > "/dev/stderr"; bad = 1; continue }
@@ -47,7 +48,8 @@ unit_skips_check() {
       if (!sub(/^unit: SKIPPED /, "")) next
       name = $0; sub(/:.*$/, "", name)
       skipped[name] = 1
-      if (mode == "unlisted" && !(name in printed) && (!(name in condition) || (require == "1" && condition[name] == "sem-data"))) {
+      if (mode == "unlisted" && !(name in printed) && (!(name in condition) || (require == "1" && condition[name] == "sem-data") ||
+                                                       (snap == "1" && condition[name] == "snapshots"))) {
         printed[name] = 1; print name; unlisted++
       }
     }

@@ -37,3 +37,9 @@ SEMBackgroundParityTests.testWholeSetF2ChainWithinOneGreyLevel	real-data	the who
 SEMGrainParityTests.testFiguresF11AndF12GrainsKAMAndGOSOfTheTiMap	sem-data	figures F11 and F12 on orix-data's whole Ti map, References/sem-data/orix/Ti_orientations.ctf (fetch-data.sh)
 SEMTextureParityTests.testFigureF13OnTheTiMap	sem-data	figure F13 on orix-data's whole Ti map, References/sem-data/orix/Ti_orientations.ctf (fetch-data.sh)
 VeloxAcquisitionReadTests.testAVeloxFileNowReadsMagnificationCameraLengthExposureAndMode	real-data	the Velox example files under References/mac4DSTEM/velox-parity, which no repository commits
+RoomSnapshotTests.testEDSRoomEmpty	snapshots	compared only where SNAPSHOTS=1 is set (CI's unit job on macos-26); a Mac's run skips them
+RoomSnapshotTests.testEELSRoomEmpty	snapshots	compared only where SNAPSHOTS=1 is set (CI's unit job on macos-26); a Mac's run skips them
+RoomSnapshotTests.testImageRoomEmpty	snapshots	compared only where SNAPSHOTS=1 is set (CI's unit job on macos-26); a Mac's run skips them
+RoomSnapshotTests.testIndexingRoomEmpty	snapshots	compared only where SNAPSHOTS=1 is set (CI's unit job on macos-26); a Mac's run skips them
+RoomSnapshotTests.testMapsRoomEmpty	snapshots	compared only where SNAPSHOTS=1 is set (CI's unit job on macos-26); a Mac's run skips them
+RoomSnapshotTests.testPatternsRoomEmpty	snapshots	compared only where SNAPSHOTS=1 is set (CI's unit job on macos-26); a Mac's run skips them

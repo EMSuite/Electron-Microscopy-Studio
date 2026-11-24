@@ -22,6 +22,7 @@
 		B00000000000000000000162 /* ShellEDXModel in Frameworks */ = {isa = PBXBuildFile; productRef = B00000000000000000000161 /* ShellEDXModel */; };
 		B00000000000000000000202 /* ShellExport in Frameworks */ = {isa = PBXBuildFile; productRef = B00000000000000000000201 /* ShellExport */; };
 		B00000000000000000000802 /* ShellHelp in Frameworks */ = {isa = PBXBuildFile; productRef = B00000000000000000000801 /* ShellHelp */; };
+		C00000000000000000000806 /* ShellSnapshotTesting in Frameworks */ = {isa = PBXBuildFile; productRef = C00000000000000000000805 /* ShellSnapshotTesting */; };
 		B00000000000000000000172 /* ShellAgentDoor in Frameworks */ = {isa = PBXBuildFile; productRef = B00000000000000000000171 /* ShellAgentDoor */; };
 		B00000000000000000000181 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = B00000000000000000000180 /* Sparkle */; };
 /* End PBXBuildFile section */
@@ -108,6 +109,7 @@
 		C00000000000000000000006 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
+				C00000000000000000000806 /* ShellSnapshotTesting in Frameworks */,
 			);
 		};
 		D00000000000000000000006 /* Frameworks */ = {
@@ -197,6 +199,9 @@
 				C00000000000000000000003 /* macTEMTests */,
 			);
 			name = macTEMTests;
+			packageProductDependencies = (
+				C00000000000000000000805 /* ShellSnapshotTesting */,
+			);
 			productName = macTEMTests;
 			productReference = C00000000000000000000002 /* macTEMTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -857,6 +862,10 @@
 		B00000000000000000000201 /* ShellExport */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = ShellExport;
+		};
+		C00000000000000000000805 /* ShellSnapshotTesting */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ShellSnapshotTesting;
 		};
 		B00000000000000000000801 /* ShellHelp */ = {
 			isa = XCSwiftPackageProductDependency;

@@ -93,7 +93,8 @@ on:
     - cron: "0 1 * * *"
 
 # Read-only token: no job here writes to the repository, its issues or its PRs (checkout reads; actions/cache needs no
-# token scope). release-please.yml dispatches this workflow with its own token.
+# token scope), except `snapshots`, which runs main's publish.sh on Linux and writes only the pr-pictures branch and its PR
+# comment. release-please.yml dispatches this workflow with its own token.
 permissions:
   contents: read
 
@@ -205,7 +206,48 @@ jobs:
           tools/parity/sem/fetch-data.sh
           echo "MACTEM_REQUIRE_SEM_DATA=1" >> "$GITHUB_ENV"
       - name: Run the unit gate
+        # The room snapshots (macTEMTests/RoomSnapshotTests, #805) compare here: TEST_RUNNER_ reaches the tests through xcodebuild.
         run: tools/run-tests.sh unit
+        env:
+          TEST_RUNNER_SNAPSHOTS: "1"
+          TEST_RUNNER_SNAPSHOT_ARTIFACTS: ${{ runner.temp }}/snapshots
+      # New and changed snapshot pictures leave this read-only job as an artifact; the snapshots job attaches them (suite#137).
+      - name: Keep new and changed snapshots for the snapshots job
+        if: always() && github.event_name == 'pull_request' && !github.event.pull_request.head.repo.fork
+        uses: actions/upload-artifact@v7
+        with:
+          name: snapshots
+          path: ${{ runner.temp }}/snapshots
+          if-no-files-found: ignore
+          retention-days: 3
+
+  # The only job with write access, as EMSuiteUI's: it puts the unit job's new and changed room snapshots (#805) on the pr-pictures
+  # branch and into one comment on the PR. Never on a fork's PR; it runs main's publish.sh (the base commit), not the PR's, on Linux.
+  snapshots:
+    name: Attach new and changed snapshots to the PR
+    needs: unit
+    if: always() && github.event_name == 'pull_request' && !github.event.pull_request.head.repo.fork && needs.unit.result != 'skipped'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write        # the pr-pictures branch
+      pull-requests: write   # the snapshots comment
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          sparse-checkout: tools/snapshots
+      - uses: actions/download-artifact@v8
+        continue-on-error: true   # no artifact: no new or changed picture
+        with:
+          name: snapshots
+          path: ${{ runner.temp }}/snapshots
+      - name: Publish
+        run: |
+          [ -x tools/snapshots/publish.sh ] || { echo "no publish.sh on the base yet"; exit 0; }
+          tools/snapshots/publish.sh "$RUNNER_TEMP/snapshots" "${{ github.event.pull_request.number }}"
+        env:
+          GH_TOKEN: ${{ github.token }}
 
   scientific:
     name: scientific (TEM parity harnesses)
