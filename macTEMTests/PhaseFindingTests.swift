@@ -10,6 +10,7 @@ import XCTest
 import DiffractoCore
 import DiffractoGeometry
 import DiffractoOrientation
+import DiffractoScattering
 import TEMCore
 
 nonisolated final class PhaseFindingTests: XCTestCase {
