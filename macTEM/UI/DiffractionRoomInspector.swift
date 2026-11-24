@@ -27,7 +27,7 @@ struct DiffractionRoomSettings: View {
             DiffractionCalibrationSection(session: item.session, analysis: analysis, view: view)
             DiffractionDisplaySection(view: view)
             DiffractionToolsSection(view: view)
-            DiffractionCrystalSection(analysis: analysis)
+            DiffractionCrystalSection(item: item, analysis: analysis)
             DiffractionIndexSection(analysis: analysis)
             DiffractionHolderSection(item: item)
             DiffractionSimulationSection(session: item.session, analysis: analysis)
@@ -143,8 +143,10 @@ private struct DiffractionCalibrationSection: View {
 }
 
 private struct DiffractionCrystalSection: View {
+    let item: OpenItem
     let analysis: DiffractionAnalysis
     @State private var importing = false
+    @State private var findingPhases = false
 
     var body: some View {
         InspectorSection("Crystal") {
@@ -158,6 +160,9 @@ private struct DiffractionCrystalSection: View {
             }
             InspectorActionRow {
                 Button("Open CIF…") { importing = true }.accessibilityIdentifier("diffraction.cif")
+                Button("Find Phases…") { findingPhases = true }
+                    .help("Ranks the room's standards and the open crystals by how many of the measured rings or marked spots each explains")
+                    .accessibilityIdentifier("diffraction.findPhases")
             }
             if let why = analysis.crystalFailure { InspectorWarning(why) }
             InspectorRow("k_max") {
@@ -167,6 +172,7 @@ private struct DiffractionCrystalSection: View {
                 OptionalNumericField(title: "Indexing tolerance", value: analysis.tolerancePercent, format: pixelFormat, unit: "% of q") { analysis.setTolerance(percent: $0) }
             }
         }
+        .sheet(isPresented: $findingPhases) { DiffractionFindPhasesSheet(item: item) }
         .fileImporter(isPresented: $importing, allowedContentTypes: [UTType(filenameExtension: "cif") ?? .plainText, .plainText]) { result in
             switch result {
             case .success(let url):
