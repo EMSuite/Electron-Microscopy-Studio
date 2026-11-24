@@ -9,6 +9,7 @@
 
 import Foundation
 import ShellAgentDoor
+import ShellExport
 import ShellLayout
 import TEMCore
 import TEMSession
@@ -200,7 +201,7 @@ nonisolated final class AgentDoorDiffractionTests: XCTestCase {
         print("MACEM_METHODS_PARAGRAPH \(paragraph)")
 
         let copied = CopiedText()
-        MethodsRecordExport.copyParagraph(appState: state, writer: copied)
+        await MethodsRecordExport.copyParagraph(appState: state, writer: copied)?.value
         XCTAssertEqual(copied.texts, [paragraph], "Copy Methods Paragraph copies the same paragraph")
 
         let anonymous = try json(try await call("get_methods_record", ["leave_out_file_names": true]).text)

@@ -25,7 +25,7 @@ door this one follows (4DSTEM Studio `docs/agent-door.md`). This app hands the d
 | `get_log` | the window's Output lines |
 | `list_agent_folder` | the files of the Agent folder the person chose in Settings > Agents, as `open_file` takes them |
 | `get_session` | the Results room's SEM session table: every SEM result with its group, value, source, time, Info fields, methods and logged lines, and an SEM spectrum's conditions (with the take-off angle) |
-| `get_methods_record` | the room on screen's methods record as Export Methods Record… writes it (JSON) and the paragraph Copy Methods Paragraph copies; `leave_out_file_names` names each source "source 1", ... (Image, Results, FFT, Diffraction and EELS rooms) |
+| `get_methods_record` | the room on screen's methods record as Export Methods Record… writes it (JSON) and the paragraph Copy Methods Paragraph copies; `leave_out_file_names` names each source "source 1", ... (every room; the first ask in an SEM room or the EDS room may be refused while its file is read for its fingerprint: ask again) |
 | `get_eds` | the EDS room: file, picked elements and roles, region, kept regions, line windows' net counts with σ, Auto ID's suggestions, the results table or why the fit failed |
 | `get_eds_maps` | the EDS maps as the room's Maps as PNG… draws them |
 | `get_patterns` | the Patterns room: scan and pattern size, the file's calibration, the picked position, the map and grid, the colour mix, every processing setting (in `set_pattern_processing`'s names) with each stage's state, why Process is refused, NLPAR's λ, what is running, and the Kikuchi simulation overlay (its mode and settings, what it draws or why it draws nothing) |

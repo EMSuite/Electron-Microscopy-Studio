@@ -307,11 +307,7 @@ package nonisolated enum ExportMethods {
         var steps: [MethodsRecord.Step] = []
         for method in file.methods {
             // In the order the method names them: the package a port follows first ("pyebsdindex 0.3.10.1 as kikuchipy 0.13.1 drives it").
-            let named = method.parityReference
-            let pinned = SEMReferenceVersions.pinned
-                .compactMap { package in named.range(of: "\(package.name) \(package.version)").map { (package, $0.lowerBound) } }
-                .sorted { $0.1 < $1.1 }
-                .map { MethodsRecord.Software(name: $0.0.name, version: $0.0.version) }
+            let pinned = pinnedReferences(in: method.parityReference)
             for package in pinned where !references.contains(package) { references.append(package) }
             steps.append(MethodsRecord.Step(name: method.title, method: method.sentence, reference: pinned.first))
         }
@@ -321,6 +317,92 @@ package nonisolated enum ExportMethods {
         }
         return MethodsRecord(app: app, room: file.room.lowercased(), exportKind: exportKind, kits: kits, references: references,
                              sources: [source], steps: steps, drawn: [file.what])
+    }
+
+    /// The methods of an SEM room's results as one record (#818, Export Methods Record…): each row's methods with the package each
+    /// follows, then the row's own fields as the settings of a step named for its group ("Pattern processing", "Indexing").
+    package static func sessionRecord(app: MethodsRecord.Software, room: String, exportKind: String, source: MethodsRecord.Source,
+                                      rows: [SEMSessionRow]) -> MethodsRecord {
+        var references: [MethodsRecord.Software] = []
+        var steps: [MethodsRecord.Step] = []
+        for row in rows {
+            for method in row.methods {
+                let pinned = pinnedReferences(in: method.parityReference)
+                for package in pinned where !references.contains(package) { references.append(package) }
+                steps.append(MethodsRecord.Step(name: method.title, method: method.sentence, reference: pinned.first))
+            }
+            if !row.fields.isEmpty {
+                steps.append(MethodsRecord.Step(name: row.kind.title, method: row.value,
+                                                settings: row.fields.map { MethodsRecord.Quantity(name: $0.name, value: value($0.value)) }))
+            }
+        }
+        return MethodsRecord(app: app, room: room, exportKind: exportKind, kits: kits, references: references, sources: [source],
+                             steps: steps, drawn: [])
+    }
+
+    /// The pinned packages a method's parity reference names, in the order it names them ("pyebsdindex 0.3.10.1 as kikuchipy 0.13.1
+    /// drives it": pyebsdindex first).
+    static func pinnedReferences(in named: String) -> [MethodsRecord.Software] {
+        SEMReferenceVersions.pinned
+            .compactMap { package in named.range(of: "\(package.name) \(package.version)").map { (package, $0.lowerBound) } }
+            .sorted { $0.1 < $1.1 }
+            .map { MethodsRecord.Software(name: $0.0.name, version: $0.0.version) }
+    }
+
+    /// The EDS room's record, read from its method JSON (SpectroKit's `QuantificationMethod`, `{"method": {...}, "sha256": ...}`): the
+    /// fit and the k-factor quantification with their settings in words, the elements quantified first.
+    package static func edsRecord(app: MethodsRecord.Software, exportKind: String, source: MethodsRecord.Source, methodJSON: String?)
+        -> MethodsRecord {
+        let root = methodJSON.flatMap { try? JSONSerialization.jsonObject(with: Data($0.utf8)) as? [String: Any] } ?? [:]
+        let method = root["method"] as? [String: Any] ?? [:]
+        // Each setting the method states, by its key: the name a paragraph uses and the units.
+        let named: [(key: String, name: String, units: String?)] = [
+            ("estimator", "estimator", nil), ("background", "background", nil), ("polynomialOrder", "polynomial order", nil),
+            ("fitToKeV", "fit up to", "keV"), ("lockEnergyAxis", "energy axis locked", nil), ("kFactorSource", "k-factor source", nil),
+            ("kSource", "k-factor reference", nil), ("sigmaK", "relative σ of k", nil), ("absorptionCorrection", "absorption correction", nil),
+            ("beamEnergyKeV", "beam energy", "keV"),
+        ]
+        var settings: [MethodsRecord.Quantity] = []
+        let elements = (method["elements"] as? [[String: Any]] ?? []).filter { $0["role"] as? String == "quantify" }
+            .compactMap { $0["symbol"] as? String }
+        if !elements.isEmpty { settings.append(MethodsRecord.Quantity(name: "elements quantified", value: .texts(elements))) }
+        for entry in named {
+            switch method[entry.key] {
+            case let number as NSNumber where CFGetTypeID(number) == CFBooleanGetTypeID():
+                settings.append(MethodsRecord.Quantity(name: entry.name, value: .flag(number.boolValue)))
+            case let number as NSNumber where number.doubleValue.isFinite:
+                settings.append(MethodsRecord.Quantity(name: entry.name, value: .number(number.doubleValue), units: entry.units))
+            case let text as String where !text.isEmpty:
+                settings.append(MethodsRecord.Quantity(name: entry.name, value: .text(words(text))))
+            default: break
+            }
+        }
+        if let thickness = method["thickness"] as? [String: Any], let nm = thickness["nanometres"] as? Double, nm.isFinite {
+            settings.append(MethodsRecord.Quantity(name: "thickness", value: .number(nm), units: "nm"))
+        }
+        let step = MethodsRecord.Step(name: "Quantification", method: "a whole-spectrum fit and the Cliff–Lorimer k-factor ratio method",
+                                      reference: MethodsRecord.Software(name: "exspy", version: "0.3.2"), settings: settings)
+        return MethodsRecord(app: app, room: "eds", exportKind: exportKind, kits: kits, sources: [source], steps: method.isEmpty ? [] : [step],
+                             drawn: [])
+    }
+
+    /// The method's own values in a paper's words.
+    static let methodWords = [
+        "leastSquares": "least squares", "poissonMaximumLikelihood": "Poisson maximum likelihood",
+        "empiricalWithAlEdge": "an empirical continuum with the Al K-edge step",
+        "wholeRangePolynomial6": "a sixth-order polynomial over the whole range",
+    ]
+
+    /// A method value in words: its own ("leastSquares" as "least squares"), else a camel-case value split ("fitOnly" as "fit only").
+    static func words(_ camel: String) -> String {
+        if let known = methodWords[camel] { return known }
+        guard camel.contains(where: \.isUppercase), !camel.contains(" ") else { return camel }
+        var out = ""
+        for character in camel {
+            if character.isUppercase, !out.isEmpty { out += " " }
+            out += character.lowercased()
+        }
+        return out
     }
 
     /// `data` with the record inside, by the file's extension: a PNG's text chunk, or a CSV's or an `.ang`'s header line. Any other

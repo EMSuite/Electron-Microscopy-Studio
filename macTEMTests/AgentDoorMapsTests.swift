@@ -8,6 +8,7 @@
 
 import Foundation
 import ShellAgentDoor
+import ShellExport
 import ShellLayout
 import TEMCore
 import TEMSession
@@ -177,5 +178,30 @@ nonisolated final class AgentDoorMapsTests: XCTestCase {
         let mapsText = try await call("get_maps").text
         let landed = try XCTUnwrap((try json(mapsText)["texture"] as? [String: Any])?["landed"] as? [String: Any])
         XCTAssertEqual(landed["points"] as? Int, state.maps.texture?.points)
+    }
+
+    /// The Maps room's methods record (#818): the map file is read once for its fingerprint (the first ask is refused while it is
+    /// read), then the record holds the map's session rows with the file by its bytes' SHA-256. Mutation: the record of another
+    /// room's rows, the source not the map file, or the read not kept for the next ask - red.
+    @MainActor func testTheMethodsRecordOfTheSteelMap() async throws {
+        let state = try await steelWindow()
+        let url = try XCTUnwrap(state.maps.document?.url, "the demo map is a file")
+        XCTAssertTrue(MethodsRecordExport.isAvailable(in: state))
+        if MethodsRecordExport.isReading(state) {
+            let first = try await call("get_methods_record")
+            XCTAssertTrue(first.refused, "the file is being read")
+            XCTAssertTrue(await MethodsRecordExport.prepare(state))
+        }
+        XCTAssertFalse(MethodsRecordExport.isReading(state))
+        let answer = try json(try await call("get_methods_record").text)
+        let record = try MethodsRecord.decode(try XCTUnwrap(answer["record"] as? String))
+        XCTAssertEqual(record, MethodsRecordExport.record(of: state))
+        XCTAssertEqual(record.room, "maps")
+        let source = try XCTUnwrap(record.sources.first)
+        XCTAssertEqual(source.fingerprint, try ExportMethods.fingerprint(ofFileAt: url).sha256)
+        XCTAssertEqual(source.kind, MapsRoomState.sourceKind(try XCTUnwrap(state.maps.document?.source)))
+        XCTAssertTrue(record.steps.contains { $0.name == SEMSessionRow.Kind.orientationMap.title }, "\(record.steps.map(\.name))")
+        XCTAssertFalse(record.steps.contains { $0.name == SEMSessionRow.Kind.dataset.title }, "the Patterns room's rows stay out")
+        XCTAssertFalse(try XCTUnwrap(answer["paragraph"] as? String).isEmpty)
     }
 }
