@@ -99,7 +99,7 @@ struct SimulationHRTEMSection: View {
                 .accessibilityIdentifier("simulation.hrtem.fieldOfView")
             }
             InspectorRow("Potential") {
-                Text("Lobato, infinite projection").foregroundStyle(.secondary)
+                Text(HRTEMImage.potentialName).foregroundStyle(.secondary)
                     .accessibilityIdentifier("simulation.hrtem.potential")
             }
             InspectorActionRow {

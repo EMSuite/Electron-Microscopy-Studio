@@ -218,6 +218,9 @@ package nonisolated enum HRTEMImage {
                                        methodLine(exit, thicknessIndex: thicknessIndex, defocusNM: defocusNM, optics: optics)])
     }
 
+    /// The potential every HRTEM image is computed with, as the HRTEM section and the method line name it.
+    package static let potentialName = "Lobato, infinite projection"
+
     /// The method line every result carries, naming every setting: "HRTEM · Si [1 1 0] · 200 kV · 10 nm · defocus 61.33 nm · Cs 1 mm ·
     /// focal spread 5 nm · angular spread 0 mrad · no aperture · Lobato, infinite projection, 1 Å slices · static lattice · exact
     /// (float64)" (the design's line).
@@ -227,7 +230,7 @@ package nonisolated enum HRTEMImage {
         return ["HRTEM", exit.specimen, "\(n(optics.volts / 1000, 4)) kV", "\(n(exit.thicknessNM(at: thicknessIndex))) nm",
                 "defocus \(n(defocusNM, 4)) nm", "Cs \(n(optics.csMM, 4)) mm", "focal spread \(n(optics.focalSpreadNM)) nm",
                 "angular spread \(n(optics.angularSpreadMrad)) mrad", aperture,
-                "Lobato, infinite projection, \(n(SimulationSpecimen.sliceThickness)) Å slices", lattice(exit), "exact (float64)"]
+                "\(potentialName), \(n(SimulationSpecimen.sliceThickness)) Å slices", lattice(exit), "exact (float64)"]
             .joined(separator: " · ")
     }
 
