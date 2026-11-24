@@ -444,6 +444,7 @@ nonisolated enum AgentDoorCoverage {
     static let menuItems: [String: Reach] = [
         // File
         "New Window": .personOnly(windowReason),
+        "New Simulation": .gap(846),
         "Open Image…": .tool("open_file"),
         "recents.title(of: entry)": .personOnly(openReason),
         "Clear Menu": .personOnly(openCloseReason),

@@ -53,13 +53,15 @@ struct MapsRoomSettings: View {
                 InspectorNote(note(session.layer))
             }
             InspectorSection("Phases") {
-                let ids = document.map.phaseIDs
-                ForEach(MapsRoomFormat.indexedPhases(document.map), id: \.id) { entry in
+                // The document's own counts, made once when it was read (#690): counting the map's points here ran on every pass
+                // of this body, per phase, while an Indexing run landed (#929).
+                let phases = MapsRoomFormat.indexedPhases(document.map)
+                ForEach(phases, id: \.id) { entry in
                     InspectorValueRow(MapsRoomFormat.phaseName(entry.phase, id: entry.id),
-                                      MapsRoomFormat.phasePoints(entry.phase, count: ids.filter { $0 == entry.id }.count))
+                                      MapsRoomFormat.phasePoints(entry.phase, count: document.phaseCounts[entry.id] ?? 0))
                         .accessibilityIdentifier("maps.phase.\(entry.id)")
                 }
-                if MapsRoomFormat.indexedPhases(document.map).contains(where: { $0.phase.pointGroup == nil }) {
+                if phases.contains(where: { $0.phase.pointGroup == nil }) {
                     InspectorNote("A phase without a known point group has no IPF colours: its points are black.")
                 }
             }
