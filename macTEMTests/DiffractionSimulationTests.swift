@@ -84,6 +84,20 @@ nonisolated final class DiffractionSimulationTests: XCTestCase {
         XCTAssertTrue(all.allSatisfy { $0.row >= -0.5 && $0.row <= 255.5 && $0.column >= -0.5 && $0.column <= 255.5 })
     }
 
+    /// The Tilt tool's keyboard twin (#787): `tilt(down:across:)` tilts the drawn orientation as a drag of that many degrees would,
+    /// set by hand; two opposite steps come back to the zone axis. Red before: only a drag could tilt.
+    @MainActor func testATiltOfOneDegreeLeavesTheZoneAxisByOneDegree() throws {
+        let analysis = shown(blankPattern())
+        let cell = analysis.crystal.structure.cell
+        XCTAssertTrue(analysis.tilt(down: 1, across: 0))
+        XCTAssertTrue(analysis.isTurnedByHand)
+        let near = try XCTUnwrap(analysis.drawnOrientation?.nearestZoneAxis(cell: cell))
+        XCTAssertEqual(near.uvw, SIMD3(0, 0, 1))
+        XCTAssertEqual(near.angle * 180 / .pi, 1, accuracy: 1e-6)
+        XCTAssertTrue(analysis.tilt(down: -1, across: 0))
+        XCTAssertEqual(try XCTUnwrap(analysis.drawnOrientation?.nearestZoneAxis(cell: cell)).angle * 180 / .pi, 0, accuracy: 1e-6)
+    }
+
     /// The overlay is drawn again on every change: a turn, another zone axis, another crystal and another centre each give the spots
     /// of the new settings at the next read.
     @MainActor func testEveryChangeGivesTheSpotsOfTheNewSettings() throws {

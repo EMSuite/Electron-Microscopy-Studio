@@ -437,6 +437,15 @@ package final class DiffractionAnalysis {
         simulation.isShown = true
     }
 
+    /// The Tilt tool's keyboard twin and the door's tilt (#787): the drawn orientation tilted as a drag of `down` degrees down the
+    /// rows and `across` degrees along the columns would tilt it (`ZoneAxisOverlay.tilted`). False, changing nothing, with nothing drawn.
+    @discardableResult
+    package func tilt(down: Double, across: Double) -> Bool {
+        guard let base = drawnOrientation else { return false }
+        turnByHand(to: ZoneAxisOverlay.tilted(base, drag: SIMD2(down, across) / ZoneAxisOverlay.degreesPerPoint))
+        return true
+    }
+
     /// The orientation the overlay draws now: Index's (or a solution, or a hand-turned one), else the typed zone axis and turn.
     package var drawnOrientation: CrystalOrientation? { try? simulation.orientation(cell: crystal.structure.cell) }
 
