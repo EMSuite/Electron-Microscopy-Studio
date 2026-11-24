@@ -73,6 +73,6 @@ nonisolated final class DiffractionPowderTests: XCTestCase {
         let powder = DiffractionPowder()
         let table = powder.table(phases: powder.phases(crystal: aluminium(), others: []), volts: nil)
         let row = try XCTUnwrap(table.rows.first { $0.hkl == "111" })
-        XCTAssertEqual(DiffractionPowderText.line(row, table: table), "Al 111  d 2.338 Å  38.51°  100")
+        XCTAssertEqual(DiffractionPowderText.line(row, table: table), "Al 111  d 2.338 Å  38.51°  100  ◆")
     }
 }

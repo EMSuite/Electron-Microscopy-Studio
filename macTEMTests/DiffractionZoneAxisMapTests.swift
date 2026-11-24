@@ -35,7 +35,7 @@ nonisolated final class DiffractionZoneAxisMapTests: XCTestCase {
         let off = try XCTUnwrap(plan.row(SIMD3(0, 1, 1)))
         XCTAssertEqual(off.angleFromBeamDeg, 45, accuracy: 1e-9)
         XCTAssertEqual(length(off.position), tan(22.5 * Double.pi / 180), accuracy: 1e-12)
-        XCTAssertEqual(plan.traces.count, 3)
+        XCTAssertEqual(plan.traces.count, 13, "one trace per ±(hkl) pair: 3 {100}, 6 {110}, 4 {111}")
     }
 
     func testTheMapSaysWhatItShows() throws {

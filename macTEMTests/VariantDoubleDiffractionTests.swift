@@ -8,6 +8,7 @@
 import XCTest
 import DiffractoCore
 import DiffractoGeometry
+import DiffractoOrientation
 import TEMCore
 
 nonisolated final class VariantDoubleDiffractionTests: XCTestCase {
