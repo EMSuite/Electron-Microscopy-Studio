@@ -55,11 +55,6 @@ package nonisolated enum TIAImageReader {
     /// The note of a `.ser` opened without its `.emi`.
     package static let unitsAssumedNote = "units assumed, no .emi"
 
-    /// Whether `path` is a TIA file by its extension.
-    package static func isTIAFile(path: String) -> Bool {
-        extensions.contains((path as NSString).pathExtension.lowercased())
-    }
-
     /// The image the file at `path` opens: the series and frame the rule above picks, with its calibration and notes.
     package static func read(path: String) throws -> CalibratedImage {
         let url = URL(fileURLWithPath: path)
