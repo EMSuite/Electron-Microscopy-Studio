@@ -7,6 +7,7 @@
   "packages": {
     ".": {
       "package-name": "macTEM",
+      "release-as": "2.3.0",
       "changelog-path": "CHANGELOG.md",
       "extra-files": [
         {
