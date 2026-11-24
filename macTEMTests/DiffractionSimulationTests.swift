@@ -13,6 +13,7 @@
 
 import XCTest
 import DiffractoCore
+import DiffractoGeometry
 import TEMCore
 import TEMSession
 @testable import macTEM
@@ -196,5 +197,63 @@ nonisolated final class DiffractionSimulationTests: XCTestCase {
         XCTAssertFalse(narrow.contains { $0.hkl == MillerIndex(2, 2, 0) })
         for bad: Double in [0, -0.02, 0.0005, 2, .nan, .infinity] { XCTAssertFalse(analysis.setExcitationError(bad), "\(bad)") }
         XCTAssertEqual(analysis.simulation.excitationError, 0.002, "a refused value leaves the last one")
+    }
+
+    // MARK: Turning by hand, Flip and the solutions (#787)
+
+    /// Flip turns the drawn orientation 180° about the beam: Au (2 0 0) at [0 0 1] goes from row 177.0412 to row 78.9588. A Tilt-tool
+    /// drag of 40 points down the rows tilts 2° (0.05° per point) and the header names the zone axis and the angle; an ⌥ drag a
+    /// quarter turn round the centre carries (2 0 0) under the pointer, to column 177.0412. Red before #787: none of these existed.
+    @MainActor func testFlipTiltAndTurnByHand() throws {
+        let image = blankPattern()
+        let analysis = shown(image)
+        XCTAssertEqual(analysis.orientationLine, "Au [001]", "no Index answer: the drawn zone axis is named")
+        XCTAssertFalse(analysis.isTurnedByHand)
+
+        analysis.flip()
+        XCTAssertTrue(analysis.isTurnedByHand)
+        let flipped = try XCTUnwrap(try spots(analysis, image).first { $0.hkl == MillerIndex(2, 0, 0) })
+        XCTAssertEqual(flipped.row, 128 - 2 / 4.0782 / 0.01, accuracy: 1e-6)
+        XCTAssertEqual(flipped.column, 128, accuracy: 1e-6)
+        XCTAssertEqual(analysis.orientationLine, "Au [001] · set by hand")
+
+        let base = try XCTUnwrap(analysis.drawnOrientation)
+        analysis.turnByHand(to: ZoneAxisOverlay.tilted(base, drag: SIMD2(40, 0)))
+        XCTAssertEqual(analysis.orientationLine, "Au · 2.0° from [001] · set by hand")
+        let tilted = try XCTUnwrap(analysis.drawnOrientation)
+        let (t, b) = (tilted.beamDirection, base.beamDirection)
+        XCTAssertEqual(acos(min(1, t.x * b.x + t.y * b.y + t.z * b.z)) * 180 / .pi, 2, accuracy: 1e-6)
+
+        analysis.setZoneAxis(SIMD3(0, 0, 1))
+        XCTAssertFalse(analysis.isTurnedByHand, "a typed zone axis is not by hand")
+        let start = try XCTUnwrap(analysis.drawnOrientation)
+        XCTAssertNil(ZoneAxisOverlay.turned(start, start: SIMD2(1, 0), now: SIMD2(0, 40)), "no angle at the centre")
+        analysis.turnByHand(to: try XCTUnwrap(ZoneAxisOverlay.turned(start, start: SIMD2(49, 0), now: SIMD2(0, 49))))
+        let turned = try XCTUnwrap(try spots(analysis, image).first { $0.hkl == MillerIndex(2, 0, 0) })
+        XCTAssertEqual(turned.row, 128, accuracy: 1e-6)
+        XCTAssertEqual(turned.column, 128 + 2 / 4.0782 / 0.01, accuracy: 1e-6)
+        XCTAssertEqual(analysis.simulation.zoneAxis, SIMD3(0, 0, 1), "the zone axis field shows the nearest")
+    }
+
+    /// Fit scale is on by default with a 3 % window, and off holds the scale; the Index section steps through at most five solutions.
+    func testFitScaleAndTheSolutionLimit() throws {
+        XCTAssertEqual(PatternIndexing.scaleWindow, 0.03)
+        XCTAssertEqual(PatternIndexing.solverSettings(fitScale: true).scaleWindow, 0.03)
+        XCTAssertEqual(PatternIndexing.solverSettings(fitScale: false).scaleWindow, 0)
+        let o = try CrystalOrientation(zoneAxis: SIMD3(0, 0, 1), cell: try XCTUnwrap(StandardCrystals.named("Al")).structure.cell)
+        func outcome(_ alternatives: Int, found: Bool = true) -> PatternIndexing.Outcome {
+            PatternIndexing.Outcome(phase: "Al", verdict: .tied(count: alternatives + 1), spots: [], explained: 0, indexed: 0,
+                                    orientation: found ? o : nil, alternatives: Array(repeating: o.rotatedInPlane(by: 1), count: alternatives),
+                                    zoneAxis: nil, zoneAxisAngle: nil, scale: 1, misfitPercent: nil)
+        }
+        XCTAssertEqual(PatternIndexing.solutions(outcome(0)).count, 1)
+        XCTAssertEqual(PatternIndexing.solutions(outcome(2)).count, 3)
+        XCTAssertEqual(PatternIndexing.solutions(outcome(7)).count, 5, "at most five")
+        XCTAssertEqual(PatternIndexing.solutions(outcome(2, found: false)).count, 0)
+        XCTAssertEqual(PatternIndexing.solutions(outcome(2)).first, o, "the best first")
+    }
+
+    @MainActor func testTheFitScaleIsOnByDefault() {
+        XCTAssertTrue(DiffractionAnalysis().fitScale)
     }
 }

@@ -285,6 +285,31 @@ private struct DiffractionIndexSection: View {
                     .help("Removes every spot, found or clicked, and keeps the rings and their scale: Index then finds the spots again")
                     .accessibilityIdentifier("diffraction.index.removeSpots")
             }
+            // Index's solutions, Flip and Fit scale (#787).
+            let solutions = analysis.solutions.count
+            InspectorRow("Solution") {
+                Stepper(solutions > 1 ? "\(analysis.solutionIndex + 1) of \(solutions)" : (solutions == 1 ? "1 of 1" : "None"),
+                        onIncrement: { analysis.selectSolution(analysis.solutionIndex + 1) },
+                        onDecrement: { analysis.selectSolution(analysis.solutionIndex - 1) })
+                    .monospacedDigit()
+                    .disabled(solutions < 2)
+                    .help("Steps through the orientations Index cannot tell apart (at most five), the best first")
+                    .accessibilityLabel("Solution")
+                    .accessibilityValue(solutions > 0 ? "\(analysis.solutionIndex + 1) of \(solutions)" : "none")
+                    .accessibilityIdentifier("diffraction.index.solution")
+            }
+            InspectorRow("Flip") {
+                Button("Flip 180°") { analysis.flip() }
+                    .disabled(!settings.isShown || analysis.drawnOrientation == nil)
+                    .help("Turns the simulated spots 180° about the beam: the look-alike a centrosymmetric pattern cannot tell apart")
+                    .accessibilityIdentifier("diffraction.index.flip")
+            }
+            InspectorRow("Fit scale") {
+                Toggle("Fit scale", isOn: Binding(get: { analysis.fitScale }, set: { analysis.fitScale = $0 }))
+                    .toggleStyle(.switch).labelsHidden()
+                    .help("Index fits the scale within ±3 % of the room's; off, it holds the room's scale. Read when Index runs.")
+                    .accessibilityIdentifier("diffraction.index.fitScale")
+            }
             InspectorNote(DiffractionIndexText.note(spots: analysis.spots, outcome: analysis.indexOutcome, indexed: settings.indexed != nil))
         }
     }
@@ -419,16 +444,19 @@ private struct DiffractionRingsSection: View {
     }
 }
 
-/// Ring or Spot: what a click on the pattern does. A full-width segmented control in its own section, no leading label.
+/// Ring, Spot or Tilt: what a click or a drag on the pattern does. A full-width segmented control in its own section, no leading label.
 private struct DiffractionToolsSection: View {
     let view: DiffractionViewState
 
     var body: some View {
         InspectorSection("Tools") {
             SegmentedPicker(label: "Tool",
-                            items: [(DiffractionViewState.Tool.ring, .title("Ring")), (.spot, .title("Spot"))],
+                            items: [(DiffractionViewState.Tool.ring, .title("Ring")), (.spot, .title("Spot")), (.tilt, .title("Tilt"))],
                             selection: Binding(get: { view.tool }, set: { view.tool = $0 }))
                 .accessibilityIdentifier("diffraction.tool")
+            if view.tool == .tilt {
+                InspectorNote("Drag the pattern to tilt the simulated spots, 0.05° per point; ⌥ drag turns them about the beam.")
+            }
         }
     }
 }

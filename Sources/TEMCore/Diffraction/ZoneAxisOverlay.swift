@@ -134,6 +134,26 @@ package nonisolated enum ZoneAxisOverlay {
         }
     }
 
+    // MARK: Turning by hand (#787)
+
+    /// The Tilt tool's rate: degrees of tilt per screen point dragged (a 100-point drag tilts 5°).
+    package static let degreesPerPoint = 0.05
+
+    /// The orientation after a Tilt-tool drag of `drag` screen points, (down the rows, along the columns) = (lab x, lab y): the beam
+    /// tilts toward the drag, a drag down the rows about lab y and one along the columns about lab x (`CrystalOrientation.tilted`).
+    package static func tilted(_ base: CrystalOrientation, drag: SIMD2<Double>) -> CrystalOrientation {
+        let k = degreesPerPoint * .pi / 180
+        return base.tilted(by: SIMD2(-drag.y * k, drag.x * k))
+    }
+
+    /// The orientation after an ⌥ drag from `start` to `now`, each the pointer's (row, column) offset from the pattern's centre in
+    /// screen points: turned about the beam by the angle the pointer swept, so the spot under the pointer follows it. nil within
+    /// 2 points of the centre, where the angle means nothing.
+    package static func turned(_ base: CrystalOrientation, start: SIMD2<Double>, now: SIMD2<Double>) -> CrystalOrientation? {
+        guard hypot(start.x, start.y) > 2, hypot(now.x, now.y) > 2 else { return nil }
+        return base.rotatedInPlane(by: atan2(now.y, now.x) - atan2(start.y, start.x))
+    }
+
     /// The pixel radius of a spot of |q| (Å⁻¹): the inverse of the readout's q (`DiffractionCalibration.q(radius:)`), so a drawn
     /// spot reads back its own q. With a ring calibration that is the kit's `RingScale.radius` (exact with L and λ), else |q| / Δq.
     /// NaN past the detector's Bragg limit.
