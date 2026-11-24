@@ -34,7 +34,7 @@ nonisolated final class PhaseFindingTests: XCTestCase {
         let kit = try PhaseFinder.rank(rings: q, candidates: Self.candidates.map(\.structure))
         XCTAssertEqual(result.rows.map(\.id), kit.map(\.candidate))
         XCTAssertEqual(result.rows.map(\.explained), kit.map(\.explained))
-        XCTAssertEqual(result.rows.map(\.strongMissing), kit.map(\.strongMissing))
+        XCTAssertEqual(result.rows.map(\.strongMissing), kit.map { Optional($0.strongMissing) })
         XCTAssertEqual(result.rows.map(\.tie), kit.map(\.tie))
         XCTAssertEqual(result.rows.map(\.scale), kit.map(\.scale))
         XCTAssertEqual(result.rows.compactMap(\.misfitPercent), kit.map { 100 * $0.misfit })

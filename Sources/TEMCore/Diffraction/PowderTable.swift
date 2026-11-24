@@ -166,9 +166,16 @@ package nonisolated struct PowderTable: Sendable, Equatable {
         }
     }
 
-    /// A peak's families as the table names them: "111", or "111, 115" for a peak of two families.
+    /// A peak's families as the table names them: "111", or "111, 115" for a peak of two families. Indices run together only
+    /// while each is one digit and not negative; otherwise a space parts them, so (11 1 0) and (1 1 10) never read alike.
     package static func label(_ peak: PowderPattern.Peak) -> String {
-        peak.families.map { $0.indices.map(String.init).joined() }.joined(separator: ", ")
+        peak.families.map { family(indices: $0.indices) }.joined(separator: ", ")
+    }
+
+    /// "111", or "1 1 10" and "-1 1 1" where an index has two digits or a sign.
+    package static func family(indices: [Int]) -> String {
+        let parts = indices.map(String.init)
+        return indices.allSatisfy { (0...9).contains($0) } ? parts.joined() : parts.joined(separator: " ")
     }
 
     // MARK: Words

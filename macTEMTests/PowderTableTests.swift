@@ -158,4 +158,13 @@ nonisolated final class PowderTableTests: XCTestCase {
         XCTAssertEqual(PowderTable.radiationName(XRayRadiation.named("MoKb1")!), "Mo Kβ₁")
         XCTAssertEqual(PowderTable.radiationName(XRayRadiation(wavelengthAngstroms: 1.5)), "1.5 Å")
     }
+
+    /// Indices run together only while each is one digit and not negative: (11 1 0) and (1 1 10) never read alike.
+    func testALabelKeepsTwoDigitAndSignedIndicesApart() {
+        XCTAssertEqual(PowderTable.family(indices: [1, 1, 1]), "111")
+        XCTAssertEqual(PowderTable.family(indices: [11, 1, 0]), "11 1 0")
+        XCTAssertEqual(PowderTable.family(indices: [1, 1, 10]), "1 1 10")
+        XCTAssertEqual(PowderTable.family(indices: [-1, 1, 1]), "-1 1 1")
+        XCTAssertEqual(PowderTable.family(indices: [1, 0, -1, 2]), "1 0 -1 2")
+    }
 }
