@@ -23,7 +23,7 @@ nonisolated final class SEMProcessingComputeTests: XCTestCase {
         let c = try XCTUnwrap(PatternFilters.plan(nx: 64, ny: 59))
         XCTAssertFalse(a === c, "another shape gets its own plan")
 
-        let pattern = (0 ..< 60 * 60).map { Double(($0 * 37) % 251) }
+        let pattern: [Double] = (0 ..< 3600).map { k in Double((k * 37) % 251) }
         let h = try PatternWindow.lowpass(rows: 60, columns: 60, cutoff: 22, cutoffWidth: 10)
         let first = try PatternFilters.frequencyFiltered(pattern, rows: 60, columns: 60, transferFunction: h, shift: true)
         let again = try PatternFilters.frequencyFiltered(pattern, rows: 60, columns: 60, transferFunction: h, shift: true)
@@ -58,7 +58,12 @@ nonisolated final class SEMProcessingComputeTests: XCTestCase {
             state = state &* 6_364_136_223_846_793_005 &+ 1_442_695_040_888_963_407
             return Float(state >> 40) / Float(1 << 24)
         }
-        let values = (0 ..< 9 * 11 * 64).map { k in Float(100 + (k % 64) * 2) + 40 * next() }
+        let count = 9 * 11 * 64
+        var values = [Float](repeating: 0, count: count)
+        for k in 0 ..< count {
+            let ramp = Float(100 + (k % 64) * 2)
+            values[k] = ramp + 40 * next()
+        }
         return try NLPAR.Scan(rows: 9, columns: 11, patternRows: 8, patternColumns: 8, values: values)
     }
 
@@ -73,7 +78,8 @@ nonisolated final class SEMProcessingComputeTests: XCTestCase {
             XCTAssertEqual(again.distances, first.distances)
         }
         XCTAssertTrue(first.sigma.allSatisfy { $0 > 0 && $0.isFinite })
-        XCTAssertEqual(NLPAR.optimiseLambda(first), NLPAR.optimiseLambda(try NLPAR.estimateNoise(s)))
+        let later = try NLPAR.estimateNoise(s)
+        XCTAssertEqual(NLPAR.optimiseLambda(first), NLPAR.optimiseLambda(later))
     }
 
     /// A flag that says yes stops the estimate with `CancellationError`, from the parallel rows as from the tiles.
