@@ -135,6 +135,11 @@ nonisolated final class AcquisitionMetadataReadTests: XCTestCase {
                 let url = try XCTUnwrap(Bundle(for: Self.self).url(forResource: "velox-haadf-last", withExtension: "emd"),
                                         "velox-haadf-last.emd is not in the test bundle")
                 plant = try Data(contentsOf: url)
+            case "png", "jpg", "jpeg":
+                // A picture (#792) carries no acquisition: decided, no metadata reader. A PNG with text chunks reads empty.
+                let path = try DM4TestFile.write(PicturePlant.png(grey8: [0, 255, 7, 9], width: 2, height: 2), named: "scan." + ext, for: self)
+                XCTAssertTrue(AcquisitionMetadata.read(path: path).isEmpty, ".\(ext)")
+                continue
             case "img", "map":
                 // RosettaSciIO's JEOL test image (200 kV), under .map too: the element map is the same format.
                 plant = try Data(contentsOf: SEMParityReference.fixturesRoot.appendingPathComponent("rsciio/jeol/InvalidFrame/Dummy-Data_0000000.img"))

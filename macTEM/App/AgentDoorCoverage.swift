@@ -33,10 +33,10 @@ nonisolated enum AgentDoorCoverage {
     /// The view follows the person's pointer or zoom; pictures are drawn whole, as the export draws them.
     static let pointerReason = "follows the person's pointer; the agent reads positions from the results instead"
     static let zoomReason = "the person's view zoom; pictures are drawn whole, as the export draws them"
-    /// Opens a file the person picks in the open panel. The sandbox gives an agent no files of its own; open_demo opens the shipped
-    /// demo documents instead.
-    static let openReason = "opens a file the person picks in the open panel; the agent opens the shipped demos with open_demo"
-    static let openCloseReason = "opens or closes the window's files, which stay the person's; the agent opens the shipped demos with open_demo"
+    /// Opens a file the person picks in the open panel. An agent opens the files of its Agent folder with open_file and the shipped
+    /// demo documents with open_demo instead.
+    static let openReason = "opens a file the person picks in the open panel; the agent uses open_file (its Agent folder) or open_demo"
+    static let openCloseReason = "opens or closes the window's files, which stay the person's; the agent uses open_file (its Agent folder) or open_demo"
     static let displayTargetReason = "picks which picture the person's Display rows set; the agent's pictures are drawn as the panes show them"
     static let resultsFilterReason = "filters what the person's results table shows; get_results gives every row whatever the filter"
 
@@ -391,13 +391,15 @@ nonisolated enum AgentDoorCoverage {
         "results.show.\\(group.rawValue)": .personOnly(resultsFilterReason),
         "results.table": .tool("get_results"),
         "settings.agents": .personOnly(agentsReason),
+        "settings.agents.folder.choose": .personOnly(agentsReason),
+        "settings.agents.folder.remove": .personOnly(agentsReason),
         "settings.automaticUpdates": .personOnly(settingsReason),
         "settings.images.cropDatabar": .personOnly(settingsReason),
         "settings.sidebar.\\(section.rawValue)": .personOnly(settingsReason),
         "toolbar.datasetMenu": .personOnly(openCloseReason),
         "welcome.loadingStage": .seen,
         "welcome.loadingStatus": .seen,
-        "welcome.openImage": .personOnly(openReason),
+        "welcome.openImage": .tool("open_file"),
         "welcome.stopOpening": .personOnly(openCloseReason),
         "welcome.tryDemo": .tool("open_demo"),
         "welcome.unreadableStatus": .seen,

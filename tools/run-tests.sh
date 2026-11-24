@@ -47,7 +47,7 @@ scientific=(metadata-parity profile-parity export-parity fft-export-parity sidec
 diagnostic=()                    # never gated
 owner_only=()                    # the owner's own runs
 retired=()                       # kept for history, not run
-support=(crystal-structures sem-readers)     # not harnesses
+support=(crystal-structures sem-readers picture-parity)     # not harnesses
 references=(sem)                 # emits committed reference bundles (Python, Linux CI: .github/workflows/sem-parity.yml); macTEMTests compares
 
 # A near-full disk fakes code regressions (mac4DSTEM, 2026-08-06: three runs, three different spurious failure
@@ -442,9 +442,10 @@ inventory() {
   for name in "${all[@]}"; do
     [[ -d "$ROOT/tools/parity/$name" ]] || { echo "  MISSING tools/parity/$name (classified, not present)"; rc=1; }
   done
-  # tools/ holds the scripts, lib/ and parity/, and no other folder; every folder under tools/parity/ is in exactly one array.
+  # tools/ holds the scripts, lib/, parity/ and benchmarks/ (the Audit workflow's ci.sh), and no other folder; every folder under
+  # tools/parity/ is in exactly one array.
   for dir in "$ROOT"/tools/*(/N); do
-    case "${dir:t}" in lib|parity) ;; *) echo "  UNEXPECTED folder tools/${dir:t} — harnesses live in tools/parity/, helpers in tools/lib/"; rc=1 ;; esac
+    case "${dir:t}" in lib|parity|benchmarks) ;; *) echo "  UNEXPECTED folder tools/${dir:t} — harnesses live in tools/parity/, helpers in tools/lib/"; rc=1 ;; esac
   done
   for dir in "$ROOT"/tools/parity/*(/N); do
     name="${dir:t}"
@@ -740,6 +741,9 @@ inventory() {
           | grep -viE 'was (still )?uncommitted|at the time|(nothing|none|no [a-z]+) (is|are|remains?) uncommitted'; then
     echo "  ^ live docs claim uncommitted work on a clean tree"; rc=1
   fi
+
+  echo "== the store keyword line repeats no word of the name or subtitle and fits 100 characters"
+  "$ROOT/tools/check-store-keywords.sh" || rc=1
 
   if (( rc == 0 )); then echo "inventory: clean"; else echo "inventory: FAILED"; fi
   return $rc
