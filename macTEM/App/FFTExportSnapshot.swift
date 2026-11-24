@@ -193,7 +193,7 @@ extension ExportSnapshot {
             + aspectSentence(width: width, height: height, spacingX: spacingX, spacingY: spacingY, locale: locale)
     }
 
-    /// The PNG is one square pixel per bin (width : height); the room draws the box at width·Δq_x : height·Δq_y. When the two
+    /// The PNG, PDF and SVG draw one square pixel per bin (width : height); the room draws the box at width·Δq_x : height·Δq_y. When the two
     /// differ the panel says so, in words (the file is not resampled), the ratios to three significant digits in `locale`. Empty when they agree.
     nonisolated static func aspectSentence(width: Int, height: Int, spacingX: Double, spacingY: Double,
                                            locale: Locale = .autoupdatingCurrent) -> String {
@@ -205,7 +205,7 @@ extension ExportSnapshot {
             func g(_ v: Double) -> String { Num.sig(v, 3, locale: locale) }
             return r >= 1 ? "\(g(r)) : 1" : "1 : \(g(1 / r))"
         }
-        return " This region is \(width) × \(height) bins: the PNG has one pixel per bin, so it is \(ratio(file)) where the room shows it \(ratio(room))."
+        return " This region is \(width) × \(height) bins: the file has one pixel per bin, so it is \(ratio(file)) where the room shows it \(ratio(room))."
     }
 
     nonisolated static func radialProfileMessage(bins: Int, reciprocalLabel: String, nativeUnit: String) -> String {

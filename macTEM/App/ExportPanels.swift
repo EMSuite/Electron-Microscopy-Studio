@@ -301,8 +301,12 @@ enum ExportPanels {
     /// Export Figure…'s panel (#822): PNG first, as Export Image… was; Format follows with the panel's file type. The strip is sized
     /// once with Width shown, so the panel keeps its height when Width comes and goes.
     static func imagePanel(for snapshot: ExportImageSnapshot, choices: ExportImageChoices) -> NSSavePanel {
-        let panel = savePanel(type: contentType(of: choices.format), name: snapshot.defaultName, directory: snapshot.directory,
-                              message: snapshot.message)
+        figurePanel(name: snapshot.defaultName, directory: snapshot.directory, message: snapshot.message, choices: choices)
+    }
+
+    /// A figure's panel, Export Figure…'s and the transform's: the format's file type, the figure strip below.
+    private static func figurePanel(name: String, directory: URL?, message: String, choices: ExportImageChoices) -> NSSavePanel {
+        let panel = savePanel(type: contentType(of: choices.format), name: name, directory: directory, message: message)
         let chosen = choices.format
         choices.format = .pdf
         panel.accessoryView = accessory(for: choices)
@@ -323,14 +327,7 @@ enum ExportPanels {
     /// The transform's panel: PNG first, as before; PDF and SVG write it as a vector figure (#902). Sized once with Width shown,
     /// as Export Figure…'s is.
     static func transformPanel(for snapshot: ExportTransformSnapshot, choices: ExportImageChoices) -> NSSavePanel {
-        let panel = savePanel(type: contentType(of: choices.format), name: snapshot.defaultName, directory: snapshot.directory,
-                              message: snapshot.message)
-        let chosen = choices.format
-        choices.format = .pdf
-        panel.accessoryView = accessory(for: choices)
-        choices.format = chosen
-        choices.formatChanged = { [weak panel] format in panel?.allowedContentTypes = [contentType(of: format)] }
-        return panel
+        figurePanel(name: snapshot.defaultName, directory: snapshot.directory, message: snapshot.message, choices: choices)
     }
 
     static func radialProfilePanel(for snapshot: ExportRadialProfileSnapshot) -> NSSavePanel {

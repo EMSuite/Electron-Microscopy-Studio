@@ -138,7 +138,7 @@ nonisolated final class FFTExportSnapshotTests: XCTestCase {
         XCTAssertEqual(snapshot.defaultName, "plant-fft-r64x64-x16-y0")
         XCTAssertEqual(snapshot.directory?.path, "/data/run1")
         XCTAssertEqual(snapshot.message, "Transform of region 64 \u{00D7} 64 px at (16, 0), 64 \u{00D7} 64 bins, log\u{2081}\u{2080}|F|\u{00B2} in the window shown."
-                       + " This region is 64 \u{00D7} 64 bins: the PNG has one pixel per bin, so it is 1 : 1 where the room shows it 1 : 1.25.")
+                       + " This region is 64 \u{00D7} 64 bins: the file has one pixel per bin, so it is 1 : 1 where the room shows it 1 : 1.25.")
         XCTAssertEqual(snapshot.defaults, ExportImageDefaults(scaleBar: true, marks: true, offersMarks: true))
         XCTAssertEqual(snapshot.header.crop, FFTAnalysisTests.regionA)
         XCTAssertEqual(snapshot.header.spacingX, spectrum.spacingX)
@@ -298,7 +298,7 @@ nonisolated final class FFTExportSnapshotTests: XCTestCase {
         let dq = 0.0390625
         let message = ExportSnapshot.transformMessage(crop: PixelCrop(row: 0, col: 0, height: 128, width: 256), imageWidth: 512, imageHeight: 512,
                                                       width: 256, height: 128, spacingX: dq, spacingY: dq * 2)
-        XCTAssertTrue(message.hasSuffix(" This region is 256 \u{00D7} 128 bins: the PNG has one pixel per bin, so it is 2 : 1 where the room shows it 1 : 1."), message)
+        XCTAssertTrue(message.hasSuffix(" This region is 256 \u{00D7} 128 bins: the file has one pixel per bin, so it is 2 : 1 where the room shows it 1 : 1."), message)
         XCTAssertEqual(ExportSnapshot.aspectSentence(width: 64, height: 64, spacingX: dq, spacingY: dq), "")
         XCTAssertEqual(ExportSnapshot.aspectSentence(width: 256, height: 128, spacingX: dq, spacingY: dq), "", "a box shown at the file's own shape")
     }
