@@ -239,13 +239,15 @@ package nonisolated struct ResultRow: Sendable, Equatable, Identifiable {
 
     /// A ring or a spot of a pattern, with the kit's indexing; `refusal` when no number exists.
     package static func ring(id: String, label: String, radius: Double?, q: Double?, d: Double?, family: String?, dListed: Double?,
-                             deltaPercent: Double?, odds: String?, verdict: String, refusal: String?) -> ResultRow {
+                             deltaPercent: Double?, odds: String?, verdict: String, refusal: String?, crystal: String? = nil) -> ResultRow {
         var entries = [Entry("R", radius, unit: "px"), Entry("q", q, unit: "1/Å"), Entry("d", d, unit: "Å")]
         entries.append(Entry("family", nil, text: family ?? ""))
         entries.append(Entry("d_listed", dListed, unit: "Å"))
         entries.append(Entry("delta", deltaPercent, unit: "%"))
         entries.append(Entry("odds", nil, text: odds ?? ""))
         entries.append(Entry("verdict", nil, text: verdict))
+        // The crystal and lattice the row was indexed with (#780).
+        if let crystal { entries.append(Entry("crystal", nil, text: crystal)) }
         return ResultRow(id: id, product: .ring, label: label, entries: entries, refusal: refusal)
     }
 
