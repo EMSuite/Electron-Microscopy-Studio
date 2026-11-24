@@ -130,6 +130,98 @@ package nonisolated enum FigureExport {
         ]
     }
 
+    // MARK: - A diffraction pattern
+
+    /// What the Diffraction room draws over its pattern, in image pixels (x the column, y the row, a pixel's centre at integers).
+    package struct PatternOverlay: Sendable, Equatable {
+        /// One measured ring (its fitted ellipse as a closed polyline) or spot, with the d (and family) the room's readout gives.
+        package struct Measured: Sendable, Equatable {
+            package var points: [ImagePoint]
+            package var label: String
+
+            package init(points: [ImagePoint], label: String) {
+                self.points = points
+                self.label = label
+            }
+        }
+
+        package var centre: ImagePoint?
+        package var rings: [Measured]
+        package var spots: [Measured]
+        /// The simulated spots of the typed zone axis or the orientation Index found, and those that carry their hkl.
+        package var simulated: [ZoneAxisOverlay.Spot]
+        package var labelled: [ZoneAxisOverlay.Spot]
+
+        package init(centre: ImagePoint?, rings: [Measured], spots: [Measured], simulated: [ZoneAxisOverlay.Spot],
+                     labelled: [ZoneAxisOverlay.Spot]) {
+            self.centre = centre
+            self.rings = rings
+            self.spots = spots
+            self.simulated = simulated
+            self.labelled = labelled
+        }
+    }
+
+    /// The room's colours: measured rings yellow, measured spots red, the simulated phase cyan, the centre white.
+    package static let ringColor = markColor
+    package static let spotColor = FigureColor(red: 1, green: 0.23, blue: 0.19)
+    package static let simulatedColor = FigureColor(red: 0, green: 0.85, blue: 0.95)
+
+    /// The figure of a pattern: the picture across the style's width, then (with `labels`) the measured rings and spots with their
+    /// d, the simulated spots as one marker shape per phase (rings for the simulation, crosses for what was measured) with their
+    /// hkl, the centre, and the scale bar in the room's reciprocal units (`source`'s axes). `barLeftOut` as for an image.
+    package static func patternScene(source: ExportSource, display: ImageExport.Display, overlay: PatternOverlay, scaleBar: Bool, labels: Bool,
+                                     width: FigureStyle.Width) throws -> (scene: FigureScene, barLeftOut: Bool) {
+        var made = try scene(source: source, display: display, marks: [], options: ImageExport.Options(scaleBar: false, marks: false),
+                             width: width)
+        let k = made.scene.widthPoints / Double(display.width)
+        func point(_ p: ImagePoint) -> FigurePoint { FigurePoint(x: (p.x + 0.5) * k, y: (p.y + 0.5) * k) }
+        var layers: [FigureLayer] = []
+        for ring in overlay.rings where ring.points.count >= 3 {
+            layers.append(.path(FigurePath(points: ring.points.map(point), closed: true, stroke: ringColor, lineWidth: markLineWidth)))
+            if labels, !ring.label.isEmpty, let first = ring.points.first {
+                let at = point(first)
+                layers.append(.text(FigureText(ring.label, at: FigurePoint(x: at.x + 3, y: at.y - 3), color: .white)))
+            }
+        }
+        let spots = overlay.spots.filter { $0.points.count == 1 }
+        if !spots.isEmpty {
+            layers.append(.markers(FigureMarkers(shape: .cross, centers: spots.map { point($0.points[0]) }, size: spotRing, stroke: spotColor,
+                                                 lineWidth: markLineWidth)))
+        }
+        if labels {
+            for spot in spots where !spot.label.isEmpty {
+                let at = point(spot.points[0])
+                layers.append(.text(FigureText(spot.label, at: FigurePoint(x: at.x + spotRing / 2 + 1, y: at.y - 2), color: .white)))
+            }
+        }
+        for spot in overlay.simulated {
+            // A ring 3 to 9 points across, by the square root of its intensity as the room draws it; double diffraction the smallest.
+            let size = 3 + 6 * spot.relative.squareRoot()
+            layers.append(.markers(FigureMarkers(shape: .circle, centers: [point(ImagePoint(x: spot.column, y: spot.row))], size: size,
+                                                 stroke: simulatedColor, lineWidth: markLineWidth)))
+        }
+        if labels {
+            for spot in overlay.labelled {
+                let at = point(ImagePoint(x: spot.column, y: spot.row)), r = (3 + 6 * spot.relative.squareRoot()) / 2
+                layers.append(.text(FigureText(spot.label, at: FigurePoint(x: at.x + r + 1, y: at.y + r + made.scene.style.typeSize),
+                                               color: simulatedColor)))
+            }
+        }
+        if let centre = overlay.centre {
+            layers.append(.markers(FigureMarkers(shape: .plus, centers: [point(centre)], size: 8, stroke: .white, lineWidth: markLineWidth)))
+        }
+        if scaleBar {
+            if let plan = ImageExport.scaleBarPlan(x: source.x, y: source.y, width: display.width, height: display.height) {
+                layers += barLayers(plan, pointsPerPixel: k, height: made.scene.heightPoints, typeSize: made.scene.style.typeSize)
+            } else {
+                made.barLeftOut = true
+            }
+        }
+        made.scene.layers += layers
+        return made
+    }
+
     /// The scene as the file `format` names (PDF or SVG), with its title, software line and methods record.
     package static func data(_ scene: FigureScene, format: Format, metadata: FigureMetadata) throws -> Data {
         switch format {
@@ -137,6 +229,16 @@ package nonisolated enum FigureExport {
         case .svg: return Data(FigureRenderer.svg(scene, metadata: metadata).utf8)
         case .png: return try FigureRenderer.png(scene, scale: 300 / 72, metadata: metadata)
         }
+    }
+
+    /// A pattern's scene, file and write, off the main actor; PNG is the figure at 300 dpi.
+    @concurrent package static func exportPattern(source: ExportSource, display: ImageExport.Display, overlay: PatternOverlay, scaleBar: Bool,
+                                                  labels: Bool, width: FigureStyle.Width, format: Format, methods: MethodsRecord?,
+                                                  to url: URL) async throws -> (scene: FigureScene, barLeftOut: Bool) {
+        let made = try patternScene(source: source, display: display, overlay: overlay, scaleBar: scaleBar, labels: labels, width: width)
+        let metadata = FigureMetadata(title: source.fileName, creator: source.software, methodsRecord: try methods?.json())
+        try ExportFile.write(try data(made.scene, format: format, metadata: metadata), to: url)
+        return made
     }
 
     /// Scene, file and write, off the main actor (a 4096² picture is 48 MB of RGB).

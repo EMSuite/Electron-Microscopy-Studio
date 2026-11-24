@@ -42,6 +42,7 @@ struct ExportCommands: Commands {
         let fixed = FixedExports.listed(in: appState?.navigation.workspaceArea)
         let methods = appState.map(MethodsRecordExport.isAvailable(in:))
         let hyperSpy = appState.map { HyperSpyExportPanel.isAvailable(in: $0) }
+        let diffractionFigure = appState.map { ExportSnapshot.diffractionFigureAvailable(in: $0) }
         CommandGroup(after: .saveItem) {
             // The Image room's two.
             if fixed.contains(.image) {
@@ -72,6 +73,13 @@ struct ExportCommands: Commands {
                     if let appState { ExportPanels.exportSpots(appState: appState) }
                 }
                 .disabled(fft?.spots != true)
+            }
+            // The Diffraction room's figure of the pattern on screen (#822), on the Image room's key: one room is on screen at a time.
+            if appState?.navigation.workspaceArea == .diffraction {
+                Divider()
+                Button("Export Figure…") { if let appState { ExportPanels.exportDiffractionFigure(appState: appState) } }
+                    .keyboardShortcut("e", modifiers: [.command, .shift])
+                    .disabled(diffractionFigure != true)
             }
             if fixed.contains(.results) || fixed.contains(.sessionReport) { Divider() }
             // The Results room's one: every finished measurement of the file as one CSV. ⇧⌥⌘E is free (⌘E is the

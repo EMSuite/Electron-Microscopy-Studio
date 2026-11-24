@@ -447,7 +447,7 @@ nonisolated enum AgentDoorCoverage {
         "close.closeTitle": .personOnly(openCloseReason),
         "Close Window": .personOnly(windowReason),
         "title": .personOnly(saveReason),
-        "Export Image…": .personOnly(exportReason),
+        "Export Figure…": .personOnly(exportReason),
         "Export Profile…": .personOnly(exportReason),
         "Export Transform…": .personOnly(exportReason),
         "Export Radial Profile…": .personOnly(exportReason),

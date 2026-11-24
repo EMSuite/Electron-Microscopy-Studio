@@ -63,6 +63,36 @@ enum ExportPanels {
         Task.immediate { await presentImagePanel(snapshot, on: window, appState: appState) }
     }
 
+    /// File > Export Figure… (⇧⌘E) in the Diffraction room (#822): the pattern on screen as a PDF, SVG or PNG figure.
+    static func exportDiffractionFigure(appState: AppState) {
+        guard let snapshot = ExportSnapshot.diffractionFigureSnapshot(of: appState) else { return }
+        guard let window = hostWindowOrBeep(for: appState) else { return }
+        Task.immediate {
+            let choices = ExportImageChoices(scaleBar: true, marks: true, offersMarks: snapshot.hasLabels, kind: .labels, offersFigure: true)
+            choices.pngIsFigure = true
+            choices.format = .pdf
+            let fileNames = rememberedFileNameChoice()
+            choices.fileNames = fileNames
+            let panel = savePanel(type: contentType(of: choices.format), name: snapshot.defaultName, directory: snapshot.directory,
+                                  message: "The pattern as a figure: PDF and SVG keep its lines and labels as vectors and text.")
+            panel.accessoryView = accessory(for: choices)
+            choices.formatChanged = { [weak panel] format in panel?.allowedContentTypes = [contentType(of: format)] }
+            guard await present(panel, on: window) == .OK, let url = panel.url else { return }
+            remember(fileNames)
+            appState.exportsWriting += 1
+            defer { appState.exportsWriting -= 1 }
+            let name = url.lastPathComponent
+            appState.statusText = ExportSnapshot.exportingLine(name: name)
+            do {
+                let made = try await snapshot.write(to: url, format: choices.format, width: choices.width, scaleBar: choices.scaleBar,
+                                                    labels: choices.offersMarks && choices.marks, leaveOutFileNames: fileNames.leaveOut)
+                report(ExportSnapshot.figureDoneLine(name: name, widthMM: made.scene.widthMM, barLeftOut: made.barLeftOut), in: appState)
+            } catch {
+                appState.present(error)
+            }
+        }
+    }
+
     /// File > Export Profile… and the selected profile's button: the CSV of its samples.
     static func exportProfile(appState: AppState) {
         guard ExportSnapshot.availability(of: appState).profile,

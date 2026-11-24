@@ -32,19 +32,38 @@ final class ExportImageChoices {
     /// Export Figure…'s Format and Width (#822): offered by the Image room's panel only; PNG is the image's own pixels as before,
     /// PDF and SVG a vector figure `width` wide. `formatChanged` lets the panel follow the format with its file type.
     let offersFigure: Bool
+    /// Whether a PNG is a figure too, `width` wide at 300 dpi (the Diffraction room's, which has no PNG of its own pixels).
+    var pngIsFigure = false
     var format: FigureExport.Format = .png
     var width: FigureStyle.Width = .mm90
     @ObservationIgnored var formatChanged: ((FigureExport.Format) -> Void)?
 
     enum Kind: Sendable {
         case marks, spots
+        /// The Diffraction room's figure (#822): the d of each ring and spot and the hkl of the simulated spots.
+        case labels
 
-        var title: String { self == .marks ? "Marks" : "Spots" }
-        var help: String {
-            self == .marks ? "Draw this file's distances, angles and profiles on the image"
-                           : "Draw a ring and the number of each measured spot on the transform"
+        var title: String {
+            switch self {
+            case .marks: "Marks"
+            case .spots: "Spots"
+            case .labels: "Labels"
+            }
         }
-        var identifier: String { self == .marks ? "export.marksToggle" : "export.spotsToggle" }
+        var help: String {
+            switch self {
+            case .marks: "Draw this file's distances, angles and profiles on the image"
+            case .spots: "Draw a ring and the number of each measured spot on the transform"
+            case .labels: "Write the d of each ring and spot and the hkl of the simulated spots"
+            }
+        }
+        var identifier: String {
+            switch self {
+            case .marks: "export.marksToggle"
+            case .spots: "export.spotsToggle"
+            case .labels: "export.labelsToggle"
+            }
+        }
     }
 
     init(scaleBar: Bool, marks: Bool, offersMarks: Bool, kind: Kind = .marks, offersAsShown: Bool = false, offersFigure: Bool = false) {
@@ -82,7 +101,7 @@ struct ExportImageOptions: View {
                 .help("PDF and SVG keep the scale bar, the marks and their labels as lines and text; PNG is the image's own pixels")
                 .accessibilityIdentifier("export.formatPicker")
                 // Left out, never dimmed, for PNG: the PNG has the image's own pixels, not a width.
-                if choices.format.isVector {
+                if choices.format.isVector || choices.pngIsFigure {
                     Picker("Width", selection: $choices.width) {
                         ForEach(FigureStyle.Width.allCases, id: \.self) { Text("\(Int($0.rawValue)) mm").tag($0) }
                     }
@@ -92,8 +111,7 @@ struct ExportImageOptions: View {
                 }
             }
             Toggle("Scale bar", isOn: $choices.scaleBar)
-                .help(choices.kind == .marks ? "Draw the scale bar at the bottom left of the image"
-                                             : "Draw the scale bar at the bottom left of the transform")
+                .help("Draw the scale bar at the bottom left of the " + (choices.kind == .spots ? "transform" : choices.kind == .labels ? "pattern" : "image"))
                 .accessibilityIdentifier("export.scaleBarToggle")
             if choices.offersMarks {
                 Toggle(choices.kind.title, isOn: $choices.marks)
@@ -113,6 +131,6 @@ struct ExportImageOptions: View {
         .padding(Self.padding)
         // One group for VoiceOver, so the two checkboxes are read as the panel's drawing options.
         .accessibilityElement(children: .contain)
-        .accessibilityLabel(choices.kind == .marks ? "Drawn on the image" : "Drawn on the transform")
+        .accessibilityLabel(choices.kind == .spots ? "Drawn on the transform" : choices.kind == .labels ? "Drawn on the pattern" : "Drawn on the image")
     }
 }

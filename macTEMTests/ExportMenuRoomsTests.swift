@@ -43,7 +43,10 @@ nonisolated final class ExportMenuRoomsTests: XCTestCase {
         XCTAssertTrue(commands.contains("if fixed.contains(.results) { Button(\"Export Results…\")"))
         XCTAssertTrue(commands.contains("if fixed.contains(.sessionReport) { Button(\"Export Session Report…\")"))
         XCTAssertTrue(commands.contains(".disabled(session != true) }"))
-        for title in ["Export Figure…", "Export Profile…", "Export Transform…", "Export Radial Profile…", "Export Spots…",
+        // Export Figure… twice: the Image room's and the Diffraction room's (#822), each behind its room's check.
+        XCTAssertEqual(commands.components(separatedBy: "Button(\"Export Figure…\")").count - 1, 2)
+        XCTAssertTrue(commands.contains("if appState?.navigation.workspaceArea == .diffraction { Divider() Button(\"Export Figure…\")"))
+        for title in ["Export Profile…", "Export Transform…", "Export Radial Profile…", "Export Spots…",
                       "Export Results…", "Export Session Report…"] {
             XCTAssertEqual(commands.components(separatedBy: "Button(\"\(title)\")").count - 1, 1, "\(title) drawn once")
         }

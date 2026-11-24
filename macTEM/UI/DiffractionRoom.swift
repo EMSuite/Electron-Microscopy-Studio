@@ -655,13 +655,8 @@ private struct SimulatedSpotsOverlay: View {
     let showsLabels: Bool
     let layout: DiffractionLayout
 
-    static let labelledCount = 60
-    static let labelledFraction = 0.02
-
-    /// The spots that carry their hkl: the strongest first, as `spots` comes.
-    static func labelled(_ spots: [ZoneAxisOverlay.Spot]) -> [ZoneAxisOverlay.Spot] {
-        Array(spots.filter { $0.relative >= labelledFraction }.prefix(labelledCount)) + spots.filter(\.isDoubleDiffraction).prefix(labelledCount)
-    }
+    /// The spots that carry their hkl (`ZoneAxisOverlay.labelled`, the rule Export Figure… draws too).
+    static func labelled(_ spots: [ZoneAxisOverlay.Spot]) -> [ZoneAxisOverlay.Spot] { ZoneAxisOverlay.labelled(spots) }
 
     var body: some View {
         Canvas { ctx, _ in

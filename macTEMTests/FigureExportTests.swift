@@ -5,15 +5,20 @@
 //  live text over it. PDFKit finds every label as text in the PDF, the SVG holds them as <text>, and a figure of an image
 //  without a scale says the bar was left out. The PNG is untouched: Export Figure…'s PNG is `ImageExport`'s, the file Export
 //  Image… wrote (`ImageExportRenderTests` pins it).
-//  Red before: `FigureExport` did not exist; Export Image… wrote PNG only.
+//  In the Diffraction room the figure is the pattern on screen: the measured rings and spots, the simulated spots with their hkl,
+//  the centre and a bar in Å⁻¹ (`FigureExport.patternScene`, `DiffractionFigureSnapshot`).
+//  Red before: `FigureExport` did not exist; Export Image… wrote PNG only, and the Diffraction room had no figure.
 //
 
+import DiffractoCore
 import Foundation
 import ImagoCore
 import PDFKit
 import ShellExport
 import TEMCore
+import TEMSession
 import XCTest
+@testable import macTEM
 
 nonisolated final class FigureExportTests: XCTestCase {
     /// Entry i is (i, i, i, 255): black at 0.
@@ -75,6 +80,71 @@ nonisolated final class FigureExportTests: XCTestCase {
         XCTAssertTrue(bare.barLeftOut)
         XCTAssertEqual(bare.scene.widthMM, 140)
         XCTAssertEqual(bare.scene.layers.count, 1, "the picture alone")
+    }
+
+    /// A pattern's figure: the rings closed yellow paths, the measured spots red crosses, the simulated spots cyan rings with
+    /// their hkl, the centre a plus, the bar in Å⁻¹, and without Labels no text but the bar's. Mutation: a ring left open, the
+    /// phases drawn in one shape, an hkl drawn with Labels off, or the bar not in the room's units - red.
+    func testAPatternFigureDrawsEachPhaseInItsShapeWithItsLabels() throws {
+        let ring = FigureExport.PatternOverlay.Measured(points: (0..<12).map { i in
+            let a = Double(i) / 12 * 2 * .pi
+            return ImagePoint(x: 256 + 80 * cos(a), y: 128 + 80 * sin(a))
+        }, label: "d 2.355 Å · {111}")
+        let spot = FigureExport.PatternOverlay.Measured(points: [ImagePoint(x: 300, y: 100)], label: "d 2.039 Å")
+        let simulated = [ZoneAxisOverlay.Spot(hkl: MillerIndex(2, 0, 0), row: 128, column: 340, intensity: 1, relative: 1),
+                         ZoneAxisOverlay.Spot(hkl: MillerIndex(0, 2, 0), row: 44, column: 256, intensity: 0.5, relative: 0.5)]
+        let overlay = FigureExport.PatternOverlay(centre: ImagePoint(x: 256, y: 128), rings: [ring], spots: [spot], simulated: simulated,
+                                                  labelled: ZoneAxisOverlay.labelled(simulated))
+        var pattern = source()
+        pattern.x = AxisCalibration(scale: 0.0125, unit: "Å⁻¹", origin: 256)
+        pattern.y = AxisCalibration(scale: 0.0125, unit: "Å⁻¹", origin: 128)
+
+        let made = try FigureExport.patternScene(source: pattern, display: display(), overlay: overlay, scaleBar: true, labels: true, width: .mm90)
+        let layers = made.scene.layers
+        let paths = layers.compactMap { layer -> FigurePath? in if case .path(let path) = layer { path } else { nil } }
+        XCTAssertTrue(paths.contains { $0.closed && $0.stroke == FigureExport.ringColor && $0.points.count == 12 }, "the ring")
+        let markers = layers.compactMap { layer -> FigureMarkers? in if case .markers(let m) = layer { m } else { nil } }
+        XCTAssertEqual(markers.filter { $0.shape == .cross }.map(\.stroke), [FigureExport.spotColor], "the measured spot")
+        XCTAssertEqual(markers.filter { $0.shape == .circle }.count, 2, "the simulated phase, one ring a spot")
+        XCTAssertTrue(markers.allSatisfy { $0.shape != .circle || $0.stroke == FigureExport.simulatedColor })
+        XCTAssertEqual(markers.filter { $0.shape == .plus }.count, 1, "the centre")
+        let texts = layers.compactMap { layer -> String? in if case .text(let text) = layer { text.string } else { nil } }
+        XCTAssertTrue(texts.contains("d 2.355 Å · {111}"))
+        XCTAssertTrue(texts.contains("d 2.039 Å"))
+        XCTAssertTrue(texts.contains(simulated[0].label))
+        XCTAssertTrue(texts.contains(simulated[1].label))
+        let plan = try XCTUnwrap(ImageExport.scaleBarPlan(x: pattern.x, y: pattern.y, width: Self.w, height: Self.h))
+        XCTAssertTrue(plan.label.contains("Å"), plan.label)
+        XCTAssertTrue(texts.contains(plan.label))
+
+        let bare = try FigureExport.patternScene(source: pattern, display: display(), overlay: overlay, scaleBar: true, labels: false, width: .mm90)
+        let bareTexts = bare.scene.layers.compactMap { layer -> String? in if case .text(let text) = layer { text.string } else { nil } }
+        XCTAssertEqual(bareTexts, [plan.label], "Labels off: the bar's label alone")
+    }
+
+    /// The Diffraction room's snapshot is the pattern on screen as the room displays it, with the room's scale on its axes.
+    /// Mutation: the snapshot taken outside the room, or the axes left the file's - red.
+    @MainActor func testTheDiffractionRoomsSnapshotIsThePatternOnScreen() async throws {
+        let state = AppState(launch: LaunchOptions(arguments: []))
+        await state.openDemo(.diffraction)?.value
+        let item = try XCTUnwrap(state.openItems.selected)
+        let image = try XCTUnwrap(item.session.image)
+        await item.diffractionView.show(image: image, analysis: item.diffraction)
+        state.navigation.workspaceArea = .image
+        XCTAssertNil(ExportSnapshot.diffractionFigureSnapshot(of: state), "the Image room has its own figure")
+        state.navigation.workspaceArea = .diffraction
+        XCTAssertTrue(ExportSnapshot.diffractionFigureAvailable(in: state))
+        let snapshot = try XCTUnwrap(ExportSnapshot.diffractionFigureSnapshot(of: state))
+        XCTAssertEqual(snapshot.display.width, image.width)
+        XCTAssertEqual(snapshot.display.height, image.height)
+        if let deltaQ = item.diffraction.exportHeader(image: image).deltaQ {
+            XCTAssertEqual(snapshot.source.x?.unit, "Å⁻¹")
+            XCTAssertEqual(snapshot.source.x?.scale, deltaQ)
+        }
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("pattern-\(UUID().uuidString).pdf")
+        defer { try? FileManager.default.removeItem(at: url) }
+        _ = try await snapshot.write(to: url, format: .pdf, width: .mm90, scaleBar: true, labels: true)
+        XCTAssertNotNil(PDFDocument(url: url))
     }
 
     /// The PDF and the SVG carry the labels as text and the methods record as their metadata. Mutation: the labels drawn as
