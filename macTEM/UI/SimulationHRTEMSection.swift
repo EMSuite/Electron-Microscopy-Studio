@@ -140,7 +140,7 @@ struct SimulationHRTEMSection: View {
         .sheet(isPresented: $showsTable) {
             SimulationHRTEMTableSheet(model: model) { appState.refreshHRTEMImage(of: simulation) }
         }
-        .task(id: RunKey(crystal: crystal?.identity, zoneAxis: zoneAxis, thicknessNM: model.thicknessNM,
+        .task(id: RunKey(crystal: model.sourceIdentity(crystal: crystal), zoneAxis: zoneAxis, thicknessNM: model.thicknessNM,
                          beamKV: analysis.typedBeamKV, apertureMrad: model.optics.apertureMrad,
                          strain: crystal.map { model.maximumStrain(crystal: $0, zoneAxis: zoneAxis) }, thermal: model.thermal != nil)) {
             await appState.computeHRTEMImage(of: simulation)
