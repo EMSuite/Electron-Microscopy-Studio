@@ -21,6 +21,7 @@ import ShellMetal
 import ImagoCore
 import Foundation
 import ShellExport
+import SpectroEELS
 import TEMCore
 import TEMSession
 
