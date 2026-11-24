@@ -133,10 +133,10 @@ nonisolated final class AgentDoorFFTTests: XCTestCase {
         let absf = try await call("set_fft", ["view": "absf"])
         XCTAssertTrue(absf.refused, "no Filter run yet")
 
-        let window = try await call("set_fft", ["window": "hann"])
+        let window = try await call("set_fft", ["taper": "hann"])
         XCTAssertFalse(window.refused, window.text)
         XCTAssertEqual(item.fft.preprocess.window, .hann)
-        XCTAssertTrue(state.activityLog.messages.contains { $0.hasSuffix("An agent used FFT room settings (window hann).") }, "\(state.activityLog.messages)")
+        XCTAssertTrue(state.activityLog.messages.contains { $0.hasSuffix("An agent used FFT room settings (taper hann).") }, "\(state.activityLog.messages)")
         let centred = try await call("set_fft", ["region": "128 128 256"])
         XCTAssertFalse(centred.refused, centred.text)
         XCTAssertEqual(item.fft.region?.width, 256)

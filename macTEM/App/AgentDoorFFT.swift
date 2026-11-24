@@ -152,7 +152,7 @@ extension MacTEMAgentDoor {
 
     static let fftParameters: [AgentParameter] = [
         AgentParameter("region", .text, summary: "\"x y size\" in image pixels, centred, or whole."),
-        AgentParameter("window", .choice(FFTPreprocess.Window.allCases.map(\.rawValue)), summary: "The taper before the transform."),
+        AgentParameter("taper", .choice(FFTPreprocess.Window.allCases.map(\.rawValue)), summary: "The Window menu: the taper before the transform."),
         AgentParameter("smoothing", .choice(["none", "gaussian"]), summary: "Gaussian smoothing before the transform."),
         AgentParameter("sigma", .number(0.1...50), summary: "The smoothing's σ, px."),
         AgentParameter("bandpass", .choice(["none", "differenceOfGaussians", "highPass", "lowPass"]), summary: "The band-pass before the transform."),
@@ -181,7 +181,7 @@ extension MacTEMAgentDoor {
     static func fft(_ item: OpenItem) -> [String: Any] {
         let analysis = item.fft, image = item.session.imageOrBlank
         let p = analysis.preprocess
-        var preprocess: [String: Any] = ["window": p.window.rawValue, "smoothing": "none", "sigma": NSNull(), "bandpass": "none",
+        var preprocess: [String: Any] = ["taper": p.window.rawValue, "smoothing": "none", "sigma": NSNull(), "bandpass": "none",
                                          "low_sigma": NSNull(), "cutoff": NSNull(), "summary": AgentJSON.orNull(p.isNone ? nil : p.summary)]
         if case .gaussian(let s) = p.smoothing { preprocess["smoothing"] = "gaussian"; preprocess["sigma"] = s }
         switch p.bandpass {
@@ -359,7 +359,7 @@ extension MacTEMAgentDoor {
 
         if let region { analysis.setRegion(region, committed: true) }
         var p = analysis.preprocess
-        if let w = a["window"].flatMap(FFTPreprocess.Window.init(rawValue:)) { p.window = w }
+        if let w = a["taper"].flatMap(FFTPreprocess.Window.init(rawValue:)) { p.window = w }
         if let s = a["smoothing"] {
             p.smoothing = s == "gaussian" ? .gaussian(sigma: number("sigma") ?? sigmaOf(p.smoothing)) : .none
         } else if let s = number("sigma") {

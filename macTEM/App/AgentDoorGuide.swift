@@ -274,7 +274,7 @@ extension MacTEMAgentDoor {
             transform is current (it is computed after each change; ask again while computing is true).
             2. Region. `set_fft` region "x y size" transforms an even square of at least 32 px; centred takes the largest centred \
             square; whole the whole image. A region on one grain or one crystal gives sharp spots; one across a boundary mixes \
-            two lattices. A window (hann) removes the cross a hard edge draws.
+            two lattices. A taper (hann, the Window menu) removes the cross a hard edge draws.
             3. Look. `get_fft_picture` transform draws the spectrum with a ring and number per measured spot.
             4. Spots. `set_fft_spots` find true finds the strongest reflections and measures each; measure_at "kx ky" measures \
             one bin from the centre, as a click does. `get_fft` lists each spot's d, |q| and its angle to the first spot; \
