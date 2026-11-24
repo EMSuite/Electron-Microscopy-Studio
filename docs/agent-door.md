@@ -58,7 +58,7 @@ Behind "Let agents run analyses". Each goes through the entry point its control 
 | `select_room` | moves the window to a room, as the room bar does; a room the files do not fill is refused with the room bar's reason |
 | `open_demo` | opens a demo document in its room, as Help > Open Demo Data does |
 | `open_file` | opens a file of the Agent folder (Settings > Agents) as File > Open does, in the room that fits it; paths outside the folder are refused |
-| `set_eds` | picks and removes elements, sets an element's role (quantify or fit only), chooses the region (whole, rectangle, ellipse, a kept region) |
+| `set_eds` | picks and removes elements, sets an element's role (quantify or fit only), chooses the region (whole, rectangle, ellipse, polygon, a kept region), keeps the selected region as Pin Region does, and draws a line profile as the Line tool does |
 | `run_eds` | Auto ID, Quantify or Stop; answers at once, `get_eds` says busy until done |
 | `run_room` | presses the shown room's toolbar verb, as ⌘R does (Quantify, Run, Process, Index, Segment); refused with the button's own words while it cannot run |
 | `stop_run` | Stop, as ⌘. does: the shown room's run or open, or a run left going in another room |
@@ -88,7 +88,7 @@ The EDS tools are EMSuiteUI's `EDXAgentTools`, written once and registered by bo
 `macTEM/App/AgentDoorCoverage.swift` lists every control in the app, by its accessibility identifier, with how an agent
 reaches it: the tool that does it, already seen in a get tool's answer, left to the person on purpose (with the reason), or a
 gap with its open issue. `AgentDoorCoverageTests` fails when a control has no row, a row names a tool the door does not have,
-or a row outlives its control, so a new control cannot ship undecided. The menu bar has its own table beside it, `menuItems`: every item of the File, View, Image, Workspace and Help menus by its title as the source writes it, held by the same test. Every tool that acts is in the table above, and the test fails when one is not. A feature that adds a room action adds its row in the same PR, and the release walk reads the gaps. The gaps left are the Diffraction room's simulated spots (#791) and the EDS room's polygon and line regions and Pin Region (#885). A room's open panel is the
+or a row outlives its control, so a new control cannot ship undecided. The menu bar has its own table beside it, `menuItems`: every item of the File, View, Image, Workspace and Help menus by its title as the source writes it, held by the same test. Every tool that acts is in the table above, and the test fails when one is not. A feature that adds a room action adds its row in the same PR, and the release walk reads the gaps. The gap left is the Diffraction room's simulated spots (#791). A room's open panel is the
 person's; `open_file` opens a file of the Agent folder and `open_demo` the shipped demos. The EDS room's own controls are
 EMSuiteUI's and are reached through its tools.
 

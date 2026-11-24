@@ -477,9 +477,9 @@ nonisolated enum AgentDoorCoverage {
         "Select Tool": .personOnly(pointerToolReason),
         "Rectangle Region Tool": .tool("set_eds"),
         "Ellipse Region Tool": .tool("set_eds"),
-        "Polygon Region Tool": .gap(885),
-        "Line Tool": .gap(885),
-        "Pin Region": .gap(885),
+        "Polygon Region Tool": .tool("set_eds"),
+        "Line Tool": .tool("set_eds"),
+        "Pin Region": .tool("set_eds"),
         // Help
         "demo.title": .tool("open_demo"),
         // The app menu and Settings > Updates.
