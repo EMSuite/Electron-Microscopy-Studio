@@ -43,13 +43,13 @@ struct MapsAnalysisOverlay: View {
                 let half = max(3, (Double(row.points)).squareRoot() / 2)
                 for plane in slip.planes where plane.traceAngle.isFinite {
                     let d = MapsRoomFormat.traceDirection(plane.traceAngle) * half
+                    let end = geometry.panePoint(of: ImagePoint(x: row.centroid.x + d.x, y: row.centroid.y + d.y))
                     var p = Path()
                     p.move(to: geometry.panePoint(of: ImagePoint(x: row.centroid.x - d.x, y: row.centroid.y - d.y)))
-                    p.addLine(to: geometry.panePoint(of: ImagePoint(x: row.centroid.x + d.x, y: row.centroid.y + d.y)))
+                    p.addLine(to: end)
                     context.stroke(p, with: .color(Self.traceColour(plane.colour)),
                                    lineWidth: OverlaySignal.width(LayoutPolicy.mapsTraceLineWidth, increasedContrast: high))
                     // Each trace names its plane at its end, so the traces are told apart without their colours (#799).
-                    let end = geometry.panePoint(of: ImagePoint(x: row.centroid.x + d.x, y: row.centroid.y + d.y))
                     let word = context.resolve(Text(plane.label).font(.caption.monospacedDigit()).foregroundStyle(.white))
                     let size = word.measure(in: CGSize(width: 200, height: 40))
                     let plate = CGRect(x: end.x + 3, y: end.y - size.height / 2 - 1, width: size.width + 6, height: size.height + 2)

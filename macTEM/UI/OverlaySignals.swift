@@ -24,9 +24,6 @@ nonisolated enum OverlaySignal {
         var widthScale: CGFloat = 1
         /// A word drawn beside it, where the state needs one.
         var word: String?
-
-        /// Differs from `other` by something a reader sees without colour.
-        func differs(from other: Stroke) -> Bool { dash != other.dash || widthScale != other.widthScale || word != other.word }
     }
 
     /// An overlay line's width: Increase Contrast thickens every line by half (as EMSuiteUI's spectrum does).

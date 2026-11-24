@@ -19,7 +19,7 @@ nonisolated final class OverlaySignalTests: XCTestCase {
 
     /// Diffraction: the ring a calibration runs on was orange against the others' yellow.
     func testTheCalibratingRingIsDashed() {
-        XCTAssertTrue(OverlaySignal.diffractionRing(calibrating: true).differs(from: OverlaySignal.diffractionRing(calibrating: false)))
+        XCTAssertNotEqual(OverlaySignal.diffractionRing(calibrating: true), OverlaySignal.diffractionRing(calibrating: false))
         XCTAssertTrue(OverlaySignal.diffractionRing(calibrating: false).dash.isEmpty, "a fitted ring stays solid")
     }
 
@@ -33,7 +33,7 @@ nonisolated final class OverlaySignalTests: XCTestCase {
         let states = [OverlaySignal.eelsWindow(.background, refused: false), OverlaySignal.eelsWindow(.signal, refused: false),
                       OverlaySignal.eelsWindow(.signal, refused: true)]
         for (i, a) in states.enumerated() {
-            for b in states[(i + 1)...] { XCTAssertTrue(a.differs(from: b), "\(a) and \(b) differ by colour alone") }
+            for b in states[(i + 1)...] { XCTAssertNotEqual(a, b, "\(a) and \(b) differ by colour alone") }
         }
         XCTAssertNotEqual(OverlaySignal.eelsWindow(.background, refused: true).dash, OverlaySignal.eelsWindow(.background, refused: false).dash)
         XCTAssertEqual(OverlaySignal.eelsWindow(.signal, refused: true).word, "refused")
