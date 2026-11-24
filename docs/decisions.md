@@ -578,3 +578,15 @@ since 2026-11-10. A second item reuses the Image room whole (FFT, Profile, the s
 
 **What would reverse it.** Paul's drive finding the pair confusing (two tabs for one simulation); then the Image room would show
 a Simulation document's image as a view of that item instead.
+
+## 2026-11-24 — Place Beside draws the pair into the HRTEM image itself
+
+**What.** With Place Beside set, the HRTEM item's picture is the measured image and the simulation side by side (or the
+simulation inset in it), resampled to the measured image's nanometres per pixel and matched to its mean and spread; with it
+off, the item is the simulation alone. The measured image is named by its file and must be open.
+
+**Why.** The design asks for the pair as one figure with one scale bar. One item is one picture (the entry above), so drawing
+the pair into that picture gives Export Image, the scale bar and the agent door's get_image the pair with no new item kind.
+
+**What would reverse it.** Measuring on the simulation alone (FFT, Profile) while the pair is shown; then the pair would become
+an item of its own beside the HRTEM image.

@@ -10,6 +10,9 @@
 //        so the image tab draws from the document's model wherever each one is; the tab that receives the image lands on it in the
 //        Image room (`landHRTEM`). Show HRTEM Image runs the multislice itself, so the image computes with the inspector hidden.
 //
+//        Place Beside (#898) draws the pair into the same item: the measured image, open in any window, beside the simulation or with
+//        it inset, at the measured nanometres per pixel (`HRTEMBeside`), so the item exports as one figure with one scale bar.
+//
 //        Departure from the design's "images appear in Imaging from the same document": one item is one picture in this app (its
 //        pixels, marks and FFT), so the image is a second item, in the tab the app already makes, that names its document.
 //
@@ -95,6 +98,66 @@ extension AppState {
         return simulationDocument(ofHRTEM: item).flatMap { refreshHRTEMImage(of: $0) }
     }
 
+    /// The measured image Place Beside names, while it is open in any window, with the settings and one unit cell of the
+    /// simulated image (nm, across its columns and down its rows: the lab frame's y and x); nil when Place Beside is off.
+    func besideSnapshot(of simulation: OpenItem)
+        -> (settings: HRTEMBeside, measured: CalibratedImage, cellNM: SIMD2<Double>, key: String?)? {
+        let model = simulation.multislice, analysis = simulation.diffraction
+        guard let settings = model.beside, let item = besideMeasuredItem(of: simulation), let measured = item.session.image,
+              case .success(let built) = model.specimen(crystal: analysis.simulatedPhase, zoneAxis: analysis.simulation.zoneAxis)
+        else { return nil }
+        return (settings, measured, SIMD2(built.box.y / 10, built.box.x / 10), item.openedIdentity?.pixelSHA256)
+    }
+
+    /// What the pair reads of the measured image: its item, pixels and calibration. The section redraws when it changes (the file
+    /// opened, closed, or read again).
+    func besideKey(of simulation: OpenItem) -> String? {
+        guard let item = besideMeasuredItem(of: simulation), let image = item.session.image else { return nil }
+        return "\(item.id) \(item.openedIdentity?.pixelSHA256 ?? "") \(image.x?.scale ?? 0) \(image.x?.unit ?? "") \(image.y?.scale ?? 0) \(image.y?.unit ?? "")"
+    }
+
+    /// The open item Place Beside names for `simulation`, in any window.
+    func besideMeasuredItem(of simulation: OpenItem) -> OpenItem? {
+        simulation.multislice.beside.flatMap { pairedItem(at: $0.measured)?.item }
+    }
+
+    /// What Place Beside shows now, in the section's words: off, the measured image closed, without a calibration, or the scale
+    /// both are shown at (and whether the measured pixels are coarser than the simulation's). One source for the section and the door.
+    enum BesideStatus: Equatable {
+        case off
+        case closed(String)
+        case uncalibrated
+        case shown(scale: String, coarser: Bool)
+
+        /// The sentences the section shows.
+        var lines: [String] {
+            switch self {
+            case .off: []
+            case .closed(let name): ["\(name) is closed: the simulation shows alone."]
+            case .uncalibrated: [HRTEMBeside.uncalibrated]
+            case let .shown(scale, coarser): [scale] + (coarser ? [HRTEMBeside.coarser] : []) + [HRTEMBeside.pairNote]
+            }
+        }
+    }
+
+    func besideStatus(of simulation: OpenItem) -> BesideStatus {
+        guard let beside = simulation.multislice.beside else { return .off }
+        guard let measured = besideMeasuredItem(of: simulation)?.session.image else { return .closed(beside.measured.lastPathComponent) }
+        guard let scale = HRTEMBeside.sameScaleLine(measured) else { return .uncalibrated }
+        let coarser = simulation.multislice.exitWaves?.nanometresPerPixel.map { HRTEMBeside.isCoarser(measured, than: $0) } ?? false
+        return .shown(scale: scale, coarser: coarser)
+    }
+
+    /// The images Place Beside can pick: every open image in the windows on screen that is not a simulation's and not a pattern
+    /// (an image calibrated in a reciprocal length).
+    func measuredImages() -> [OpenItem] {
+        let states = [self] + (windows?.onScreen.filter { $0 !== self } ?? [])
+        return states.flatMap(\.openItems.items).filter { item in
+            guard !DemoDocuments.isSimulation(item.url), !DemoDocuments.isHRTEM(item.url), let image = item.session.image else { return false }
+            return UnitDisplay.reciprocalAngstromsPerPixel(image.x) == nil
+        }
+    }
+
     /// Puts the image of `simulation`'s stored exit waves, at its defocus and thickness, into its HRTEM item, in whichever window
     /// holds it. The image, its canvas and its thumbnail are made off the main actor and moves coalesce (`SimulationModel.render`), so a dragged slider stays live
     /// at any field of view. Nothing while either is missing or before the first run. Returns the task that ends when the image is in.
@@ -102,7 +165,13 @@ extension AppState {
     func refreshHRTEMImage(of simulation: OpenItem) -> Task<Void, Never>? {
         let url = DemoDocuments.hrtemURL(of: simulation.url)
         guard pairedItem(at: url) != nil else { return nil }
-        return simulation.multislice.render(name: url.lastPathComponent, prepare: { image in
+        let beside = besideSnapshot(of: simulation)
+        return simulation.multislice.render(name: url.lastPathComponent, prepare: { simulated in
+            // Place Beside: the pair as one picture; the simulation alone when the measured image is closed or has no calibration
+            // (the section says which).
+            let image = beside.flatMap {
+                try? $0.settings.composite(simulated: simulated, measured: $0.measured, cellNM: $0.cellNM, measuredKey: $0.key)
+            } ?? simulated
             let canvas = AppState.canvas(for: image)
             return OpenedImage(image: image, canvas: canvas, metadata: AcquisitionMetadata(), url: url,
                                thumbnail: canvas.thumbnail(maxSide: Thumbnail.defaultMaxSide), bookmark: nil)

@@ -30,7 +30,8 @@ extension MacTEMAgentDoor {
                            + "room takes them; thickness_nm, build_with_strain true (accept the strain the specimen refusal names); "
                            + "defocus_nm (positive is underfocus) or scherzer true, thickness_index (0 is one period); voltage_kv, "
                            + "optics (Uncorrected, Cs Corrected), cs_mm, focal_spread_nm, angular_spread_mrad, aperture_mrad (0 for none), "
-                           + "field_of_view_nm; frozen_phonons, sigma (\"Si 0.08, O 0.1\" in Å) and configurations. Refused with the "
+                           + "field_of_view_nm; frozen_phonons, sigma (\"Si 0.08, O 0.1\" in Å) and configurations; beside (an open "
+                           + "image's file name, or none), beside_layout, beside_rotation_deg, beside_inset_across and _down. Refused with the "
                            + "section's words when a value is not kept. A setting that needs a new run reads stale in read_simulation "
                            + "until run_simulation.",
                        input: .window, parameters: simulationParameters, acts: true) { call in
@@ -70,7 +71,8 @@ extension MacTEMAgentDoor {
         AgentTool(name: "read_simulation", title: "Simulation",
                   summary: "What the shown Simulation document (or its HRTEM image) holds: the phase and zone axis, the specimen's summary "
                       + "or why it is refused, the optics and defocus, the stored thicknesses, the image's method line, frozen phonons "
-                      + "(σ, configurations, the plan line, the run's progress, the convergence), the potential, the transfer (point "
+                      + "(σ, configurations, the plan line, the run's progress, the convergence), Place Beside (the measured image, layout, "
+                      + "rotation, inset size, and the scale both share or why the pair is not drawn), the potential, the transfer (point "
                       + "resolution, aperture cut-off, Scherzer defocus), whether a run is going or its "
                       + "waves are stale, and every failure sentence the sections show. get_image draws the image with the HRTEM image shown.",
                   input: .window) { call in
@@ -108,6 +110,11 @@ extension MacTEMAgentDoor {
         AgentParameter("frozen_phonons", .boolean, summary: "Frozen phonons on (σ per element, Simulate) or the static lattice."),
         AgentParameter("sigma", .text, summary: "σ per element, Å: \"Si 0.08, O 0.1\"."),
         AgentParameter("configurations", .integer(HRTEMThermal.configurationRange), summary: "Frozen-phonon configurations to average."),
+        AgentParameter("beside", .text, summary: "Place Beside: an open measured image's file name, or none."),
+        AgentParameter("beside_layout", .choice(HRTEMBeside.Layout.allCases.map(\.rawValue)), summary: "Beside or Inset."),
+        AgentParameter("beside_rotation_deg", .number(-360...360), summary: "The simulation's rotation on screen, degrees, counter-clockwise."),
+        AgentParameter("beside_inset_across", .integer(HRTEMBeside.insetCellRange), summary: "The inset's width in unit cells."),
+        AgentParameter("beside_inset_down", .integer(HRTEMBeside.insetCellRange), summary: "The inset's height in unit cells."),
     ]
 
     /// Checks `arguments` whole, then applies them in the sections' order (crystal, specimen, optics, image, thermal) through the
@@ -171,6 +178,29 @@ extension MacTEMAgentDoor {
             }
             thermal = base
         }
+        var beside = model.beside
+        if let name = arguments["beside"] {
+            if name.lowercased() == "none" {
+                beside = nil
+            } else {
+                let images = appState.measuredImages()
+                guard let item = images.first(where: { $0.url.lastPathComponent == name }) else {
+                    let names = images.map(\.url.lastPathComponent)
+                    return refused("No open image \"\(name)\": " + (names.isEmpty ? "open a measured image first" : names.joined(separator: ", ")) + ".")
+                }
+                var new = beside ?? HRTEMBeside(measured: item.url)
+                new.measured = item.url
+                beside = new
+            }
+        }
+        if ["beside_layout", "beside_rotation_deg", "beside_inset_across", "beside_inset_down"].contains(where: { arguments[$0] != nil }) {
+            guard var new = beside else { return refused("Place Beside is off: name the measured image with beside.") }
+            if let layout = arguments["beside_layout"].flatMap(HRTEMBeside.Layout.init(rawValue:)) { new.layout = layout }
+            if let degrees = number("beside_rotation_deg") { new.rotationDegrees = degrees }
+            if let across = arguments["beside_inset_across"].flatMap(Int.init) { new.insetCells.x = across }
+            if let down = arguments["beside_inset_down"].flatMap(Int.init) { new.insetCells.y = down }
+            beside = new
+        }
 
         // Then apply, as the controls do.
         if let phase { analysis.setCrystal(DiffractionPhases.crystal(for: phase)) }
@@ -189,6 +219,7 @@ extension MacTEMAgentDoor {
         if let index = arguments["thickness_index"].flatMap(Int.init) { model.setThicknessIndex(index) }
         if let on = arguments["frozen_phonons"] { model.useThermalVibrations(on == "true", crystal: crystal) }
         if let thermal { model.setThermal(thermal) }
+        if beside != model.beside { model.setBeside(beside) }
         appState.refreshHRTEMImage(of: simulation)
         return nil
     }
@@ -267,6 +298,13 @@ extension MacTEMAgentDoor {
             state["frozen_phonons"] = phonons
         } else {
             state["frozen_phonons"] = false
+        }
+        if let beside = model.beside {
+            state["beside"] = ["measured": beside.measured.lastPathComponent, "layout": beside.layout.rawValue,
+                               "rotation_deg": beside.rotationDegrees, "inset_cells": [beside.insetCells.x, beside.insetCells.y],
+                               "readout": appState.besideStatus(of: simulation).lines]
+        } else {
+            state["beside"] = false
         }
         return state
     }

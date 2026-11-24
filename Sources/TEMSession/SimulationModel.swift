@@ -55,6 +55,8 @@ package final class SimulationModel {
     package private(set) var thermalProgress: ThermalProgress?
     /// How much the image changed with the last configuration added, at the defocus and thickness it was read at; nil below two.
     package private(set) var convergence: Convergence?
+    /// Place Beside: the measured image the HRTEM image is shown beside, and how; nil shows the simulation alone (#898).
+    package private(set) var beside: HRTEMBeside?
 
     package nonisolated struct Convergence: Sendable, Equatable {
         /// RMS of the change over RMS of the image.
@@ -179,6 +181,18 @@ package final class SimulationModel {
         guard Self.isValid(new) else { return false }
         if new.volts != optics.volts || new.apertureMrad != optics.apertureMrad { stop() }
         optics = new
+        return true
+    }
+
+    /// Place Beside, or the simulation alone (nil). Kept only with a finite rotation and an inset size in
+    /// `HRTEMBeside.insetCellRange`; returns whether it was kept. The image is redrawn by the caller (`refreshHRTEMImage`).
+    @discardableResult
+    package func setBeside(_ new: HRTEMBeside?) -> Bool {
+        if let new {
+            guard new.rotationDegrees.isFinite, HRTEMBeside.insetCellRange.contains(new.insetCells.x),
+                  HRTEMBeside.insetCellRange.contains(new.insetCells.y) else { return false }
+        }
+        beside = new
         return true
     }
 

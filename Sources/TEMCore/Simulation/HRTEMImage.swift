@@ -86,6 +86,12 @@ package nonisolated struct HRTEMExitWaves: Sendable, Equatable {
         Double(planePeriods[min(max(index, 0), planePeriods.count - 1)]) * periodNM
     }
 
+    /// The image's nanometres per pixel along its columns (lab y) and rows (lab x), as `HRTEMImage.image` calibrates it.
+    package var nanometresPerPixel: (x: Double, y: Double)? {
+        guard let grid = waves.first?.grid else { return nil }
+        return (grid.extentY / Double(grid.ny) / 10, grid.extentX / Double(grid.nx) / 10)
+    }
+
     /// The same waves with configuration `waves` added (a frozen-phonon run's next one).
     package func adding(_ waves: [Waves]) -> HRTEMExitWaves {
         HRTEMExitWaves(configurations: configurations + [waves], planePeriods: planePeriods, periodNM: periodNM, volts: volts,
