@@ -29,6 +29,7 @@ let package = Package(
                 .product(name: "FormatoDM", package: "FormatoKit"),
                 .product(name: "FormatoEMD", package: "FormatoKit"),
                 .product(name: "FormatoHDF5", package: "FormatoKit"),
+                .product(name: "FormatoHSPY", package: "FormatoKit"),
                 .product(name: "FormatoMRC", package: "FormatoKit"),
                 .product(name: "FormatoMSA", package: "FormatoKit"),
                 .product(name: "FormatoTIFF", package: "FormatoKit"),

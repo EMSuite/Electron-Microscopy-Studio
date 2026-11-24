@@ -1,0 +1,122 @@
+//
+//  HyperSpyExportTests.swift
+//  Export as HyperSpy File… (#819, plan row X3; `HyperSpyExport`, `HyperSpyExportPanel`): an image and a pattern written as .hspy
+//  and read back with FormatoKit's own reader (the kit's pins H2 and H4 hold it to HyperSpy 2.5.0's): the pixels at their stored
+//  type, the axes with their calibration (a pattern's in Å⁻¹ with the zero at the centre), HyperSpy's signal type for the class,
+//  and the methods record and the beam energy in the metadata tree. Too little free space is refused before anything is written.
+//  Red before: the export did not exist.
+//
+
+import FormatoCore
+import FormatoHSPY
+import Foundation
+import ImagoCore
+import ShellExport
+import TEMCore
+import TEMSession
+import XCTest
+@testable import macTEM
+
+nonisolated final class HyperSpyExportTests: XCTestCase {
+    private var folder: URL!
+
+    override func setUpWithError() throws {
+        folder = FileManager.default.temporaryDirectory.appendingPathComponent("hspy-export-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+    }
+
+    override func tearDownWithError() throws {
+        try? FileManager.default.removeItem(at: folder)
+    }
+
+    /// A 3 × 2 uint16 image, 0.5 nm a pixel in x and 0.25 nm in y, the x zero at pixel 1.
+    private func image() -> CalibratedImage {
+        CalibratedImage(width: 3, height: 2, stored: .uint16([1, 2, 3, 400, 500, 65535]),
+                        x: AxisCalibration(scale: 0.5, unit: "nm", origin: 1), y: AxisCalibration(scale: 0.25, unit: "nm"),
+                        fileName: "scan.dm4", source: "ImageList.1", voltage: 200_000)
+    }
+
+    private static let record = MethodsRecord(
+        app: MethodsRecord.Software(name: "Electron Microscopy Studio", version: "2.4.0 (1)"), room: "image", exportKind: "image-hspy",
+        kits: [], sources: [MethodsRecord.Source(fileName: "scan.dm4", byteCount: 12, fingerprint: String(repeating: "ab", count: 32),
+                                                 kind: "image", shape: [3, 2])],
+        steps: [], drawn: [])
+
+    /// Mutation: the pixels widened to float32, the axes swapped or their zero lost, or the record left out of the tree - red.
+    func testAnImageKeepsItsTypeItsAxesAndItsRecord() async throws {
+        let url = folder.appendingPathComponent("scan.hspy")
+        let options = try HyperSpyExport.options(title: "scan", software: "Electron Microscopy Studio 2.4.0 (1)", record: Self.record,
+                                                 beamEnergyKeV: 200)
+        try await HyperSpyExport.write(try HyperSpyExport.imageSignal(image()), kind: .generic, options: options, to: url)
+
+        let read = try HSPYReader.readStored(url: url)
+        XCTAssertEqual(read.title, "scan")
+        XCTAssertEqual(read.signalType, "")
+        XCTAssertEqual(read.data.dataType, .uint16)
+        XCTAssertEqual(read.data.shape, [2, 3])
+        XCTAssertEqual(read.data.bytes, [UInt16]([1, 2, 3, 400, 500, 65535]).withUnsafeBytes { Data($0) })
+        XCTAssertEqual(read.axes.map(\.name), ["y", "x"])
+        XCTAssertEqual(read.axes.map(\.scale), [0.25, 0.5])
+        XCTAssertEqual(read.axes.map(\.offset), [0, -0.5])
+        XCTAssertEqual(read.axes.map(\.units), ["nm", "nm"])
+        XCTAssertEqual(read.axes.map(\.navigate), [false, false])
+        guard case .text(let json)? = read.metadata[HyperSpyExport.recordKey]?.value else {
+            return XCTFail("no record in \(read.metadata.entries.map(\.key))")
+        }
+        XCTAssertEqual(try MethodsRecord.decode(json), Self.record)
+        XCTAssertEqual(read.metadata[HyperSpyExport.beamEnergyKey]?.value, .number(200))
+    }
+
+    /// A pattern with the room's scale is pyxem's ElectronDiffraction2D in Å⁻¹, centred; without one it keeps the file's axes.
+    /// Mutation: the signal type not electron_diffraction, or the zero not at the centre - red.
+    func testAPatternIsElectronDiffractionCentredInReciprocalAngstroms() async throws {
+        let url = folder.appendingPathComponent("pattern.hspy")
+        let scale = HyperSpyExport.PatternScale(deltaQ: 0.0125, centreRow: 1, centreColumn: 1.5)
+        let options = try HyperSpyExport.options(title: "pattern", software: "test", record: nil, beamEnergyKeV: nil)
+        try await HyperSpyExport.write(try HyperSpyExport.patternSignal(image(), scale: scale), kind: .electronDiffraction, options: options,
+                                       to: url)
+        let read = try HSPYReader.readStored(url: url)
+        XCTAssertEqual(read.signalType, "electron_diffraction")
+        XCTAssertEqual(read.axes.map(\.name), ["ky", "kx"])
+        XCTAssertEqual(read.axes.map(\.units), ["Å⁻¹", "Å⁻¹"])
+        XCTAssertEqual(read.axes.map(\.scale), [0.0125, 0.0125])
+        XCTAssertEqual(read.axes.map(\.offset), [-1 * 0.0125, -1.5 * 0.0125])
+        XCTAssertNil(read.metadata[HyperSpyExport.recordKey], "no record was given")
+
+        let plain = try HyperSpyExport.patternSignal(image(), scale: nil)
+        XCTAssertEqual(plain.axes.map(\.units), ["nm", "nm"], "the file's calibration")
+    }
+
+    /// Mutation: the space not checked, or checked after the write began - red.
+    func testTooLittleFreeSpaceIsRefusedInWords() throws {
+        let url = folder.appendingPathComponent("big.hspy")
+        XCTAssertThrowsError(try HyperSpyExport.checkSpace(for: 2_000_000, at: url, free: 1_000_000)) { error in
+            XCTAssertEqual(error as? HyperSpyExport.Refusal, .notEnoughSpace(needed: 2_000_000, free: 1_000_000))
+            XCTAssertTrue(error.localizedDescription.contains("free"), error.localizedDescription)
+        }
+        XCTAssertNoThrow(try HyperSpyExport.checkSpace(for: 1_000, at: url, free: 1_000_000))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: url.path))
+    }
+
+    /// The Diffraction room's item writes the pattern on screen as electron diffraction, the Image room's the image as a plain
+    /// signal; the file names are left out of the title when asked. Mutation: the room not choosing the class, or the title
+    /// keeping the name - red.
+    @MainActor func testTheRoomChoosesTheClassAndTheTitle() async throws {
+        let state = AppState(launch: LaunchOptions(arguments: []))
+        await state.openDemo(.diffraction)?.value
+        try await waitUntil("the demo pattern to open", seconds: 60) { state.openItems.selected?.session.image != nil }
+        state.navigation.workspaceArea = .diffraction
+        XCTAssertTrue(HyperSpyExportPanel.isAvailable(in: state))
+        let pattern = try XCTUnwrap(try HyperSpyExportPanel.snapshot(of: state))
+        XCTAssertEqual(pattern.kind, .electronDiffraction)
+        state.navigation.workspaceArea = .image
+        let image = try XCTUnwrap(try HyperSpyExportPanel.snapshot(of: state))
+        XCTAssertEqual(image.kind, .generic)
+        state.navigation.workspaceArea = .fft
+        XCTAssertFalse(HyperSpyExportPanel.isAvailable(in: state))
+
+        let url = folder.appendingPathComponent("anonymous.hspy")
+        try await HyperSpyExportPanel.write(pattern, to: url, leaveOutFileNames: true, software: "test")
+        XCTAssertEqual(try HSPYReader.readStored(url: url).title, ExportMethods.anonymousName(0))
+    }
+}

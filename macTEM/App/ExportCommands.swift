@@ -11,7 +11,8 @@
 //        (`indexingAvailability`) and the Maps room's four (`mapsAvailability`) are listed while their room shows its document,
 //        each through the room's own export (`RoomExports`), the call its inspector button makes. Every room ends the group with
 //        Export Methods Record… and puts Copy Methods Paragraph (⌥⌘C, the design's F3) in the Edit menu after the pasteboard's items (#818,
-//        `MethodsRecordExport`), both enabled while the room holds a result.
+//        `MethodsRecordExport`), both enabled while the room holds a result. The Image and Diffraction rooms list Export as
+//        HyperSpy File… before it (#819, `HyperSpyExportPanel`).
 //
 //        PLACEMENT: after the Save group, which this app's File menu fills with Close Image and Close Window (`ImageCommands`
 //        replaces it) — the anchor already known to render here. `.importExport`, the HIG's home of Export, would put the items
@@ -39,6 +40,7 @@ struct ExportCommands: Commands {
         let maps = appState.flatMap(ExportSnapshot.mapsAvailability(of:))
         let fixed = FixedExports.listed(in: appState?.navigation.workspaceArea)
         let methods = appState.map(MethodsRecordExport.isAvailable(in:))
+        let hyperSpy = appState.map(HyperSpyExportPanel.isAvailable(in:))
         CommandGroup(after: .saveItem) {
             // The Image room's two.
             if fixed.contains(.image) {
@@ -95,8 +97,14 @@ struct ExportCommands: Commands {
             if let appState, let indexing { indexingItems(indexing, appState: appState) }
             // The Maps room's four, while that room shows a map.
             if let appState, let maps { mapsItems(maps, appState: appState) }
-            // Every room's methods record of its result (#818), last: it describes what the exports above hold.
+            // Every room's methods record of its result (#818), last: it describes what the exports above hold. Before it, in the
+            // Image and Diffraction rooms, the image or pattern as a HyperSpy file (#819).
             Divider()
+            if appState?.navigation.workspaceArea == .image || appState?.navigation.workspaceArea == .diffraction {
+                Button("Export as HyperSpy File…") { if let appState { HyperSpyExportPanel.export(appState: appState) } }
+                    .disabled(hyperSpy != true)
+                    .accessibilityIdentifier("menu.exportHyperSpy")
+            }
             Button("Export Methods Record…") { if let appState { MethodsRecordExport.exportRecord(appState: appState) } }
                 .disabled(methods != true)
                 .accessibilityIdentifier("menu.exportMethodsRecord")
