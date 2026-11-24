@@ -599,11 +599,11 @@ package nonisolated struct SessionSourceIdentity: Sendable, Equatable, Codable {
     }
 
     /// The identity of an opened image: its file name, its object, its shape and the fingerprint of its own pixels
-    /// (`image.pixels` — the file's values, never the display canvas, which a contrast setting and a normalisation
+    /// (the file's values as Float32, hashed from the stored bit depth, never the display canvas, which a contrast setting and a normalisation
     /// would change without the image changing).
     package static func of(_ image: CalibratedImage, fileByteSize: Int64) -> SessionSourceIdentity {
         SessionSourceIdentity(fileName: image.fileName, byteSize: fileByteSize, object: image.source,
-                              width: image.width, height: image.height, pixelSHA256: fingerprint(of: image.pixels))
+                              width: image.width, height: image.height, pixelSHA256: fingerprint(ofStored: image.stored))
     }
 
     /// The identity of an image stack read a frame at a time (`ImageStackSource`): its first frame's name, shape and pixels,
@@ -611,7 +611,7 @@ package nonisolated struct SessionSourceIdentity: Sendable, Equatable, Codable {
     /// window keeps it across frames, and is restored when the stack opens again on its first frame.
     package static func ofStack(firstFrame image: CalibratedImage, frameCount: Int, fileByteSize: Int64) -> SessionSourceIdentity {
         SessionSourceIdentity(fileName: image.fileName, byteSize: fileByteSize, object: stackObject(frameCount: frameCount),
-                              width: image.width, height: image.height, pixelSHA256: fingerprint(of: image.pixels))
+                              width: image.width, height: image.height, pixelSHA256: fingerprint(ofStored: image.stored))
     }
 
     /// The object an image stack's identity and marks record: "stack of 20 frames" (a frame's own `source` is "frame 3 of 20").
@@ -633,6 +633,30 @@ package nonisolated struct SessionSourceIdentity: Sendable, Equatable, Codable {
             start += count
         }
         #endif
+        return hasher.finalize().map { String(format: "%02x", $0) }.joined()
+    }
+
+    /// The fingerprint of an image at its stored bit depth: the digest `fingerprint(of: stored.floats())` gives, so a session
+    /// file written before still names its image, without the whole image widened to Float32 to be hashed (#934). An 8- or
+    /// 16-bit image is widened a chunk at a time.
+    package static func fingerprint(ofStored stored: StoredPixels) -> String {
+        switch stored {
+        case .float32(let values): fingerprint(of: values)
+        case .uint8(let values): fingerprint(widening: values)
+        case .uint16(let values): fingerprint(widening: values)
+        }
+    }
+
+    private static func fingerprint<T: FixedWidthInteger>(widening values: [T]) -> String {
+        var hasher = SHA256()
+        var chunk = [UInt32](repeating: 0, count: 64 * 1024)
+        var start = 0
+        while start < values.count {
+            let count = min(chunk.count, values.count - start)
+            for i in 0..<count { chunk[i] = Float(values[start + i]).bitPattern.littleEndian }
+            chunk.withUnsafeBytes { hasher.update(bufferPointer: UnsafeRawBufferPointer(rebasing: $0[0..<(count * 4)])) }
+            start += count
+        }
         return hasher.finalize().map { String(format: "%02x", $0) }.joined()
     }
 

@@ -202,7 +202,7 @@ nonisolated struct FFTSourceLayer {
         case plain
         /// The masked inverse's.
         case accent
-        /// The HRTEM filters'.
+        /// The HRTEM filters' and the strain maps' (a product of the region, not the file).
         case orange
     }
 
@@ -219,8 +219,9 @@ nonisolated struct FFTSourceLayer {
     @MainActor
     static func make(_ view: FFTAnalysis.SourceView, original: CanvasPixels, colormap: ColormapKind,
                      window: (low: Float, high: Float), gamma: Float, spectrum: FFTSpectrumProduct?,
-                     inverse: FFTMaskedInverseProduct?, filtered: FFTFilterProduct?) -> FFTSourceLayer? {
-        func product(_ canvas: CanvasPixels, border: Border, plate: String) -> FFTSourceLayer {
+                     inverse: FFTMaskedInverseProduct?, filtered: FFTFilterProduct?,
+                     strain: FFTStrainProduct? = nil) -> FFTSourceLayer? {
+        func product(_ canvas: CanvasPixels, border: Border, plate: String, colormap: ColormapKind = colormap) -> FFTSourceLayer {
             FFTSourceLayer(canvas: canvas, colormap: colormap, window: (0, 1), gamma: 1, plate: plate, border: border,
                            drawsRegion: false)
         }
@@ -247,6 +248,11 @@ nonisolated struct FFTSourceLayer {
         case .wiener:
             guard let filtered else { return nil }
             return product(filtered.wiener, border: .orange, plate: FFTPaneFormat.filterPlate("Wiener", size: filtered.n))
+        case .strainXX, .strainYY, .strainXY, .rotation:
+            // A signed map, symmetric about zero: always the diverging map, so white is no strain whatever the file's colormap.
+            guard let strain, let component = view.strainComponent else { return nil }
+            return product(strain.canvas(component), border: .orange,
+                           plate: FFTPaneFormat.strainPlate(component, product: strain), colormap: .rdbu)
         }
     }
 }
@@ -263,7 +269,7 @@ struct FFTSourceViewControl: View {
     static func entries(for analysis: FFTAnalysis) -> [FFTPaneFormat.MenuEntry] {
         FFTPaneFormat.menuEntries(selected: analysis.sourceView, hasSpectrum: analysis.spectrum != nil,
                                   hasMeasuredSpot: analysis.hasMeasuredSpot, hasMaskSpot: analysis.hasMaskSpot,
-                                  hasFilterResult: analysis.filtered != nil)
+                                  hasFilterResult: analysis.filtered != nil, hasStrainResult: analysis.strain != nil)
     }
 
     var body: some View {
@@ -401,7 +407,8 @@ struct FFTSourceImagePane: View {
                                         window: item.presentation.displayFractions, gamma: Float(item.presentation.gamma),
                                         spectrum: view == .region ? analysis.spectrum : nil,
                                         inverse: view == .maskedInverse ? analysis.maskedInverse : nil,
-                                        filtered: view == .absf || view == .wiener ? analysis.filtered : nil)
+                                        filtered: view == .absf || view == .wiener ? analysis.filtered : nil,
+                                        strain: view.strainComponent != nil ? analysis.strain : nil)
         VStack(spacing: 6) {
             header(layer)
             GeometryReader { geometry in
@@ -474,16 +481,19 @@ struct FFTSourceImagePane: View {
 
     /// What the view's product is failing with, in the core's words (nil while it is merely not there yet).
     static func missingFailure(for analysis: FFTAnalysis, view: FFTAnalysis.SourceView) -> String? {
-        view == .maskedInverse ? analysis.maskFailure : view == .absf || view == .wiener ? analysis.filterFailure : nil
+        if view.strainComponent != nil { return analysis.strainFailure }
+        return view == .maskedInverse ? analysis.maskFailure : view == .absf || view == .wiener ? analysis.filterFailure : nil
     }
 
     /// The words under a view whose product is not there yet — what it waits for, or why it failed — read from the owner
     /// once, so the pane and its tests share one call (the Masked Inverse waits by the menu's two causes).
     static func missingWords(for analysis: FFTAnalysis, view: FFTAnalysis.SourceView) -> (title: String, detail: String) {
         let working = view == .maskedInverse ? analysis.hasMaskSpot
-            : view == .absf || view == .wiener ? analysis.isFiltering : analysis.spectrum == nil
+            : view == .absf || view == .wiener ? analysis.isFiltering
+            : view.strainComponent != nil ? analysis.isComputingStrain : analysis.spectrum == nil
         return FFTPaneFormat.missing(view, isWorking: working, failure: missingFailure(for: analysis, view: view),
-                                     hasMeasuredSpot: analysis.hasMeasuredSpot, hasMaskSpot: analysis.hasMaskSpot)
+                                     hasMeasuredSpot: analysis.hasMeasuredSpot, hasMaskSpot: analysis.hasMaskSpot,
+                                     hasTwoMeasuredSpots: analysis.strainReflections != nil)
     }
 
     /// The view's product is not there yet: what it waits for, or why it failed, in the core's words.

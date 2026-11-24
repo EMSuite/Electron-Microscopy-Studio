@@ -323,7 +323,10 @@ nonisolated final class RoomMemoryTests: XCTestCase {
         let (host, window) = drawingWindow(state)
         defer { window.contentView = nil; window.close() }
         let held = 128 * 128 * 2048 * 4
-        try await assertGivesBack("EDS", small: small, large: large, allowed: held / 2, seen: held / 2, rooms: [.edx],
+        // `seen` only shows the measure sees the file (the small one adds 0.5 MB). The footprint counts compressed pages at their
+        // compressed size, so on a machine under memory pressure the open cube shows less than half its size (65.7 MB of 134 MB
+        // on the Mac runner, #960): a quarter keeps the proof without the machine's load in it.
+        try await assertGivesBack("EDS", small: small, large: large, allowed: held / 2, seen: held / 4, rooms: [.edx],
                                   target: .eds(single: false), state: state, host: host,
                                   use: { state in
                                       for symbol in ["Al", "Si"] where !state.edx.picks.contains(where: { $0.symbol == symbol }) { state.edx.toggle(symbol) }
@@ -341,7 +344,8 @@ nonisolated final class RoomMemoryTests: XCTestCase {
         let (host, window) = drawingWindow(state)
         defer { window.contentView = nil; window.close() }
         let held = 128 * 128 * 1024 * 4
-        try await assertGivesBack("EELS", small: small, large: large, allowed: held / 2, seen: held / 2, rooms: [.eels],
+        // A quarter, as the EDS test says (#960).
+        try await assertGivesBack("EELS", small: small, large: large, allowed: held / 2, seen: held / 4, rooms: [.eels],
                                   target: .eels(single: false), state: state, host: host,
                                   use: { state in
                                       await state.eels.run().value   // Align, t/λ, deconvolution and the fit, as Run does

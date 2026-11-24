@@ -39,7 +39,7 @@ door this one follows (4DSTEM Studio `docs/agent-door.md`). This app hands the d
 | `get_image_room` | the Image room for the shown file: size and calibration, a stack's frame, the measuring tool, the marks (numbered, their points and their values as the Measure section words them), an SEM file's rows and vendor fields, the Particles settings, region and raw range, and the last Show Objects' counts, sizes and areal density |
 | `get_particles` | after Show Objects: the object table (a page, by number or largest first, counted only as the table's switch) or Export CSV…'s text |
 | `get_profile` | a profile mark's samples as Export Profile… writes them |
-| `get_fft` | the FFT room for the shown file: the region transformed, smoothing and band-pass applied first, the taper (the Window menu), Δq and the Nyquist frequency, the spots (bin, d, \|q\|, angle to the first, neighbour flag, in the mask, or why not measured), the finder's settings, the masked inverse, the HRTEM filters' parameters and last run, the source pane's view, what is computing |
+| `get_fft` | the FFT room for the shown file: the region transformed, smoothing and band-pass applied first, the taper (the Window menu), Δq and the Nyquist frequency, the spots (bin, d, \|q\|, angle to the first, neighbour flag, in the mask, or why not measured), the finder's settings, the masked inverse, the HRTEM filters' parameters and last run, the strain maps (GPA: the spots taken as g₁ and g₂, the reference, each map's drawn range (the 99th percentile of its magnitudes; rotation clockwise positive), the validation note), the source pane's view, what is computing |
 | `get_fft_data` | `which` radial_profile or spots, as Radial profile CSV… and Spots CSV… write them |
 | `get_fft_picture` | `which` transform (Transform PNG…: the spectrum in its Display window, reciprocal scale bar, a ring per measured spot) or source (what the source pane shows) |
 | `get_diffraction` | the Diffraction room for the shown pattern: the centre and its source, the scale in use (a ring fit on a standard, the file's axis or a typed Δq) with the wavelength and camera length a fit gives, the beam energy and camera, the standard and its families, the crystal with its lattice and library phase id, k_max and the tolerance, the annulus and tool, every ring and spot, and the readout (radius, q, d, family, listed d, deviation, verdict); with `csv`, Export Readout CSV…'s text |
@@ -58,7 +58,7 @@ Behind "Let agents run analyses". Each goes through the entry point its control 
 |---|---|
 | `select_room` | moves the window to a room, as the room bar does; a room the files do not fill is refused with the room bar's reason |
 | `open_demo` | opens a demo document in its room, as Help > Open Demo Data does |
-| `open_file` | opens a file of the Agent folder (Settings > Agents) as File > Open does, in the room that fits it; paths outside the folder are refused |
+| `open_file` | opens a file of the Agent folder (Settings > Agents) as File > Open does, in the room that fits it; paths outside the folder are refused; `room` (eds or eels) answers the question File > Open asks for TIA spectra no `.emi` places, and such spectra are refused without it |
 | `set_eds` | picks and removes elements, sets an element's role (quantify or fit only), chooses the region (whole, rectangle, ellipse, a kept region) |
 | `run_eds` | Auto ID, Quantify or Stop; answers at once, `get_eds` says busy until done |
 | `run_room` | presses the shown room's toolbar verb, as ⌘R does (Quantify, Run, Process, Index, Segment); refused with the button's own words while it cannot run |
@@ -76,7 +76,7 @@ Behind "Let agents run analyses". Each goes through the entry point its control 
 | `set_image_room` | the Measure section's tool, and a stack's frame, step and Same contrast for every frame |
 | `set_marks` | adds a distance, angle or profile mark from points in image pixels as a drag does, selects a mark, removes marks, sets the selected profile's width |
 | `set_particles` | the Particles section's settings (bright or dark, manual level or Otsu, smoothing, connectivity, minimum area, region, mask tint), Show Objects, Hide, and the object selected |
-| `set_fft` | the FFT room's Region (a square, centred, whole), taper (the Window menu), smoothing and band-pass, the source pane's view, the mask's radius and edge, the spot finder's settings, the HRTEM filters' parameters, and Filter |
+| `set_fft` | the FFT room's Region (a square, centred, whole), taper (the Window menu), smoothing and band-pass, the source pane's view, the mask's radius and edge, the spot finder's settings, the HRTEM filters' parameters, and Filter, the strain reference and Map Strain |
 | `set_fft_spots` | Find Spots, Measure at… (whole bins from the centre), selects and removes spots, puts spots in or out of the mask |
 | `set_diffraction` | the Diffraction room's Centre (typed, or a fitted ring's), Calibration (standard, ring, Calibrate on Ring, Clear, typed Δq and kV for a file without them, camera and pixel pitch), Phases (a standard as the crystal, k_max, tolerance; a library phase through `add_phase`), the annulus, Fit Ring, the tool and the log display |
 | `set_diffraction_marks` | adds a spot as a click on the pattern does, selects a ring or spot, removes one or all |
