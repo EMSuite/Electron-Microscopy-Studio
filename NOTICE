@@ -229,8 +229,8 @@ Both texts ship in the application bundle at `Contents/Resources/Licenses/` with
 DiffractoKit (a Swift package the app is built with)
 ================================================================================
 
-The app links DiffractoKit (https://github.com/mac4DSTEM/DiffractoKit, tag 0.19.0, commit
-727a5e7131aedd2d754f82f6c57e88c243e13906), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only, for crystal structures, the CIF
+The app links DiffractoKit (https://github.com/mac4DSTEM/DiffractoKit, tag 0.20.0, commit
+bd1bdce4573bc025866b4fc838a4b4c3745397d8), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only, for crystal structures, the CIF
 import, kinematic reflection lists, ring and ellipse calibration, the indexing of a measured |q|, simulated spot patterns and
 the orientation of a spot pattern. Its scattering table and lattice conventions are py4DSTEM's (GPL-3.0); pymatgen (MIT) was
 its oracle and none of its code is copied. Its own third-party notices are in its NOTICE.
@@ -248,9 +248,10 @@ histogram. Its references are NumPy, SciPy and scikit-image; none of their code 
 MacEMUI (a Swift package the app is built with)
 ================================================================================
 
-The app links MacEMUI (https://github.com/mac4DSTEM/MacEMUI, tag 0.14.0, commit
-c2614cb43474afffb0f1064ee5f7e6afe4562950), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only: the window shell, the
-inspector, the controls, the Metal image view, the EDS room and the agent door macEM shares with mac4DSTEM.
+The app links MacEMUI (https://github.com/mac4DSTEM/MacEMUI, tag 0.15.0, commit
+eb52ac5552da3fc3c5937a788bc57ba9401be157), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only: the window shell, the
+inspector, the controls, the Metal image view, the EDS room, the agent door, the phase library and its Materials Project
+client macEM shares with mac4DSTEM.
 
 ================================================================================
 Bundled third-party libraries

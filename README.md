@@ -81,6 +81,14 @@ The rooms:
 An AI agent on the same Mac (Claude, Codex, a script) can look at what a window shows, and with your leave work a room,
 through the agent door: Settings > Agents, off by default. What it can reach is in [`docs/agent-door.md`](docs/agent-door.md).
 
+## Privacy
+
+No telemetry, no account. The app connects to one other service on its own: the
+[Materials Project](https://materialsproject.org), and only when you search for a phase or add one. It sends the
+elements or formula you type, or the entry's id, and your own API key if you saved one in Settings > Materials Project
+(the key is optional and stays in your login keychain). A phase once added works offline. The website download also
+fetches its update feed. Details are in [`SECURITY.md`](SECURITY.md).
+
 ## Where the numbers come from
 
 The TEM methods compute with the suite's Swift kits, each checked against the Python package it ports, within that
