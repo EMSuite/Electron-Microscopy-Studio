@@ -155,32 +155,32 @@ package nonisolated enum TIAImageReader {
         return AxisCalibration(scale: axis.scale, unit: axis.units, origin: origin.isFinite ? origin : 0)
     }
 
-    /// The `.emi` of the acquisition a `.ser` belongs to: `<name>.emi` beside `<name>_<digit>.ser`, when it is there.
+    /// The `.emi` of the acquisition a `.ser` belongs to: `<name>.emi` for `<name>_<digit>.ser`. Whether it is there and may be read
+    /// is the read's question (`try? TIAReader.readEMI`): a sandboxed app is told a file it may not open is not there.
     package static func emiBeside(ser url: URL) -> URL? {
         let stem = url.deletingPathExtension().lastPathComponent
         guard let cut = stem.lastIndex(of: "_") else { return nil }
         let digit = stem[stem.index(after: cut)...]
         guard digit.count == 1, let d = digit.first, d.isASCII, d.isNumber else { return nil }
-        let emi = url.deletingLastPathComponent().appendingPathComponent(String(stem[..<cut]) + ".emi")
-        return FileManager.default.fileExists(atPath: emi.path) ? emi : nil
+        return url.deletingLastPathComponent().appendingPathComponent(String(stem[..<cut]) + ".emi")
     }
 
-    /// The `.ser` files of an `.emi`'s acquisition that are there, `<name>_0.ser` to `<name>_9.ser`, asked one by one: a sandboxed
-    /// app cannot list the folder, but it can see whether a file of a name is there.
-    package static func seriesBeside(emi url: URL) -> [URL] {
-        let stem = url.deletingPathExtension().lastPathComponent
-        let folder = url.deletingLastPathComponent()
-        return (0...9).map { folder.appendingPathComponent("\(stem)_\($0).ser") }.filter { FileManager.default.fileExists(atPath: $0.path) }
-    }
-
-    /// Why the `.ser` files of an `.emi` cannot be opened: the `errno` of the first one there that does not open (EPERM is the
-    /// sandbox's), nil when each opens, for a `.ser`, and for an `.emi` with none beside it (the kit's refusal says so).
+    /// Why the `.ser` files of an `.emi` cannot be opened: the `errno` of the first of `<name>_0.ser` to `<name>_9.ser` that is there
+    /// and does not open (EPERM is the sandbox's), nil when each one there opens, for a `.ser`, and for an `.emi` with none beside it
+    /// (the kit's refusal says so). Each name is opened, not asked after with `fileExists`, which answers false for a file the
+    /// sandbox hides (as `NORDIFOpening.settingsOpenError` does).
     package static func seriesOpenError(_ url: URL) -> Int32? {
         guard url.pathExtension.lowercased() == "emi" else { return nil }
-        for ser in seriesBeside(emi: url) {
-            let descriptor = Darwin.open(ser.path, O_RDONLY)
-            if descriptor >= 0 { Darwin.close(descriptor); continue }
-            return errno
+        let stem = url.deletingPathExtension().lastPathComponent
+        let folder = url.deletingLastPathComponent()
+        for n in 0...9 {
+            let code: Int32 = folder.appendingPathComponent("\(stem)_\(n).ser").path.withCString { path in
+                let probe = Darwin.open(path, O_RDONLY | O_NONBLOCK)
+                guard probe >= 0 else { return errno }
+                _ = Darwin.close(probe)
+                return 0
+            }
+            if code != 0 && code != ENOENT { return code }
         }
         return nil
     }
