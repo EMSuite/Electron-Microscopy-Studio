@@ -31,6 +31,8 @@
 				<string>tiff</string>
 				<string>mrc</string>
 				<string>emd</string>
+				<string>ser</string>
+				<string>emi</string>
 				<string>img</string>
 				<string>map</string>
 			</array>

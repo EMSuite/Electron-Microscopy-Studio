@@ -25,7 +25,7 @@ carry over either way.
 Open a file and work through the sidebar. It lists five workspaces, Imaging, Spectroscopy, Diffraction, EBSD and Results,
 and under the one in front its rooms. What the file holds decides the room it opens in. Electron Microscopy Studio reads:
 
-- **TEM**: DigitalMicrograph (.dm3, .dm4), Velox (.emd), TIFF and MRC images; EDS spectrum images from Velox and GMS,
+- **TEM**: DigitalMicrograph (.dm3, .dm4), Velox (.emd), TIA (.ser with its .emi), TIFF and MRC images; EDS spectrum images from Velox and GMS,
   EELS spectrum images from GMS, and single .msa spectra.
 - **Pictures**: a pattern or image saved as PNG or JPEG (from a paper or a camera export) opens as a picture, not counts;
   its scale is typed or fitted to a ring of a known phase.

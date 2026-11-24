@@ -1,7 +1,8 @@
 // Open reads a file by what it holds, not by the room the user happens to be in: `FileInventory` lists the datasets of a file (an image to
 // draw, an EDS spectrum image, an EELS spectrum image, a single spectrum, an EBSD pattern dataset) from FormatoKit's sniff and group names, and the app opens the
 // file into every room that has data in it and lands in the room of the richest one (a spectrum cube before an image). The sniff of an HDF5
-// file takes the HDF5 lock, so it runs off the main actor. A multi-page TIFF keeps the stack path (`ImageStackSource`).
+// file takes the HDF5 lock, so it runs off the main actor. A multi-page TIFF keeps the stack path (`ImageStackSource`). A TIA image
+// or pattern (`.ser`, `.emi`) opens in the image rooms (`TIAImageReader`); its spectra are refused in words for now (#906).
 import Foundation
 import Formato
 import FormatoCore
@@ -192,6 +193,14 @@ package nonisolated enum FileRouting {
             if held.spectra > 0, !found.image, !found.edsSpectrumImage, !found.eelsSpectrumImage { found.singleSpectrum = true }
             if !found.image, !found.edsSpectrumImage, !found.eelsSpectrumImage, !found.singleSpectrum { found.image = true }
             return found
+        case .tia:
+            // An .emi whose .ser files the sandbox refuses says so (the Open asks for the folder first: `FolderGrants`). A series of
+            // spectra is refused in words; an image or a pattern opens in the image rooms, and its reader words what it refuses.
+            if let why = TIAImageReader.unreadableSeriesRefusal(url) { return FileInventory(refusal: why) }
+            if TIAImageReader.holdsSpectraOnly(path: path) {
+                return FileInventory(refusal: "\(name) is not read: " + TIAImageReader.Refusal.spectra.reason)
+            }
+            return FileInventory(image: true)
         case .hyperSpy:
             // Taken above (`HyperSpySpectrumFile.isHyperSpyFile` asks the same sniff); reached only if the file changed in between.
             return FileInventory(refusal: "\(name) is a HyperSpy file that is not one spectrum \(AppName.display) opens.")

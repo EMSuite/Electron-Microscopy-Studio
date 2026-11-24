@@ -55,7 +55,7 @@ build `-Onone` in Debug (see "Known limitations").
 2. **Read, off the main actor.** `AppState.read` holds the sandbox scope only while the file is read, then calls
    `ImageOpening.openNow` (`TEMCore/Data/ImageOpening.swift`): the reader by extension, then the object rule (the
    first object that is not the thumbnail, has exactly two dimensions larger than one, and whose axes do not carry
-   two different units). DM3/DM4, TIFF, MRC and Velox `.emd` are all FormatoKit's readings behind TEMCore's thin seams (`TIFFImageReader`, `MRCImageReader`,
+   two different units). DM3/DM4, TIFF, MRC, TIA `.ser`/`.emi` and Velox `.emd` are all FormatoKit's readings behind TEMCore's thin seams (`TIFFImageReader`, `MRCImageReader`, `TIAImageReader`,
    `VeloxImageReader` over one frame and one hyperslab, `KitImages`); the libhdf5 the `.emd` reader loads is FormatoKit's FormatoLibHDF5 framework in `Contents/Frameworks`; the result is a `CalibratedImage`
    (`TEMCore/Data/CalibratedImage.swift`): Float32 pixels, row-major, and each axis's origin, scale and unit exactly
    as the file states them.
@@ -107,14 +107,14 @@ two fixtures may not share a name.
 
 | Kit | What the app takes |
 |---|---|
-| FormatoKit | the DM3/DM4, Velox EMD, MRC and TIFF readings and metadata, the HDF5 layer and libhdf5 as three frameworks in `Contents/Frameworks`, the PNG text chunks, the thumbnail maker; the sidecar's HDF5 root attributes |
+| FormatoKit | the DM3/DM4, Velox EMD, MRC, TIA and TIFF readings and metadata, the HDF5 layer and libhdf5 as three frameworks in `Contents/Frameworks`, the PNG text chunks, the thumbnail maker; the sidecar's HDF5 root attributes |
 | DiffractoKit | cells, symmetry, CIF import, kinematic lists, the reference crystals (`CrystalPresets`), ring calibration and fit, indexing |
 | SpectroKit | the EDS and EELS numbers: the spectrum image and its Velox / GMS opening (over FormatoKit), line windows and net-count maps, Auto ID, the pooled Cliff-Lorimer fit with computed k and absorption, the EELS alignment, thickness and edge fits, the results CSV and method JSON; its NIST EPQ tables and the EELS generalised oscillator strengths ride in resource bundles in `Contents/Resources` |
 | ImagoKit | the calibrated axis (`AxisCalibration`), the unit and scale-bar numbers, the CSV writers (profile, tidy results, FFT), distance and angle, the display mapping, the 2D FFT, spectrum and radial profile, spot spacing, masked inverse FFT, HRTEM filters, the region / bin / unit / shape rules, the histogram, the line-profile numbers, objects and their moments |
 | MacEMUI | the window skeleton, toolbar, sidebar and inspector, the controls, the scale bar and histogram, the Metal image view and engine, and the EDS room (`ShellEDXModel`, `ShellSpectroscopy`) shared with mac4DSTEM |
 
 TEMCore keeps thin seams over the kits: `CalibratedImage+Micrograph` (the kit's `Micrograph`), `KitImages`,
-`MRCImageReader`, `TIFFImageReader`, `VeloxImageReader`, `Compute/LineProfile` (the kit's `LineProfile` with the app's two refusals), `ImagePoint+PixelPoint`, `ProfileCSV`, `ResultsCSV` and `FFTExport` (the app's titles and validation sentences over the kit's CSV writers) and `UnitDisplay` (how a unit and a number are shown). A harness is an executable target in
+`MRCImageReader`, `TIAImageReader`, `TIFFImageReader`, `VeloxImageReader`, `Compute/LineProfile` (the kit's `LineProfile` with the app's two refusals), `ImagePoint+PixelPoint`, `ProfileCSV`, `ResultsCSV` and `FFTExport` (the app's titles and validation sentences over the kit's CSV writers) and `UnitDisplay` (how a unit and a number are shown). A harness is an executable target in
 `Package.swift` over TEMCore, so it links the kits `Package.resolved` pins. No name is shared with a kit: the app's twins are gone
 (2026-10-21), the last of them, TEMCore's `DiffractionPattern`, with #580 (a pattern's log display is the canvas's shader transfer).
 
@@ -293,7 +293,7 @@ the settings a room recorded with an exported file.
 
 ## Known limitations
 
-- Reads 2D images from DM3/DM4, TIFF (with the Thermo/FEI, Zeiss and Tescan SEM records), one-image MRC, Velox `.emd` and
+- Reads 2D images from DM3/DM4, TIFF (with the Thermo/FEI, Zeiss and Tescan SEM records), one-image MRC, TIA `.ser`/`.emi` (images and patterns; the first frame of a series), Velox `.emd` and
   JEOL `.img`/`.map`; a stack opens at "frame 1 of N" and steps through its frames with ← and →. Reads spectrum images and
   single spectra from Velox `.emd`, GMS `.dm4`, `.msa`, HyperSpy `.hspy`, Bruker `.bcf`/`.spx`, EDAX `.spd`/`.lsd`/`.spc`
   and JEOL `.pts`/`.eds`/`.asw`; EBSD and TKD patterns from h5ebsd (kikuchipy, Bruker, EDAX, Oxford H5OINA), EDAX

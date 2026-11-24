@@ -222,7 +222,7 @@ extension AppState {
             defer { folder?.release() }
             let inventory = FileRouting.inventory(path: url.path)
             let bookmark = inventory.refusal == nil ? (try? SecurityScopedBookmark.make(for: url)) : nil
-            let asks = FolderGrants.asksForFolder(refused: inventory.refusal != nil, settingsError: NORDIFOpening.settingsOpenError(url))
+            let asks = FolderGrants.asksForFolder(of: url, refused: inventory.refusal != nil)
             return (url: url, inventory: inventory, bookmark: bookmark, asksForFolder: asks)
         }
     }
@@ -500,6 +500,9 @@ extension AppState {
         -> (CalibratedImage, AcquisitionMetadata, SEMImageMetadata?, CanvasPixels?) {
         let scoped = url.startAccessingSecurityScopedResource()
         defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        // A TIA file is read with the other files of its acquisition: the folder granted for it is held for the read (`FolderGrants`).
+        let folder = FolderGrants.hold(forFolderOf: url)
+        defer { folder?.release() }
         let interval = Signposts.begin("open.image"); defer { Signposts.end(interval) }
         var opened = try ImageOpening.openNow(path: url.path)
         let metadata = AcquisitionMetadata.read(path: url.path)
