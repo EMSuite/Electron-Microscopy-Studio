@@ -5,10 +5,8 @@
 #   tools/size-table/run.sh --app <path to the .app> [--sizes 1,4,16] [--kinds image-tiff,...]
 #
 # The harness holds the cap itself: it ends the app by its pid when its footprint passes this Mac's memory minus 4 GB (the size
-# rule's margin) and writes that row. The suite's memory cap stays an outer guard, looser (memory minus 2 GB), since it sums resident
-# pages over the whole tree, mapped file pages included, and ends the harness too:
-#
-#   ~/GitHub/EMSuite/tools/memcap.sh --gb $(( $(sysctl -n hw.memsize) / 1073741824 - 2 )) -- tools/size-table/run.sh --app ...
+# rule's margin) and writes that row. An outer memory guard, if one is used, should be looser (memory minus 2 GB), since such a
+# guard sums resident pages over the whole tree, mapped file pages included, and ends the harness too.
 #
 # Sizes are whole GB. Each size's files are deleted when it is measured, and on any exit (a trap), so no 16 GB file stays behind.
 #
