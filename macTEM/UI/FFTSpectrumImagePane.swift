@@ -443,6 +443,35 @@ private struct FFTRefusalNote: View {
     }
 }
 
+/// The status line's readout over the spectrum (#862): the frequency under the pointer in a spot row's words, "d 0.4 nm · |q| 2.5 nm⁻¹",
+/// and its azimuth, counter-clockwise from +x as the picture shows it (screen y points down, so qy is negated). The bin is the nearest one
+/// to the pointer, (row − h/2, col − w/2) from the centre times each axis's spacing (`SpectrumBin`'s centre, the kit's `SpotMeasurement`
+/// q without its centroid). Pure, so a test pins it. nil off the spectrum, and when the two axes are in different units (no |q|).
+nonisolated enum FFTSpectrumReadout {
+    static let dc = "|q| 0, the DC"
+
+    static func text(row: Int, col: Int, width: Int, height: Int, spacingX: Double, spacingY: Double, unitsX: String, unitsY: String,
+                     locale: Locale = .autoupdatingCurrent) -> String? {
+        guard row >= 0, row < height, col >= 0, col < width, unitsX == unitsY,
+              spacingX.isFinite, spacingY.isFinite, spacingX > 0, spacingY > 0 else { return nil }
+        let qx = Double(col - width / 2) * spacingX, qy = Double(row - height / 2) * spacingY
+        let q = (qx * qx + qy * qy).squareRoot()
+        guard q > 0 else { return dc }
+        var azimuth = atan2(-qy, qx) * 180 / .pi
+        if azimuth < 0 { azimuth += 360 }
+        let unit = FFTRoomFormat.realUnit(ofSpectrumUnit: unitsX)
+        return FFTRoomFormat.spotValue(d: 1 / q, q: q, unit: unit, locale: locale) + " · \(Num.fixed(azimuth, 1, locale: locale))°"
+    }
+
+    /// The readout at a pane point of the drawn spectrum.
+    static func text(_ spectrum: FFTSpectrumProduct, at point: CGPoint, in geometry: MarkGeometry, locale: Locale = .autoupdatingCurrent) -> String? {
+        let p = geometry.imagePoint(atPanePoint: point)
+        guard p.x.isFinite, p.y.isFinite, abs(p.x) < 1e9, abs(p.y) < 1e9 else { return nil }
+        return text(row: Int(p.y.rounded()), col: Int(p.x.rounded()), width: spectrum.width, height: spectrum.height,
+                    spacingX: spectrum.spacingX, spacingY: spectrum.spacingY, unitsX: spectrum.unitsX, unitsY: spectrum.unitsY, locale: locale)
+    }
+}
+
 // MARK: - The pane
 
 struct FFTSpectrumImagePane: View {
@@ -454,6 +483,7 @@ struct FFTSpectrumImagePane: View {
     /// The picture shown dims once the spectrum asked for has taken longer than `FFTPaneFormat.dimDelay`.
     @State private var isDimmed = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(AppState.self) private var appState
 
     var body: some View {
         let spectrum = analysis.spectrum
@@ -480,6 +510,9 @@ struct FFTSpectrumImagePane: View {
                                                                        hasPicture: spectrum != nil && failure == nil))
         // Restarts on every change of the flag and cancels with the view; a result that lands within the delay never dims.
         .task(id: isUpdating) { await dim(isUpdating) }
+        // The readout names a bin of the spectrum shown: a new spectrum under a resting pointer, or the pane going, clears it.
+        .onChange(of: spectrum?.key) { appState.imageRoomTools.spectrumReadout = nil }
+        .onDisappear { appState.imageRoomTools.spectrumReadout = nil }
     }
 
     private func dim(_ updating: Bool) async {
@@ -592,7 +625,7 @@ struct FFTSpectrumImagePane: View {
                 .clipped()
                 .contentShape(Rectangle())
                 .border(.separator)
-                .zoomPan(zoomModel, box: box)
+                .zoomPan(zoomModel, box: box, onHover: { phase in hovered(phase, spectrum: spectrum, geometry: geometry) })
                 .zoomPanWheel(zoomModel, box: box)
                 // Simultaneous, so ZoomPan's drag (its 10 pt threshold) still pans.
                 .simultaneousGesture(SpatialTapGesture().onEnded { click(at: $0.location, spectrum: spectrum, geometry: geometry) })
@@ -615,7 +648,15 @@ struct FFTSpectrumImagePane: View {
         .zoomPanAccessibilityActions(zoomModel, box: box)
     }
 
-    // MARK: Click and keys
+    // MARK: Hover, click and keys
+
+    /// The status line's cursor readout (control placement §7): the frequency under the pointer (`FFTSpectrumReadout`), nil when it leaves.
+    private func hovered(_ phase: HoverPhase, spectrum: FFTSpectrumProduct, geometry: MarkGeometry) {
+        switch phase {
+        case .active(let p): appState.imageRoomTools.spectrumReadout = FFTSpectrumReadout.text(spectrum, at: p, in: geometry)
+        case .ended: appState.imageRoomTools.spectrumReadout = nil
+        }
+    }
 
     private func click(at point: CGPoint, spectrum: FFTSpectrumProduct, geometry: MarkGeometry) {
         switch FFTSpotMarkers.click(at: point, spots: analysis.spots, selection: analysis.selection, spectrum: spectrum,

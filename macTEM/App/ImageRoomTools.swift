@@ -58,4 +58,6 @@ final class ImageRoomTools {
     var tool: Tool = .pan
     /// The status line's cursor readout over the picture (`ImageReadout`); nil when the pointer is elsewhere.
     var readout: String?
+    /// The FFT room's readout over the power spectrum (`FFTSpectrumReadout`): the frequency under the pointer; nil when it is elsewhere.
+    var spectrumReadout: String?
 }
