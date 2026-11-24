@@ -1,12 +1,13 @@
 //
 //  RoomPrimaryAction.swift
 //  Role: the toolbar's one verb for the room that has one (design 2026-10-22, §2.2): EDS has Quantify, EELS has Run (the stages that are not current,
-//        in order), Patterns has Process, Indexing has Index, Maps has Segment; the Image, FFT, Diffraction and Results rooms have none yet. The button and its glass styles are ShellLayout's
+//        in order), Patterns has Process, Indexing has Index, Maps has Segment, Diffraction has Index (#783); the Image, FFT and Results rooms have none yet. The button and its glass styles are ShellLayout's
 //        `PrimaryActionButton`; what the verb is, when it is enabled and what it says while blocked is this file's. Workspace > Run (⌘R)
 //        runs the same verb from the menu, on exactly when the button can run it (`canRun`). A room without a verb shows Cancel in the
 //        verb's place while a run left going in another room is the toolbar's busy line (`BusyOperation.backgroundRoom`).
 //
 
+import ShellControls
 import ShellLayout
 import SwiftUI
 import TEMCore
@@ -126,6 +127,20 @@ enum RoomPrimaryAction {
                 operationName: BusyOperation.name(room: .maps, appState: appState),
                 stop: { session.stop() },
                 run: { session.segment() })
+        case .diffraction:
+            // Index (#783): the kit finds the spots and the crystal's full orientation, off the main actor; Stop drops the answer.
+            guard let item = appState.openItems.selected, let image = item.session.image else { return nil }
+            let analysis = item.diffraction
+            let blocker = analysis.indexBlocker(image: image)
+            return PrimaryAction(
+                title: "Index",
+                isEnabled: blocker == nil,
+                help: blocker ?? "Find the spots and the full orientation of \(analysis.crystal.name)",
+                hint: "Finds the spots and the crystal's full orientation",
+                isRunning: analysis.isIndexing || analysis.isFitting,
+                operationName: BusyOperation.name(room: .diffraction, appState: appState),
+                stop: { analysis.stop() },
+                run: { PendingEdits.run { analysis.index(image: image) } })
         default:
             // A room without a verb keeps the Cancel of a run left going in another room, the one the toolbar's centre shows (ShellLayout's
             // `PrimaryAction.title`: nil, "but a run may still be in flight and keep its Cancel"; mac4DSTEM's `isRunning: appState.isBusy`
@@ -215,7 +230,7 @@ enum RoomPrimaryAction {
         case .patterns: appState.ebsd.isBusy
         case .indexing: appState.indexing.isBusy || appState.ebsd.isOpening
         case .maps: appState.maps.isOpening || appState.maps.isSegmenting || appState.maps.isTexturing
-        case .diffraction: appState.openItems.selected?.diffraction.isFitting ?? false
+        case .diffraction: appState.openItems.selected.map { $0.diffraction.isFitting || $0.diffraction.isIndexing } ?? false
         default: false
         }
     }

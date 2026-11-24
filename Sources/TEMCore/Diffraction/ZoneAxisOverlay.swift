@@ -105,7 +105,17 @@ package nonisolated enum ZoneAxisOverlay {
         /// Degrees, counter-clockwise from the kit's lab x (down the rows) toward lab y (along the columns).
         package var inPlaneDegrees = 0.0
         package var showsLabels = true
+        /// The full orientation Index found, drawn in place of the typed zone axis and turn until either is typed again.
+        package var indexed: CrystalOrientation?
+        /// Index's measured |q| over |g|: the simulated spots are drawn at |g| times this, onto the measured ones (1 when typed).
+        package var scale = 1.0
         package init() {}
+
+        /// The orientation drawn: Index's, else the typed zone axis turned in the plane.
+        package func orientation(cell: UnitCell) throws -> CrystalOrientation {
+            if let indexed { return indexed }
+            return try CrystalOrientation(zoneAxis: zoneAxis, inPlaneAngle: inPlaneDegrees * .pi / 180, cell: cell)
+        }
     }
 
     /// The pixel radius of a spot of |q| (Å⁻¹): the inverse of the readout's q (`DiffractionCalibration.q(radius:)`), so a drawn
@@ -127,15 +137,15 @@ package nonisolated enum ZoneAxisOverlay {
     /// `centre`, strongest first. Throws the kit's refusal (a zone axis with no length in the cell, a voltage).
     package static func spots(simulator: SpotPatternSimulator, settings: Settings, volts: Double, calibration: DiffractionCalibration,
                               centre: DiffractionCentre, width: Int, height: Int) throws -> [Spot] {
-        let orientation = try CrystalOrientation(zoneAxis: settings.zoneAxis, inPlaneAngle: settings.inPlaneDegrees * .pi / 180,
-                                                 cell: simulator.structure.cell)
+        let orientation = try settings.orientation(cell: simulator.structure.cell)
+        let scale = settings.scale.isFinite && settings.scale > 0 ? settings.scale : 1
         let pattern = try simulator.pattern(orientation: orientation, volts: volts)
         var placed: [(MillerIndex, Double, Double, Double)] = []
         for s in pattern.spots {
-            let q = (s.position.x * s.position.x + s.position.y * s.position.y).squareRoot()
+            let q = scale * (s.position.x * s.position.x + s.position.y * s.position.y).squareRoot()
             guard q > 0 else { continue }
             let r = radius(q: q, calibration: calibration)
-            let row = centre.row + r * s.position.x / q, column = centre.column + r * s.position.y / q
+            let row = centre.row + r * scale * s.position.x / q, column = centre.column + r * scale * s.position.y / q
             guard row.isFinite, column.isFinite, row >= -0.5, row <= Double(height) - 0.5, column >= -0.5, column <= Double(width) - 0.5
             else { continue }
             placed.append((s.hkl, row, column, s.intensity))

@@ -16,6 +16,7 @@ import ImagoCore
 import DiffractoCore
 import DiffractoScattering
 import DiffractoGeometry
+import DiffractoOrientation
 import TEMCore
 
 /// The crystal indexing is done against: a standard of the room, or one opened from a CIF.
@@ -61,6 +62,10 @@ package final class DiffractionAnalysis {
     /// The ring or spot added last (a click, or a ring fit that landed): the room selects it. Selection itself is view state.
     package private(set) var lastAdded: UUID?
     package private(set) var isFitting = false
+    /// Index is running (the toolbar's verb, #783).
+    package private(set) var isIndexing = false
+    /// Index's last answer for this pattern; nil before the first and after the crystal changed.
+    package private(set) var indexOutcome: PatternIndexing.Outcome?
     package private(set) var failure: String?
     /// A CIF the kit refused, in its words.
     package private(set) var cifRefusal: String?
@@ -71,6 +76,8 @@ package final class DiffractionAnalysis {
 
     @ObservationIgnored private var generation = 0
     @ObservationIgnored private var fitTask: Task<Void, Never>?
+    @ObservationIgnored private var indexTask: Task<Void, Never>?
+    @ObservationIgnored private var indexGeneration = 0
     @ObservationIgnored private var listCache: (key: String, list: KinematicReflectionList?, failure: String?)?
     @ObservationIgnored private var familiesCache: [String: [(name: String, d: Double, family: ReflectionFamily)]] = [:]
     @ObservationIgnored private var readoutCache: (key: ReadoutKey, rows: [DiffractionReadoutRow])?
@@ -140,13 +147,14 @@ package final class DiffractionAnalysis {
     /// A ring fit measures its radius about the centre it started with: once the centre moves its answer is about the wrong point, so
     /// it must not land and set the scale (macEM#610). The fit is cancelled and its generation retired.
     private func dropFitInFlight() {
-        guard isFitting else { return }
+        guard isFitting || isIndexing else { return }
         stop()
     }
 
     // MARK: Crystal
 
     package func setCrystal(_ new: DiffractionCrystal) {
+        if new != crystal { dropIndex() }
         crystal = new
         cifRefusal = nil
         if case .preset(let s) = new { standard = s }
@@ -155,10 +163,20 @@ package final class DiffractionAnalysis {
     package func setStandard(_ new: StandardCrystal) {
         standard = new
         familyIndex = 0
-        if case .preset = crystal { crystal = .preset(new) }
+        if case .preset = crystal, crystal != .preset(new) { dropIndex(); crystal = .preset(new) }
     }
 
     package func crystalRefused(_ words: String) { cifRefusal = words }
+
+    /// Another crystal: Index's answer and orientation were the old crystal's.
+    private func dropIndex() {
+        indexTask?.cancel(); indexTask = nil
+        indexGeneration += 1
+        isIndexing = false
+        indexOutcome = nil
+        simulation.indexed = nil
+        simulation.scale = 1
+    }
 
     /// k_max in Å⁻¹, kept in the kit's range.
     package func setKMax(_ value: Double) {
@@ -253,6 +271,86 @@ package final class DiffractionAnalysis {
         fitTask?.cancel(); fitTask = nil
         generation += 1
         isFitting = false
+        indexTask?.cancel(); indexTask = nil
+        indexGeneration += 1
+        isIndexing = false
+    }
+
+    // MARK: Index
+
+    /// Why Index cannot run on this image now, in words; nil when it can.
+    package func indexBlocker(image: CalibratedImage) -> String? {
+        if centre == nil { return "Index needs the pattern's centre" }
+        if calibration(for: image) == nil { return "Index needs a scale: calibrate on a standard's ring, or type Δq" }
+        if volts(for: image) == nil { return "Index needs the beam energy: type it under Calibration" }
+        if let why = crystalFailure { return why }
+        return nil
+    }
+
+    /// Index (#783): the kit finds the spots and the crystal's full orientation, off the main actor; the answer lands in
+    /// `indexOutcome`, and a found orientation becomes the simulated spots' (`simulation.indexed`, drawn at its fitted scale). A
+    /// newer Index, Stop or a centre move drops the answer of the one in flight.
+    @discardableResult
+    package func index(image: CalibratedImage) -> Task<Void, Never>? {
+        guard indexBlocker(image: image) == nil, let centre, let calibration = calibration(for: image), let volts = volts(for: image)
+        else { return nil }
+        indexTask?.cancel()
+        indexGeneration += 1
+        let gen = indexGeneration
+        isIndexing = true
+        failure = nil
+        let pattern = DiffractionCompute.pattern(of: image)
+        let structure = crystal.structure, phase = crystal.name
+        let key = "\(crystal.name)|\(crystal.sha256 ?? "")|\(volts)"
+        let shortest = list()?.families.first.map { 1 / $0.family.d } ?? 0.2
+        let task = Task.detached(priority: .userInitiated) { [weak self] in
+            let outcome: PatternIndexing.Outcome
+            do {
+                let found = try PatternIndexing.findSpots(pattern: pattern, centre: centre, shortestG: shortest, calibration: calibration)
+                if Task.isCancelled { return }
+                let indexer = try PatternIndexerCache.shared.indexer(key: key) {
+                    try PatternOrientation(structure: structure, volts: volts, kMax: PatternIndexing.reach)
+                }
+                if Task.isCancelled { return }
+                outcome = PatternIndexing.index(found: found, centre: centre, calibration: calibration, indexer: indexer, phase: phase)
+            } catch {
+                let words = (error as? CustomStringConvertible)?.description ?? error.localizedDescription
+                outcome = PatternIndexing.Outcome(phase: phase, verdict: .notFound(words), spots: [], explained: 0, indexed: 0,
+                                                  orientation: nil, alternatives: [], zoneAxis: nil, zoneAxisAngle: nil, scale: nil,
+                                                  misfitPercent: nil)
+            }
+            if Task.isCancelled { return }
+            await self?.landIndex(outcome, generation: gen)
+        }
+        indexTask = task
+        return task
+    }
+
+    private func landIndex(_ outcome: PatternIndexing.Outcome, generation gen: Int) {
+        guard gen == indexGeneration else { return }
+        isIndexing = false
+        indexTask = nil
+        indexOutcome = outcome
+        guard let orientation = outcome.orientation else { return }
+        simulation.indexed = orientation
+        simulation.scale = outcome.scale ?? 1
+        if let uvw = outcome.zoneAxis { simulation.zoneAxis = uvw }
+        simulation.isShown = true
+    }
+
+    /// The zone axis typed: the simulated spots are this zone axis's, no longer Index's orientation.
+    package func setZoneAxis(_ uvw: SIMD3<Int>) {
+        simulation.zoneAxis = uvw
+        simulation.indexed = nil
+        simulation.scale = 1
+    }
+
+    /// The turn typed (degrees): as `setZoneAxis`, the typed zone axis turned by it.
+    package func setTurn(degrees: Double) {
+        guard degrees.isFinite else { return }
+        simulation.inPlaneDegrees = degrees.truncatingRemainder(dividingBy: 360)
+        simulation.indexed = nil
+        simulation.scale = 1
     }
 
     // MARK: Spots

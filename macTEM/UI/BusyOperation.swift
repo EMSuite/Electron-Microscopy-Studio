@@ -89,6 +89,11 @@ enum BusyOperation {
         case .maps:
             let s = appState.maps
             return maps(opening: s.isOpening, segmenting: s.isSegmenting, texturing: s.isTexturing, drawing: s.isDrawing)
+        case .diffraction:
+            guard let analysis = appState.openItems.selected?.diffraction else { return nil }
+            if analysis.isIndexing { return "Indexing the pattern…" }
+            if analysis.isFitting { return "Fitting the ring…" }
+            return nil
         default:
             return nil
         }
@@ -160,7 +165,7 @@ enum BusyOperation {
         case .patterns: appState.ebsd.isBusy
         case .indexing: appState.indexing.isBusy || appState.ebsd.isOpening
         case .maps: appState.maps.isOpening || appState.maps.isSegmenting || appState.maps.isTexturing
-        case .diffraction: appState.openItems.selected?.diffraction.isFitting ?? false
+        case .diffraction: appState.openItems.selected.map { $0.diffraction.isFitting || $0.diffraction.isIndexing } ?? false
         case .image, .fft, .results: false
         }
     }

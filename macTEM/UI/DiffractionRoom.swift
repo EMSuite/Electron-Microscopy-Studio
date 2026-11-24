@@ -85,6 +85,17 @@ private struct DiffractionHeader: View {
                 .accessibilityIdentifier("diffraction.scale")
                 .accessibilityValue(DiffractionValueFormat.scale(calibration?.deltaQ))
             Spacer(minLength: 8)
+            // Index's verdict in words (#783): "Al · 2.1° from [001] · 22 of 24 spots explained · misfit 0.07 %".
+            if let outcome = analysis.indexOutcome {
+                let line = PatternIndexing.header(outcome)
+                Text(line)
+                    .font(.callout.monospacedDigit()).lineLimit(1).truncationMode(.tail).layoutPriority(2)
+                    .foregroundStyle(outcome.verdict == .found ? Color.primary : Color.orange)
+                    .help(line)
+                    .accessibilityIdentifier("diffraction.index.verdict")
+                    .accessibilityLabel("Index")
+                    .accessibilityValue(line)
+            }
             // What the pane shows about the centre, in words (a header holds words only); its value is the half-side to three decimals,
             // which a journey maps its drags by.
             let half = view.viewHalfSide(for: image)
