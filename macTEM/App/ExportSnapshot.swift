@@ -158,9 +158,7 @@ enum ExportSnapshot {
     /// The Image room's record of a file's export: nil for an item read from no file (a demo made in memory has no fingerprint).
     static func imageMethods(of item: OpenItem, image: CalibratedImage, exportKind: String, drawn: [String],
                              software: String) -> MethodsRecord? {
-        guard let identity = item.openedIdentity else { return nil }
-        let source = ExportMethods.source(ExportSource(image: image, software: software), byteCount: Int(identity.byteSize),
-                                          fingerprint: identity.pixelSHA256, kind: "image")
+        guard let source = imageSource(of: item, image: image, software: software) else { return nil }
         return ExportMethods.imageRecord(app: methodsApp(), exportKind: exportKind, source: source,
                                          lineage: item.measurements.lineage, drawn: drawn)
     }
@@ -169,12 +167,19 @@ enum ExportSnapshot {
     /// `record`; the text as it was when the image is not the selected file's or the file was read from nothing (a demo in memory).
     static func embeddingMethods(in text: String, of image: CalibratedImage, openItems: OpenItems, software: String = softwareName(),
                                  record: (MethodsRecord.Software, MethodsRecord.Source) -> MethodsRecord) -> String {
-        guard let item = openItems.selected, let identity = item.openedIdentity, item.session.image?.fileName == image.fileName else {
+        guard let item = openItems.selected, item.session.image?.fileName == image.fileName,
+              let source = imageSource(of: item, image: image, software: software) else {
             return text
         }
-        let source = ExportMethods.source(ExportSource(image: image, software: software), byteCount: Int(identity.byteSize),
-                                          fingerprint: identity.pixelSHA256, kind: "image")
         return (try? ExportMethods.embedding(record(methodsApp(), source), inText: text)) ?? text
+    }
+
+    /// A file's image as a record's source: its name, size, pixel fingerprint and calibrations; nil for a file read from nothing
+    /// (a demo in memory).
+    static func imageSource(of item: OpenItem, image: CalibratedImage, software: String) -> MethodsRecord.Source? {
+        guard let identity = item.openedIdentity else { return nil }
+        return ExportMethods.source(ExportSource(image: image, software: software), byteCount: Int(identity.byteSize),
+                                    fingerprint: identity.pixelSHA256, kind: "image")
     }
 
     /// The Particles section's CSV with its methods record inside (#817).
@@ -188,9 +193,9 @@ enum ExportSnapshot {
 
     /// The Diffraction room's readout CSV with its methods record inside (#817).
     static func diffractionCSV(_ analysis: DiffractionAnalysis, image: CalibratedImage, openItems: OpenItems) -> String {
-        let rings = analysis.rings.count, spots = analysis.spots.count
-        return embeddingMethods(in: analysis.exportText(image: image), of: image, openItems: openItems) {
-            ExportMethods.diffractionRecord(app: $0, source: $1, rings: rings, spots: spots)
+        let header = analysis.exportHeader(image: image), rows = analysis.readout(image: image)
+        return embeddingMethods(in: DiffractionExport.text(rows: rows, header: header), of: image, openItems: openItems) {
+            ExportMethods.diffractionRecord(app: $0, source: $1, header: header, rows: rows)
         }
     }
 
@@ -226,6 +231,12 @@ enum ExportSnapshot {
                                                    methodJSON: String?) async -> Data {
         let record = ExportMethods.eelsRecord(app: methodsApp(), exportKind: exportKind, source: source, methodJSON: methodJSON)
         return (try? ExportMethods.embedding(record, inFileWithExtension: fileExtension, data: data)) ?? data
+    }
+
+    /// The EELS room's record of `loaded` and its method JSON (Export Methods Record…, the door): the spectrum image as `eelsSource`
+    /// names it, off the main actor.
+    @concurrent nonisolated static func eelsMethods(exportKind: String, source loaded: LoadedEELS, methodJSON: String?) async -> MethodsRecord {
+        ExportMethods.eelsRecord(app: methodsApp(), exportKind: exportKind, source: await eelsSource(loaded), methodJSON: methodJSON)
     }
 
     /// An SEM room's export with its methods record inside (#817), from the record the session keeps of it: the source file's

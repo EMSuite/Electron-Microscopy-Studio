@@ -9,7 +9,9 @@
 //        `SEMSessionLedger.hasRows`). The EDS room's five (`ExportSnapshot.edsAvailability`), the EELS room's seven
 //        (`eelsAvailability`), the Patterns room's six (`patternsAvailability`), the Indexing room's five
 //        (`indexingAvailability`) and the Maps room's four (`mapsAvailability`) are listed while their room shows its document,
-//        each through the room's own export (`RoomExports`), the call its inspector button makes.
+//        each through the room's own export (`RoomExports`), the call its inspector button makes. Every room ends the group with
+//        Export Methods Record… and puts Copy Methods Paragraph in the Edit menu after the pasteboard's items (#818,
+//        `MethodsRecordExport`), both enabled while the room holds a result.
 //
 //        PLACEMENT: after the Save group, which this app's File menu fills with Close Image and Close Window (`ImageCommands`
 //        replaces it) — the anchor already known to render here. `.importExport`, the HIG's home of Export, would put the items
@@ -36,6 +38,7 @@ struct ExportCommands: Commands {
         let indexing = appState.flatMap(ExportSnapshot.indexingAvailability(of:))
         let maps = appState.flatMap(ExportSnapshot.mapsAvailability(of:))
         let fixed = FixedExports.listed(in: appState?.navigation.workspaceArea)
+        let methods = appState.map(MethodsRecordExport.isAvailable(in:))
         CommandGroup(after: .saveItem) {
             // The Image room's two.
             if fixed.contains(.image) {
@@ -92,6 +95,18 @@ struct ExportCommands: Commands {
             if let appState, let indexing { indexingItems(indexing, appState: appState) }
             // The Maps room's four, while that room shows a map.
             if let appState, let maps { mapsItems(maps, appState: appState) }
+            // Every room's methods record of its result (#818), last: it describes what the exports above hold.
+            Divider()
+            Button("Export Methods Record…") { if let appState { MethodsRecordExport.exportRecord(appState: appState) } }
+                .disabled(methods != true)
+                .accessibilityIdentifier("menu.exportMethodsRecord")
+        }
+        // The paragraph goes where a copy goes: Edit, after the pasteboard's items.
+        CommandGroup(after: .pasteboard) {
+            Divider()
+            Button("Copy Methods Paragraph") { if let appState { MethodsRecordExport.copyParagraph(appState: appState) } }
+                .disabled(methods != true)
+                .accessibilityIdentifier("menu.copyMethodsParagraph")
         }
     }
 

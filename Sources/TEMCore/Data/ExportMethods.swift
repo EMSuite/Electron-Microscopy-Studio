@@ -192,15 +192,54 @@ package nonisolated enum ExportMethods {
                              steps: steps, results: results, drawn: [])
     }
 
-    /// The Diffraction room's record of its readout CSV: the pattern, and the rings and spots measured on it (each row's own lines in
-    /// the CSV say how it was matched).
-    package static func diffractionRecord(app: MethodsRecord.Software, source: MethodsRecord.Source, rings: Int, spots: Int) -> MethodsRecord {
-        let step = MethodsRecord.Step(name: "Readout", method: "ring radii and spot positions measured from the pattern's centre; d = 1/q")
-        return MethodsRecord(app: app, room: "diffraction", exportKind: "diffraction-readout-csv", kits: kits, references: [],
-                             sources: [source], steps: [step],
-                             results: [MethodsRecord.Quantity(name: "rings", value: .number(Double(rings))),
-                                       MethodsRecord.Quantity(name: "spots", value: .number(Double(spots)))],
-                             drawn: [])
+    /// The Diffraction room's record of the pattern's readout, in the order a methods section tells it: where the centre came from,
+    /// the scale (a ring fit on a standard with the wavelength and camera length it gives, the file's reciprocal axis, or a typed Δq),
+    /// what the rings and spots were indexed against, and how many were measured and indexed. Each number to five significant digits,
+    /// as a paper states it; the CSV's own header keeps them in full.
+    package static func diffractionRecord(app: MethodsRecord.Software, source: MethodsRecord.Source, header h: DiffractionExportHeader,
+                                          rows: [DiffractionReadoutRow], exportKind: String = "diffraction-readout-csv") -> MethodsRecord {
+        func number(_ name: String, _ value: Double?, _ units: String? = nil) -> MethodsRecord.Quantity? {
+            guard let value, value.isFinite else { return nil }
+            return MethodsRecord.Quantity(name: name, value: .number(significant(value)), units: units)
+        }
+        var steps = [MethodsRecord.Step(name: "Centring", method: h.centreSource == "typed" ? "a typed position" : h.centreSource,
+                                        settings: [number("centre row", h.centreRow, "px"), number("centre column", h.centreColumn, "px")]
+                                            .compactMap { $0 })]
+        let scale: String
+        if h.calibration.hasPrefix("fit ") {
+            scale = "a ring fit to the \(h.calibration.dropFirst(4)) ring of the standard"
+        } else if h.calibration == "the file's axis" {
+            scale = "the file's reciprocal axis"
+        } else if h.calibration == "typed" {
+            scale = "a typed scale"
+        } else {
+            scale = "no scale"
+        }
+        var calibration = [number("Δq", h.deltaQ, "Å⁻¹ per pixel"), number("wavelength", h.wavelengthAngstroms, "Å")].compactMap { $0 }
+        if let mm = number("camera length", h.lengthMM, "mm") {
+            calibration.append(mm)
+        } else if let px = number("camera length", h.lengthPixels, "px") {
+            calibration.append(px)
+        }
+        steps.append(MethodsRecord.Step(name: "Calibration", method: scale, settings: calibration))
+        steps.append(MethodsRecord.Step(name: "Indexing", method: "the listed d-spacings of \(h.crystal) (d = 1/q)",
+                                        settings: [number("tolerance", h.tolerancePercent, "%"), number("k_max", h.kMax, "Å⁻¹")]
+                                            .compactMap { $0 }))
+        var results = [
+            ("The number of rings measured", rows.filter { $0.kind == .ring }.count),
+            ("The number of spots measured", rows.filter { $0.kind == .spot }.count),
+            ("The number indexed", rows.filter { $0.family != nil }.count),
+        ].map { MethodsRecord.Quantity(name: $0.0, value: .number(Double($0.1))) }
+        if let percent = number("The fitted scale's difference from the stored scale", h.fitVersusFilePercent, "%") {
+            results.append(percent)
+        }
+        return MethodsRecord(app: app, room: "diffraction", exportKind: exportKind, kits: kits, references: [], sources: [source],
+                             steps: steps, results: results, drawn: [])
+    }
+
+    /// `value` to `digits` significant digits: the numbers a methods paragraph states.
+    package static func significant(_ value: Double, digits: Int = 5) -> Double {
+        Double(String(format: "%.\(digits)g", value)) ?? value
     }
 
     /// The EELS room's record of one export, read from the room's method JSON (`EELSCompute.methodJSON`): the thickness map's rule

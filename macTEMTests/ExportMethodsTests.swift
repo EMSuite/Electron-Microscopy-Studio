@@ -215,11 +215,32 @@ nonisolated final class ExportMethodsTableTests: XCTestCase {
                        "the table is as it was")
     }
 
-    /// The readout's record counts its rings and spots.
-    func testTheDiffractionReadoutRecordCountsRingsAndSpots() {
-        let record = ExportMethods.diffractionRecord(app: Self.app, source: Self.source, rings: 3, spots: 2)
+    /// The pattern's record tells a methods section where the centre came from, the scale with the wavelength and camera length its
+    /// ring fit gave (five significant digits), what the rows were indexed against, and how many were measured and indexed.
+    /// Mutation: the calibration step without its settings, the counts of the wrong kind, or the numbers in full - red.
+    func testTheDiffractionRecordTellsTheCentreTheScaleAndTheIndexing() {
+        let header = DiffractionExportHeader(fileName: "au.dm4", centreRow: 256, centreColumn: 256.5, centreSource: "a fitted ring",
+                                             calibration: "fit Au {111}", deltaQ: 0.012500432, wavelengthAngstroms: 0.025079347,
+                                             lengthPixels: 3190.1, lengthMM: 47.861234, fitVersusFilePercent: -0.987654, crystal: "Au",
+                                             crystalSHA256: nil, kMax: 1.2, tolerancePercent: 2)
+        let ring = DiffractionReadoutRow(id: UUID(), kind: .ring, number: 1, radiusPx: 34, q: 0.425, d: 2.355, family: "{111}",
+                                         dListed: 2.3548, deltaPercent: 0.01, oddsText: nil, verdict: "matches", validation: "")
+        let spot = DiffractionReadoutRow(id: UUID(), kind: .spot, number: 1, radiusPx: 80, q: 1, d: 1, family: nil, dListed: nil,
+                                         deltaPercent: nil, oddsText: nil, verdict: "no family", validation: "")
+        let record = ExportMethods.diffractionRecord(app: Self.app, source: Self.source, header: header, rows: [ring, spot])
         XCTAssertEqual(record.room, "diffraction")
         XCTAssertEqual(record.exportKind, "diffraction-readout-csv")
-        XCTAssertEqual(record.results.map(\.value), [.number(3), .number(2)])
+        XCTAssertEqual(record.steps.map(\.name), ["Centring", "Calibration", "Indexing"])
+        XCTAssertEqual(record.steps[1].method, "a ring fit to the Au {111} ring of the standard")
+        XCTAssertEqual(record.steps[1].settings, [MethodsRecord.Quantity(name: "Δq", value: .number(0.0125), units: "Å⁻¹ per pixel"),
+                                                  MethodsRecord.Quantity(name: "wavelength", value: .number(0.025079), units: "Å"),
+                                                  MethodsRecord.Quantity(name: "camera length", value: .number(47.861), units: "mm")])
+        XCTAssertEqual(record.results.map(\.value), [.number(1), .number(1), .number(1), .number(-0.98765)])
+        XCTAssertTrue(record.paragraph.contains("Centring used a fitted ring with centre row 256 px and centre column 256.5 px."),
+                      record.paragraph)
+        XCTAssertTrue(record.paragraph.contains("Calibration used a ring fit to the Au {111} ring of the standard with Δq 0.0125 Å⁻¹ per "
+                                                    + "pixel, wavelength 0.025079 Å and camera length 47.861 mm."), record.paragraph)
+        XCTAssertTrue(record.paragraph.contains("Indexing used the listed d-spacings of Au (d = 1/q) with tolerance 2 % and k_max 1.2 Å⁻¹."),
+                      record.paragraph)
     }
 }

@@ -61,7 +61,8 @@ extension MacTEMAgentDoor {
             1. Look. `list_windows` names the windows; `get_window` says the room, the open files with their size, calibration and \
             voltage, the status line and any error. `get_image` draws the shown image as Export Image… draws it; `get_results` gives \
             the finished numbers as Export Results… writes them; `get_session` gives the SEM session's rows as the Results room's \
-            session table lists them; `get_log` gives the Output lines.
+            session table lists them; `get_methods_record` gives the room's methods record and paragraph as Export Methods Record… and \
+            Copy Methods Paragraph give them; `get_log` gives the Output lines.
             2. Open. `list_agent_folder` lists the Agent folder the person chose in Settings > Agents; `open_file` opens one of its \
             files as File > Open does, in the room that fits it. Files elsewhere stay the person's to open. `open_demo` opens one of \
             the shipped demo documents in its room, as Help > Open Demo Data does, for trying a room.

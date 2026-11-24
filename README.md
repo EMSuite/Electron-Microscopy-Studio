@@ -77,6 +77,9 @@ The rooms:
   carries one, or from the Indexing room.
 - **Results**: every measurement of a file in one table, exported as CSV. The SEM results have a table of their own and
   a session report, as PDF or Markdown.
+- **Methods**: every export carries a record of how its numbers were made (the source by fingerprint, each step and setting,
+  the app and kit versions). File > Export Methods Record… saves the room's record as JSON, and Edit > Copy Methods
+  Paragraph copies it as a paragraph for a paper's methods section.
 
 ## Agents
 

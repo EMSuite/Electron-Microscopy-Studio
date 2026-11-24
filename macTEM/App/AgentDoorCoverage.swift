@@ -312,6 +312,8 @@ nonisolated enum AgentDoorCoverage {
         "maps.texture.empty": .tool("get_maps"),
         "maps.texture.phase": .tool("set_maps"),
         "maps.texture.phaseInspector": .tool("set_maps"),
+        "menu.copyMethodsParagraph": .tool("get_methods_record"),
+        "menu.exportMethodsRecord": .tool("get_methods_record"),
         "particles.connectivity": .tool("set_particles"),
         "particles.counts": .tool("get_image_room"),
         "particles.density": .tool("get_image_room"),

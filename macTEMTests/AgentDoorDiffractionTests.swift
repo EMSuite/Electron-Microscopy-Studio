@@ -168,4 +168,48 @@ nonisolated final class AgentDoorDiffractionTests: XCTestCase {
         let noRing = try await call("set_diffraction", ["use_ring_centre": 1])
         XCTAssertTrue(noRing.refused, "no ring is fitted")
     }
+
+    /// The methods record of the Au pattern (#818): refused before a ring or spot is measured, then the record and paragraph File >
+    /// Export Methods Record… and Edit > Copy Methods Paragraph give, the ring fit's calibration among its steps, and the file's name
+    /// left out on request. Mutation: the tool or the menu reading another record than `MethodsRecordExport.record(of:)`, the
+    /// availability ignoring the readout, or leave_out_file_names not reaching the record - red.
+    @MainActor func testTheMethodsRecordOfTheAuPattern() async throws {
+        let (state, item) = try await diffractionWindow()
+        XCTAssertFalse(MethodsRecordExport.isAvailable(in: state), "nothing measured yet")
+        let none = try await call("get_methods_record")
+        XCTAssertTrue(none.refused, "no result to record")
+
+        let calibrate = try await call("set_diffraction", ["inner": 29, "outer": 37, "family": 0, "calibrate": true])
+        XCTAssertFalse(calibrate.refused, calibrate.text)
+        try await waitUntil("the ring fit to land", seconds: 60) { !item.diffraction.isFitting && !item.diffraction.rings.isEmpty }
+        XCTAssertTrue(MethodsRecordExport.isAvailable(in: state))
+
+        let answer = try json(try await call("get_methods_record").text)
+        let record = try MethodsRecord.decode(try XCTUnwrap(answer["record"] as? String))
+        XCTAssertEqual(record, MethodsRecordExport.record(of: state), "the menu's record")
+        XCTAssertEqual(record.room, "diffraction")
+        XCTAssertEqual(record.exportKind, "methods-record")
+        XCTAssertEqual(record.steps.map(\.name), ["Centring", "Calibration", "Indexing"])
+        XCTAssertTrue(record.steps[1].method.hasPrefix("a ring fit to the Au {"), record.steps[1].method)
+        let name = DemoDocuments.patternURL.lastPathComponent
+        XCTAssertEqual(record.sources.first?.fileName, name)
+        let paragraph = try XCTUnwrap(answer["paragraph"] as? String)
+        XCTAssertEqual(paragraph, record.paragraph)
+        XCTAssertTrue(paragraph.contains("Calibration used a ring fit to the Au {"), paragraph)
+
+        let copied = CopiedText()
+        MethodsRecordExport.copyParagraph(appState: state, writer: copied)
+        XCTAssertEqual(copied.texts, [paragraph], "Copy Methods Paragraph copies the same paragraph")
+
+        let anonymous = try json(try await call("get_methods_record", ["leave_out_file_names": true]).text)
+        let left = try MethodsRecord.decode(try XCTUnwrap(anonymous["record"] as? String))
+        XCTAssertEqual(left.sources.first?.fileName, "source 1")
+        XCTAssertFalse(try XCTUnwrap(anonymous["paragraph"] as? String).contains(name))
+    }
+}
+
+/// A pasteboard that keeps what it is given.
+@MainActor private final class CopiedText: PaneTextWriter {
+    var texts: [String] = []
+    func write(_ text: String) { texts.append(text) }
 }
