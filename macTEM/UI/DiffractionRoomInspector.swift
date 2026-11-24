@@ -1,6 +1,6 @@
 //
 //  DiffractionRoomInspector.swift
-//  Role: the Diffraction room's Settings (design section 3): Centre, Calibration, Display, Tools, Phases, Index, Simulation, Rings, Export (control placement §2:
+//  Role: the Diffraction room's Settings (design section 3): Centre, Calibration, Display, Tools, Phases, Index, Simulation, Crystal View, Rings, Export (control placement §2:
 //        what I am looking at, then the job; Centre stays above Calibration, which it feeds). Presentation only;
 //        the state is `DiffractionAnalysis` and every number DiffractoKit's. Every field commits on Return or blur
 //        (`OptionalNumericField`), every control has an accessibility identifier for the journey.
@@ -32,6 +32,7 @@ struct DiffractionRoomSettings: View {
             DiffractionPhasesSection(analysis: analysis)
             DiffractionIndexSection(analysis: analysis)
             DiffractionSimulationSection(session: item.session, analysis: analysis)
+            DiffractionCrystalViewSection(view: view)
             DiffractionRingsSection(session: item.session, analysis: analysis, view: view)
             DiffractionExportSection(session: item.session, analysis: analysis)
         }
@@ -322,6 +323,24 @@ private struct DiffractionIndexSection: View {
             draft = nil
         } else {
             refused = "\"\(text)\" is not a zone axis: type three whole numbers, not all 0, such as [1 1 0] or 1̄10."
+        }
+    }
+}
+
+/// The crystal pane beside the pattern (#789): the unit cell's edges. The pane is shown or hidden from View > Show Crystal, a
+/// layout choice, not a setting.
+private struct DiffractionCrystalViewSection: View {
+    let view: DiffractionViewState
+
+    var body: some View {
+        InspectorSection("Crystal View") {
+            InspectorRow("Unit cell") {
+                Toggle("Show unit cell", isOn: Binding(get: { view.showsUnitCell }, set: { view.showsUnitCell = $0 }))
+                    .toggleStyle(.switch).labelsHidden()
+                    .disabled(!view.showsCrystal)
+                    .help("Draw the unit cell's edges in the crystal pane")
+                    .accessibilityIdentifier("diffraction.crystal.unitCell")
+            }
         }
     }
 }

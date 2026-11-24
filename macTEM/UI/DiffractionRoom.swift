@@ -47,13 +47,17 @@ struct DiffractionRoom: View {
         let rows = analysis.readout(image: image)
         VStack(spacing: 0) {
             DiffractionHeader(item: item, analysis: analysis, view: view)
-            // The crystal beside the pattern (#790), down the same beam: one orientation drives both.
-            HStack(spacing: 0) {
-                DiffractionCrystalPane(analysis: analysis)
-                    .frame(width: LayoutPolicy.diffractionCrystalWidth)
-                Divider()
-                DiffractionPatternPane(item: item, analysis: analysis, view: view, rows: rows)
-                    .modifier(DiffractionZoomCommands(item: item, view: view))
+            // The crystal beside the pattern (#790), down the same beam: one orientation drives both. It appears once simulated spots
+            // are drawn (before, the pattern has the room), unless View > Hide Crystal hid it (#789); the divider's place is the
+            // window's (`PaneSplit`'s scene storage).
+            if view.showsCrystal && analysis.simulation.isShown {
+                PaneSplit(storageKey: "diffraction.crystalSplit", resizeLabel: "Resize the crystal and the pattern", leadingName: "Crystal") {
+                    DiffractionCrystalPane(analysis: analysis, showsUnitCell: view.showsUnitCell)
+                } trailing: {
+                    patternPane(analysis: analysis, view: view, rows: rows)
+                }
+            } else {
+                patternPane(analysis: analysis, view: view, rows: rows)
             }
             Divider()
             // One table under the pattern: the readout, or once Index has an answer, its Spots table (#785: hkl, expected d and
@@ -91,6 +95,13 @@ struct DiffractionRoom: View {
         // The room's display canvas (the pattern, log or linear, 4 B/px) goes when the room does; the task above builds it again on
         // return, keeping the window. 12 Nov: the room held 1.4 GB more than the Image room on the 187 MP alite image for as long as it was open.
         .onDisappear { view.presentation.releaseCanvas() }
+    }
+}
+
+extension DiffractionRoom {
+    private func patternPane(analysis: DiffractionAnalysis, view: DiffractionViewState, rows: [DiffractionReadoutRow]) -> some View {
+        DiffractionPatternPane(item: item, analysis: analysis, view: view, rows: rows)
+            .modifier(DiffractionZoomCommands(item: item, view: view))
     }
 }
 

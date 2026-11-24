@@ -53,12 +53,12 @@ nonisolated final class ControlPlacementRoomsTests: XCTestCase {
         XCTAssertFalse(display.contains("Tool"), "Display no longer holds the tool")
     }
 
-    /// The Diffraction room's sections read Calibration · Display · Tools · Phases · Index · Simulation · Rings · Export (Centre above Calibration, which it
+    /// The Diffraction room's sections read Calibration · Display · Tools · Phases · Index · Simulation · Crystal View · Rings · Export (Centre above Calibration, which it
     /// feeds), its Display is the image rooms' one section with the log switch, and the zoom buttons are gone (§2, §5, §6).
     /// Red under: Display back after Rings, a hand-made Display, the View row of small buttons back.
     @MainActor func testDiffractionDisplayIsTheImageRoomsSectionAndSecond() throws {
         let source = try ui("DiffractionRoomInspector.swift")
-        XCTAssertTrue(source.contains("DiffractionCentreSection(analysis: analysis, view: view) DiffractionCalibrationSection(session: item.session, analysis: analysis, view: view) DiffractionDisplaySection(view: view) DiffractionToolsSection(view: view) DiffractionPhasesSection(analysis: analysis) DiffractionIndexSection(analysis: analysis) DiffractionSimulationSection(session: item.session, analysis: analysis) DiffractionRingsSection(session: item.session, analysis: analysis, view: view) DiffractionExportSection(session: item.session, analysis: analysis)"))
+        XCTAssertTrue(source.contains("DiffractionCentreSection(analysis: analysis, view: view) DiffractionCalibrationSection(session: item.session, analysis: analysis, view: view) DiffractionDisplaySection(view: view) DiffractionToolsSection(view: view) DiffractionPhasesSection(analysis: analysis) DiffractionIndexSection(analysis: analysis) DiffractionSimulationSection(session: item.session, analysis: analysis) DiffractionCrystalViewSection(view: view) DiffractionRingsSection(session: item.session, analysis: analysis, view: view) DiffractionExportSection(session: item.session, analysis: analysis)"))
         XCTAssertTrue(source.contains("ImageRoomDisplaySection(presentation: view.presentation, colormapID: \"diffraction.colormap\", logID: \"diffraction.log\", log: Binding(get: { view.useLog }, set: { view.useLog = $0 }))"))
         XCTAssertFalse(source.contains("InspectorRow(\"View\")") || source.contains(".controlSize(.small)"))
         let display = try ui("ImageRoomDisplay.swift")
