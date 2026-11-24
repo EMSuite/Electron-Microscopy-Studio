@@ -39,7 +39,7 @@ struct DiffractionCrystalPane: View {
 
 /// The crystal scenes built so far (the kit's bonds are the costly part), by crystal; and what the pane shows.
 @MainActor enum DiffractionCrystalScenes {
-    private static var cache: (key: String, scene: CrystalScene)?
+    private static var cache: (structure: CrystalStructure, scene: CrystalScene)?
 
     /// The orientation the pane draws: the simulated spots', nil while they are off.
     static func shown(_ analysis: DiffractionAnalysis) -> CrystalOrientation? {
@@ -48,14 +48,14 @@ struct DiffractionCrystalPane: View {
 
     /// One unit cell of the crystal as VESTA draws it, with its bonds.
     static func scene(for crystal: DiffractionCrystal) -> CrystalScene {
-        let key = "\(crystal.name)|\(crystal.sha256 ?? "")"
-        if let cache, cache.key == key { return cache.scene }
+        // Keyed by the structure itself: two crystals of one name, or one phase after a lattice edit, are two scenes.
         let s = crystal.structure
+        if let cache, cache.structure == s { return cache.scene }
         let scene = CrystalScene.unitCell(
             cell: CrystalPaneModel.cell(s),
             sites: CrystalPaneModel.sites(s).map { CrystalSite(fractional: $0.fractional, atomicNumber: $0.atomicNumber, occupancy: $0.occupancy) },
             bonds: CrystalPaneModel.bonds(s).map { CrystalBondInput(from: $0.from, to: $0.to, image: $0.image) })
-        cache = (key, scene)
+        cache = (s, scene)
         return scene
     }
 }
