@@ -93,9 +93,16 @@ package nonisolated enum ZoneAxisOverlay {
         package let column: Double
         /// The kit's intensity (|F|² with the excitation envelope), Å⁻⁴.
         package let intensity: Double
-        /// The intensity over the strongest drawn spot's, 0...1.
+        /// The intensity over the strongest drawn spot's, 0...1 (0 for a spot of double diffraction).
         package let relative: Double
+        /// A spot double diffraction adds (#786): g₁ + g₂ where the kinematical pattern has none (a forbidden reflection). It has
+        /// no intensity (kinematical theory gives none) and is drawn as an open ring.
+        package let isDoubleDiffraction: Bool
         package var label: String { ZoneAxisText.label(hkl) }
+        package init(hkl: MillerIndex, row: Double, column: Double, intensity: Double, relative: Double, isDoubleDiffraction: Bool = false) {
+            self.hkl = hkl; self.row = row; self.column = column; self.intensity = intensity; self.relative = relative
+            self.isDoubleDiffraction = isDoubleDiffraction
+        }
     }
 
     /// What the room asks for: the zone axis, its turn in the plane, and whether hkl labels are drawn.
@@ -109,7 +116,16 @@ package nonisolated enum ZoneAxisOverlay {
         package var indexed: CrystalOrientation?
         /// Index's measured |q| over |g|: the simulated spots are drawn at |g| times this, onto the measured ones (1 when typed).
         package var scale = 1.0
+        /// Draw the spots double diffraction adds (#786).
+        package var doubleDiffraction = false
+        /// σ of the excitation envelope exp(−s²/2σ²), Å⁻¹; spots with |s| up to three times this are kept (the kit's default,
+        /// 0.02, and py4DSTEM's multiple).
+        package var excitationError = defaultExcitationError
+        package static let defaultExcitationError = 0.02
         package init() {}
+
+        /// The kit's settings for the drawn pattern.
+        package var patternSettings: SpotPatternSimulator.Settings { SpotPatternSimulator.Settings(sigmaExcitationError: excitationError) }
 
         /// The orientation drawn: Index's, else the typed zone axis turned in the plane.
         package func orientation(cell: UnitCell) throws -> CrystalOrientation {
@@ -139,19 +155,33 @@ package nonisolated enum ZoneAxisOverlay {
                               centre: DiffractionCentre, width: Int, height: Int) throws -> [Spot] {
         let orientation = try settings.orientation(cell: simulator.structure.cell)
         let scale = settings.scale.isFinite && settings.scale > 0 ? settings.scale : 1
-        let pattern = try simulator.pattern(orientation: orientation, volts: volts)
+        let pattern = try simulator.pattern(orientation: orientation, volts: volts, settings: settings.patternSettings)
+        /// The pixel of (qx, qy) Å⁻¹ at the scale, nil off the image.
+        func pixel(_ position: SIMD2<Double>) -> (row: Double, column: Double)? {
+            let q = scale * (position.x * position.x + position.y * position.y).squareRoot()
+            guard q > 0 else { return nil }
+            let r = radius(q: q, calibration: calibration)
+            let row = centre.row + r * scale * position.x / q, column = centre.column + r * scale * position.y / q
+            guard row.isFinite, column.isFinite, row >= -0.5, row <= Double(height) - 0.5, column >= -0.5, column <= Double(width) - 0.5
+            else { return nil }
+            return (row, column)
+        }
         var placed: [(MillerIndex, Double, Double, Double)] = []
         for s in pattern.spots {
-            let q = scale * (s.position.x * s.position.x + s.position.y * s.position.y).squareRoot()
-            guard q > 0 else { continue }
-            let r = radius(q: q, calibration: calibration)
-            let row = centre.row + r * scale * s.position.x / q, column = centre.column + r * scale * s.position.y / q
-            guard row.isFinite, column.isFinite, row >= -0.5, row <= Double(height) - 0.5, column >= -0.5, column <= Double(width) - 0.5
-            else { continue }
-            placed.append((s.hkl, row, column, s.intensity))
+            guard let p = pixel(s.position) else { continue }
+            placed.append((s.hkl, p.row, p.column, s.intensity))
         }
         let strongest = placed.map(\.3).max() ?? 1
-        return placed.sorted { $0.3 != $1.3 ? $0.3 > $1.3 : $0.0 < $1.0 }
+        var out = placed.sorted { $0.3 != $1.3 ? $0.3 > $1.3 : $0.0 < $1.0 }
             .map { Spot(hkl: $0.0, row: $0.1, column: $0.2, intensity: $0.3, relative: strongest > 0 ? $0.3 / strongest : 0) }
+        if settings.doubleDiffraction {
+            // The kit's added spots of this one crystal (every route within it, so each has its hkl), after the kinematical ones.
+            let added = try DoubleDiffraction.spots(simulator: simulator, orientation: orientation, volts: volts, settings: settings.patternSettings).added
+            out += added.compactMap { s in
+                guard let hkl = s.hkl, let p = pixel(s.position) else { return nil }
+                return Spot(hkl: hkl, row: p.row, column: p.column, intensity: 0, relative: 0, isDoubleDiffraction: true)
+            }.sorted { $0.hkl < $1.hkl }
+        }
+        return out
     }
 }

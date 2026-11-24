@@ -61,6 +61,8 @@ nonisolated enum AgentDoorCoverage {
         "diffraction.row.\\(row.kind.rawValue)\\(row.number).family": .tool("get_diffraction"),
         "diffraction.row.\\(row.kind.rawValue)\\(row.number).verdict": .tool("get_diffraction"),
         "diffraction.scale": .tool("get_diffraction"),
+        "diffraction.simulation.doubleDiffraction": .gap(791),
+        "diffraction.simulation.excitationError": .gap(791),
         "diffraction.simulation.labels": .gap(791),
         "diffraction.simulation.show": .gap(791),
         "diffraction.simulation.turn": .gap(791),

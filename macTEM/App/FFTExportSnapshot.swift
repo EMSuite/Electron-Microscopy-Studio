@@ -12,6 +12,7 @@
 
 import ShellMetal
 import Foundation
+import ShellExport
 import TEMCore
 import TEMSession
 import ImagoCore
@@ -37,6 +38,8 @@ nonisolated struct ExportTransformSnapshot: Sendable {
     let message: String
     /// Scale bar on, Spots on and offered only when there are some.
     let defaults: ExportImageDefaults
+    /// The methods record the PNG carries (#817), its `drawn` set at the write from the options; nil for an image read from no file.
+    var methods: MethodsRecord?
 
     /// Whether the bins are not square in q, so the panel offers "As shown" (#636).
     var offersAsShown: Bool {
@@ -48,9 +51,16 @@ nonisolated struct ExportTransformSnapshot: Sendable {
     /// resampled to the shape the pane draws (`FFTExport.asShown`), else one pixel per bin.
     nonisolated func write(to url: URL, options: ImageExport.Options, asShown: Bool = false) async throws -> ImageExport.Rendered {
         let spotsDrawn = options.marks ? marks.count : 0
+        var drawn: [String] = ["the transform, log₁₀|F|² in the window shown, grey"]
+        if options.scaleBar { drawn.append("a scale bar") }
+        if spotsDrawn > 0 { drawn.append("the measured spots") }
+        if asShown { drawn.append("resampled to the shape the room shows") }
+        var record = methods
+        record?.drawn = drawn
         guard asShown else {
             return try await ImageExport.export(source: FFTExport.transformSource(header), display: display, marks: marks, options: options,
-                                                provenance: FFTExport.transformProvenance(header, spotsDrawn: spotsDrawn), to: url)
+                                                provenance: FFTExport.transformProvenance(header, spotsDrawn: spotsDrawn), methods: record,
+                                                to: url)
         }
         let shown = FFTExport.asShown(display: display, marks: marks, header: header)
         let bins = shown.header.spectrumWidth == header.spectrumWidth && shown.header.spectrumHeight == header.spectrumHeight
@@ -58,7 +68,7 @@ nonisolated struct ExportTransformSnapshot: Sendable {
         return try await ImageExport.export(source: FFTExport.transformSource(shown.header), display: shown.display, marks: shown.marks,
                                             options: options,
                                             provenance: FFTExport.transformProvenance(shown.header, spotsDrawn: spotsDrawn, resampledFrom: bins),
-                                            to: url)
+                                            methods: record, to: url)
     }
 }
 
@@ -71,9 +81,11 @@ nonisolated struct ExportRadialProfileSnapshot: Sendable {
     let message: String
     /// The rows the file will hold (bins with a pixel).
     let bins: Int
+    /// The methods record the CSV carries (#817); nil for an image read from no file.
+    var methods: MethodsRecord?
 
     nonisolated func write(to url: URL) async throws {
-        try await RadialProfileCSV.export(profile, header: header, to: url)
+        try await RadialProfileCSV.export(profile, header: header, methods: methods, to: url)
     }
 }
 
@@ -88,10 +100,12 @@ nonisolated struct ExportSpotsSnapshot: Sendable {
     let defaultName: String
     let directory: URL?
     let message: String
+    /// The methods record the CSV carries (#817); nil for an image read from no file.
+    var methods: MethodsRecord?
 
     nonisolated func write(to url: URL) async throws {
         try await SpotsCSV.export(rows: rows, omitted: omitted, maskRadius: maskRadius, maskEdge: maskEdge, notes: notes,
-                                  header: header, to: url)
+                                  header: header, methods: methods, to: url)
     }
 }
 
@@ -252,17 +266,38 @@ extension ExportSnapshot {
 
     /// The window's selected item's: an export is of the file on screen, never of another open one.
     static func transformSnapshot(in openItems: OpenItems, software: String = softwareName()) -> ExportTransformSnapshot? {
-        guard let item = openItems.selected, let image = item.session.image else { return nil }
-        return transformSnapshot(image: image, url: item.url, analysis: item.fft, software: software)
+        guard let item = openItems.selected, let image = item.session.image,
+              var snapshot = transformSnapshot(image: image, url: item.url, analysis: item.fft, software: software) else { return nil }
+        snapshot.methods = fftMethods(of: item, image: image, header: snapshot.header, exportKind: "fft-transform-png", product: .transform,
+                                      software: software)
+        return snapshot
     }
 
     static func radialProfileSnapshot(in openItems: OpenItems, software: String = softwareName()) -> ExportRadialProfileSnapshot? {
-        guard let item = openItems.selected, let image = item.session.image else { return nil }
-        return radialProfileSnapshot(image: image, url: item.url, analysis: item.fft, software: software)
+        guard let item = openItems.selected, let image = item.session.image,
+              var snapshot = radialProfileSnapshot(image: image, url: item.url, analysis: item.fft, software: software) else { return nil }
+        snapshot.methods = fftMethods(of: item, image: image, header: snapshot.header, exportKind: "fft-radial-profile-csv",
+                                      product: .radialProfile(bins: snapshot.bins), software: software)
+        return snapshot
     }
 
     static func spotsSnapshot(in openItems: OpenItems, software: String = softwareName()) -> ExportSpotsSnapshot? {
-        guard let item = openItems.selected, let image = item.session.image else { return nil }
-        return spotsSnapshot(image: image, url: item.url, analysis: item.fft, software: software)
+        guard let item = openItems.selected, let image = item.session.image,
+              var snapshot = spotsSnapshot(image: image, url: item.url, analysis: item.fft, software: software) else { return nil }
+        snapshot.methods = fftMethods(of: item, image: image, header: snapshot.header, exportKind: "fft-spots-csv",
+                                      product: .spots(count: snapshot.rows.count, maskRadius: snapshot.maskRadius, maskEdge: snapshot.maskEdge),
+                                      software: software)
+        return snapshot
+    }
+
+    /// The FFT room's record of a file's export (#817): the image by name, size and pixel fingerprint, the transform and what was read
+    /// from it. Nil for an item read from no file, as the Image room's.
+    static func fftMethods(of item: OpenItem, image: CalibratedImage, header: FFTExportHeader, exportKind: String,
+                           product: ExportMethods.FFTProduct, software: String) -> MethodsRecord? {
+        guard let identity = item.openedIdentity else { return nil }
+        let source = ExportMethods.source(ExportSource(image: image, software: software), byteCount: Int(identity.byteSize),
+                                          fingerprint: identity.pixelSHA256, kind: "image")
+        return ExportMethods.fftRecord(app: methodsApp(), exportKind: exportKind, source: source, header: header, product: product,
+                                       drawn: [])
     }
 }

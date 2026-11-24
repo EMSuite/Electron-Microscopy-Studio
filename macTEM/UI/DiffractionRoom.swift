@@ -622,6 +622,7 @@ private struct DiffractionOverlay: View {
 /// The simulated spots of a typed zone axis (#782): a ring per spot, its size growing with the square root of its intensity
 /// against the strongest, in cyan (the measured spots are red crosses, the rings yellow), and its hkl beside it when Labels is on.
 /// Labels go on the 60 strongest spots of at least 2 % of the strongest, so a dense pattern stays readable; the caption font is 10 pt.
+/// A spot double diffraction adds (#786) is a dashed ring of the smallest size, labelled (when Labels is on) after the others.
 private struct SimulatedSpotsOverlay: View {
     let spots: [ZoneAxisOverlay.Spot]
     let showsLabels: Bool
@@ -632,7 +633,7 @@ private struct SimulatedSpotsOverlay: View {
 
     /// The spots that carry their hkl: the strongest first, as `spots` comes.
     static func labelled(_ spots: [ZoneAxisOverlay.Spot]) -> [ZoneAxisOverlay.Spot] {
-        Array(spots.filter { $0.relative >= labelledFraction }.prefix(labelledCount))
+        Array(spots.filter { $0.relative >= labelledFraction }.prefix(labelledCount)) + spots.filter(\.isDoubleDiffraction).prefix(labelledCount)
     }
 
     var body: some View {
@@ -640,7 +641,8 @@ private struct SimulatedSpotsOverlay: View {
             for spot in spots {
                 let p = layout.point(column: spot.column, row: spot.row)
                 let r = 3 + 6 * CGFloat(spot.relative.squareRoot())
-                ctx.stroke(Path(ellipseIn: CGRect(x: p.x - r, y: p.y - r, width: 2 * r, height: 2 * r)), with: .color(.cyan), lineWidth: 1.5)
+                ctx.stroke(Path(ellipseIn: CGRect(x: p.x - r, y: p.y - r, width: 2 * r, height: 2 * r)), with: .color(.cyan),
+                           style: StrokeStyle(lineWidth: 1.5, dash: spot.isDoubleDiffraction ? [2, 2] : []))
             }
             guard showsLabels else { return }
             for spot in Self.labelled(spots) {

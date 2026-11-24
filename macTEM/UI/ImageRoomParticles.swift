@@ -139,7 +139,7 @@ struct ImageRoomParticlesSection: View {
     }
 
     private func csv(_ analysis: ParticleAnalysis) -> String {
-        analysis.report.map { ParticleFormat.csv($0, scale: ParticleCompute.scale(of: image), fileName: image.fileName) } ?? ""
+        analysis.report.map { ExportSnapshot.particlesCSV($0, image: image, openItems: appState.openItems) } ?? ""
     }
 }
 

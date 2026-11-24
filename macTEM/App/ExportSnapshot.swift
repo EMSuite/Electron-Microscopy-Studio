@@ -164,6 +164,35 @@ enum ExportSnapshot {
                                          lineage: item.measurements.lineage, drawn: drawn)
     }
 
+    /// `text` (a CSV of the selected file's image) with its methods record inside (#817), the record made from the file's source by
+    /// `record`; the text as it was when the image is not the selected file's or the file was read from nothing (a demo in memory).
+    static func embeddingMethods(in text: String, of image: CalibratedImage, openItems: OpenItems, software: String = softwareName(),
+                                 record: (MethodsRecord.Software, MethodsRecord.Source) -> MethodsRecord) -> String {
+        guard let item = openItems.selected, let identity = item.openedIdentity, item.session.image?.fileName == image.fileName else {
+            return text
+        }
+        let source = ExportMethods.source(ExportSource(image: image, software: software), byteCount: Int(identity.byteSize),
+                                          fingerprint: identity.pixelSHA256, kind: "image")
+        return (try? ExportMethods.embedding(record(methodsApp(), source), inText: text)) ?? text
+    }
+
+    /// The Particles section's CSV with its methods record inside (#817).
+    static func particlesCSV(_ report: ParticleReport, image: CalibratedImage, openItems: OpenItems) -> String {
+        let text = ParticleFormat.csv(report, scale: ParticleCompute.scale(of: image), fileName: image.fileName)
+        return embeddingMethods(in: text, of: image, openItems: openItems) {
+            ExportMethods.particleRecord(app: $0, source: $1, settings: report.settings, thresholdValue: report.thresholdValue,
+                                         summary: report.summary)
+        }
+    }
+
+    /// The Diffraction room's readout CSV with its methods record inside (#817).
+    static func diffractionCSV(_ analysis: DiffractionAnalysis, image: CalibratedImage, openItems: OpenItems) -> String {
+        let rings = analysis.rings.count, spots = analysis.spots.count
+        return embeddingMethods(in: analysis.exportText(image: image), of: image, openItems: openItems) {
+            ExportMethods.diffractionRecord(app: $0, source: $1, rings: rings, spots: spots)
+        }
+    }
+
     /// An SEM room's export with its methods record inside (#817), from the record the session keeps of it: the source file's
     /// fingerprint is read off the main actor (a pattern file is gigabytes). The bytes come back as they were when the source cannot be
     /// read again or the kind holds no record (a method JSON, a `.ctf`): an export never fails for its record.

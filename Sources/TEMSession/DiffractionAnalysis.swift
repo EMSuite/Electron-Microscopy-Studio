@@ -424,6 +424,15 @@ package final class DiffractionAnalysis {
         simulation.scale = 1
     }
 
+    /// The excitation error typed (σ, Å⁻¹, #786): the simulated pattern keeps spots with |s| up to three times it. A value that is not a
+    /// finite number in 0.001...1 is not taken (false), and the last one stays.
+    @discardableResult
+    package func setExcitationError(_ sigma: Double) -> Bool {
+        guard sigma.isFinite, sigma >= 0.001, sigma <= 1 else { return false }
+        simulation.excitationError = sigma
+        return true
+    }
+
     // MARK: Spots
 
     /// A click on the pattern: the centre is refined (the kit's `PatternSpot.refine`), and the spot is listed with its radius and indexing.
