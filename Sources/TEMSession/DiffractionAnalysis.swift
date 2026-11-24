@@ -367,7 +367,7 @@ package final class DiffractionAnalysis {
                                                   centre: centre, width: width, height: height)
             return spots.isEmpty ? .failure(SimulationAbsence(sentence: "No simulated spot lands on this pattern")) : .success(spots)
         } catch {
-            return .failure(SimulationAbsence(sentence: (error as? CustomStringConvertible)?.description ?? error.localizedDescription))
+            return .failure(SimulationAbsence(sentence: String(describing: error)))
         }
     }
 
