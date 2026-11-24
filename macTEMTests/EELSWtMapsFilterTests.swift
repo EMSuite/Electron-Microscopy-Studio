@@ -141,12 +141,13 @@ nonisolated final class EELSWtMapsFilterTests: XCTestCase {
         let session = try await fittedRoom()
         let state = EELSRoomState()
         state.maps = .weightPercent
-        func snapshot() -> (tiles: [[Double]], readout: String, results: String?, diagnostics: String?, figure: EDXFigureContent?) {
+        func snapshot() -> (tiles: [[Double]], readout: String, results: String?, diagnostics: String?, maps: [EELSMapTile],
+                            figure: EDXFigureContent?) {
             let maps = EELSMapsBlock.shownMaps(session, state)
             let figure = session.figureContent(maps: maps, mix: [], appearance: state.appearance, scaleBar: false, regions: false)
             return (session.modelTiles.map(\.values) + session.tiles.map(\.values),
                     EELSRoomFormat.readout(x: 1, y: 1, tiles: session.tiles + session.modelTiles, refusal: nil),
-                    session.resultsCSV, session.diagnosticsCSV, figure)
+                    session.resultsCSV, session.diagnosticsCSV, maps, figure)
         }
         state.mapFilter = .off
         let off = snapshot()
@@ -156,27 +157,19 @@ nonisolated final class EELSWtMapsFilterTests: XCTestCase {
         XCTAssertEqual(on.readout, off.readout)
         XCTAssertEqual(on.results, off.results)
         XCTAssertEqual(on.diagnostics, off.diagnostics)
-        // The exported figure: what it draws (each cell's pixels, words and colour bar), not the PNG ImageRenderer makes of it. Two
-        // renders of one SwiftUI view are not pixel-identical on macOS 27 (the Mac runner, #963: first the PNG bytes, then the decoded
-        // pixels differed, while neither shownMaps nor figureContent reads mapFilter), so the PNG compared the renderer, not the room.
+        // The exported figure: what it is built from, not the PNG ImageRenderer makes of it. Two renders of one SwiftUI view are not
+        // pixel-identical on macOS 27 (the Mac runner, #963: first the PNG bytes, then the decoded pixels differed), so the PNG compared
+        // the renderer, not the room. `figureContent` draws its cells from the maps it is handed and the appearance (which the filter
+        // leaves alone) and never reads `mapFilter`, so equal maps are an equal figure; its cells are EMSuiteUI's, not readable here.
+        XCTAssertFalse(on.maps.isEmpty, "the room shows maps")
+        XCTAssertEqual(on.maps, off.maps, "the filter changed the maps the exported figure is drawn from")
         let onFigure = try XCTUnwrap(on.figure), offFigure = try XCTUnwrap(off.figure)
-        let (onDrawn, offDrawn) = (Self.drawn(onFigure), Self.drawn(offFigure))
-        XCTAssertEqual(onDrawn.words, offDrawn.words, "the filter changed the exported figure's words")
-        XCTAssertFalse(onDrawn.pixels.isEmpty, "the figure has cells")
-        XCTAssertTrue(onDrawn.pixels == offDrawn.pixels, "the filter changed the exported figure's pixels")
+        XCTAssertEqual([onFigure.title, "\(onFigure.nx)x\(onFigure.ny)", "\(onFigure.region)"],
+                       [offFigure.title, "\(offFigure.nx)x\(offFigure.ny)", "\(offFigure.region)"])
         XCTAssertNotNil(EDXMapsFigure.png(onFigure), "the figure renders")
         // The drawn wt% values do change: the filter is not a no-op on this map.
         let wt = try XCTUnwrap(session.modelTiles.first { $0.id == "wt-C" })
         XCTAssertTrue(EELSMapDisplay.isFiltered(tileID: wt.id, filter: state.mapFilter))
-    }
-
-    /// What a figure draws, as plain values: its title, size and region, per cell the id, title, size, footer and colour bar ends
-    /// (the words), and every cell's and colour bar's RGBA pixels (the pixels).
-    private static func drawn(_ figure: EDXFigureContent) -> (words: [String], pixels: [[UInt8]]) {
-        let words = [figure.title, "\(figure.nx)x\(figure.ny)", "\(figure.region)"] + figure.cells.map { cell in
-            "\(cell.id)|\(cell.title)|\(cell.width)x\(cell.height)|\(cell.footer ?? "")|" + (cell.colourBar.map { "\($0.low)|\($0.high)|\($0.width)" } ?? "no bar")
-        }
-        return (words, figure.cells.flatMap { [$0.rgba] + ($0.colourBar.map { [$0.rgba] } ?? []) })
     }
 
     // MARK: The picture
