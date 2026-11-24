@@ -15,6 +15,7 @@
 
 import Foundation
 import ImagoCore
+import ShellExport
 
 package nonisolated enum ResultsCSV {
     /// The whole file (UTF-8, LF), or nil without a row. `session` is the sentence that says where the file's marks are kept
@@ -42,8 +43,11 @@ package nonisolated enum ResultsCSV {
     }
 
     /// Renders and writes off the main actor (`ExportFile.write`); throws `ExportFile.Failure.noResults` for no row.
-    @concurrent package static func export(_ rows: [ResultRow], source: ExportSource, session: String, to url: URL) async throws {
-        guard let text = text(rows, source: source, session: session) else { throw ExportFile.Failure.noResults }
+    /// `methods`, when given, is one more header line (`ExportMethods`).
+    @concurrent package static func export(_ rows: [ResultRow], source: ExportSource, session: String, methods: MethodsRecord? = nil,
+                                           to url: URL) async throws {
+        guard var text = text(rows, source: source, session: session) else { throw ExportFile.Failure.noResults }
+        if let methods { text = try ExportMethods.embedding(methods, inText: text) }
         try ExportFile.write(Data(text.utf8), to: url)
     }
 }

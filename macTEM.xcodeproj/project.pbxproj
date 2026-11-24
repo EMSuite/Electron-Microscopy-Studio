@@ -20,6 +20,7 @@
 		B00000000000000000000152 /* ShellSpectroscopy in Frameworks */ = {isa = PBXBuildFile; productRef = B00000000000000000000151 /* ShellSpectroscopy */; };
 		B00000000000000000000193 /* ShellEDXAgent in Frameworks */ = {isa = PBXBuildFile; productRef = B00000000000000000000192 /* ShellEDXAgent */; };
 		B00000000000000000000162 /* ShellEDXModel in Frameworks */ = {isa = PBXBuildFile; productRef = B00000000000000000000161 /* ShellEDXModel */; };
+		B00000000000000000000202 /* ShellExport in Frameworks */ = {isa = PBXBuildFile; productRef = B00000000000000000000201 /* ShellExport */; };
 		B00000000000000000000172 /* ShellAgentDoor in Frameworks */ = {isa = PBXBuildFile; productRef = B00000000000000000000171 /* ShellAgentDoor */; };
 		B00000000000000000000181 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = B00000000000000000000180 /* Sparkle */; };
 /* End PBXBuildFile section */
@@ -97,6 +98,7 @@
 				B00000000000000000000152 /* ShellSpectroscopy in Frameworks */,
 				B00000000000000000000193 /* ShellEDXAgent in Frameworks */,
 				B00000000000000000000162 /* ShellEDXModel in Frameworks */,
+				B00000000000000000000202 /* ShellExport in Frameworks */,
 				B00000000000000000000172 /* ShellAgentDoor in Frameworks */,
 				B00000000000000000000181 /* Sparkle in Frameworks */,
 			);
@@ -167,6 +169,7 @@
 				B00000000000000000000151 /* ShellSpectroscopy */,
 				B00000000000000000000192 /* ShellEDXAgent */,
 				B00000000000000000000161 /* ShellEDXModel */,
+				B00000000000000000000201 /* ShellExport */,
 				B00000000000000000000171 /* ShellAgentDoor */,
 				B00000000000000000000180 /* Sparkle */,
 			);
@@ -847,6 +850,10 @@
 		B00000000000000000000161 /* ShellEDXModel */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = ShellEDXModel;
+		};
+		B00000000000000000000201 /* ShellExport */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ShellExport;
 		};
 		B00000000000000000000171 /* ShellAgentDoor */ = {
 			isa = XCSwiftPackageProductDependency;

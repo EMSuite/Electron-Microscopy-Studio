@@ -52,10 +52,10 @@
 # The nightly's `unit` job runs `inventory` and `core` first too; the Linux jobs skip the schedule event. Dispatch CI on a branch to run
 # them before merging, and on main before a tag.
 #
-# MAIN: a push to main runs only the Linux jobs. The `unit` job (inventory, core, unit) ran on the pull request that made
-# the commit; running it again on main took the same macOS slot a second time, and GitHub gives the org five at once
-# (12 Nov 2026: PR `unit` jobs waited 13-22 min for a slot). It runs on tags, by hand and in the nightly, which is
-# where a break between two PRs that each passed alone shows.
+# MAIN: a push to main runs `unit` again (inventory, core, unit), so a break between two pull requests that each passed
+# alone shows on main within the hour, not at the next nightly (nightly review, 2026-11-24). A merge that changes only
+# docs (DOCS ONLY, read by `changes` from the merge commit) skips it, as its pull request did. Tags, by hand and the
+# nightly run it too.
 #
 # XCODE: every macOS job uses Xcode 26.6 (DEVELOPER_DIR below), never the image's default, so an image update cannot
 # change the toolchain on an unchanged tree.
@@ -101,8 +101,9 @@ concurrency:
   # A nightly or dispatched run (it carries `scientific`, up to three hours) has its own group, so it never queues behind,
   # or holds up, a push run on the same ref.
   group: ci-${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 'nightly-' || '' }}${{ github.ref }}
-  # Superseded branch/PR runs cancel; main runs always complete: on main each commit's finished run is the record.
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  # A newer push or PR run cancels the older one on the same ref, main included: a burst of merges runs `unit` once, at its
+  # newest commit, which holds them all (MAIN in the header). A nightly or dispatched run always completes.
+  cancel-in-progress: ${{ github.event_name == 'push' || github.event_name == 'pull_request' }}
 
 env:
   # Pinned: the macos-26 image's Xcode 26.6 (Swift 6.3, macOS 26 SDK). Bump on purpose.
@@ -110,10 +111,10 @@ env:
 
 jobs:
   changes:
-    # DOCS ONLY in the header: whether this pull request changes anything the macOS job checks. Pull requests only; on every
-    # other event `unit` runs as before.
+    # DOCS ONLY in the header: whether this pull request, or this merge to main, changes anything the macOS job checks. On
+    # every other event `unit` runs as before.
     name: changes (does the PR need the macOS job)
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -151,10 +152,10 @@ jobs:
     # the required check's, kept from when it ran the suite alone.
     name: unit (XCTest)
     needs: changes
-    # Not on a push to main: the PR run tested the change; nightly and tags run it (MAIN in the header). Not on a docs-only
-    # pull request (DOCS ONLY in the header). `!cancelled()` runs it although `changes` is skipped (every event but a pull
-    # request) or failed (then its answer is empty and the job runs, the safe side).
-    if: ${{ !cancelled() && needs.changes.outputs.macos != 'false' && (github.event_name != 'push' || startsWith(github.ref, 'refs/tags/')) }}
+    # On a pull request, a push to main (MAIN in the header), a tag, by hand and nightly; not when a pull request or a merge
+    # changes only docs (DOCS ONLY in the header). `!cancelled()` runs it although `changes` is skipped (a tag, by hand,
+    # nightly) or failed (then its answer is empty and the job runs, the safe side).
+    if: ${{ !cancelled() && needs.changes.outputs.macos != 'false' }}
     runs-on: macos-26
     timeout-minutes: 90
     steps:
