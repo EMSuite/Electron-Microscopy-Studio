@@ -11,6 +11,7 @@
 //
 
 import Foundation
+import Formato
 import FormatoCore
 import FormatoHDF5
 
@@ -52,9 +53,12 @@ package nonisolated enum HyperSpySpectrumFile {
 
     private static let hdf5Signature: [UInt8] = [0x89, 0x48, 0x44, 0x46, 0x0D, 0x0A, 0x1A, 0x0A]
 
-    /// Whether `path` is an `.hspy` file by extension and by HDF5 signature (eight bytes read; no HDF5 open).
+    /// Whether `path` is a HyperSpy file: an `.hspy` by extension and HDF5 signature (eight bytes read; no HDF5 open), or a `.h5` or
+    /// `.hdf5` that FormatoKit's sniff finds HyperSpy's layout in (one HDF5 open), as HyperSpy writes when given that extension.
     package static func isHyperSpyFile(path: String) -> Bool {
-        guard URL(fileURLWithPath: path).pathExtension.lowercased() == "hspy", let handle = FileHandle(forReadingAtPath: path) else { return false }
+        let ext = URL(fileURLWithPath: path).pathExtension.lowercased()
+        if ext == "h5" || ext == "hdf5" { return FormatoLoader.sniff(path: path) == .hyperSpy }
+        guard ext == "hspy", let handle = FileHandle(forReadingAtPath: path) else { return false }
         defer { try? handle.close() }
         let head = (try? handle.read(upToCount: hdf5Signature.count)) ?? Data()
         return [UInt8](head).starts(with: hdf5Signature)

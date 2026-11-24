@@ -192,6 +192,9 @@ package nonisolated enum FileRouting {
             if held.spectra > 0, !found.image, !found.edsSpectrumImage, !found.eelsSpectrumImage { found.singleSpectrum = true }
             if !found.image, !found.edsSpectrumImage, !found.eelsSpectrumImage, !found.singleSpectrum { found.image = true }
             return found
+        case .hyperSpy:
+            // Taken above (`HyperSpySpectrumFile.isHyperSpyFile` asks the same sniff); reached only if the file changed in between.
+            return FileInventory(refusal: "\(name) is a HyperSpy file that is not one spectrum \(AppName.display) opens.")
         case .empad, .merlinMIB, .hdf5:
             return FileInventory(refusal: "\(name) is a 4D dataset or an HDF5 file that is neither a Velox file nor an EBSD scan: \(AppName.display) opens images, spectra and EBSD patterns; open it in 4DSTEM Studio.")
         case .unknown:
