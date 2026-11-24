@@ -15,7 +15,8 @@ import ShellEDXModel
 
 @Observable
 package final class DiffractionViewState {
-    package enum Tool: String, CaseIterable, Sendable { case ring, spot }
+    /// Ring: drag an annulus; Spot: click a spot; Tilt (#787): drag the simulated spots to tilt them, ⌥ drag to turn them in the plane.
+    package enum Tool: String, CaseIterable, Sendable { case ring, spot, tilt }
 
     package var tool: Tool = .ring
     package var useLog = true

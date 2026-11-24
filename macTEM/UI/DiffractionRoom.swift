@@ -28,6 +28,7 @@ import SwiftUI
 import ImagoCore
 import TEMCore
 import TEMSession
+import DiffractoCore
 import DiffractoGeometry
 
 struct DiffractionRoom: View {
@@ -94,6 +95,16 @@ private struct DiffractionHeader: View {
                     .help(line)
                     .accessibilityIdentifier("diffraction.index.verdict")
                     .accessibilityLabel("Index, \(outcome.verdict.word)")
+                    .accessibilityValue(line)
+            }
+            // The drawn orientation's nearest zone axis once it was tilted, turned or flipped by hand, or while no Index answer is
+            // shown (#787): "Al · 2.1° from [001] · set by hand".
+            if let line = analysis.orientationLine {
+                Text(line)
+                    .font(.callout.monospacedDigit()).lineLimit(1).truncationMode(.tail).layoutPriority(2)
+                    .help(line)
+                    .accessibilityIdentifier("diffraction.simulation.place")
+                    .accessibilityLabel("Simulated orientation")
                     .accessibilityValue(line)
             }
             // What the pane shows about the centre, in words (a header holds words only); its value is the half-side to three decimals,
@@ -168,6 +179,8 @@ private struct DiffractionPatternPane: View {
     let rows: [DiffractionReadoutRow]
     @Environment(AppState.self) private var appState
     @State private var drag: (start: CGPoint, end: CGPoint)?
+    /// A Tilt-tool drag in flight (#787): the orientation it started from, and whether ⌥ was down at its start (it turns, not tilts).
+    @State private var handDrag: (base: CrystalOrientation, turns: Bool)?
     /// The half-side while a pinch is running; committed to the view state once, when it ends.
     @State private var liveHalf: Double?
     @State private var pinchStart: Double?
@@ -250,9 +263,15 @@ private struct DiffractionPatternPane: View {
             .clipped()
             .contentShape(Rectangle())
             .gesture(DragGesture(minimumDistance: 1, coordinateSpace: .local)
-                .onChanged { if view.tool == .ring { drag = ($0.startLocation, $0.location) } }
+                .onChanged { value in
+                    switch view.tool {
+                    case .ring: drag = (value.startLocation, value.location)
+                    case .tilt: turnByHand(value, layout: layout)
+                    case .spot: break
+                    }
+                }
                 .onEnded { value in
-                    defer { drag = nil }
+                    defer { drag = nil; handDrag = nil }
                     guard view.tool == .ring, let radii = radii(from: value.startLocation, to: value.location, layout: layout) else { return }
                     view.setAnnulus(inner: radii.0, outer: radii.1)
                 })
@@ -334,6 +353,27 @@ private struct DiffractionPatternPane: View {
         // The pane going (another file, another room) leaves the readout naming a point of a pattern that is not shown: it goes until the
         // pointer moves (the status line and VoiceOver read it).
         .onDisappear { appState.diffractionRoom.readout = nil }
+    }
+
+    /// The Tilt tool's drag (#787): the simulated spots tilt with the drag, or turn about the beam with the pointer on an ⌥ drag, from
+    /// the orientation drawn when the drag started (`ZoneAxisOverlay.tilted`, `.turned`). ⌥ is read once, at the start
+    /// (`ModifierKeys`: a SwiftUI drag carries no modifier keys).
+    private func turnByHand(_ value: DragGesture.Value, layout: DiffractionLayout) {
+        if handDrag == nil {
+            guard let base = analysis.drawnOrientation else { return }
+            handDrag = (base, ModifierKeys.optionIsDown)
+        }
+        guard let handDrag else { return }
+        if handDrag.turns {
+            guard let c = analysis.centre else { return }
+            let centre = layout.point(column: c.column, row: c.row)
+            func offset(_ p: CGPoint) -> SIMD2<Double> { SIMD2(Double(p.y - centre.y), Double(p.x - centre.x)) }
+            if let o = ZoneAxisOverlay.turned(handDrag.base, start: offset(value.startLocation), now: offset(value.location)) {
+                analysis.turnByHand(to: o)
+            }
+        } else {
+            analysis.turnByHand(to: ZoneAxisOverlay.tilted(handDrag.base, drag: SIMD2(Double(value.translation.height), Double(value.translation.width))))
+        }
     }
 
     /// The annulus the drag would make, in pixels: the distances of its two ends from the centre.
