@@ -101,6 +101,18 @@ nonisolated final class DiffractionIndexTests: XCTestCase {
             let nearest = o.spots.map { hypot($0.row - s.row, $0.column - s.column) }.min() ?? .infinity
             XCTAssertLessThan(nearest, 1.5, "\(s.label) at (\(s.row), \(s.column))")
         }
+        // A new scale makes the answer stale: the header says so and the overlay draws the orientation at |g| (its fitted
+        // |q| over |g| was the old scale's).
+        XCTAssertFalse(a.indexIsStale)
+        a.typedDeltaQ = Self.deltaQ * 1.02
+        XCTAssertTrue(a.indexIsStale)
+        let strongest = try XCTUnwrap(try XCTUnwrap(a.simulatedSpots(image: image)).get().first)
+        let g = try XCTUnwrap(SpotPatternSimulator(structure: al.structure, kMax: 2.5).pattern(orientation: best, volts: 200_000).spots
+            .first { $0.hkl == strongest.hkl })
+        XCTAssertEqual(hypot(strongest.row - 256, strongest.column - 256), simd_length(g.position) / (Self.deltaQ * 1.02), accuracy: 1e-9)
+        a.typedDeltaQ = Self.deltaQ
+        XCTAssertFalse(a.indexIsStale, "the scale Index ran under again")
+
         // Typing a zone axis takes the drawn spots off Index's orientation.
         a.setZoneAxis(SIMD3(0, 0, 1))
         XCTAssertNil(a.simulation.indexed)
@@ -183,13 +195,14 @@ nonisolated final class DiffractionIndexTests: XCTestCase {
         await state.openDemo(.diffraction)?.value
         state.navigation.workspaceArea = .diffraction
         let analysis = try XCTUnwrap(state.openItems.selected?.diffraction)
+        let image = try XCTUnwrap(state.openItems.selected?.session.image)
+        analysis.bind(image)   // the room's view binds it on screen
         let action = try XCTUnwrap(RoomPrimaryAction.current(state))
         XCTAssertEqual(action.title, "Index")
         XCTAssertEqual(RoomPrimaryAction.runTitle(state), "Index")
         XCTAssertTrue(action.isEnabled, action.help)
         XCTAssertFalse(action.isRunning)
 
-        let image = try XCTUnwrap(state.openItems.selected?.session.image)
         let task = try XCTUnwrap(analysis.index(image: image))
         XCTAssertTrue(try XCTUnwrap(RoomPrimaryAction.current(state)).isRunning)
         XCTAssertTrue(RoomPrimaryAction.canStop(state), "⌘. reaches Index")

@@ -78,6 +78,11 @@ package final class DiffractionAnalysis {
     @ObservationIgnored private var fitTask: Task<Void, Never>?
     @ObservationIgnored private var indexTask: Task<Void, Never>?
     @ObservationIgnored private var indexGeneration = 0
+    /// The scales Index ran under (a ring's calibration, the typed Δq; the file's axis does not change): its measured |q| over |g|
+    /// holds only while they stay (`indexIsStale`).
+    private var indexScaleKey: IndexScaleKey?
+    private struct IndexScaleKey: Equatable { var ring: DiffractionCalibration?; var typed: Double? }
+    private var scaleKey: IndexScaleKey { IndexScaleKey(ring: ringCalibration, typed: typedDeltaQ) }
     @ObservationIgnored private var listCache: (key: String, list: KinematicReflectionList?, failure: String?)?
     @ObservationIgnored private var familiesCache: [String: [(name: String, d: Double, family: ReflectionFamily)]] = [:]
     @ObservationIgnored private var readoutCache: (key: ReadoutKey, rows: [DiffractionReadoutRow])?
@@ -267,13 +272,19 @@ package final class DiffractionAnalysis {
         if let refusal { failure = refusal }
     }
 
+    /// Stop (⌘.): the ring fit and Index in flight.
     package func stop() {
-        fitTask?.cancel(); fitTask = nil
-        generation += 1
-        isFitting = false
+        stopFit()
         indexTask?.cancel(); indexTask = nil
         indexGeneration += 1
         isIndexing = false
+    }
+
+    /// The ring fit in flight only (a removal or its undo: its ring would land on marks it was not asked for).
+    private func stopFit() {
+        fitTask?.cancel(); fitTask = nil
+        generation += 1
+        isFitting = false
     }
 
     // MARK: Index
@@ -299,6 +310,7 @@ package final class DiffractionAnalysis {
         let gen = indexGeneration
         isIndexing = true
         failure = nil
+        let started = scaleKey
         let pattern = DiffractionCompute.pattern(of: image)
         let structure = crystal.structure, phase = crystal.name
         let key = "\(crystal.name)|\(crystal.sha256 ?? "")|\(volts)"
@@ -320,23 +332,30 @@ package final class DiffractionAnalysis {
                                                   misfitPercent: nil)
             }
             if Task.isCancelled { return }
-            await self?.landIndex(outcome, generation: gen)
+            await self?.landIndex(outcome, generation: gen, scale: started)
         }
         indexTask = task
         return task
     }
 
-    private func landIndex(_ outcome: PatternIndexing.Outcome, generation gen: Int) {
+    private func landIndex(_ outcome: PatternIndexing.Outcome, generation gen: Int, scale started: IndexScaleKey) {
         guard gen == indexGeneration else { return }
         isIndexing = false
         indexTask = nil
+        // The scale changed while Index ran (a ring fit landed, Δq typed): its answer was measured under the old one.
+        guard started == scaleKey else { return }
         indexOutcome = outcome
+        indexScaleKey = started
         guard let orientation = outcome.orientation else { return }
         simulation.indexed = orientation
         simulation.scale = outcome.scale ?? 1
         if let uvw = outcome.zoneAxis { simulation.zoneAxis = uvw }
         simulation.isShown = true
     }
+
+    /// The scale changed since Index answered: its fitted |q| over |g|, its misfit and its verdict were measured under the old
+    /// one. The overlay draws its orientation at |g| until Index runs again; the header says so.
+    package var indexIsStale: Bool { indexOutcome != nil && indexScaleKey != scaleKey }
 
     /// The zone axis typed: the simulated spots are this zone axis's, no longer Index's orientation.
     package func setZoneAxis(_ uvw: SIMD3<Int>) {
@@ -376,7 +395,7 @@ package final class DiffractionAnalysis {
     }
 
     package func removeAll() {
-        stop()
+        stopFit()
         rings = []; spots = []; lastAdded = nil; clearCalibration(); failure = nil
     }
 
@@ -396,7 +415,7 @@ package final class DiffractionAnalysis {
     /// Puts `marks` back as they were, ids and the ring's scale with them; a fit still running is stopped (its ring would land on marks it
     /// was not asked for).
     package func restore(_ marks: Marks) {
-        stop()
+        stopFit()
         rings = marks.rings; spots = marks.spots
         ringCalibration = marks.ringCalibration; calibratedFamily = marks.calibratedFamily
         lastAdded = nil; failure = nil
@@ -429,15 +448,18 @@ package final class DiffractionAnalysis {
         guard simulation.isShown else { return nil }
         let calibration = calibration(for: image)
         let volts = volts(for: image)
-        let key = SimulationKey(settings: simulation, crystal: crystal, centre: centre, calibration: calibration, volts: volts,
+        var settings = simulation
+        if indexIsStale { settings.scale = 1 }
+        let key = SimulationKey(settings: settings, crystal: crystal, centre: centre, calibration: calibration, volts: volts,
                                 width: image.width, height: image.height)
         if let simulationCache, simulationCache.key == key { return simulationCache.result }
-        let result = makeSimulatedSpots(calibration: calibration, volts: volts, width: image.width, height: image.height)
+        let result = makeSimulatedSpots(settings: settings, calibration: calibration, volts: volts, width: image.width, height: image.height)
         simulationCache = (key, result)
         return result
     }
 
-    private func makeSimulatedSpots(calibration: DiffractionCalibration?, volts: Double?, width: Int, height: Int) -> SimulatedSpots {
+    private func makeSimulatedSpots(settings: ZoneAxisOverlay.Settings, calibration: DiffractionCalibration?, volts: Double?, width: Int,
+                                    height: Int) -> SimulatedSpots {
         guard let centre else { return .failure(SimulationAbsence(sentence: "No centre yet")) }
         guard let calibration, calibration.deltaQ.isFinite, calibration.deltaQ > 0 else {
             return .failure(SimulationAbsence(sentence: "Needs a scale: calibrate on a standard's ring, or type Δq"))
@@ -455,7 +477,7 @@ package final class DiffractionAnalysis {
             return .failure(SimulationAbsence(sentence: simulatorCache?.failure ?? "The crystal has no reflections"))
         }
         do {
-            let spots = try ZoneAxisOverlay.spots(simulator: simulator, settings: simulation, volts: volts, calibration: calibration,
+            let spots = try ZoneAxisOverlay.spots(simulator: simulator, settings: settings, volts: volts, calibration: calibration,
                                                   centre: centre, width: width, height: height)
             return spots.isEmpty ? .failure(SimulationAbsence(sentence: "No simulated spot lands on this pattern")) : .success(spots)
         } catch {
