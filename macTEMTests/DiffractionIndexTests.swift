@@ -296,8 +296,9 @@ nonisolated final class DiffractionIndexTests: XCTestCase {
                                           dExpected: 2.338, deltaPercent: 0.7086, phase: "Au")
         let en = Locale(identifier: "en_US")
         XCTAssertEqual(DiffractionSpotFormat.Column.allCases.map { DiffractionSpotFormat.cell($0, row, locale: en) },
-                       ["3", "11\u{0304}1", "42.47", "0.42470", "2.3546", "2.3380", "+0.71", "Au"])
-        XCTAssertEqual(DiffractionSpotFormat.Column.allCases.map(\.title), ["Spot", "hkl", "R px", "q Å⁻¹", "d Å", "d expected", "Δd/d %", "Phase"])
+                       ["3", "11\u{0304}1", "42.47", "0.42470", "2.3546", "2.3380", "+0.71", "Au", "—"])
+        XCTAssertEqual(DiffractionSpotFormat.Column.allCases.map(\.title),
+                       ["Spot", "hkl", "R px", "q Å⁻¹", "d Å", "d expected", "Δd/d %", "Phase", "I dyn %"])
         XCTAssertEqual(DiffractionSpotFormat.spokenHKL(row), "1, minus 1, 1")
         let unexplained = PatternIndexing.SpotRow(id: UUID(), number: 4, hkl: nil, radiusPx: 80, q: 0.8, d: 1.25, dExpected: nil,
                                                   deltaPercent: nil, phase: "")

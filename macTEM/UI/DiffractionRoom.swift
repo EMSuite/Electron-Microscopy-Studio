@@ -57,7 +57,7 @@ struct DiffractionRoom: View {
                     HStack(spacing: 0) {
                         DiffractionReadoutTable(analysis: analysis, view: view, rows: rows)
                         Divider()
-                        DiffractionSpotTable(view: view, rows: analysis.indexSpotRows)
+                        DiffractionSpotTable(view: view, rows: item.indexSpotRows, showsDynamical: item.dynamicalBeams != nil)
                             .frame(minWidth: LayoutPolicy.diffractionSpotsMinWidth, idealWidth: LayoutPolicy.diffractionSpotsWidth,
                                    maxWidth: LayoutPolicy.diffractionSpotsMaxWidth)
                     }
@@ -260,8 +260,9 @@ private struct DiffractionPatternPane: View {
                         .allowsHitTesting(false)
                 }
                 // The simulated spots of the typed zone axis (#782), under the measured marks; redrawn whenever the zone axis, its turn,
-                // the crystal, the centre or the scale changes (`DiffractionAnalysis.simulatedSpots`).
-                if let simulated = try? analysis.simulatedSpots(image: image)?.get() {
+                // the crystal, the centre or the scale changes (`DiffractionAnalysis.simulatedSpots`), and a Simulation document's Dynamical
+                // beams at its thickness (#911).
+                if let simulated = try? item.simulatedSpots(image: image)?.get() {
                     SimulatedSpotsOverlay(spots: simulated, showsLabels: analysis.simulation.showsLabels, layout: layout)
                         .allowsHitTesting(false)
                 }
@@ -334,7 +335,7 @@ private struct DiffractionPatternPane: View {
             .accessibilityLabel("Diffraction pattern")
             // q and d under the pointer, as the status line reads them; else the pattern's size, rings and spots. This pane is the readout's one writer.
             .modifier(ReadoutAccessibilityValue(readout: { appState.diffractionRoom.readout },
-                                                fallback: "\(image.width) by \(image.height) pixels, \(UnitDisplay.count(analysis.rings.count, "ring", "rings")), \(UnitDisplay.count(analysis.spots.count, "spot", "spots"))" + DiffractionSimulationText.spoken(analysis.simulatedSpots(image: image), zoneAxis: analysis.simulation.zoneAxis) + DiffractionIndexText.spoken(analysis.indexLine, rows: analysis.indexSpotRows.count)))
+                                                fallback: "\(image.width) by \(image.height) pixels, \(UnitDisplay.count(analysis.rings.count, "ring", "rings")), \(UnitDisplay.count(analysis.spots.count, "spot", "spots"))" + DiffractionSimulationText.spoken(item.simulatedSpots(image: image), zoneAxis: analysis.simulation.zoneAxis) + DiffractionIndexText.spoken(analysis.indexLine, rows: analysis.indexSpotRows.count)))
             .accessibilityAction(named: "Zoom in") { view.zoom(by: 2, image: image) }
             .accessibilityAction(named: "Zoom out") { view.zoom(by: 0.5, image: image) }
             .accessibilityAction(named: "Reset zoom") { view.fitView() }
@@ -770,12 +771,14 @@ private struct DiffractionReadoutTable: View {
 
 // MARK: - The Spots table
 
-/// Index's spots (#785): Spot, hkl, R px, q, d, d expected, Δd/d % and Phase, sortable by any column (ties by the spot's number, so
+/// Index's spots (#785): Spot, hkl, R px, q, d, d expected, Δd/d %, Phase and, with Dynamical on (#911), I dyn %, sortable by any column (ties by the spot's number, so
 /// the rows keep their order). A row's selection is the mark's: selecting it selects the spot on the pattern and in the readout.
 /// The table is the pattern's text alternative: VoiceOver reads each row's cells, and the pane says the spots are listed here.
 private struct DiffractionSpotTable: View {
     let view: DiffractionViewState
     let rows: [PatternIndexing.SpotRow]
+    /// A Simulation document with Dynamical on (#911): the I dyn % column, each spot's beam at the shown thickness.
+    let showsDynamical: Bool
     @State private var sortOrder = [KeyPathComparator(\PatternIndexing.SpotRow.number)]
 
     private typealias Column = DiffractionSpotFormat.Column
@@ -804,6 +807,12 @@ private struct DiffractionSpotTable: View {
                     .accessibilityIdentifier("diffraction.spots.\(row.number).delta")
             }.width(min: 48, ideal: 54)
             TableColumn(header(.phase), value: \.phase) { row in Text(DiffractionSpotFormat.cell(.phase, row)) }.width(min: 44, ideal: 60)
+            if showsDynamical {
+                TableColumn(header(.dynamical), value: \.dynamicalKey) { row in
+                    Text(DiffractionSpotFormat.cell(.dynamical, row)).monospacedDigit()
+                        .accessibilityIdentifier("diffraction.spots.\(row.number).dynamical")
+                }.width(min: 52, ideal: 60)
+            }
         }
         .overlay {
             if rows.isEmpty {
