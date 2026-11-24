@@ -660,6 +660,23 @@ nonisolated final class SessionLineageTests: XCTestCase {
         XCTAssertEqual(SessionSourceIdentity.of(image(sixPixels, width: 2, height: 3), fileByteSize: 1).pixelSHA256, sixDigest)
     }
 
+    /// An 8- or 16-bit image is hashed from its stored values a chunk at a time and gets the digest of its Float32 values (#934),
+    /// so a session file written while the whole image was widened still names it.
+    func testAStoredImageHasTheFingerprintOfItsFloat32Values() {
+        let pinned = "4c9c4f354e74153db012329d71c8562ec23e498148174b2c49de58f45d47cdbe"   // [0, 1, 2, 3] as Float32, above
+        XCTAssertEqual(SessionSourceIdentity.fingerprint(ofStored: .uint8([0, 1, 2, 3])), pinned)
+        XCTAssertEqual(SessionSourceIdentity.fingerprint(ofStored: .uint16([0, 1, 2, 3])), pinned)
+        XCTAssertEqual(SessionSourceIdentity.fingerprint(ofStored: .float32(sixPixels)), sixDigest)
+        // Longer than one chunk, and not a whole number of chunks.
+        let long = (0..<(3 * 64 * 1024 + 5)).map { UInt16(truncatingIfNeeded: $0 &* 7919) }
+        XCTAssertEqual(SessionSourceIdentity.fingerprint(ofStored: .uint16(long)), SessionSourceIdentity.fingerprint(of: long.map(Float.init)))
+        let bytes = long.map { UInt8(truncatingIfNeeded: $0) }
+        XCTAssertEqual(SessionSourceIdentity.fingerprint(ofStored: .uint8(bytes)), SessionSourceIdentity.fingerprint(of: bytes.map(Float.init)))
+        let image = CalibratedImage(width: 2, height: 2, stored: .uint8([0, 1, 2, 3]), x: nil, y: nil, fileName: "a.tif", source: "TIFF",
+                                    voltage: nil, notes: [])
+        XCTAssertEqual(SessionSourceIdentity.of(image, fileByteSize: 1).pixelSHA256, pinned)
+    }
+
     func testTheFingerprintChangesWithOnePixel() {
         let pixels = (0..<24).map { Float($0) * 0.37 - 3 }
         let base = SessionSourceIdentity.fingerprint(of: pixels)

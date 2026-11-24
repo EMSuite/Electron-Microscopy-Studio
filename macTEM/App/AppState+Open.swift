@@ -33,7 +33,8 @@ extension AppState {
     /// and, while it holds nothing, the first; every other file opens in a tab of its own (`AppWindows.openInTabs`), or comes
     /// forward in the window that holds it. A state no window shows takes the whole batch (`windows`).
     @discardableResult
-    func open(urls batch: [URL], refused: [String] = []) -> Task<Void, Never>? {
+    func open(urls picked: [URL], refused: [String] = []) -> Task<Void, Never>? {
+        let batch = TIASpectra.withoutSeriesOfPickedEMI(picked)
         let urls: [URL]
         let tabs: Task<[String], Never>?   // the files that get a tab of their own, looked at first (`tabsChecked`): the refused ones' sentences
         if let windows, windows.canOpenTabs {
@@ -67,6 +68,7 @@ extension AppState {
             // granted for an earlier scan of this Open that is around this one too (their common parent) reaches it: nothing is asked.
             var answered: [String: Bool] = [:]   // each folder asked for in this Open: granted or not
             var granted: [String] = []           // the folders granted in this Open, by `FolderGrants.path`
+            var regranted: [Int: [(url: URL, inventory: FileInventory, bookmark: Data?, asksForFolder: Bool)]] = [:]
             for index in inventories.indices where inventories[index].asksForFolder {
                 let url = inventories[index].url
                 let folder = FolderGrants.path(of: url.deletingLastPathComponent())
@@ -80,7 +82,20 @@ extension AppState {
                     }
                     answered[folder] = chosen != nil
                 }
-                if answered[folder] == true, let again = await Self.inventories([url]).first { inventories[index] = again }
+                if answered[folder] == true { regranted[index] = await Self.inventories([url]) }
+            }
+            // An .emi routed again inside its new grant stands for its series (`inventories`): each takes the .emi's place.
+            for index in regranted.keys.sorted(by: >) { inventories.replaceSubrange(index...index, with: regranted[index] ?? []) }
+            // TIA spectra whose .emi does not say EDS or EELS ask once for every such file of this Open (`TIASpectraRooms`).
+            let unsure = inventories.indices.filter { inventories[$0].inventory.asksForSpectraRoom }
+            if !unsure.isEmpty {
+                let room = await TIASpectraRooms.ask(names: unsure.map { inventories[$0].url.lastPathComponent }, appState: self)
+                if room == nil { statusText = "" }   // Don't Open: those files are left, without an alert
+                for index in unsure {
+                    let url = inventories[index].url
+                    if let room { TIASpectraRooms.remember(room, for: url) }
+                    inventories[index].inventory = TIASpectraRooms.routed(inventories[index].inventory, url: url)
+                }
             }
             var images: [URL] = []
             var landing: FileInventory.Landing?
@@ -89,6 +104,7 @@ extension AppState {
             var taken: [RecentFile] = []   // the files with a bookmark: Open Recent takes those that opened, once the opens have ended
             for (url, inventory, bookmark, _) in inventories {
                 if let why = inventory.refusal { refusals.append(why); continue }
+                if inventory.asksForSpectraRoom { continue }   // Don't Open: neither opened nor remembered
                 if let bookmark {
                     let file = RecentFile(path: url.standardizedFileURL.path, displayName: url.lastPathComponent, bookmark: bookmark)
                     taken.append(file)
@@ -108,8 +124,8 @@ extension AppState {
             // selection only on the next click; two files at launch left the last in the room and the first selected, 2026-10-23). The others
             // are reached by selecting their row (`spectrumRoomsFollowSelection`).
             var roomOpens: [Task<Void, Never>] = []   // the rooms' own opens, each ending when its room has the file (or has failed)
-            if let first = edsBatch.first { roomOpens.append(edx.open(url: first)) }
-            if let first = eelsBatch.first { roomOpens.append(eels.open(url: first)) }
+            if let first = edsBatch.first { roomOpens.append(holdingFolder(of: first) { edx.open(url: $0) }) }
+            if let first = eelsBatch.first { roomOpens.append(holdingFolder(of: first) { eels.open(url: $0) }) }
             // The Patterns room holds one dataset, as the spectrum rooms do; the batch's first is it. A NORDIF scan's settings and
             // background are read with the dataset: its folder's grant is held from before the read until the open ends (`FolderGrants`).
             if let first = ebsdBatch.first {
@@ -174,7 +190,15 @@ extension AppState {
     /// refused files' sentences.
     private func tabsChecked(_ urls: [URL], windows: AppWindows) async -> [String] {
         let looked = await Self.inventories(urls)
-        windows.openInTabs(looked.filter { $0.inventory.refusal == nil || $0.asksForFolder }.map(\.url))
+        // TIA spectra no .emi places are asked about once here for every tab (`TIASpectraRooms`); those left unanswered get no tab.
+        let unsure = looked.filter { $0.inventory.asksForSpectraRoom }.map(\.url)
+        var answered: TIASpectra.Room?
+        if !unsure.isEmpty, let room = await TIASpectraRooms.ask(names: unsure.map(\.lastPathComponent), appState: self) {
+            answered = room
+            for url in unsure { TIASpectraRooms.remember(room, for: url) }
+        }
+        windows.openInTabs(looked.filter { ($0.inventory.refusal == nil && (!$0.inventory.asksForSpectraRoom || answered != nil))
+                                            || $0.asksForFolder }.map(\.url))
         return looked.compactMap { $0.asksForFolder ? nil : $0.inventory.refusal }
     }
 
@@ -219,18 +243,24 @@ extension AppState {
     /// for its routing (`FolderGrants`); `asksForFolder` is set for one whose settings file the sandbox refused without a grant.
     @concurrent
     nonisolated static func inventories(_ urls: [URL]) async -> [(url: URL, inventory: FileInventory, bookmark: Data?, asksForFolder: Bool)] {
-        urls.map { url in
-            if DemoDocuments.isDemo(url) { return (url: url, inventory: FileInventory(image: true), bookmark: nil, asksForFolder: false) }
+        var seen = Set<String>()
+        return urls.flatMap { url -> [(url: URL, inventory: FileInventory, bookmark: Data?, asksForFolder: Bool)] in
+            if DemoDocuments.isDemo(url) { return [(url: url, inventory: FileInventory(image: true), bookmark: nil, asksForFolder: false)] }
             let scoped = url.startAccessingSecurityScopedResource()
             defer { if scoped { url.stopAccessingSecurityScopedResource() } }
             RelatedFileAccess.grant(for: url)
             let folder = FolderGrants.hold(forFolderOf: url)
             defer { folder?.release() }
-            let inventory = FileRouting.inventory(path: url.path)
-            let bookmark = inventory.refusal == nil ? (try? SecurityScopedBookmark.make(for: url)) : nil
-            let asks = FolderGrants.asksForFolder(refused: inventory.refusal != nil, settingsError: NORDIFOpening.settingsOpenError(url))
-            return (url: url, inventory: inventory, bookmark: bookmark, asksForFolder: asks)
-        }
+            // A TIA .emi stands for its series, each a file of its own (#906): an image or pattern an Open Files row, spectra their
+            // room. One that opens none keeps its own routing, which says why (the folder, or no series beside it).
+            let series = TIAImageReader.seriesOpenError(url) == nil ? TIASpectra.seriesFiles(of: url) : []
+            return (series.isEmpty ? [url] : series).map { file in
+                let inventory = TIASpectraRooms.routed(FileRouting.inventory(path: file.path), url: file)
+                let bookmark = inventory.refusal == nil ? (try? SecurityScopedBookmark.make(for: file)) : nil
+                let asks = FolderGrants.asksForFolder(of: file, refused: inventory.refusal != nil)
+                return (url: file, inventory: inventory, bookmark: bookmark, asksForFolder: asks)
+            }
+        }.filter { seen.insert($0.url.standardizedFileURL.path).inserted }   // an .emi beside one of its own series
     }
 
     /// File > Open Recent: the entry's bookmark resolved (without mounting a volume or asking anything) and the file opened as
@@ -510,6 +540,9 @@ extension AppState {
         -> (CalibratedImage, AcquisitionMetadata, SEMImageMetadata?, CanvasPixels?) {
         let scoped = url.startAccessingSecurityScopedResource()
         defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        // A TIA file is read with the other files of its acquisition: the folder granted for it is held for the read (`FolderGrants`).
+        let folder = FolderGrants.hold(forFolderOf: url)
+        defer { folder?.release() }
         let interval = Signposts.begin("open.image"); defer { Signposts.end(interval) }
         var opened = try ImageOpening.openNow(path: url.path)
         let metadata = AcquisitionMetadata.read(path: url.path)
@@ -579,8 +612,18 @@ extension AppState {
         let follow = SpectrumFiles.roomsToFollow(selected: url, edsFiles: spectrumFiles.edsFiles, eelsFiles: spectrumFiles.eelsFiles, edsFile: edx.fileName, eelsFile: eels.fileName,
                                         edsPath: edx.source?.metadata.filePath ?? "", eelsPath: eels.filePath,
                                         edsOpening: edx.isOpening, eelsOpening: eels.isOpening)
-        if follow.eds, let url { edx.open(url: url) }
-        if follow.eels, let url { eels.open(url: url) }
+        if follow.eds, let url { holdingFolder(of: url) { edx.open(url: $0) } }
+        if follow.eels, let url { holdingFolder(of: url) { eels.open(url: $0) } }
+    }
+
+    /// A room's open of `url`, with the folder granted for it held until the open ends (`FolderGrants`): a TIA series that an .emi
+    /// stood for was not picked itself, and the sandbox lets the app read it only inside its folder's grant.
+    @discardableResult
+    private func holdingFolder(of url: URL, _ open: (URL) -> Task<Void, Never>) -> Task<Void, Never> {
+        let folder = FolderGrants.hold(forFolderOf: url)
+        let opening = open(url)
+        if let folder { Task { await opening.value; folder.release() } }
+        return opening
     }
 }
 

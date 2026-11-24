@@ -561,3 +561,32 @@ the pair into that picture gives Export Image, the scale bar and the agent door'
 
 **What would reverse it.** Measuring on the simulation alone (FFT, Profile) while the pair is shown; then the pair would become
 an item of its own beside the HRTEM image.
+
+## 2026-11-24 — TIA spectra: the room is read from the whole .emi (#906)
+
+**What.** A TIA series of spectra opens in the EDS room when its `.emi` records a `<ShapingTime>` (an EDS detector: FEI-Edx,
+EDAX) and in the EELS room when it records a `<GainCorrection>` or `<BiasCorrection>` (the EELS spectrometer's CCD). The whole
+`.emi` is read, not the series' own document. An `.emi` that records both or neither, or a `.ser` with no `.emi`, asks once
+which room; the answer is kept per file for the app's life, and the agent door's `open_file` gives it as `room`.
+
+**Why.** RosettaSciIO and FormatoKit give every TIA series the signal type "", so the `.emi` is the only witness. RosettaSciIO's
+document of `_1.ser` is the first, which is the scan's in every public file (the detector's is the second), so the series' own
+document would say nothing. Every public TIA spectrum in FormatoKit's fixtures (the `new` EDS files and the `old` EELS files)
+is placed by this rule.
+
+**What would reverse it.** A TIA file whose `.emi` names its detector some other way, or holds EDS and EELS series together; then
+the series' detector document, matched by more than its index.
+
+## 2026-11-24 — CI: a pull request's `unit` runs on the org's Mac runner (reverses 2026-11-06 for that job)
+
+**What.** On a pull request from this repo, `unit` runs on the org's self-hosted Mac runner while the org variable
+`MACEM_MAC_RUNNER` is set; a fork's pull request, main, tags and the nightly stay on GitHub's `macos-26`. The runner runs
+as its own standard user in that user's login session (XCTest launches the app), one job at a time, and clears
+DerivedData and the app's preferences and folders before each job. Check names are unchanged.
+
+**Why.** GitHub gives the org five macOS machines; with many pull requests open, `unit` queued for hours (51 runs queued
+here on 24 Nov). The 2026-11-06 rule kept pull requests off the Mac so that none waited on it being awake; the variable
+now answers that: deleting it sends every job back to `macos-26` at once.
+
+**What would reverse it.** The Mac often asleep or away while pull requests wait, or a failure that only the Mac's state
+explains; then delete the variable, and this line back to `runs-on: macos-26`.

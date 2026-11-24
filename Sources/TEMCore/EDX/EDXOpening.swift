@@ -6,13 +6,13 @@ import ShellEDXModel
 
 package enum EDXOpening {
     /// File extensions the Open panel offers (a Velox EMD or a GMS DM4; a single spectrum as `.msa` or HyperSpy's `.hspy`; the SEM-EDS
-    /// maps and spectra of Bruker, EDAX and JEOL, `SEMEDSOpening`).
-    package static let readableExtensions = ["emd", "dm4", "msa", "hspy"] + SEMEDSOpening.readableExtensions
+    /// maps and spectra of Bruker, EDAX and JEOL, `SEMEDSOpening`; a TIA series of EDS spectra, `TIASpectra`).
+    package static let readableExtensions = ["emd", "dm4", "msa", "hspy", "ser"] + SEMEDSOpening.readableExtensions
 
     /// Header-only for a DM4, one HDF5 open for an EMD. Run off the main actor.
     package static func isSpectrumImage(at url: URL) -> Bool {
         SEMEDSOpening.opensInEDS(path: url.path) || SpectrumImageOpener.kind(ofFileAt: url.path) != .other
-            || FileRouting.isSingleSpectrum(path: url.path)
+            || FileRouting.isSingleSpectrum(path: url.path) || TIASpectra.isSpectra(url)
     }
 
     /// Reads the whole spectrum image (a 1.7 GB Velox file is three passes over its event stream): off the main actor, cancellable
@@ -21,6 +21,12 @@ package enum EDXOpening {
     package static func open(url: URL, progress: (@Sendable (Double) -> Void)? = nil) throws -> LoadedSpectrumImage {
         if SEMEDSOpening.opensInEDS(path: url.path) {
             let loaded = try SEMEDSOpening.open(url: url, progress: progress)
+            progress?(1)
+            return loaded
+        }
+        // A TIA series of spectra: a point, a line profile or a spectrum image (`TIASpectra`).
+        if TIASpectra.isSpectra(url) {
+            let loaded = try TIASpectra.edsSpectrumImage(url: url)
             progress?(1)
             return loaded
         }

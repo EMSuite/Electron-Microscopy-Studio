@@ -143,6 +143,17 @@ nonisolated final class AcquisitionMetadataReadTests: XCTestCase {
             case "img", "map":
                 // RosettaSciIO's JEOL test image (200 kV), under .map too: the element map is the same format.
                 plant = try Data(contentsOf: SEMParityReference.fixturesRoot.appendingPathComponent("rsciio/jeol/InvalidFrame/Dummy-Data_0000000.img"))
+            case "ser", "emi":
+                // A TIA acquisition is two files: the planted 200 kV pattern's .emi and its _1.ser, each read with the other beside it.
+                let dir = FileManager.default.temporaryDirectory.appendingPathComponent("tia-metadata-\(UUID().uuidString)")
+                try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+                addTeardownBlock { try? FileManager.default.removeItem(at: dir) }
+                let planted = TIAImageReaderTests.plantedPattern
+                try planted.emi.write(to: dir.appendingPathComponent("scan.emi"))
+                try planted.ser.write(to: dir.appendingPathComponent("scan_1.ser"))
+                let path = dir.appendingPathComponent(ext == "emi" ? "scan.emi" : "scan_1.ser").path
+                XCTAssertEqual(AcquisitionMetadata.read(path: path).highTensionKV?.value, 200, ".\(ext)")
+                continue
             default:
                 XCTFail("ImageOpening reads .\(ext) but this test has no plant for it: decide its metadata reader in AcquisitionMetadata.read(path:) and plant it here")
                 continue

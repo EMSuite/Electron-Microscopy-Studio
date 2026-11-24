@@ -20,8 +20,8 @@ import FormatoDM
 
 package nonisolated enum ImageOpening {
     /// File extensions macTEM reads today, lower case.
-    package static let readableExtensions = ["dm4", "dm3", "tif", "tiff", "mrc", "emd"] + SEMEDSOpening.imageExtensions
-        + PictureImageReader.extensions
+    package static let readableExtensions = ["dm4", "dm3", "tif", "tiff", "mrc", "emd"] + TIAImageReader.extensions
+        + SEMEDSOpening.imageExtensions + PictureImageReader.extensions
 
     package enum Refusal: LocalizedError, Equatable {
         case unreadableFormat(file: String, ext: String)
@@ -31,6 +31,7 @@ package nonisolated enum ImageOpening {
         case velox(file: String, VeloxImageReader.Refusal)
         case jeol(file: String, reason: String)
         case picture(file: String, PictureImageReader.Refusal)
+        case tia(file: String, TIAImageReader.Refusal)
 
         /// "notes.txt is a .txt file.", "README is a file without an extension.": what names a file of an extension macTEM does not
         /// open, without the formats it does. A drop of several such files names each with it and the formats once after them
@@ -57,6 +58,8 @@ package nonisolated enum ImageOpening {
             case .jeol(let file, let reason):
                 return "\(file) is not read: " + reason
             case .picture(let file, let refusal):
+                return "\(file) is not read: " + refusal.reason
+            case .tia(let file, let refusal):
                 return "\(file) is not read: " + refusal.reason
             }
         }
@@ -86,6 +89,11 @@ package nonisolated enum ImageOpening {
         if ext == "mrc" {
             do { return try MRCImageReader.read(path: path) } catch let refusal as MRCImageReader.Refusal {
                 throw Refusal.mrc(file: formatoDisplayFileName(path), refusal)
+            }
+        }
+        if TIAImageReader.extensions.contains(ext) {
+            do { return try TIAImageReader.read(path: path) } catch let refusal as TIAImageReader.Refusal {
+                throw Refusal.tia(file: formatoDisplayFileName(path), refusal)
             }
         }
         if ext == "emd" {

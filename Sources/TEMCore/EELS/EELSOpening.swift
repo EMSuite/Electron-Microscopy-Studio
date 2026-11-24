@@ -1,5 +1,5 @@
 // Opening a low-loss EELS spectrum image: a GMS .dm4 with an EELS spectrum-image object (FormatoKit's `DM4Experiment.readEELSSpectrumImage`)
-// or a Velox.emd with an EELS stream (`VeloxSpectrumImageSignals`; NOT yet verified on a real Velox EELS file). A single spectrum (a GMS EELS
+// or a Velox.emd with an EELS stream, or a TIA series of EELS spectra (`.ser`, `TIASpectra`) (`VeloxSpectrumImageSignals`; NOT yet verified on a real Velox EELS file). A single spectrum (a GMS EELS
 // object of dimensions [energy], an EMSA/MSA file of signal type ELS) opens as a 1 x 1 spectrum image.
 // The counts stay as stored. What the file states (E0, the two angles) rides along for the mean free path; nothing is assumed.
 // The room holds every count as a Double, so a file whose cubes would take more than half of the Mac's memory once read is refused in a
@@ -103,7 +103,7 @@ package enum EELSOpeningError: Error, Equatable, LocalizedError {
 }
 
 package enum EELSOpening {
-    package static let readableExtensions = ["dm4", "emd", "msa"]
+    package static let readableExtensions = ["dm4", "emd", "msa", "ser"]
 
     /// The bytes `cubes` EELS cubes of `nx` x `ny` pixels and `channels` channels take as the room holds them: every count a Double, 8 bytes. In
     /// Double, so no file's size overflows it.
@@ -207,6 +207,19 @@ package enum EELSOpening {
             let counts = signal.data.doubles()
             cubes.append(EELSCube(nx: 1, ny: 1, channels: counts.count, counts: EELSCounts(counts), offsetEV: axis.offset, scaleEV: axis.scale,
                                   origin: "EMSA/MSA spectrum (EELS)"))
+        case "ser":
+            // A TIA series of spectra (`TIASpectra`): a point, a line profile or a spectrum image, E₀ from its .emi. The counts stay as
+            // stored; the scan's pixel size when the file states a length.
+            guard TIASpectra.isSpectra(url) else { throw EELSOpeningError.notEELS(name) }
+            let series = try TIASpectra.read(url: url)
+            let bytes = Self.estimatedBytes(nx: series.columns, ny: series.rows, channels: series.channels)
+            if let refusal = memoryRefusal(name: name, cubes: 1, bytes: bytes, physicalMemory: physicalMemory) { throw refusal }
+            beam = series.beamEnergyKeV
+            pixel = series.pixel
+            cubes.append(EELSCube(nx: series.columns, ny: series.rows, channels: series.channels,
+                                  counts: series.stoppedEarly ? EELSCounts(try TIASpectra.counts(series)) : EELSCounts(stored: try TIASpectra.values(series)),
+                                  offsetEV: series.energy.offset, scaleEV: series.energy.scale,
+                                  origin: "TIA series \(name) (EELS)" + (series.stoppedEarly ? ", " + TIASpectra.stoppedNote(series) : "")))
         default:
             throw EELSOpeningError.notEELS(name)
         }

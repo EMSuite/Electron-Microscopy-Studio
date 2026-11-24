@@ -121,6 +121,33 @@ nonisolated final class AgentDoorFFTTests: XCTestCase {
         XCTAssertTrue(item.fft.spots.isEmpty)
     }
 
+    /// Map Strain through the door (#917): with the lattice's spots found, set_fft strain runs GPA on the first two at an angle,
+    /// get_fft reads back the spots taken, each map's drawn range and the validation note, and get_fft_picture draws the
+    /// map. Mutation: strain not reaching runStrain, the last run not read back, the strain view not drawable - red.
+    @MainActor func testMapStrainRunsAndReadsBack() async throws {
+        let (_, item) = try await fftWindow()
+        let early = try await call("set_fft", ["view": "strainXX"])
+        XCTAssertTrue(early.refused, "no maps yet: \(early.text)")
+        let found = try await call("set_fft_spots", ["find": true])
+        XCTAssertFalse(found.refused, found.text)
+        try await waitUntil("the spots to be found and measured", seconds: 60) { item.fft.spots.count > 1 && self.spotsSettled(item) }
+        let run = try await call("set_fft", ["strain_reference": "centredQuarter", "strain": true])
+        XCTAssertFalse(run.refused, run.text)
+        try await waitUntil("the maps", seconds: 60) { item.fft.strain != nil || item.fft.strainFailure != nil }
+        let read = try await call("get_fft")
+        let strain = try XCTUnwrap(try json(read.text)["strain"] as? [String: Any])
+        XCTAssertEqual(strain["reference"] as? String, "centredQuarter")
+        XCTAssertEqual(strain["validation"] as? String, strainValidationNote)
+        let last = try XCTUnwrap(strain["last_run"] as? [String: Any], "\(strain)")
+        XCTAssertEqual((last["spots"] as? [Int])?.count, 2)
+        for name in ["exx_range_percent", "eyy_range_percent", "exy_range_percent", "rotation_range_degrees_clockwise"] {
+            XCTAssertNotNil(last[name] as? Double, name)
+        }
+        XCTAssertEqual(item.fft.sourceView, .strainXX)
+        let picture = try await call("get_fft_picture", ["which": "source"])
+        XCTAssertTrue(picture.image, picture.text)
+    }
+
     /// Mutation: set_fft taking a region the room cannot transform, a σ without Gaussian smoothing, or a view with nothing to show;
     /// a window not reaching setPreprocess - red.
     @MainActor func testSettingsAndTheirRefusals() async throws {

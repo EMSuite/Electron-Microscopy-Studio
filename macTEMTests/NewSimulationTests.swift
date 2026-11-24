@@ -33,8 +33,11 @@ nonisolated final class NewSimulationTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(analysis.fileDeltaQ(image)), 0.0125, accuracy: 1e-12)
 
         analysis.bind(image)   // the room's view binds it on screen
-        guard case .success(let spots) = try XCTUnwrap(analysis.simulatedSpots(image: image)) else {
-            return XCTFail("no simulated spots on a new simulation")
+        // The canvas's corner is 4.5 Å⁻¹ out, past the kit's k_max cap of 4: the simulator stops at the cap rather than refusing.
+        let simulated = try XCTUnwrap(analysis.simulatedSpots(image: image))
+        guard case .success(let spots) = simulated else {
+            if case .failure(let absence) = simulated { XCTFail("no simulated spots on a new simulation: \(absence.sentence)") }
+            return
         }
         let s200 = try XCTUnwrap(spots.first { $0.hkl == MillerIndex(2, 0, 0) })
         XCTAssertEqual(s200.row, 256 + 2 / 4.0782 / 0.0125, accuracy: 1e-9)
