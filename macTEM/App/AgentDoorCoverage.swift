@@ -421,4 +421,65 @@ nonisolated enum AgentDoorCoverage {
         "welcome.unreadableStatus": .seen,
         "workspace.\\(room.id)": .tool("select_room"),
     ]
+
+    /// Shows or hides a pane of the person's window; the get tools answer whether the pane shows or not.
+    static let layoutReason = "shows or hides a pane of the person's window; the get tools answer whatever the window shows"
+    static let windowReason = "opens or closes a window, which stays the person's; the door works on the windows the person has open"
+    static let saveReason = "writes the marks into the file's session in a place the person grants with the save panel"
+    static let updateReason = "software updates are the person's; an agent must not install a new app"
+    static let pointerToolReason = "picks the pointer's tool for the person's next drag; set_eds sets the region itself"
+
+    /// The menu bar's items (#847, plan row P15 of 2.3), beside the menu's key table (MenuKeyTableTests): every Button or Toggle in a
+    /// `Commands` source, keyed by its title as written there (a literal's text, or the expression that makes the title), with how an
+    /// agent does the same. `AgentDoorCoverageTests` fails when an item has no row, a row names a tool the door does not have, or a
+    /// row outlives its item. A room's toolbar and inspector verbs are `controls` above (their accessibility identifiers).
+    static let menuItems: [String: Reach] = [
+        // File
+        "New Window": .personOnly(windowReason),
+        "Open Image…": .tool("open_file"),
+        "recents.title(of: entry)": .personOnly(openReason),
+        "Clear Menu": .personOnly(openCloseReason),
+        "Reopen Last Session": .personOnly(openCloseReason),
+        "Show in Finder": .personOnly(finderReason),
+        "close.closeTitle": .personOnly(openCloseReason),
+        "Close Window": .personOnly(windowReason),
+        "title": .personOnly(saveReason),
+        "Export Image…": .personOnly(exportReason),
+        "Export Profile…": .personOnly(exportReason),
+        "Export Transform…": .personOnly(exportReason),
+        "Export Radial Profile…": .personOnly(exportReason),
+        "Export Spots…": .personOnly(exportReason),
+        "Export Results…": .personOnly(exportReason),
+        "Export Session Report…": .personOnly(exportReason),
+        "Export Spectrum CSV…": .personOnly(exportReason),
+        "Export Maps…": .personOnly(exportReason),
+        "Export Results CSV…": .personOnly(exportReason),
+        "Export Method JSON…": .personOnly(exportReason),
+        "Export Regions CSV…": .personOnly(exportReason),
+        "Export \\(kind.title)": .personOnly(exportReason),
+        // View
+        #"appState?.navigation.panels.sidebarIsVisible == true ? "Hide Sidebar" : "Show Sidebar""#: .personOnly(layoutReason),
+        #"appState?.navigation.panels.inspectorIsVisible == true ? "Hide Inspector" : "Show Inspector""#: .personOnly(layoutReason),
+        #"appState?.navigation.panels.showProcessArea == true ? "Hide Output" : "Show Output""#: .personOnly(layoutReason),
+        // Image: the measuring tools.
+        "tool.title": .tool("set_image_room"),
+        // Workspace
+        "Go to \\(group.title)": .tool("select_room"),
+        "Show Next Room": .tool("select_room"),
+        "Show Previous Room": .tool("select_room"),
+        "area.title": .tool("select_room"),
+        "RoomPrimaryAction.runTitle(appState)": .tool("run_room"),
+        #"appState.map { RoomPrimaryAction.stopTitle($0) } ?? "Stop""#: .tool("stop_run"),
+        "Select Tool": .personOnly(pointerToolReason),
+        "Rectangle Region Tool": .tool("set_eds"),
+        "Ellipse Region Tool": .tool("set_eds"),
+        "Polygon Region Tool": .gap(885),
+        "Line Tool": .gap(885),
+        "Pin Region": .gap(885),
+        // Help
+        "demo.title": .tool("open_demo"),
+        // The app menu and Settings > Updates.
+        "Check for Updates…": .personOnly(updateReason),
+        "Check for updates automatically": .personOnly(settingsReason),
+    ]
 }
