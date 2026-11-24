@@ -15,6 +15,7 @@
 //  "Leave out file names": each source becomes "source 1", "source 2", ... in the record and in the export's own header.
 //
 
+import CryptoKit
 import FormatoCore
 import Foundation
 import ImagoCore
@@ -113,6 +114,56 @@ package nonisolated enum ExportMethods {
         return MethodsRecord(app: app, room: "image", exportKind: exportKind, kits: kits,
                              references: [MethodsRecord.Software(name: "scikit-image", version: "0.26.0")],
                              sources: [source], steps: measured.steps, results: measured.results, drawn: drawn)
+    }
+
+    /// An SEM room's record of one export, from the record the session keeps of it (`SEMExportedFile`): each method that made it a
+    /// step, with the pinned package its parity tests hold it to, and the room's settings as the export's own step.
+    package static func semRecord(_ file: SEMExportedFile, app: MethodsRecord.Software, exportKind: String,
+                                  source: MethodsRecord.Source) -> MethodsRecord {
+        var references: [MethodsRecord.Software] = []
+        var steps: [MethodsRecord.Step] = []
+        for method in file.methods {
+            // In the order the method names them: the package a port follows first ("pyebsdindex 0.3.10.1 as kikuchipy 0.13.1 drives it").
+            let named = method.parityReference
+            let pinned = SEMReferenceVersions.pinned
+                .compactMap { package in named.range(of: "\(package.name) \(package.version)").map { (package, $0.lowerBound) } }
+                .sorted { $0.1 < $1.1 }
+                .map { MethodsRecord.Software(name: $0.0.name, version: $0.0.version) }
+            for package in pinned where !references.contains(package) { references.append(package) }
+            steps.append(MethodsRecord.Step(name: method.title, method: method.sentence, reference: pinned.first))
+        }
+        if !file.fields.isEmpty {
+            steps.append(MethodsRecord.Step(name: file.what, method: "the room's settings when it wrote the file",
+                                            settings: file.fields.map { MethodsRecord.Quantity(name: $0.name, value: value($0.value)) }))
+        }
+        return MethodsRecord(app: app, room: file.room.lowercased(), exportKind: exportKind, kits: kits, references: references,
+                             sources: [source], steps: steps, drawn: [file.what])
+    }
+
+    /// `data` with the record inside, by the file's extension: a PNG's text chunk, or a CSV's or an `.ang`'s header line. Any other
+    /// kind (a method JSON, an Oxford `.ctf`, whose first line must be its own) comes back as it was.
+    package static func embedding(_ record: MethodsRecord, inFileWithExtension fileExtension: String, data: Data) throws -> Data {
+        switch fileExtension.lowercased() {
+        case "png": return try embedding(record, inPNG: data)
+        case "csv", "ang":
+            guard let text = String(data: data, encoding: .utf8) else { return data }
+            return Data(try embedding(record, inText: text).utf8)
+        default: return data
+        }
+    }
+
+    /// The SHA-256 of the file at `url` (64 lowercase hexadecimal digits) and its size, read in 8 MiB blocks. Off the main actor: a
+    /// pattern file is gigabytes.
+    package static func fingerprint(ofFileAt url: URL) throws -> (sha256: String, byteCount: Int) {
+        let handle = try FileHandle(forReadingFrom: url)
+        defer { try? handle.close() }
+        var hasher = SHA256()
+        var count = 0
+        while let block = try handle.read(upToCount: 8 * 1_024 * 1_024), !block.isEmpty {
+            hasher.update(data: block)
+            count += block.count
+        }
+        return (hasher.finalize().map { String(format: "%02x", $0) }.joined(), count)
     }
 
     // MARK: - Helpers

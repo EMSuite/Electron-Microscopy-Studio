@@ -38,18 +38,44 @@ extension EELSSession {
                                        width: image.nx, height: image.ny, footer: nil))
         }
         for tile in maps {
-            let flat = EELSMapScale.isFlat(tile.values)
-            let values = flat ? EELSMapScale.flatValues(tile.values) : EELSMapScale.scaled(tile.values, mode: EELSMapScale.mode(forTileID: tile.id)).values
-            let coloring = flat ? MapColoring.colormap(.gray) : appearance.coloring(for: tile.id, default: EELSTileStyle.defaultColoring(tile.id))
+            // A flat map has no range, so no colour bar: its tile says its one value.
+            let scale = EELSMapScale.isFlat(tile.values) ? nil : EELSMapScale.scaled(tile.values, mode: EELSMapScale.mode(forTileID: tile.id))
+            let values = scale?.values ?? EELSMapScale.flatValues(tile.values)
+            let coloring = scale == nil ? MapColoring.colormap(.gray) : appearance.coloring(for: tile.id, default: EELSTileStyle.defaultColoring(tile.id))
+            let adjustment = scale == nil ? MapAdjustment() : appearance.adjustment(for: tile.id)
             // The PNG's words are in the export's locale, not the reader's (`ExportSnapshot.labelLocale`).
             cells.append(EDXFigureCell(id: tile.id, title: tile.title, detail: tile.detailText(locale: ExportSnapshot.labelLocale) ?? "",
-                                       rgba: MapRaster.rgba(values: values, coloring: coloring, upper: 1, adjustment: flat ? MapAdjustment() : appearance.adjustment(for: tile.id)),
-                                       width: tile.width, height: tile.height, footer: tile.footer))
+                                       rgba: MapRaster.rgba(values: values, coloring: coloring, upper: 1, adjustment: adjustment),
+                                       width: tile.width, height: tile.height, footer: tile.footer,
+                                       colourBar: scale.map { EELSFigureColourBar.bar($0, coloring: coloring, adjustment: adjustment, unit: tile.unit,
+                                                                                      locale: ExportSnapshot.labelLocale) }))
         }
         let region = selectedPin?.region ?? .wholeMap
         return EDXFigureContent(title: fileName, subtitle: (selectedPin?.name ?? "Whole map") + " \u{00B7} EELS, " + EELSLiterature.figureLine, tiles: [], region: region,
                                 nx: image.nx, ny: image.ny, bar: EDXExports.scaleBar(pixelSize: scanPixel?.size, unit: scanPixel?.unit, nx: image.nx, ny: image.ny),
                                 showsScaleBar: scaleBar, showsRegion: regions, cells: cells)
+    }
+}
+
+/// A map's colour bar in the Maps PNG (#861): the tile's own colouring, window and gamma over the window it shows, and the values at the
+/// window's two ends (the scale's low and high, `EELSMapScale.Scaled`, cut by the window's fractions), three significant digits, the unit
+/// after the high end. Pure, so a test pins the ends and the ramp.
+nonisolated enum EELSFigureColourBar {
+    static let steps = 256
+
+    static func bar(_ scale: EELSMapScale.Scaled, coloring: MapColoring, adjustment: MapAdjustment, unit: String, locale: Locale) -> EDXFigureColourBar {
+        let ends = self.ends(scale, adjustment: adjustment)
+        // The fractions of the scale the window spans, through the tile's own raster code: the ramp is the picture's colours, low to high.
+        let fractions = (0..<steps).map { adjustment.low + (adjustment.high - adjustment.low) * Double($0) / Double(steps - 1) }
+        return EDXFigureColourBar(rgba: MapRaster.rgba(values: fractions, coloring: coloring, upper: 1, adjustment: adjustment), width: steps,
+                                  low: EELSRoomFormat.sig(ends.low, 3, locale: locale),
+                                  high: EELSRoomFormat.sig(ends.high, 3, locale: locale) + (unit.isEmpty ? "" : " \(unit)"))
+    }
+
+    /// The values the window's two ends stand for.
+    static func ends(_ scale: EELSMapScale.Scaled, adjustment: MapAdjustment) -> (low: Double, high: Double) {
+        let span = scale.high - scale.low
+        return (scale.low + adjustment.low * span, scale.low + adjustment.high * span)
     }
 }
 
