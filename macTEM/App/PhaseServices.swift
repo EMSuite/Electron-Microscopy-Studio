@@ -11,16 +11,20 @@ import Foundation
 import ShellPhaseLibrary
 
 enum PhaseServices {
-    static let keyStore: any APIKeyStore = KeychainAPIKeyStore()
-    static let client = MaterialsProjectClient()
-    static let library = PhaseLibrary(store: PhaseLibraryStore.standard()
+    // Variables only so a test can hand in a stub transport and a temporary folder; the app never reassigns them.
+    static var keyStore: any APIKeyStore = KeychainAPIKeyStore()
+    static var client = MaterialsProjectClient()
+    static var library = PhaseLibrary(store: PhaseLibraryStore.standard()
         ?? PhaseLibraryStore(folder: FileManager.default.temporaryDirectory.appending(path: "Phases", directoryHint: .isDirectory)))
     private static var loadStarted = false
+    /// The library has been read from disk; the agent door's phase tools answer only then.
+    static var isLoaded = false
 
     /// Reads the library from disk once per launch (the app delegate starts it); later calls return at once.
     static func loadLibrary() async {
         guard !loadStarted else { return }
         loadStarted = true
         await library.load()
+        isLoaded = true
     }
 }
