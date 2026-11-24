@@ -310,6 +310,8 @@ extension MacTEMAgentDoor {
             d and the deviation in %.
             5. Index. crystal picks the crystal the rows are indexed against; k_max and tolerance (% of q) set the list and the \
             match. Rows are indexed again at once, with no refit. `get_diffraction` csv true gives Export Readout CSV…'s text.
+            6. Look. `get_diffraction_figure` draws the figure Export Figure… writes: the pattern with its marks, labels, scale \
+            bar, legend and spot table.
 
             What to check:
             - fit_versus_file_percent compares the ring's Δq with the file's axis: a few % says the file's camera length is off; \

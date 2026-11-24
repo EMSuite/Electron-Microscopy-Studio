@@ -167,11 +167,75 @@ package nonisolated enum FigureExport {
     package static let spotColor = FigureColor(red: 1, green: 0.23, blue: 0.19)
     package static let simulatedColor = FigureColor(red: 0, green: 0.85, blue: 0.95)
 
+    /// What a pattern's figure carries below its picture (#823, plan row X7): the legend of what is drawn (one row per kind of
+    /// mark in the figure) and the readout as a table, one row per measured ring or spot.
+    package struct PatternExtras: Sendable, Equatable {
+        package var legend: Bool
+        /// The table's rows, `tableHeader`'s columns each; empty leaves the table out.
+        package var table: [[String]]
+
+        package init(legend: Bool = false, table: [[String]] = []) {
+            self.legend = legend
+            self.table = table
+        }
+    }
+
+    /// The spot table's columns: the readout's number, the family or hkl, d measured, d of the crystal's list, the misfit.
+    package static let tableHeader = ["#", "hkl", "d (Å)", "d listed (Å)", "Δd/d (%)"]
+    package static let tableAnchors: [FigureTextAnchor] = [.end, .start, .end, .end, .end]
+    /// Column widths in points at 7 pt: wide enough for "{113}" and "2.3550" at Helvetica's widest digits; they scale with the type.
+    package static func tableColumnWidths(typeSize: Double) -> [Double] { [14.0, 60, 40, 52, 44].map { $0 * typeSize / 7 } }
+
+    /// One table row per readout row: its number, family, d, listed d and misfit, three decimals for d and two for the misfit
+    /// (the readout's own), in the POSIX locale; a value the row lacks is left empty.
+    package static func tableRows(_ rows: [DiffractionReadoutRow]) -> [[String]] {
+        let posix = Locale(identifier: "en_US_POSIX")
+        func number(_ value: Double?, _ digits: Int) -> String {
+            value.map { String(format: "%.\(digits)f", locale: posix, $0) } ?? ""
+        }
+        return rows.map { row in
+            ["\(row.number)", row.family ?? "", number(row.d, 3), number(row.dListed, 3), number(row.deltaPercent, 2)]
+        }
+    }
+
+    /// The legend's rows for what `overlay` draws, in the order it is drawn: measured rings, measured spots, simulated spots.
+    package static func legendEntries(_ overlay: PatternOverlay) -> [FigureLegend.Entry] {
+        var entries: [FigureLegend.Entry] = []
+        if overlay.rings.contains(where: { $0.points.count >= 3 }) { entries.append(.init("Measured ring", swatch: .line(ringColor))) }
+        if overlay.spots.contains(where: { $0.points.count == 1 }) {
+            entries.append(.init("Measured spot", swatch: .marker(.cross, stroke: spotColor, fill: nil)))
+        }
+        if !overlay.simulated.isEmpty {
+            entries.append(.init("Simulated spot", swatch: .marker(.circle, stroke: simulatedColor, fill: nil)))
+        }
+        return entries
+    }
+
+    /// The legend and the table under the picture, each a type size apart; the scene grows to hold them.
+    static func addExtras(_ extras: PatternExtras, overlay: PatternOverlay, to scene: inout FigureScene) {
+        let typeSize = scene.style.typeSize, rowHeight = FigureTable.rowHeightFactor * typeSize
+        var bottom = scene.heightPoints
+        let entries = extras.legend ? legendEntries(overlay) : []
+        if !entries.isEmpty {
+            bottom += typeSize
+            scene.layers.append(.legend(FigureLegend(origin: FigurePoint(x: 0, y: bottom), entries: entries)))
+            bottom += Double(entries.count) * rowHeight
+        }
+        if !extras.table.isEmpty {
+            bottom += typeSize
+            scene.layers.append(.table(FigureTable(origin: FigurePoint(x: 0, y: bottom), columnWidths: tableColumnWidths(typeSize: typeSize),
+                                                   anchors: tableAnchors, header: tableHeader, rows: extras.table)))
+            bottom += Double(extras.table.count + 1) * rowHeight
+        }
+        scene.heightMM = bottom / FigureScene.pointsPerMillimetre
+    }
+
     /// The figure of a pattern: the picture across the style's width, then (with `labels`) the measured rings and spots with their
     /// d, the simulated spots as one marker shape per phase (rings for the simulation, crosses for what was measured) with their
-    /// hkl, the centre, and the scale bar in the room's reciprocal units (`source`'s axes). `barLeftOut` as for an image.
+    /// hkl, the centre, and the scale bar in the room's reciprocal units (`source`'s axes). `barLeftOut` as for an image. `extras` adds the
+    /// legend and the spot table under the picture.
     package static func patternScene(source: ExportSource, display: ImageExport.Display, overlay: PatternOverlay, scaleBar: Bool, labels: Bool,
-                                     width: FigureStyle.Width) throws -> (scene: FigureScene, barLeftOut: Bool) {
+                                     width: FigureStyle.Width, extras: PatternExtras = PatternExtras()) throws -> (scene: FigureScene, barLeftOut: Bool) {
         var made = try scene(source: source, display: display, marks: [], options: ImageExport.Options(scaleBar: false, marks: false),
                              width: width)
         let k = made.scene.widthPoints / Double(display.width)
@@ -219,6 +283,7 @@ package nonisolated enum FigureExport {
             }
         }
         made.scene.layers += layers
+        addExtras(extras, overlay: overlay, to: &made.scene)
         return made
     }
 
@@ -233,12 +298,25 @@ package nonisolated enum FigureExport {
 
     /// A pattern's scene, file and write, off the main actor; PNG is the figure at 300 dpi.
     @concurrent package static func exportPattern(source: ExportSource, display: ImageExport.Display, overlay: PatternOverlay, scaleBar: Bool,
-                                                  labels: Bool, width: FigureStyle.Width, format: Format, methods: MethodsRecord?,
+                                                  labels: Bool, width: FigureStyle.Width, extras: PatternExtras = PatternExtras(),
+                                                  format: Format, methods: MethodsRecord?,
                                                   to url: URL) async throws -> (scene: FigureScene, barLeftOut: Bool) {
-        let made = try patternScene(source: source, display: display, overlay: overlay, scaleBar: scaleBar, labels: labels, width: width)
+        let made = try patternScene(source: source, display: display, overlay: overlay, scaleBar: scaleBar, labels: labels, width: width,
+                                    extras: extras)
         let metadata = FigureMetadata(title: source.fileName, creator: source.software, methodsRecord: try methods?.json())
         try ExportFile.write(try data(made.scene, format: format, metadata: metadata), to: url)
         return made
+    }
+
+    /// The pattern's figure as PDF and PNG, for the clipboard (Copy Figure) and a drag: the same scene Export Figure… writes, PDF
+    /// first so a vector-aware app takes it, PNG at 300 dpi for the rest. Off the main actor.
+    @concurrent package static func patternClipboard(source: ExportSource, display: ImageExport.Display, overlay: PatternOverlay,
+                                                     scaleBar: Bool, labels: Bool, width: FigureStyle.Width, extras: PatternExtras,
+                                                     methods: MethodsRecord?) async throws -> (pdf: Data, png: Data) {
+        let made = try patternScene(source: source, display: display, overlay: overlay, scaleBar: scaleBar, labels: labels, width: width,
+                                    extras: extras)
+        let metadata = FigureMetadata(title: source.fileName, creator: source.software, methodsRecord: try methods?.json())
+        return (try data(made.scene, format: .pdf, metadata: metadata), try data(made.scene, format: .png, metadata: metadata))
     }
 
     /// Scene, file and write, off the main actor (a 4096² picture is 48 MB of RGB).

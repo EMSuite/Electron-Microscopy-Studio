@@ -4,6 +4,7 @@
 //  512 × 512, centre (256, 256), Δq 0.0125 Å⁻¹/px at 200 kV, {111} at R 33.98, {200} at 39.24, {220} as six spots at R 55.48, the
 //  file's axis written 1 % large): set_diffraction calibrates on the Au {111} ring and get_diffraction reads the planted scale back,
 //  set_diffraction_marks adds a {220} spot that the readout indexes, removes it, and the settings the file states are refused.
+//  get_diffraction_figure draws the figure Copy Figure copies (#823).
 //  The tolerances are DiffractionAnalysisTests' (the kit's): the door adds none of its own.
 //
 
@@ -208,6 +209,17 @@ nonisolated final class AgentDoorDiffractionTests: XCTestCase {
         let left = try MethodsRecord.decode(try XCTUnwrap(anonymous["record"] as? String))
         XCTAssertEqual(left.sources.first?.fileName, "source 1")
         XCTAssertFalse(try XCTUnwrap(anonymous["paragraph"] as? String).contains(name))
+    }
+
+    /// get_diffraction_figure (#823) answers the figure Copy Figure copies, as an image, once the pattern's display is built.
+    /// Mutation: the tool missing, or answering text - red.
+    @MainActor func testTheFigureToolDrawsThePattern() async throws {
+        let (_, item) = try await diffractionWindow()
+        let image = try XCTUnwrap(item.session.image)
+        await item.diffractionView.show(image: image, analysis: item.diffraction)
+        let figure = try await call("get_diffraction_figure")
+        XCTAssertFalse(figure.refused, figure.text)
+        XCTAssertTrue(figure.image, "the figure is a picture")
     }
 }
 

@@ -138,6 +138,15 @@ struct ExportCommands: Commands {
                 .disabled(!HyperSpyExportPanel.isAvailable(in: appState, coreLoss: true))
                 .accessibilityIdentifier("menu.exportHyperSpyCoreLoss")
         }
+        // Edit > Copy Figure (#823): the Diffraction room's figure on the clipboard as PDF and PNG. ⇧⌘C, beside Copy's ⌘C, which
+        // stays the system's for the inspector's fields; free in this app's key table.
+        // Always listed, dimmed where it cannot act (HIG, Menus); the methods paragraph joins this group.
+        CommandGroup(after: .pasteboard) {
+            Divider()
+            Button("Copy Figure") { if let appState { ExportPanels.copyDiffractionFigure(appState: appState) } }
+                .keyboardShortcut("c", modifiers: [.command, .shift])
+                .disabled(diffractionFigure != true)
+        }
     }
 
     /// The EDS room's exports, named and ordered as mac4DSTEM's Spectroscopy exports are: each enabled by the rule of its button in

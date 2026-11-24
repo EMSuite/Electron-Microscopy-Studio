@@ -34,6 +34,11 @@ final class ExportImageChoices {
     let offersFigure: Bool
     /// Whether a PNG is a figure too, `width` wide at 300 dpi (the Diffraction room's, which has no PNG of its own pixels).
     var pngIsFigure = false
+    /// The Diffraction figure's Legend and Spot table (#823): offered when the figure has marks to key, or a readout row.
+    var offersLegend = false
+    var legend = true
+    var offersTable = false
+    var table = true
     var format: FigureExport.Format = .png
     var width: FigureStyle.Width = .mm90
     @ObservationIgnored var formatChanged: ((FigureExport.Format) -> Void)?
@@ -126,6 +131,16 @@ struct ExportImageOptions: View {
                 Toggle(choices.kind.title, isOn: $choices.marks)
                     .help(choices.kind.help)
                     .accessibilityIdentifier(choices.kind.identifier)
+            }
+            if choices.offersLegend {
+                Toggle("Legend", isOn: $choices.legend)
+                    .help("Draw a key under the pattern: one row for the measured rings, the measured spots and the simulated spots")
+                    .accessibilityIdentifier("export.legendToggle")
+            }
+            if choices.offersTable {
+                Toggle("Spot table", isOn: $choices.table)
+                    .help("Draw the readout under the pattern: each ring and spot with its family, d, listed d and Δd/d")
+                    .accessibilityIdentifier("export.tableToggle")
             }
             if choices.offersAsShown {
                 Toggle("As shown", isOn: $choices.asShown)

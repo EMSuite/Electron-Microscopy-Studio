@@ -8,10 +8,14 @@
 //  In the Diffraction room the figure is the pattern on screen: the measured rings and spots, the simulated spots with their hkl,
 //  the centre and a bar in Å⁻¹ (`FigureExport.patternScene`, `DiffractionFigureSnapshot`).
 //  Red before: `FigureExport` did not exist; Export Image… wrote PNG only, and the Diffraction room had no figure.
+//  A figure carries its key and spot table (#823, plan row X7): the legend's rows for the marks drawn, the readout as a table under
+//  the picture, the scene grown to hold them, and Copy Figure's PDF and PNG of the same scene.
+//  Red before: the pattern's scene had no legend or table, and nothing drew a figure for the clipboard.
 //
 
 import DiffractoCore
 import Foundation
+import ImageIO
 import ImagoCore
 import PDFKit
 import ShellExport
@@ -122,6 +126,37 @@ nonisolated final class FigureExportTests: XCTestCase {
         XCTAssertEqual(bareTexts, [plan.label], "Labels off: the bar's label alone")
     }
 
+    /// The legend keys what is drawn and only that, the table is the readout's rows in the POSIX locale, and both sit under the
+    /// picture in a scene grown to hold them. Mutation: an entry for a kind not drawn, the table's d in the person's locale, or the
+    /// scene's height left the picture's - red.
+    func testAPatternFigureCarriesItsLegendAndSpotTable() throws {
+        let spot = FigureExport.PatternOverlay.Measured(points: [ImagePoint(x: 300, y: 100)], label: "d 2.039 Å")
+        let simulated = [ZoneAxisOverlay.Spot(hkl: MillerIndex(2, 0, 0), row: 128, column: 340, intensity: 1, relative: 1)]
+        let overlay = FigureExport.PatternOverlay(centre: nil, rings: [], spots: [spot], simulated: simulated, labelled: [])
+        XCTAssertEqual(FigureExport.legendEntries(overlay).map(\.label), ["Measured spot", "Simulated spot"], "no ring drawn, none keyed")
+
+        let readout = [DiffractionReadoutRow(id: UUID(), kind: .spot, number: 1, radiusPx: 82.1, q: 1.0262, d: 0.97448, family: "{200}",
+                                             dListed: 0.97, deltaPercent: 0.4618, oddsText: nil, verdict: "accepted", validation: ""),
+                       DiffractionReadoutRow(id: UUID(), kind: .ring, number: 2, radiusPx: nil, q: nil, d: nil, family: nil, dListed: nil,
+                                             deltaPercent: nil, oddsText: nil, verdict: "no ring", validation: "")]
+        let rows = FigureExport.tableRows(readout)
+        XCTAssertEqual(rows, [["1", "{200}", "0.974", "0.970", "0.46"], ["2", "", "", "", ""]])
+
+        let plain = try FigureExport.patternScene(source: source(), display: display(), overlay: overlay, scaleBar: false, labels: false,
+                                                  width: .mm90)
+        let full = try FigureExport.patternScene(source: source(), display: display(), overlay: overlay, scaleBar: false, labels: false,
+                                                 width: .mm90, extras: FigureExport.PatternExtras(legend: true, table: rows))
+        let legends = full.scene.layers.compactMap { layer -> FigureLegend? in if case .legend(let l) = layer { l } else { nil } }
+        let tables = full.scene.layers.compactMap { layer -> FigureTable? in if case .table(let t) = layer { t } else { nil } }
+        XCTAssertEqual(legends.map { $0.entries.count }, [2])
+        XCTAssertEqual(tables.map(\.header), [FigureExport.tableHeader])
+        XCTAssertEqual(tables.first?.rows, rows)
+        let picture = plain.scene.heightPoints, type = full.scene.style.typeSize, row = FigureTable.rowHeightFactor * type
+        XCTAssertEqual(legends.first?.origin.y ?? 0, picture + type, accuracy: 1e-9, "under the picture")
+        XCTAssertEqual(full.scene.heightPoints, picture + type + 2 * row + type + 3 * row, accuracy: 1e-9, "grown to hold both")
+        XCTAssertFalse(plain.scene.layers.contains { if case .legend = $0 { true } else if case .table = $0 { true } else { false } })
+    }
+
     /// The Diffraction room's snapshot is the pattern on screen as the room displays it, with the room's scale on its axes.
     /// Mutation: the snapshot taken outside the room, or the axes left the file's - red.
     @MainActor func testTheDiffractionRoomsSnapshotIsThePatternOnScreen() async throws {
@@ -145,6 +180,15 @@ nonisolated final class FigureExportTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: url) }
         _ = try await snapshot.write(to: url, format: .pdf, width: .mm90, scaleBar: true, labels: true)
         XCTAssertNotNil(PDFDocument(url: url))
+
+        // Copy Figure's two types and the door's PNG: the same figure, its table with the readout's rows (#823).
+        XCTAssertEqual(snapshot.table, FigureExport.tableRows(item.diffraction.readout(image: image)))
+        let pictures = try await snapshot.pictures()
+        let copied = try XCTUnwrap(PDFDocument(data: pictures.pdf))
+        if !snapshot.table.isEmpty { XCTAssertTrue(copied.string?.contains("d listed (Å)") == true, copied.string ?? "") }
+        let png = try XCTUnwrap(CGImageSourceCreateWithData(pictures.png as CFData, nil).flatMap { CGImageSourceCreateImageAtIndex($0, 0, nil) })
+        XCTAssertEqual(Double(png.width), FigureStyle.Width.mm90.rawValue / 25.4 * 300, accuracy: 2, "90 mm at 300 dpi")
+        XCTAssertEqual(try snapshot.png().count > 0, true)
     }
 
     /// The PDF and the SVG carry the labels as text and the methods record as their metadata. Mutation: the labels drawn as

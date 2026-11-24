@@ -5,6 +5,10 @@
 //        gamma and colormap), the measured rings and spots with their d, the simulated spots of the zone axis or of Index's
 //        orientation with their hkl (the room's own labelling rule, `ZoneAxisOverlay.labelled`), the centre, and a scale bar in Å⁻¹
 //        from the room's scale. Taken when the panel opens, so the figure is what was on screen then.
+//        A figure carries its key and its spot table (#823, plan row X7): Legend draws one row per kind of mark under the picture, Spot
+//        table the readout's rows (number, family, d, listed d, misfit). Edit > Copy Figure, ⌘C on the pattern and its context menu put
+//        the figure on the clipboard as PDF and PNG; the header's figure handle drags it out as a file; `get_diffraction_figure` gives
+//        an agent the same figure as PNG. Those three draw it as the panel's defaults do: 90 mm, bar, labels, legend and table.
 //
 
 import DiffractoGeometry
@@ -22,21 +26,57 @@ nonisolated struct DiffractionFigureSnapshot: Sendable {
     let defaultName: String
     let directory: URL?
     let hasLabels: Bool
+    /// The readout as the figure's spot table (`FigureExport.tableRows`); empty without a ring or spot.
+    let table: [[String]]
     /// The pattern's methods record, its export kind and drawn set made at the write; nil for a pattern read from no file.
     var methods: MethodsRecord?
 
-    /// What the panel's OK does: the figure of this snapshot, `format` and `width` as chosen, the labels and the bar as asked.
-    func write(to url: URL, format: FigureExport.Format, width: FigureStyle.Width, scaleBar: Bool, labels: Bool,
-               leaveOutFileNames: Bool = false) async throws -> (scene: FigureScene, barLeftOut: Bool) {
+    /// Whether the figure has a key to draw: a ring, a spot or a simulated spot.
+    var hasLegend: Bool { !FigureExport.legendEntries(overlay).isEmpty }
+
+    /// What the panel's OK does: the figure of this snapshot, `format` and `width` as chosen, the labels, the bar, the legend and the
+    /// table as asked.
+    func write(to url: URL, format: FigureExport.Format, width: FigureStyle.Width, scaleBar: Bool, labels: Bool, legend: Bool = false,
+               table: Bool = false, leaveOutFileNames: Bool = false) async throws -> (scene: FigureScene, barLeftOut: Bool) {
         let named = ExportSnapshot.named(source: source, methods: methods, leaveOutFileNames: leaveOutFileNames)
-        var record = named.methods
-        record?.exportKind = "diffraction-figure-\(format.rawValue)"
+        let record = methodsRecord(named.methods, kind: format.rawValue, scaleBar: scaleBar, labels: labels, legend: legend, table: table)
+        return try await FigureExport.exportPattern(source: named.source, display: display, overlay: overlay, scaleBar: scaleBar, labels: labels,
+                                                    width: width, extras: extras(legend: legend, table: table), format: format,
+                                                    methods: record, to: url)
+    }
+
+    /// Copy Figure's and the drag's figure as PDF and PNG, drawn as the panel's defaults draw it (90 mm, bar, labels, legend, table);
+    /// file names left out, since the copy goes wherever the person pastes it.
+    func pictures() async throws -> (pdf: Data, png: Data) {
+        let named = ExportSnapshot.named(source: source, methods: methods, leaveOutFileNames: true)
+        let record = methodsRecord(named.methods, kind: "copy", scaleBar: true, labels: true, legend: true, table: true)
+        return try await FigureExport.patternClipboard(source: named.source, display: display, overlay: overlay, scaleBar: true, labels: true,
+                                                       width: .mm90, extras: extras(legend: true, table: true), methods: record)
+    }
+
+    /// The same figure as PNG at 300 dpi, drawn on the caller's actor: the agent door's `get_diffraction_figure`, whose tools answer
+    /// at once. Bounded by the snapshot's refusal of a side a figure cannot take; a 90 mm figure is about 1063 px wide.
+    func png() throws -> Data {
+        let made = try FigureExport.patternScene(source: source, display: display, overlay: overlay, scaleBar: true, labels: true, width: .mm90,
+                                                 extras: extras(legend: true, table: true))
+        return try FigureExport.data(made.scene, format: .png, metadata: FigureMetadata(title: source.fileName, creator: source.software))
+    }
+
+    private func extras(legend: Bool, table: Bool) -> FigureExport.PatternExtras {
+        FigureExport.PatternExtras(legend: legend, table: table ? self.table : [])
+    }
+
+    /// The figure's methods record: its export kind, and what it draws as asked.
+    private func methodsRecord(_ methods: MethodsRecord?, kind: String, scaleBar: Bool, labels: Bool, legend: Bool, table: Bool) -> MethodsRecord? {
+        var record = methods
+        record?.exportKind = "diffraction-figure-\(kind)"
         var drawn = ["the pattern as displayed (log, window, gamma and colormap)", "the measured rings and spots", "the simulated spots"]
         if labels { drawn.append("the d of each ring and spot and the hkl of the simulated spots") }
         if scaleBar { drawn.append("the scale bar") }
+        if legend, hasLegend { drawn.append("the legend") }
+        if table, !self.table.isEmpty { drawn.append("the spot table") }
         record?.drawn = drawn
-        return try await FigureExport.exportPattern(source: named.source, display: display, overlay: overlay, scaleBar: scaleBar, labels: labels,
-                                                    width: width, format: format, methods: record, to: url)
+        return record
     }
 }
 
@@ -75,7 +115,7 @@ extension ExportSnapshot {
         var snapshot = DiffractionFigureSnapshot(
             source: source, display: display(canvas: canvas, presentation: item.diffractionView.presentation), overlay: overlay,
             defaultName: imageName(fileName: image.fileName), directory: ExportPanels.defaultFolder(for: item.url),
-            hasLabels: !rows.isEmpty || !labelled.isEmpty)
+            hasLabels: !rows.isEmpty || !labelled.isEmpty, table: FigureExport.tableRows(rows))
         if let identity = item.openedIdentity {
             let methodsSource = ExportMethods.source(ExportSource(image: image, software: software), byteCount: Int(identity.byteSize),
                                                      fingerprint: identity.pixelSHA256, kind: "image")

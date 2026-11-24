@@ -50,6 +50,7 @@ nonisolated enum AgentDoorCoverage {
         "diffraction.crystal": .tool("set_diffraction"),
         "diffraction.export": .personOnly(exportReason),
         "diffraction.family": .tool("set_diffraction"),
+        "diffraction.figureDrag": .tool("get_diffraction_figure"),
         "diffraction.fitRing": .tool("set_diffraction"),
         "diffraction.index.fitScale": .gap(791),
         "diffraction.index.flip": .gap(791),
@@ -152,8 +153,10 @@ nonisolated enum AgentDoorCoverage {
         "export.asShownToggle": .personOnly(exportReason),
         "export.formatPicker": .personOnly(exportReason),
         "export.leaveOutFileNames": .personOnly(exportReason),
+        "export.legendToggle": .personOnly(exportReason),
         "export.profileButton": .personOnly(exportReason),
         "export.scaleBarToggle": .personOnly(exportReason),
+        "export.tableToggle": .personOnly(exportReason),
         "export.widthPicker": .personOnly(exportReason),
         "fft.bandpass": .tool("set_fft"),
         "fft.filter.centredSquare": .tool("set_fft"),
@@ -460,6 +463,8 @@ nonisolated enum AgentDoorCoverage {
         "Export Method JSON…": .personOnly(exportReason),
         "Export Regions CSV…": .personOnly(exportReason),
         "Export \\(kind.title)": .personOnly(exportReason),
+        // Edit
+        "Copy Figure": .tool("get_diffraction_figure"),
         // View
         #"appState?.navigation.panels.sidebarIsVisible == true ? "Hide Sidebar" : "Show Sidebar""#: .personOnly(layoutReason),
         #"appState?.navigation.panels.inspectorIsVisible == true ? "Hide Inspector" : "Show Inspector""#: .personOnly(layoutReason),

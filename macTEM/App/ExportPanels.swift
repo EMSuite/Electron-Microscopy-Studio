@@ -70,6 +70,8 @@ enum ExportPanels {
         Task.immediate {
             let choices = ExportImageChoices(scaleBar: true, marks: true, offersMarks: snapshot.hasLabels, kind: .labels, offersFigure: true)
             choices.pngIsFigure = true
+            choices.offersLegend = snapshot.hasLegend
+            choices.offersTable = !snapshot.table.isEmpty
             choices.format = .pdf
             let fileNames = rememberedFileNameChoice()
             choices.fileNames = fileNames
@@ -85,12 +87,55 @@ enum ExportPanels {
             appState.statusText = ExportSnapshot.exportingLine(name: name)
             do {
                 let made = try await snapshot.write(to: url, format: choices.format, width: choices.width, scaleBar: choices.scaleBar,
-                                                    labels: choices.offersMarks && choices.marks, leaveOutFileNames: fileNames.leaveOut)
+                                                    labels: choices.offersMarks && choices.marks, legend: choices.offersLegend && choices.legend,
+                                                    table: choices.offersTable && choices.table, leaveOutFileNames: fileNames.leaveOut)
                 report(ExportSnapshot.figureDoneLine(name: name, widthMM: made.scene.widthMM, barLeftOut: made.barLeftOut), in: appState)
             } catch {
                 appState.present(error)
             }
         }
+    }
+
+    /// Edit > Copy Figure (⇧⌘C), the pattern's context menu and its VoiceOver action in the Diffraction room (#823): the figure
+    /// Export Figure… writes at its defaults, on the general pasteboard as PDF and PNG. Drawn off the main actor, then written.
+    /// WHY APPKIT: `NSPasteboard` is the one way to put two types of one picture on the clipboard from a menu item; SwiftUI's
+    /// `onCopyCommand` answers ⌘C only while a view has focus, and the pattern has none (its keys are the pane's own).
+    static func copyDiffractionFigure(appState: AppState) {
+        guard appState.exportsWriting == 0, let snapshot = ExportSnapshot.diffractionFigureSnapshot(of: appState) else {
+            NSSound.beep()
+            return
+        }
+        appState.exportsWriting += 1
+        Task.immediate {
+            defer { appState.exportsWriting -= 1 }
+            do {
+                let pictures = try await snapshot.pictures()
+                let pasteboard = NSPasteboard.general
+                pasteboard.clearContents()
+                pasteboard.setData(pictures.pdf, forType: .pdf)
+                pasteboard.setData(pictures.png, forType: .png)
+                report("Copied the figure of \(snapshot.defaultName) as PDF and PNG", in: appState)
+            } catch {
+                appState.present(error)
+            }
+        }
+    }
+
+    /// The figure handle's drag (#823): the figure as a PDF file named after the pattern, drawn when the drop asks for it. The
+    /// provider's data is made off the main actor; Finder writes it as a file named `suggestedName`. The snapshot (a copy of the
+    /// display values, within the side `refusal` allows) is taken as the drag starts, so the figure is what was on screen then,
+    /// as Export Figure… takes it when its panel opens.
+    static func diffractionFigureDrag(appState: AppState) -> NSItemProvider {
+        let provider = NSItemProvider()
+        guard let snapshot = ExportSnapshot.diffractionFigureSnapshot(of: appState) else { return provider }
+        provider.suggestedName = snapshot.defaultName
+        provider.registerDataRepresentation(forTypeIdentifier: UTType.pdf.identifier, visibility: .all) { completion in
+            Task {
+                do { completion(try await snapshot.pictures().pdf, nil) } catch { completion(nil, error) }
+            }
+            return nil
+        }
+        return provider
     }
 
     /// File > Export Profile… and the selected profile's button: the CSV of its samples.
