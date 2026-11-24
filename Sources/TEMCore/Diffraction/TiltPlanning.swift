@@ -167,7 +167,7 @@ package nonisolated enum TiltPlanning {
             // the crystal direction on the beam after the move: c with moved.labCoordinates(c) = ẑ, i.e. cᵢ = (moved's lab eᵢ).z
             let c = SIMD3(moved.labCoordinates(of: SIMD3(1, 0, 0)).z, moved.labCoordinates(of: SIMD3(0, 1, 0)).z,
                           moved.labCoordinates(of: SIMD3(0, 0, 1)).z)
-            if let p = StereographicProjection.project(orientation.labCoordinates(of: c)) { out.append(p) }
+            if let p = DiffractoGeometry.StereographicProjection.project(orientation.labCoordinates(of: c)) { out.append(p) }
         }
         return out
     }

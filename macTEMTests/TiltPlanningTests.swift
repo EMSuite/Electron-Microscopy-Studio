@@ -66,7 +66,7 @@ nonisolated final class TiltPlanningTests: XCTestCase {
         XCTAssertTrue(plan.sentence(for: far).hasSuffix(": outside the holder's range of ±30°."), plan.sentence(for: far))
         // the reach outline: 4 × 45 points, each at most the larger limit's worth of tilt from the beam's centre
         XCTAssertEqual(plan.reach.count, 180)
-        XCTAssertTrue(plan.reach.allSatisfy { StereographicProjection.angleFromCentreDeg($0) <= 43 }, "√(30² + 30²) ≈ 42.4°")
+        XCTAssertTrue(plan.reach.allSatisfy { DiffractoGeometry.StereographicProjection.angleFromCentreDeg($0) <= 43 }, "√(30² + 30²) ≈ 42.4°")
     }
 
     /// A second planted pattern at other tilts calibrates the axis it was planted with; too small a tilt change is refused in the
