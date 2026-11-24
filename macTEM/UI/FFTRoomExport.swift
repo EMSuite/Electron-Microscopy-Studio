@@ -104,7 +104,7 @@ struct FFTExportSection: View {
 
     var body: some View {
         let entries = FFTExportMenu.entries(ExportSnapshot.fftAvailability(of: appState), hasSpectrum: analysis.isSpectrumCurrent)
-        InspectorSection("Export") {
+        InspectorSection("Export", startsExpanded: false) {
             ForEach(Array(stride(from: 0, to: entries.count, by: 2)), id: \.self) { start in
                 InspectorActionRow {
                     ForEach(entries[start..<min(start + 2, entries.count)], id: \.item) { entry in

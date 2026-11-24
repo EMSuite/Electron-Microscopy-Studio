@@ -1,13 +1,49 @@
 //
 //  GeneratedFiles.swift
-//  Files written for a test, of the sizes a test asks for: a GMS DM4 spectrum image (EDS or EELS), an EDAX `.up2` pattern scan with
-//  its `.ang`, a lone `.ang` map. Shared by RoomMemoryTests (each room gives a closed file's memory back) and BenchmarkTests (the
-//  nightly timings). No test is declared here (the unit gate reads test names by file and type).
+//  Files written for a test, of the sizes a test asks for: a grey TIFF of 8-bit, 16-bit or 32-bit float pixels, a GMS DM4 spectrum
+//  image (EDS or EELS), an EDAX `.up2` pattern scan with its `.ang`, a lone `.ang` map. Shared by RoomMemoryTests (each room gives a
+//  closed file's memory back), DocumentMemoryBudgetTests (what each kind costs while open) and BenchmarkTests (the nightly timings). No test is declared here (the unit gate reads test names by file and type).
 //
 
 import Foundation
 
 nonisolated enum GeneratedFiles {
+
+    /// The bits of a grey TIFF's pixel: unsigned 8 or 16, or 32-bit float.
+    enum TIFFPixel: Int { case uint8 = 8, uint16 = 16, float32 = 32 }
+
+    /// A one-page baseline TIFF of `width` × `height` grey pixels of `pixel`'s type, uncompressed, one strip, a ramp that varies
+    /// across the page.
+    static func greyTIFF(_ pixel: TIFFPixel, width: Int, height: Int, in dir: URL) throws -> URL {
+        let url = dir.appendingPathComponent("grey-\(pixel.rawValue)bit-\(width)x\(height).tif")
+        let bytesPerPixel = pixel.rawValue / 8, entries = 10
+        let dataAt = 8 + 2 + entries * 12 + 4, pageBytes = width * height * bytesPerPixel
+        var out = Data(capacity: dataAt + pageBytes)
+        func u16(_ v: Int) { withUnsafeBytes(of: UInt16(v).littleEndian) { out.append(contentsOf: $0) } }
+        func u32(_ v: Int) { withUnsafeBytes(of: UInt32(v).littleEndian) { out.append(contentsOf: $0) } }
+        func entry(_ tag: Int, _ type: Int, _ value: Int) { u16(tag); u16(type); u32(1); if type == 3 { u16(value); u16(0) } else { u32(value) } }
+        out.append(contentsOf: [0x49, 0x49, 0x2A, 0x00]); u32(8)
+        u16(entries)
+        entry(256, 4, width); entry(257, 4, height); entry(258, 3, pixel.rawValue); entry(259, 3, 1); entry(262, 3, 1)
+        entry(273, 4, dataAt); entry(277, 3, 1); entry(278, 4, height); entry(279, 4, pageBytes)
+        entry(339, 3, pixel == .float32 ? 3 : 1)      // SampleFormat: unsigned integer, or IEEE float
+        u32(0)
+        var body = Data(count: pageBytes)
+        body.withUnsafeMutableBytes { raw in
+            for y in 0..<height {
+                for x in 0..<width {
+                    let level = (x * 7 + y * 13) % 4096, i = y * width + x
+                    switch pixel {
+                    case .uint8: raw.storeBytes(of: UInt8(level % 256), toByteOffset: i, as: UInt8.self)
+                    case .uint16: raw.storeBytes(of: UInt16(level).littleEndian, toByteOffset: i * 2, as: UInt16.self)
+                    case .float32: raw.storeBytes(of: Float(level).bitPattern.littleEndian, toByteOffset: i * 4, as: UInt32.self)
+                    }
+                }
+            }
+        }
+        try (out + body).write(to: url)
+        return url
+    }
 
     /// A GMS DM4 spectrum image of `nx` × `ny` × `channels` int16 values, as `DM4TestFile` writes one: named "EDS SI" or "EELS SI"
     /// (the name gives the object its role, as GMS names do), the energy axis in keV (EDS, 10 eV a channel) or eV (EELS, 0.25 eV a

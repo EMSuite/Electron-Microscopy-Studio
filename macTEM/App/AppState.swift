@@ -219,6 +219,7 @@ final class AppState {
         if launch.demoImage { open(urls: [DemoDocuments.latticeURL]) }
         if launch.demoPattern { openDemo(.diffraction) }
         if launch.demoStack, let url = try? DemoDocuments.stackFile() { open(urls: [url]) }
+        if let side = launch.demoLargeImageSide, let url = try? DemoDocuments.largeImageFile(side: side) { open(urls: [url]) }
         if launch.demoSEMImage, let url = try? DemoDocuments.semImageFile() { open(urls: [url]) }
         if launch.demoSpectrumFile, let url = try? DemoDocuments.spectrumFile() { open(urls: [url]) }
         if launch.demoSEMSpectrum { openDemo(.semSpectrum) }

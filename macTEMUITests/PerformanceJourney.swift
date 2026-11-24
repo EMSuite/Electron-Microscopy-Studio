@@ -131,4 +131,46 @@ nonisolated final class PerformanceJourney: Journey {
             waitValue("image.stack.frame", timeout: 30) { $0 == "2" }
         })
     }
+
+    // MARK: - Launch and first-picture budgets (2.3 plan row Q4)
+
+    /// Five measured launches with `arguments`, each from the launch to `shown`; one unmeasured launch first, so a file the launch writes
+    /// (`--demo-large-image`) is on disk before the clock runs and every measured launch only reads it.
+    @MainActor
+    private func measureLaunch(_ arguments: [String], signposts: [String], shown: @escaping @MainActor () -> Void) {
+        app = performanceApp
+        performanceApp.terminate()
+        performanceApp.launchArguments = ["--ui-testing"] + arguments
+        performanceApp.launch()
+        shown()
+        let options = XCTMeasureOptions()
+        options.iterationCount = 5
+        options.invocationOptions = [.manuallyStart]
+        measure(metrics: metrics(signposts), options: options) {
+            performanceApp.terminate()
+            performanceApp.launchArguments = ["--ui-testing"] + arguments
+            startMeasuring()
+            performanceApp.launch()
+            shown()
+        }
+        performanceApp.terminate()
+    }
+
+    /// Launch to the empty window: the welcome canvas's first control on screen.
+    @MainActor func testLaunchToTheWindow() {
+        measureLaunch([], signposts: []) {
+            XCTAssertTrue(self.performanceApp.descendants(matching: .any).matching(identifier: "welcome.tryDemo").firstMatch.waitForExistence(timeout: 60))
+        }
+    }
+
+    /// Launch to the first picture of a generated `side` x `side` 16-bit TIFF: the Image room's picture reads its size.
+    @MainActor private func firstPicture(side: Int) {
+        measureLaunch(["--demo-large-image", "\(side)"], signposts: ["open.image"]) {
+            self.waitValue("image.view", timeout: 120) { $0.contains("\(side) by \(side) pixels") }
+        }
+    }
+
+    @MainActor func testLaunchToTheFirstPictureOfA2048Image() { firstPicture(side: 2048) }
+
+    @MainActor func testLaunchToTheFirstPictureOfA4096Image() { firstPicture(side: 4096) }
 }
