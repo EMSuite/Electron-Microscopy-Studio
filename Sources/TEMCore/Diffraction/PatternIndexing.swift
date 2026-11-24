@@ -238,6 +238,12 @@ package nonisolated enum PatternIndexing {
         /// The phase the hkl is of; "" for a spot the orientation does not explain.
         package let phase: String
 
+        package init(id: UUID, number: Int, hkl: MillerIndex?, radiusPx: Double, q: Double, d: Double, dExpected: Double?,
+                     deltaPercent: Double?, phase: String) {
+            self.id = id; self.number = number; self.hkl = hkl; self.radiusPx = radiusPx; self.q = q; self.d = d
+            self.dExpected = dExpected; self.deltaPercent = deltaPercent; self.phase = phase
+        }
+
         package var hklText: String { hkl.map { ZoneAxisText.label($0) } ?? "" }
         package var dExpectedKey: Double { dExpected ?? .infinity }
         package var deltaKey: Double { deltaPercent ?? .infinity }
