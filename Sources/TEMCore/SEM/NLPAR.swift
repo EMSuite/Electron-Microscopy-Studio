@@ -207,7 +207,7 @@ package nonisolated enum NLPAR {
                                                           distances: op, counts: np, neighbours: jp, stops: tp)
                                 DispatchQueue.concurrentPerform(iterations: rows) { j in
                                     if isCancelled() {
-                                        shared.stops[j] = 1
+                                        (shared.stops + j).pointee = 1
                                         return
                                     }
                                     let d = shared.data, sg = shared.sigma, dOut = shared.distances, nOut = shared.counts
@@ -343,7 +343,7 @@ package nonisolated enum NLPAR {
                             let temp = max(distances[p * 9 + q], dthresh)
                             wp[q] = exp(Double(-temp) / l2)
                         }
-                        out.base[p] = abs(target - 1.0 / (pairwiseSum(UnsafePointer(wp), 9) + 1e-12))
+                        (out.base + p).pointee = abs(target - 1.0 / (pairwiseSum(UnsafePointer(wp), 9) + 1e-12))
                     }
                 }
             }
