@@ -320,7 +320,7 @@ nonisolated final class EELSRealDataJourney: Journey {
         }
 
         check("exports: Spectrum MSA, Spectrum CSV, Method JSON") {
-            showSettings(waitingFor: "eels.export.method")
+            inspectorTab("Settings"); openSection("Export", showing: "eels.export.method")
             let bar = waitFor("status.bar", timeout: 30)
             for (id, name) in [("eels.export.spectrumMSA", "Spectrum MSA"), ("eels.export.spectrum", "Spectrum CSV"), ("eels.export.method", "Method JSON")] {
                 let button = element(id)

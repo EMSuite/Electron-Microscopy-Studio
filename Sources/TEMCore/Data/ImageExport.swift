@@ -32,6 +32,7 @@ import CoreGraphics
 import FormatoCore
 import Foundation
 import ImageIO
+import ShellExport
 import UniformTypeIdentifiers
 
 package nonisolated enum ImageExport {
@@ -168,13 +169,15 @@ package nonisolated enum ImageExport {
     /// The PNG. Throws `ExportFile.Failure.tooLarge` above `maximumSide` (named, never clipped) and `.encodeFailed` if
     /// CoreGraphics or ImageIO refuses. `display` must be `source.width` × `source.height` with `normalized.count` pixels
     /// and a 1024-byte `lut` (a caller bug otherwise: a precondition).
+    /// `methods`, when given, goes in as one more text chunk (`ExportMethods`).
     package static func render(source: ExportSource, display: Display, marks: [Mark], options: Options,
-                               provenance: Provenance? = nil) throws -> Rendered {
+                               provenance: Provenance? = nil, methods: MethodsRecord? = nil) throws -> Rendered {
         let drawn = try draw(source: source, display: display, marks: marks, options: options)
         let width = display.width, height = display.height
         let description = metadata(source: source, display: display, marks: marks, options: options, plan: drawn.plan,
                                    layout: drawn.layout, overlayScale: drawn.overlayScale, provenance: provenance)
-        let png = try encodePNG(drawn.image, title: source.fileName, software: source.software, description: description)
+        var png = try encodePNG(drawn.image, title: source.fileName, software: source.software, description: description)
+        if let methods { png = try ExportMethods.embedding(methods, inPNG: png) }
         return Rendered(png: png, width: width, height: height, bar: drawn.plan, barLeftOut: drawn.barLeftOut)
     }
 
@@ -256,8 +259,10 @@ package nonisolated enum ImageExport {
 
     /// Render, then `ExportFile.write`, off the main actor (a 4096² export maps 16 M pixels and encodes tens of MB).
     @concurrent package static func export(source: ExportSource, display: Display, marks: [Mark], options: Options,
-                                           provenance: Provenance? = nil, to url: URL) async throws -> Rendered {
-        let rendered = try render(source: source, display: display, marks: marks, options: options, provenance: provenance)
+                                           provenance: Provenance? = nil, methods: MethodsRecord? = nil,
+                                           to url: URL) async throws -> Rendered {
+        let rendered = try render(source: source, display: display, marks: marks, options: options, provenance: provenance,
+                                  methods: methods)
         try ExportFile.write(rendered.png, to: url)
         return rendered
     }

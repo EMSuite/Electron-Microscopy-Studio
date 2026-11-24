@@ -53,7 +53,7 @@ nonisolated final class FFTExportMenuTests: XCTestCase {
         }
         XCTAssertEqual(source.components(separatedBy: "ExportPanels.export").count - 1, 3, "no other panel call in the file")
         XCTAssertTrue(source.contains("Button(entry.title) { entry.item.panel(appState) }"), "the row runs the item's own panel")
-        XCTAssertTrue(source.contains("InspectorSection(\"Export\")") && source.contains("InspectorActionRow {"), "an Export section of action rows")
+        XCTAssertTrue(source.contains("InspectorSection(\"Export\", startsExpanded: false)") && source.contains("InspectorActionRow {"), "an Export section of action rows")
         XCTAssertTrue(source.contains(".help(entry.help)") && source.contains(".disabled(!entry.isEnabled)"), "disabled, with the reason as help")
         XCTAssertFalse(source.contains("InspectorAdaptiveMenu") || source.contains(" Menu {"), "no pull-down")
     }

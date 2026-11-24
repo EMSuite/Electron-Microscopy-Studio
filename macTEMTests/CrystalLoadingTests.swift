@@ -56,11 +56,12 @@ nonisolated final class CrystalLoadingTests: XCTestCase {
         }
     }
 
-    func testInvalidUTF8IsRefusedByName() {
-        let bad = Data("# ".utf8) + Data([0xC3, 0x28]) + Data("\n".utf8) + Self.gold
-        XCTAssertThrowsError(try CrystalLoading.load(bytes: bad, fileName: "bad.cif")) { error in
-            XCTAssertEqual(error as? CrystalLoading.Refusal, .notUTF8)
-        }
+    /// DiffractoKit 0.19 reads a CIF that is not UTF-8 as Windows-1252 / Latin-1 (DiffractoKit#142: the CIFs people have), so a
+    /// stray byte in a comment no longer refuses the file: it reads as the same crystal.
+    func testBytesThatAreNotUTF8AreReadAsLatin1() throws {
+        let latin1 = Data("# ".utf8) + Data([0xC3, 0x28]) + Data("\n".utf8) + Self.gold
+        XCTAssertEqual(try CrystalLoading.load(bytes: latin1, fileName: "latin1.cif").structure,
+                       try CrystalLoading.load(bytes: Self.gold, fileName: "gold.cif").structure)
     }
 
     /// The kit's error comes through unchanged: the same value, and `localizedDescription` is the kit's `description`.

@@ -523,3 +523,16 @@ workflow reads them. `ui.yml` stays by hand only.
 2026-11-10 rule that keeps the journeys off a schedule protects the Mac's screen; a GitHub runner has no one at it.
 
 **What would reverse it.** The weekly run costing more macOS runner time than the org's queue can spare; then by hand again.
+
+## 2026-11-24 — CI: `unit` runs again on a push to main (reverses 2026-11-12)
+
+**What.** A push to main runs `unit` (inventory, core, unit) again, unless the merge changes only docs: the `changes` job now
+reads the merge commit as it reads a pull request. A newer push to main cancels the older run (the workflow's concurrency
+group), so a burst of merges is tested once, at its newest commit.
+
+**Why.** The nightly review found that main could go red unnoticed until the nightly: the ruleset does not require a
+branch to be up to date, so two pull requests that each passed alone can break each other. The cost is at most one macOS
+slot per merge burst, not one per merge.
+
+**What would reverse it.** The macOS queue again holding pull requests back for long, with main seldom red; then the
+nightly alone again.

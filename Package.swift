@@ -1,7 +1,7 @@
 // swift-tools-version: 6.2
 // SPDX-License-Identifier: GPL-3.0-only
 // TEMCore and TEMSession, the app's two library targets (`tools/run-tests.sh core` builds them standalone: the layering
-// gate). Kits and MacEMUI by version range (Package.resolved holds the versions built). No UI below the app: TEMCore takes only ShellEDXModel from MacEMUI (the shared EDS room's model, no SwiftUI).
+// gate). Kits and MacEMUI by version range (Package.resolved holds the versions built). No UI below the app: TEMCore takes only ShellEDXModel (the shared EDS room's model) and ShellExport (figures and the methods record) from MacEMUI, neither with SwiftUI.
 import PackageDescription
 
 let package = Package(
@@ -12,13 +12,13 @@ let package = Package(
         .library(name: "TEMSession", targets: ["TEMSession"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/mac4DSTEM/FormatoKit", from: "0.18.0"),
-        .package(url: "https://github.com/mac4DSTEM/DiffractoKit", from: "0.11.0"),
+        .package(url: "https://github.com/mac4DSTEM/FormatoKit", from: "0.19.0"),
+        .package(url: "https://github.com/mac4DSTEM/DiffractoKit", from: "0.19.0"),
         .package(url: "https://github.com/mac4DSTEM/ImagoKit", from: "0.11.0"),
         .package(url: "https://github.com/mac4DSTEM/SpectroKit", from: "0.16.0"),
         // The window shell, controls and Metal image view both apps share. TEMSession takes ShellMetal (MetalEngine, ColormapKind); TEMCore and
         // TEMSession take ShellEDXModel (the shared EDS room; the EELS room reuses its regions and pins).
-        .package(url: "https://github.com/mac4DSTEM/MacEMUI", from: "0.13.0"),
+        .package(url: "https://github.com/mac4DSTEM/MacEMUI", from: "0.14.0"),
     ],
     targets: [
         .target(
@@ -42,6 +42,7 @@ let package = Package(
                 .product(name: "SpectroEDX", package: "SpectroKit"),
                 .product(name: "SpectroEELS", package: "SpectroKit"),
                 .product(name: "ShellEDXModel", package: "MacEMUI"),
+                .product(name: "ShellExport", package: "MacEMUI"),
             ],
             swiftSettings: [
                 // Optimised in Debug too.

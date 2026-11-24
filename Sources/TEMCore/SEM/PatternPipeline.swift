@@ -17,6 +17,7 @@
 
 import Foundation
 import FormatoCore
+import Synchronization
 
 package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
 
@@ -111,6 +112,23 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
 
         package var usesLowpass: Bool { pass != .high }
         package var usesHighpass: Bool { pass != .low }
+
+        /// The last transfer function built, with the stage and shape it was built for: every pattern of a Process run asks for the
+        /// same one, which is now built once per run instead of once per pattern (#624).
+        private static let lastTransferFunction = Mutex<(stage: FFTFilterStage, rows: Int, columns: Int, window: PatternWindow)?>(nil)
+
+        /// `transferFunction(rows:columns:)`, built once while the stage and the shape stay the same.
+        package func cachedTransferFunction(rows: Int, columns: Int) throws -> PatternWindow {
+            if let hit = Self.lastTransferFunction.withLock({ entry -> PatternWindow? in
+                guard let kept = entry, kept.stage == self, kept.rows == rows, kept.columns == columns else { return nil }
+                return kept.window
+            }) {
+                return hit
+            }
+            let window = try transferFunction(rows: rows, columns: columns)
+            Self.lastTransferFunction.withLock { $0 = (self, rows, columns, window) }
+            return window
+        }
 
         /// The transfer function for a rows × columns pattern.
         package func transferFunction(rows: Int, columns: Int) throws -> PatternWindow {
@@ -408,7 +426,7 @@ package nonisolated struct PatternPipeline: Sendable, Equatable, Codable {
         if fftFilter.isOn {
             let h: PatternWindow
             do {
-                h = try fftFilter.transferFunction(rows: rows, columns: columns)
+                h = try fftFilter.cachedTransferFunction(rows: rows, columns: columns)
             } catch {
                 throw Refusal(.fftFilter, "The cutoffs and widths must be positive.")
             }

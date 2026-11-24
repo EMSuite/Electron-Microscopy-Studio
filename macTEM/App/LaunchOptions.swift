@@ -15,6 +15,8 @@
 //          --demo-sem-tiff-fixture open the generated "Demo SEM image" (a Thermo-style SEM TIFF with a databar, written to the temporary folder)
 //          --demo-sem-eds          open the shipped SEM-EDS spectrum (DemoData/EDS_SEM_TM002.hspy) through the app's Open, into the EDX room
 //          --demo-ang              open the shipped orientation map (DemoData/sdss_ferrite_austenite.ang) through the app's Open, into the Maps room
+//          --demo-large-image <n>  open a generated n x n 16-bit TIFF (64 to 8192, written to the temporary folder) through the app's Open:
+//                                  the launch and first-picture budgets (PerformanceJourney, docs/performance.md)
 //          --appearance light|dark force the window's colour scheme (the system's otherwise)
 //          --open <path>           (repeatable) open that file at launch through a drop's path, after the demo fixtures; an absolute path only
 //          --export-dir <path>     where an export journey writes without a save panel (Export Results); relative: inside the app's temporary folder
@@ -35,6 +37,8 @@ struct LaunchOptions: Equatable {
     var demoSEMSpectrum = false
     var demoOrientationMap = false
     var demoRegions = false
+    /// `--demo-large-image <n>`: the side of the generated square image to open, 64 to 8192 pixels; nil without the flag or out of range.
+    var demoLargeImageSide: Int?
     /// `--appearance light|dark`: the colour scheme the window is forced to (a journey's light-mode screenshot), else the system's.
     var appearance: String?
     /// `--open <path>`, in the order given: absolute paths only (a relative one is refused, nothing to resolve it against).
@@ -57,6 +61,10 @@ struct LaunchOptions: Equatable {
         demoSpectrumFile = arguments.contains("--demo-msa-fixture")
         demoSEMSpectrum = arguments.contains("--demo-sem-eds")
         demoOrientationMap = arguments.contains("--demo-ang")
+        if let i = arguments.firstIndex(of: "--demo-large-image"), arguments.indices.contains(i + 1), let side = Int(arguments[i + 1]),
+           (64...8192).contains(side) {
+            demoLargeImageSide = side
+        }
         for (i, argument) in arguments.enumerated() where argument == "--open" && arguments.indices.contains(i + 1) && arguments[i + 1].hasPrefix("/") {
             openFiles.append(URL(fileURLWithPath: arguments[i + 1]))
         }

@@ -6,6 +6,8 @@
 //        pattern is then rescaled to -1 ... 1 on the CPU unless the master pattern is float32 already (the CPU path's rule,
 //        `get_patterns`' `rescale = dtype_out != self.data.dtype`; EMsoft writes float32). The kernel is compiled from the source below at first use (no .metal
 //        file: the app target's shader library stays the shell's). Same ports and licences as MasterPatternProjection.swift.
+//        A dictionary projected chunk by chunk goes through one `Projector`: the master pattern and the cosines uploaded once, the
+//        buffers made once, and a size the kernel's 32-bit indices cannot address refused as `tooLarge` (#624).
 //        Checked against the float64 CPU path in macTEMTests/MasterPatternParityTests.swift within `tolerance` (decision in
 //        docs/decisions.md: float32 Lambert coordinates on a 401 px master pattern move an interpolation weight by ~1e-5).
 //
@@ -53,60 +55,133 @@ package nonisolated enum MasterPatternProjectionMetal {
         guard centres == 1 || centres == rotations.count else {
             throw MasterPatternProjection.Error.centreCount(centres: centres, rotations: rotations.count)
         }
-        let pixels = detector.rows * detector.columns
-        guard pixels > 0 else { throw MasterPatternProjection.Error.emptyDetector }
+        guard detector.rows * detector.columns > 0 else { throw MasterPatternProjection.Error.emptyDetector }
         if rotations.isEmpty { return [] }
-        let p = try pipeline.get()
-        let (upper, lower) = try master.hemispheres(energy: energy)
+        let projector = try Projector(master: master, detector: detector, energy: energy, capacity: rotations.count)
+        return try projector.withPatterns(rotations[...]) { Array($0) }
+    }
 
-        // Direction cosines in float64 on the CPU (one set per centre, as the reference), handed to the GPU as float4.
-        let cosines = MasterPatternProjection.directionCosines(detector: detector).flatMap { set in
-            set.map { SIMD4<Float>(Float($0.x), Float($0.y), Float($0.z), 0) }
-        }
-        let quaternions = rotations.map { SIMD4<Float>(Float($0.x), Float($0.y), Float($0.z), Float($0.w)) }
-        var params = Params(pixels: UInt32(pixels), patterns: UInt32(rotations.count), side: UInt32(master.side),
-                            varying: centres == 1 ? 0 : 1, scale: Float(Double(master.side - 1) / 2))
+    /// The GPU side of projecting a dictionary chunk by chunk: the kernel's inputs that do not change between chunks (the master
+    /// pattern's two hemispheres, the detector's direction cosines) uploaded once, and the rotation and output buffers made once for
+    /// chunks of up to `capacity` patterns (#624: each chunk uploaded the master pattern again and allocated its buffers).
+    package nonisolated final class Projector {
+        private let p: Pipeline
+        private let upper: MTLBuffer
+        private let lower: MTLBuffer
+        private let cosines: MTLBuffer
+        private let quaternions: MTLBuffer
+        private let output: MTLBuffer
+        private let pixels: Int
+        private let centres: Int
+        private let capacity: Int
+        private let side: Int
+        private let rescales: Bool
 
-        let outputBytes = rotations.count * pixels * MemoryLayout<Float>.stride
-        guard let qBuffer = p.device.makeBuffer(bytes: quaternions, length: quaternions.count * MemoryLayout<SIMD4<Float>>.stride, options: .storageModeShared),
-              let dcBuffer = p.device.makeBuffer(bytes: cosines, length: cosines.count * MemoryLayout<SIMD4<Float>>.stride, options: .storageModeShared),
-              let upBuffer = upper.withUnsafeBytes({ b in b.baseAddress.flatMap { p.device.makeBuffer(bytes: $0, length: b.count, options: .storageModeShared) } }),
-              let loBuffer = lower.withUnsafeBytes({ b in b.baseAddress.flatMap { p.device.makeBuffer(bytes: $0, length: b.count, options: .storageModeShared) } }),
-              let outBuffer = p.device.makeBuffer(length: outputBytes, options: .storageModeShared),
-              let commands = p.queue.makeCommandBuffer(),
-              let encoder = commands.makeComputeCommandEncoder() else {
-            throw MasterPatternProjection.Error.metal("could not allocate \(outputBytes) bytes on the GPU")
-        }
-        encoder.setComputePipelineState(p.state)
-        encoder.setBuffer(qBuffer, offset: 0, index: 0)
-        encoder.setBuffer(dcBuffer, offset: 0, index: 1)
-        encoder.setBuffer(upBuffer, offset: 0, index: 2)
-        encoder.setBuffer(loBuffer, offset: 0, index: 3)
-        encoder.setBuffer(outBuffer, offset: 0, index: 4)
-        encoder.setBytes(&params, length: MemoryLayout<Params>.stride, index: 5)
-        let width = min(p.state.threadExecutionWidth, pixels)
-        let height = max(1, min(p.state.maxTotalThreadsPerThreadgroup / width, rotations.count))
-        encoder.dispatchThreads(MTLSize(width: pixels, height: rotations.count, depth: 1),
-                                threadsPerThreadgroup: MTLSize(width: width, height: height, depth: 1))
-        encoder.endEncoding()
-        commands.commit()
-        commands.waitUntilCompleted()
-        if let error = commands.error { throw MasterPatternProjection.Error.metal(error.localizedDescription) }
-
-        var out = [Float](repeating: 0, count: rotations.count * pixels)
-        out.withUnsafeMutableBytes { $0.copyMemory(from: UnsafeRawBufferPointer(start: outBuffer.contents(), count: outputBytes)) }
-        // `_rescale_with_min_max` to -1 ... 1, per pattern, only when the master pattern is not float32 already (`get_patterns`:
-        // `rescale = dtype_out != self.data.dtype`, as `MasterPatternProjection.project`).
-        guard master.dataType != .float32 else { return out }
-        for n in 0 ..< rotations.count {
-            let range = n * pixels ..< (n + 1) * pixels
-            guard let lowest = out[range].min(), let highest = out[range].max(), highest > lowest else {
-                throw MasterPatternProjection.Error.flatPattern(n)
+        /// Refuses a master pattern that cannot be projected, an empty detector, and a size the kernel's 32-bit indices cannot
+        /// address (`MasterPatternProjection.Error.tooLarge`): the output index pattern × pixels + pixel, the cosines' centre × pixels
+        /// + pixel (unsigned), and the master pattern's side² (signed `int` in the kernel).
+        package init(master: EBSDMasterPattern, detector: EBSDDetectorGeometry, energy: Double? = nil, capacity: Int) throws {
+            try MasterPatternProjection.checkSuitable(master)
+            let pixels = detector.rows * detector.columns
+            guard pixels > 0 else { throw MasterPatternProjection.Error.emptyDetector }
+            let capacity = max(capacity, 1)
+            let centres = detector.projectionCenters.count
+            let limit = Int(UInt32.max)
+            let (outValues, a) = capacity.multipliedReportingOverflow(by: pixels)
+            let (cosineValues, b) = max(centres, 1).multipliedReportingOverflow(by: pixels)
+            let (masterValues, c) = master.side.multipliedReportingOverflow(by: master.side)
+            guard !a, outValues <= limit else { throw MasterPatternProjection.Error.tooLarge(a ? Int.max : outValues) }
+            guard !b, cosineValues <= limit else { throw MasterPatternProjection.Error.tooLarge(b ? Int.max : cosineValues) }
+            guard !c, masterValues <= Int(Int32.max) else { throw MasterPatternProjection.Error.tooLarge(c ? Int.max : masterValues) }
+            let p = try MasterPatternProjectionMetal.pipeline.get()
+            let (upperValues, lowerValues) = try master.hemispheres(energy: energy)
+            // Direction cosines in float64 on the CPU (one set per centre, as the reference), handed to the GPU as float4.
+            let cosineSets = MasterPatternProjection.directionCosines(detector: detector).flatMap { set in
+                set.map { SIMD4<Float>(Float($0.x), Float($0.y), Float($0.z), 0) }
             }
-            let span = highest - lowest
-            for i in range { out[i] = (out[i] - lowest) / span * 2 - 1 }
+            let outputBytes = outValues * MemoryLayout<Float>.stride
+            let quaternionBytes = capacity * MemoryLayout<SIMD4<Float>>.stride
+            guard outputBytes <= p.device.maxBufferLength else { throw MasterPatternProjection.Error.tooLarge(outputBytes) }
+            guard let upBuffer = upperValues.withUnsafeBytes({ b in b.baseAddress.flatMap { p.device.makeBuffer(bytes: $0, length: b.count, options: .storageModeShared) } }),
+                  let loBuffer = lowerValues.withUnsafeBytes({ b in b.baseAddress.flatMap { p.device.makeBuffer(bytes: $0, length: b.count, options: .storageModeShared) } }),
+                  let dcBuffer = cosineSets.withUnsafeBytes({ b in b.baseAddress.flatMap { p.device.makeBuffer(bytes: $0, length: b.count, options: .storageModeShared) } }),
+                  let qBuffer = p.device.makeBuffer(length: quaternionBytes, options: .storageModeShared),
+                  let outBuffer = p.device.makeBuffer(length: outputBytes, options: .storageModeShared) else {
+                throw MasterPatternProjection.Error.metal("could not allocate \(outputBytes) bytes on the GPU")
+            }
+            self.p = p
+            upper = upBuffer; lower = loBuffer; cosines = dcBuffer; quaternions = qBuffer; output = outBuffer
+            self.pixels = pixels; self.centres = centres; self.capacity = capacity; self.side = master.side
+            // `_rescale_with_min_max` to -1 ... 1, per pattern, only when the master pattern is not float32 already (`get_patterns`:
+            // `rescale = dtype_out != self.data.dtype`, as `MasterPatternProjection.project`).
+            rescales = master.dataType != .float32
         }
-        return out
+
+        /// Projects `rotations` (at most `capacity`; with several projection centres, one per rotation) and hands `body` the patterns,
+        /// float32, rotations × rows × columns, row-major, in this projector's output buffer: valid until `body` returns.
+        package func withPatterns<R>(_ rotations: ArraySlice<SIMD4<Double>>, _ body: (UnsafeBufferPointer<Float>) throws -> R) throws -> R {
+            let count = rotations.count
+            guard centres == 1 || centres == count else {
+                throw MasterPatternProjection.Error.centreCount(centres: centres, rotations: count)
+            }
+            guard count <= capacity else { throw MasterPatternProjection.Error.tooLarge(count * pixels) }
+            if count == 0 { return try body(UnsafeBufferPointer(start: nil, count: 0)) }
+            let q = quaternions.contents().assumingMemoryBound(to: SIMD4<Float>.self)
+            for (n, r) in rotations.enumerated() { q[n] = SIMD4<Float>(Float(r.x), Float(r.y), Float(r.z), Float(r.w)) }
+            var params = Params(pixels: UInt32(pixels), patterns: UInt32(count), side: UInt32(side),
+                                varying: centres == 1 ? 0 : 1, scale: Float(Double(side - 1) / 2))
+            guard let commands = p.queue.makeCommandBuffer(), let encoder = commands.makeComputeCommandEncoder() else {
+                throw MasterPatternProjection.Error.metal("no command buffer")
+            }
+            encoder.setComputePipelineState(p.state)
+            encoder.setBuffer(quaternions, offset: 0, index: 0)
+            encoder.setBuffer(cosines, offset: 0, index: 1)
+            encoder.setBuffer(upper, offset: 0, index: 2)
+            encoder.setBuffer(lower, offset: 0, index: 3)
+            encoder.setBuffer(output, offset: 0, index: 4)
+            encoder.setBytes(&params, length: MemoryLayout<Params>.stride, index: 5)
+            let width = min(p.state.threadExecutionWidth, pixels)
+            let height = max(1, min(p.state.maxTotalThreadsPerThreadgroup / width, count))
+            encoder.dispatchThreads(MTLSize(width: pixels, height: count, depth: 1),
+                                    threadsPerThreadgroup: MTLSize(width: width, height: height, depth: 1))
+            encoder.endEncoding()
+            commands.commit()
+            commands.waitUntilCompleted()
+            if let error = commands.error { throw MasterPatternProjection.Error.metal(error.localizedDescription) }
+            let out = output.contents().assumingMemoryBound(to: Float.self)
+            if rescales { try Self.rescale(out, patterns: count, pixels: pixels) }
+            return try body(UnsafeBufferPointer(start: out, count: count * pixels))
+        }
+
+        /// The output's pointer, shared by the rescaling workers: each pattern rescales its own rows.
+        private struct Rows: @unchecked Sendable { let base: UnsafeMutablePointer<Float> }
+
+        /// Each pattern to -1 ... 1 in place, over the cores (the same float32 arithmetic as the serial loop it replaces); the first
+        /// flat pattern is refused (`flatPattern`), as the CPU path refuses it.
+        private static func rescale(_ out: UnsafeMutablePointer<Float>, patterns: Int, pixels: Int) throws {
+            let rows = Rows(base: out)
+            var flat = [Bool](repeating: false, count: patterns)
+            flat.withUnsafeMutableBufferPointer { f in
+                guard let flags = f.baseAddress else { return }
+                let marks = FlatMarks(base: flags)
+                DispatchQueue.concurrentPerform(iterations: patterns) { n in
+                    let row = rows.base + n * pixels
+                    var lowest = row[0], highest = row[0]
+                    for i in 1 ..< pixels {
+                        lowest = min(lowest, row[i]); highest = max(highest, row[i])
+                    }
+                    guard highest > lowest else {
+                        (marks.base + n).pointee = true
+                        return
+                    }
+                    let span = highest - lowest
+                    for i in 0 ..< pixels { row[i] = (row[i] - lowest) / span * 2 - 1 }
+                }
+            }
+            if let n = flat.firstIndex(of: true) { throw MasterPatternProjection.Error.flatPattern(n) }
+        }
+
+        private struct FlatMarks: @unchecked Sendable { let base: UnsafeMutablePointer<Bool> }
     }
 
     /// The kernel's constants, laid out as the `Params` struct of the source.

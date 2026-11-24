@@ -20,6 +20,7 @@
 
 import Foundation
 import ImagoCore
+import Synchronization
 
 package nonisolated enum PatternFilters {
     package enum Error: Swift.Error, Equatable, Sendable, LocalizedError {
@@ -45,6 +46,28 @@ package nonisolated enum PatternFilters {
         package var id: String { rawValue }
     }
 
+    // MARK: - Plans
+
+    /// The FFT plans of the last few shapes. A scan's patterns share one shape, so a Process run builds its plan once instead of
+    /// once per pattern (#624). A plan is immutable and serves concurrent callers (`FFT2DDouble` keeps its per-call scratch
+    /// caller-owned, as `PatternQuality.ImageQuality` relies on too); the same plan gives the same numbers as a new one.
+    private static let plans = Mutex<[(nx: Int, ny: Int, plan: FFT2DDouble)]>([])
+
+    /// The most shapes `plans` keeps (the pattern's for the frequency domain, the padded one for the spatial domain, a binned one).
+    private static let planCapacity = 4
+
+    /// The plan for `nx` × `ny`, from `plans` or built and kept; nil when Accelerate cannot set it up.
+    package static func plan(nx: Int, ny: Int) -> FFT2DDouble? {
+        if let hit = plans.withLock({ list in list.first { $0.nx == nx && $0.ny == ny }?.plan }) { return hit }
+        guard let made = FFT2DDouble(nx: nx, ny: ny) else { return nil }
+        return plans.withLock { list in
+            if let raced = list.first(where: { $0.nx == nx && $0.ny == ny }) { return raced.plan }
+            list.append((nx: nx, ny: ny, plan: made))
+            if list.count > planCapacity { list.removeFirst() }
+            return made
+        }
+    }
+
     // MARK: - Frequency domain
 
     /// `fft_filter(pattern, transfer_function, shift)`: Re(IFFT(FFT(pattern) · H)), H laid out as upstream lays it: with
@@ -52,7 +75,7 @@ package nonisolated enum PatternFilters {
     package static func frequencyFiltered(_ pattern: [Double], rows: Int, columns: Int, transferFunction h: PatternWindow,
                                           shift: Bool) throws -> [Double] {
         guard rows >= 1, columns >= 1, pattern.count == rows * columns, h.rows == rows, h.columns == columns else { throw Error.shape }
-        guard let fft = FFT2DDouble(nx: columns, ny: rows) else { throw Error.fft }
+        guard let fft = plan(nx: columns, ny: rows) else { throw Error.fft }
         var re = pattern
         var im = [Double](repeating: 0, count: pattern.count)
         fft.transform(re: &re, im: &im, forward: true)
@@ -81,7 +104,7 @@ package nonisolated enum PatternFilters {
         let wy = kernel.rows, wx = kernel.columns
         let fy = rows + wy - 1, fx = columns + wx - 1
         let ay = (wy - 1) / 2, ax = (wx - 1) / 2      // `_offset_after_ifft`, and the replicated rows/columns after the image
-        guard let fft = FFT2DDouble(nx: fx, ny: fy) else { throw Error.fft }
+        guard let fft = plan(nx: fx, ny: fy) else { throw Error.fft }
         // `_pad_image`: the image at the origin, its last row/column replicated (k − 1)/2 times after it, its first row/column
         // in the remaining `_offset_before_fft` rows/columns at the far end (they wrap around to just before the image).
         func source(_ p: Int, _ n: Int, _ after: Int) -> Int { p < n ? p : (p < n + after ? n - 1 : 0) }

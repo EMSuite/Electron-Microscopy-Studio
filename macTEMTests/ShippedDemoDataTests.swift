@@ -124,6 +124,22 @@ nonisolated final class ShippedDemoDataTests: XCTestCase {
         XCTAssertEqual(FileRouting.inventory(path: fake.path).refusal, "fake.hspy is not a format Electron Microscopy Studio opens (or its extension and its first bytes disagree).")
     }
 
+    /// HyperSpy writes its layout under any extension it is given: the same spectrum saved as `.hdf5` routes and opens as the `.hspy`
+    /// does (FormatoKit 0.19.0's sniff finds the layout). Red before: "spectrum.hdf5 is a 4D dataset or an HDF5 file that is neither ...".
+    func testTheSpectrumSavedAsHDF5RoutesAsTheHSPYDoes() throws {
+        let url = try XCTUnwrap(DemoDocuments.Shipped.semEDSSpectrum.url)
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("hspy-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let copy = dir.appendingPathComponent("spectrum.hdf5")
+        try FileManager.default.copyItem(at: url, to: copy)
+        XCTAssertTrue(HyperSpySpectrumFile.isHyperSpyFile(path: copy.path))
+        XCTAssertEqual(FileRouting.inventory(path: copy.path), FileInventory(singleSpectrum: true))
+        let loaded = try FileRouting.spectrumFile(path: copy.path)
+        XCTAssertEqual(loaded.metadata.channelCount, 1024)
+        XCTAssertEqual(loaded.image.sum(mask: nil).reduce(0, +), DemoDocuments.Shipped.semEDSTotalCounts)
+    }
+
     /// A 4D HyperSpy file (as a 4D-STEM .hspy is) is refused naming the file and what it holds, never HyperSpy's internal group name
     /// "__unnamed__" (real-file sweep, 12 Nov). Fixture: tools/parity/sem-readers/make_hspy_4d_fixture.py.
     /// Red before: "__unnamed__ in hyperspy-4d-unnamed.hspy is not one spectrum (4 dimensions, 4 axes): ...".

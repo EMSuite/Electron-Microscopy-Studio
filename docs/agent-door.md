@@ -88,7 +88,7 @@ The EDS tools are EMSuiteUI's `EDXAgentTools`, written once and registered by bo
 `macTEM/App/AgentDoorCoverage.swift` lists every control in the app, by its accessibility identifier, with how an agent
 reaches it: the tool that does it, already seen in a get tool's answer, left to the person on purpose (with the reason), or a
 gap with its open issue. `AgentDoorCoverageTests` fails when a control has no row, a row names a tool the door does not have,
-or a row outlives its control, so a new control cannot ship undecided. No gaps are left. A room's open panel is the
+or a row outlives its control, so a new control cannot ship undecided. The one gap left is the Diffraction room's simulated spots (#791). A room's open panel is the
 person's; `open_file` opens a file of the Agent folder and `open_demo` the shipped demos. The EDS room's own controls are
 EMSuiteUI's and are reached through its tools.
 
