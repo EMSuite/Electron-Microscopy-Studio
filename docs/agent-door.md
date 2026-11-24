@@ -79,6 +79,10 @@ Behind "Let agents run analyses". Each goes through the entry point its control 
 | `set_fft_spots` | Find Spots, Measure at… (whole bins from the centre), selects and removes spots, puts spots in or out of the mask |
 | `set_diffraction` | the Diffraction room's Centre (typed, or a fitted ring's), Calibration (standard, ring, Calibrate on Ring, Clear, typed Δq and kV for a file without them, camera and pixel pitch), Crystal (a standard, k_max, tolerance), the annulus, Fit Ring, the tool and the log display |
 | `set_diffraction_marks` | adds a spot as a click on the pattern does, selects a ring or spot, removes one or all |
+| `set_relationship` | the Precipitate section: the precipitate, its two parallel pairs, which variants are shown, the overlay, double diffraction with the matrix; answers the variants, their groups and the sentences |
+| `powder_pattern` | the Powder section (rings or X-ray, the line, the range or reach, a phase to compare with, overlap marks); writes the peak table CSV or the .xy profile into the Agent folder |
+| `find_phases` | the Find Phases sheet: Fit scale, Rank (answers at once, `running` until it lands) and Use in Room; answers the ranked rows, their sentences and the ties |
+| `plan_tilt` | the Holder section: the tilts now, the limits, the tilt axis typed, forgotten or calibrated from another open pattern, a zone axis picked on the map; writes the Tilt List CSV into the Agent folder |
 | `select_grains` | selects grains as the grain table does, or none |
 
 The EDS tools are EMSuiteUI's `EDXAgentTools`, written once and registered by both apps.
