@@ -9,6 +9,8 @@
 
 import XCTest
 import DiffractoCore
+import SimulatoCore
+import SimulatoMultislice
 import TEMCore
 import TEMSession
 import simd
