@@ -49,8 +49,18 @@ struct DiffractionRoom: View {
             DiffractionPatternPane(item: item, analysis: analysis, view: view, rows: rows)
                 .modifier(DiffractionZoomCommands(item: item, view: view))
             Divider()
-            DiffractionReadoutTable(analysis: analysis, view: view, rows: rows)
-                .frame(height: LayoutPolicy.diffractionReadoutHeight)
+            // Index's spots beside the readout once it has an answer (#785): hkl, expected d and misfit per spot.
+            Group {
+                if analysis.indexOutcome != nil {
+                    HSplitView {
+                        DiffractionReadoutTable(analysis: analysis, view: view, rows: rows)
+                        DiffractionSpotTable(view: view, rows: analysis.indexSpotRows)
+                    }
+                } else {
+                    DiffractionReadoutTable(analysis: analysis, view: view, rows: rows)
+                }
+            }
+            .frame(height: LayoutPolicy.diffractionReadoutHeight)
         }
         // The pattern is shown by its owner (the bind, the extent and the canvas, off the main actor); a quick Log toggle or another
         // file cancels the pass in flight.
@@ -301,7 +311,7 @@ private struct DiffractionPatternPane: View {
             .accessibilityLabel("Diffraction pattern")
             // q and d under the pointer, as the status line reads them; else the pattern's size, rings and spots. This pane is the readout's one writer.
             .modifier(ReadoutAccessibilityValue(readout: { appState.diffractionRoom.readout },
-                                                fallback: "\(image.width) by \(image.height) pixels, \(UnitDisplay.count(analysis.rings.count, "ring", "rings")), \(UnitDisplay.count(analysis.spots.count, "spot", "spots"))" + DiffractionSimulationText.spoken(analysis.simulatedSpots(image: image), zoneAxis: analysis.simulation.zoneAxis)))
+                                                fallback: "\(image.width) by \(image.height) pixels, \(UnitDisplay.count(analysis.rings.count, "ring", "rings")), \(UnitDisplay.count(analysis.spots.count, "spot", "spots"))" + DiffractionSimulationText.spoken(analysis.simulatedSpots(image: image), zoneAxis: analysis.simulation.zoneAxis) + DiffractionIndexText.spoken(analysis.indexLine, rows: analysis.indexSpotRows.count)))
             .accessibilityAction(named: "Zoom in") { view.zoom(by: 2, image: image) }
             .accessibilityAction(named: "Zoom out") { view.zoom(by: 0.5, image: image) }
             .accessibilityAction(named: "Reset zoom") { view.fitView() }
@@ -710,6 +720,56 @@ private struct DiffractionReadoutTable: View {
         guard !picked.isEmpty else { return [] }
         return [NSItemProvider(object: DiffractionReadoutFormat.copyText(picked) as NSString)]
     }
+}
+
+// MARK: - The Spots table
+
+/// Index's spots (#785): Spot, hkl, R px, q, d, d expected, Δd/d % and Phase, sortable by any column (ties by the spot's number, so
+/// the rows keep their order). A row's selection is the mark's: selecting it selects the spot on the pattern and in the readout.
+/// The table is the pattern's text alternative: VoiceOver reads each row's cells, and the pane says the spots are listed here.
+private struct DiffractionSpotTable: View {
+    let view: DiffractionViewState
+    let rows: [PatternIndexing.SpotRow]
+    @State private var sortOrder = [KeyPathComparator(\PatternIndexing.SpotRow.number)]
+
+    private typealias Column = DiffractionSpotFormat.Column
+
+    var body: some View {
+        let selection = Binding<UUID?>(get: { view.selection }, set: { view.selection = $0 })
+        let sorted = DiffractionSpotFormat.sorted(rows, by: sortOrder)
+        Table(sorted, selection: selection, sortOrder: $sortOrder) {
+            TableColumn(header(.spot), value: \.number) { row in
+                Text(DiffractionSpotFormat.cell(.spot, row)).accessibilityIdentifier("diffraction.spots.\(row.number).spot")
+            }.width(min: 44, ideal: 52)
+            TableColumn(header(.hkl), value: \.hklText) { row in
+                Text(DiffractionSpotFormat.cell(.hkl, row)).monospacedDigit()
+                    .accessibilityIdentifier("diffraction.spots.\(row.number).hkl")
+                    .accessibilityValue(DiffractionSpotFormat.spokenHKL(row))
+            }.width(min: 44, ideal: 52)
+            TableColumn(header(.radius), value: \.radiusPx) { row in Text(DiffractionSpotFormat.cell(.radius, row)).monospacedDigit() }
+                .width(min: 44, ideal: 50)
+            TableColumn(header(.q), value: \.q) { row in Text(DiffractionSpotFormat.cell(.q, row)).monospacedDigit() }.width(min: 56, ideal: 62)
+            TableColumn(header(.d), value: \.d) { row in Text(DiffractionSpotFormat.cell(.d, row)).monospacedDigit() }.width(min: 52, ideal: 56)
+            TableColumn(header(.dExpected), value: \.dExpectedKey) { row in
+                Text(DiffractionSpotFormat.cell(.dExpected, row)).monospacedDigit()
+            }.width(min: 56, ideal: 64)
+            TableColumn(header(.delta), value: \.deltaKey) { row in
+                Text(DiffractionSpotFormat.cell(.delta, row)).monospacedDigit()
+                    .accessibilityIdentifier("diffraction.spots.\(row.number).delta")
+            }.width(min: 48, ideal: 54)
+            TableColumn(header(.phase), value: \.phase) { row in Text(DiffractionSpotFormat.cell(.phase, row)) }.width(min: 44, ideal: 60)
+        }
+        .overlay {
+            if rows.isEmpty {
+                Text("Index found no spot still marked: Index again.")
+                    .font(.callout).foregroundStyle(.secondary).padding(10).allowsHitTesting(false)
+            }
+        }
+        .accessibilityIdentifier("diffraction.spots")
+        .accessibilityLabel("Spots")
+    }
+
+    private func header(_ column: Column) -> Text { Text(column.title).accessibilityLabel(column.spoken) }
 }
 
 // MARK: - The values beside the words

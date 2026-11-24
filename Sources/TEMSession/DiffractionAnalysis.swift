@@ -322,7 +322,7 @@ package final class DiffractionAnalysis {
         failure = nil
         let started = scaleKey, startedSpots = spots
         let marked = spots.compactMap { s in
-            s.row.flatMap { r in s.column.map { c in PatternIndexing.Mark(row: r, column: c, intensity: s.intensity) } }
+            s.row.flatMap { r in s.column.map { c in PatternIndexing.Mark(id: s.id, row: r, column: c, intensity: s.intensity) } }
         }
         let pattern = DiffractionCompute.pattern(of: image)
         let structure = crystal.structure, phase = crystal.name
@@ -330,13 +330,13 @@ package final class DiffractionAnalysis {
         let shortest = list()?.families.first.map { 1 / $0.family.d } ?? 0.2
         let task = Task.detached(priority: .userInitiated) { [weak self] in
             let outcome: PatternIndexing.Outcome
-            var found: [FoundSpot]?
+            var found: [PatternIndexing.Mark]?
             do {
                 var marks = marked
                 if marks.isEmpty {
                     let located = try PatternIndexing.findSpots(pattern: pattern, centre: centre, shortestG: shortest, calibration: calibration)
-                    found = located
-                    marks = located.map { PatternIndexing.Mark(row: $0.row, column: $0.column, intensity: $0.intensity) }
+                    marks = located.map { PatternIndexing.Mark(id: UUID(), row: $0.row, column: $0.column, intensity: $0.intensity) }
+                    found = marks
                 }
                 if Task.isCancelled { return }
                 let indexer = try PatternIndexerCache.shared.indexer(key: key) {
@@ -357,7 +357,7 @@ package final class DiffractionAnalysis {
         return task
     }
 
-    private func landIndex(_ outcome: PatternIndexing.Outcome, found: [FoundSpot]?, generation gen: Int, scale started: IndexScaleKey,
+    private func landIndex(_ outcome: PatternIndexing.Outcome, found: [PatternIndexing.Mark]?, generation gen: Int, scale started: IndexScaleKey,
                            spots startedSpots: [MeasuredSpot]) {
         guard gen == indexGeneration else { return }
         isIndexing = false
@@ -367,8 +367,8 @@ package final class DiffractionAnalysis {
         guard started == scaleKey, startedSpots == spots else { return }
         if let found {
             // The found spots become ordinary marks, each at the kit's centre, with its intensity.
-            spots = found.map { MeasuredSpot(clickRow: $0.row, clickColumn: $0.column, row: $0.row, column: $0.column, radius: nil, refusal: nil,
-                                             intensity: $0.intensity) }
+            spots = found.map { MeasuredSpot(id: $0.id, clickRow: $0.row, clickColumn: $0.column, row: $0.row, column: $0.column, radius: nil,
+                                             refusal: nil, intensity: $0.intensity) }
         }
         indexOutcome = outcome
         indexScaleKey = started
@@ -387,6 +387,18 @@ package final class DiffractionAnalysis {
     /// A spot was removed or added since Index answered (#784): its answer was the old spots'. The header says so; the overlay keeps
     /// the orientation until Index runs again.
     package var indexSpotsChanged: Bool { indexOutcome != nil && indexedSpots != spots.map(\.id) }
+
+    /// The Spots table's rows (#785): Index's spots still marked, numbered as the readout numbers them; [] before an answer.
+    package var indexSpotRows: [PatternIndexing.SpotRow] {
+        guard let outcome = indexOutcome else { return [] }
+        let numbers = Dictionary(uniqueKeysWithValues: spots.enumerated().map { ($1.id, $0 + 1) })
+        return PatternIndexing.rows(outcome, numbers: numbers)
+    }
+
+    /// The Spots CSV (#785): the table's columns, its rows by number, under the file and Index's line.
+    package func spotsExportText(image: CalibratedImage) -> String {
+        PatternIndexing.csv(rows: indexSpotRows, fileName: image.fileName, line: indexLine ?? "")
+    }
 
     /// The header's line for Index's answer, with what changed since: a scale (a ring calibrated, Δq typed) or the spots.
     package var indexLine: String? {

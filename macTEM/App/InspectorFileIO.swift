@@ -42,6 +42,8 @@ nonisolated enum ParticleExport {
 /// "<image name> diffraction.csv" in that folder.
 nonisolated enum DiffractionReadoutExport {
     static func baseName(of imageFileName: String) -> String { (imageFileName as NSString).deletingPathExtension + " diffraction" }
+    /// The Spots CSV's name (#785): "<image> spots".
+    static func spotsBaseName(of imageFileName: String) -> String { (imageFileName as NSString).deletingPathExtension + " spots" }
 
     static func write(_ text: String, imageFileName: String, into directory: URL) throws -> URL {
         try ExportDirectoryFile.write(text, named: baseName(of: imageFileName) + ".csv", into: directory)
