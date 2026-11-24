@@ -116,9 +116,14 @@ struct ExportCommands: Commands {
                 .disabled(methods != true)
                 .accessibilityIdentifier("menu.exportMethodsRecord")
         }
-        // The paragraph goes where a copy goes: Edit, after the pasteboard's items.
+        // The figure and the paragraph go where a copy goes: Edit, after the pasteboard's items, always listed and dimmed where they
+        // cannot act (HIG, Menus). Copy Figure (#823) puts the Diffraction room's figure on the clipboard as PDF and PNG on ⇧⌘C, beside
+        // Copy's ⌘C, which stays the system's for the inspector's fields; free in this app's key table.
         CommandGroup(after: .pasteboard) {
             Divider()
+            Button("Copy Figure") { if let appState { ExportPanels.copyDiffractionFigure(appState: appState) } }
+                .keyboardShortcut("c", modifiers: [.command, .shift])
+                .disabled(diffractionFigure != true)
             Button("Copy Methods Paragraph") { if let appState { MethodsRecordExport.copyParagraph(appState: appState) } }
                 .keyboardShortcut("c", modifiers: [.command, .option])
                 .disabled(methods != true)
@@ -137,15 +142,6 @@ struct ExportCommands: Commands {
             Button("Export Core Loss HyperSpy File…") { HyperSpyExportPanel.export(appState: appState, coreLoss: true) }
                 .disabled(!HyperSpyExportPanel.isAvailable(in: appState, coreLoss: true))
                 .accessibilityIdentifier("menu.exportHyperSpyCoreLoss")
-        }
-        // Edit > Copy Figure (#823): the Diffraction room's figure on the clipboard as PDF and PNG. ⇧⌘C, beside Copy's ⌘C, which
-        // stays the system's for the inspector's fields; free in this app's key table.
-        // Always listed, dimmed where it cannot act (HIG, Menus); the methods paragraph joins this group.
-        CommandGroup(after: .pasteboard) {
-            Divider()
-            Button("Copy Figure") { if let appState { ExportPanels.copyDiffractionFigure(appState: appState) } }
-                .keyboardShortcut("c", modifiers: [.command, .shift])
-                .disabled(diffractionFigure != true)
         }
     }
 

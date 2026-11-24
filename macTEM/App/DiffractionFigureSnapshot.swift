@@ -119,8 +119,8 @@ extension ExportSnapshot {
         if let identity = item.openedIdentity {
             let methodsSource = ExportMethods.source(ExportSource(image: image, software: software), byteCount: Int(identity.byteSize),
                                                      fingerprint: identity.pixelSHA256, kind: "image")
-            snapshot.methods = ExportMethods.diffractionRecord(app: methodsApp(), source: methodsSource, rings: analysis.rings.count,
-                                                               spots: analysis.spots.count)
+            snapshot.methods = ExportMethods.diffractionRecord(app: methodsApp(), source: methodsSource, header: header, rows: rows,
+                                                               exportKind: "diffraction-figure")
         }
         return snapshot
     }
