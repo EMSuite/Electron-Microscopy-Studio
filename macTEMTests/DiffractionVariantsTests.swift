@@ -14,14 +14,36 @@ import TEMSession
 
 nonisolated final class DiffractionVariantsTests: XCTestCase {
 
-    @MainActor func testWithoutAMatrixOrientationTheRoomSaysSo() throws {
+    @MainActor func testWithoutAMatrixOrientationTheRoomSaysSo() async throws {
         let image = DemoDocuments.diffractionPattern()
         let analysis = DiffractionAnalysis()
         analysis.bind(image)
         analysis.setCrystal(.preset(try XCTUnwrap(StandardCrystals.named("Al"))))
-        let result = try XCTUnwrap(DiffractionVariants().variants(analysis: analysis, image: image))
+        let variants = DiffractionVariants()
+        XCTAssertNil(variants.placed, "nothing placed before a placement lands")
+        await variants.place(try XCTUnwrap(variants.inputs(analysis: analysis, image: image)))
+        let result = try XCTUnwrap(variants.variants(analysis: analysis, image: image))
         XCTAssertEqual(result, .failure(.noMatrixOrientation))
         XCTAssertEqual(VariantRefusal.noMatrixOrientation.sentence, "Index the matrix first. Variants are placed from its orientation.")
+    }
+
+    /// Mutation: the guard for what is already placed not dropping the placement in flight - red (B lands over A).
+    @MainActor func testGoingBackToWhatIsPlacedDropsThePlacementInFlight() async throws {
+        let image = DemoDocuments.diffractionPattern()
+        let analysis = DiffractionAnalysis()
+        analysis.bind(image)
+        let variants = DiffractionVariants()
+        let a = try XCTUnwrap(variants.inputs(analysis: analysis, image: image))
+        var b = a
+        b.volts = a.volts / 2
+        await variants.place(a)
+        XCTAssertEqual(variants.placed?.inputs, a)
+        let inFlight = Task { await variants.place(b) }
+        try await waitUntil("B to be in flight", seconds: 10) { variants.placing == b || variants.placed?.inputs == b }
+        await variants.place(a)
+        await inFlight.value
+        XCTAssertEqual(variants.placed?.inputs, a, "the room went back to A: B's answer, landing late, is stale")
+        XCTAssertNil(variants.placing)
     }
 
     func testARelationshipIsTypedAsAPaperStatesIt() {

@@ -17,6 +17,9 @@ struct DiffractionPrecipitateSection: View {
     let item: OpenItem
     @Environment(AppState.self) private var appState
 
+    /// The added spots whose strongest route the section lists; the overlay draws up to the cap.
+    private static let listedRoutes = 8
+
     var body: some View {
         let analysis = item.diffraction
         let variants = item.diffractionVariants
@@ -38,25 +41,47 @@ struct DiffractionPrecipitateSection: View {
                 .help("The precipitate placed in this crystal: β″, a standard, or the crystal of another open pattern")
                 .accessibilityIdentifier("diffraction.precipitate.phase")
             }
+            InspectorRow("Double diffraction") {
+                Toggle("Double diffraction with the matrix", isOn: Binding(get: { variants.doubleDiffraction }, set: { variants.doubleDiffraction = $0 }))
+                    .toggleStyle(.switch).labelsHidden()
+                    .help("Also draws, as dashed magenta rings, the spots a beam diffracted by one crystal and again by another adds (g₁ + g₂ between the matrix and a variant)")
+                    .accessibilityIdentifier("diffraction.precipitate.doubleDiffraction")
+            }
             DiffractionRelationshipFields(relationship: variants.relationship, matrix: analysis.crystal.name) { variants.setRelationship($0) }
             switch result {
             case nil:
-                InspectorNote("Variants need the beam energy: type it under Calibration.")
+                if variants.inputs(analysis: analysis, image: item.session.imageOrBlank) == nil {
+                    InspectorNote("Variants need the beam energy: type it under Calibration.")
+                } else {
+                    InspectorNote("Placing the variants…")
+                }
             case .failure(let refusal)?:
                 InspectorWarning(refusal.sentence)
             case .success(let set)?:
                 InspectorNote(set.summarySentence)
                 InspectorNote(set.sheetSentence)
                 ForEach(set.lookAlikeSentences, id: \.self) { InspectorNote($0) }
+                switch variants.addedSpots(analysis: analysis, image: item.session.imageOrBlank) {
+                case .success(let added)?:
+                    InspectorNote(added.countSentence)
+                    ForEach(Array(added.spots.prefix(Self.listedRoutes).enumerated()), id: \.offset) { _, spot in
+                        InspectorNote(spot.routes.first ?? "")
+                    }
+                case .failure(let refusal)?: InspectorWarning(refusal.sentence)
+                case nil: EmptyView()
+                }
                 ForEach(set.rows) { row in
                     InspectorRow("Variant \(row.number)") {
-                        Toggle(row.label, isOn: Binding(get: { !row.isHidden }, set: { variants.setHidden(row.id, !$0) }))
+                        Toggle(row.label, isOn: Binding(get: { !variants.hidden.contains(row.id) }, set: { variants.setHidden(row.id, !$0) }))
                             .toggleStyle(.checkbox)
                             .help("Group \(row.group + 1): variants of one group predict the same spots in this view")
                             .accessibilityIdentifier("diffraction.precipitate.variant\(row.number)")
                     }
                 }
             }
+        }
+        .task(id: variants.inputs(analysis: analysis, image: item.session.imageOrBlank)) {
+            if let inputs = variants.inputs(analysis: analysis, image: item.session.imageOrBlank) { await variants.place(inputs) }
         }
     }
 

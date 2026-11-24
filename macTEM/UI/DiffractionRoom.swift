@@ -251,10 +251,23 @@ private struct DiffractionPatternPane: View {
                     SimulatedSpotsOverlay(spots: simulated, showsLabels: analysis.simulation.showsLabels, layout: layout)
                         .allowsHitTesting(false)
                 }
-                // The shown variants of a precipitate (#808), magenta, under the measured marks.
-                if item.diffractionVariants.isShown, case .success(let set)? = item.diffractionVariants.variants(analysis: analysis, image: image) {
-                    VariantSpotsOverlay(pixels: item.diffractionVariants.pixels(of: set, analysis: analysis, image: image), layout: layout)
-                        .allowsHitTesting(false)
+                // The shown variants of a precipitate (#808), magenta, under the measured marks; placed off the main actor, the last
+                // placement drawn until the next lands.
+                if item.diffractionVariants.isShown {
+                    let variants = item.diffractionVariants
+                    Group {
+                        if case .success(let set)? = variants.variants(analysis: analysis, image: image) {
+                            VariantSpotsOverlay(pixels: variants.pixels(of: set, analysis: analysis, image: image), layout: layout)
+                            if case .success(let added)? = variants.addedSpots(analysis: analysis, image: image) {
+                                VariantSpotsOverlay(pixels: variants.pixels(of: added, analysis: analysis, image: image), layout: layout,
+                                                    dashed: true)
+                            }
+                        }
+                    }
+                    .allowsHitTesting(false)
+                    .task(id: variants.inputs(analysis: analysis, image: image)) {
+                        if let inputs = variants.inputs(analysis: analysis, image: image) { await variants.place(inputs) }
+                    }
                 }
                 DiffractionOverlay(analysis: analysis, view: view, rows: rows, layout: layout, drag: drag.flatMap { radii(from: $0.start, to: $0.end, layout: layout) })
                     .allowsHitTesting(false)
@@ -692,13 +705,16 @@ private struct SimulatedSpotsOverlay: View {
 private struct VariantSpotsOverlay: View {
     let pixels: [VariantPixel]
     let layout: DiffractionLayout
+    /// Spots double diffraction adds (#809): dashed rings of the smallest size.
+    var dashed = false
 
     var body: some View {
         Canvas { ctx, _ in
             for spot in pixels {
                 let p = layout.point(column: spot.column, row: spot.row)
                 let r = 3 + 6 * CGFloat(spot.relative.squareRoot())
-                ctx.stroke(Path(ellipseIn: CGRect(x: p.x - r, y: p.y - r, width: 2 * r, height: 2 * r)), with: .color(.pink), lineWidth: 1.5)
+                ctx.stroke(Path(ellipseIn: CGRect(x: p.x - r, y: p.y - r, width: 2 * r, height: 2 * r)), with: .color(.pink),
+                           style: StrokeStyle(lineWidth: 1.5, dash: dashed ? [2, 2] : []))
             }
         }
         .accessibilityHidden(true)

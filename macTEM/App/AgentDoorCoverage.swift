@@ -68,6 +68,7 @@ nonisolated enum AgentDoorCoverage {
         "diffraction.holder.partner": .gap(816),
         "diffraction.holder.zoneAxis": .gap(816),
         "diffraction.holder.export": .personOnly(exportReason),
+        "diffraction.precipitate.doubleDiffraction": .gap(816),
         "diffraction.precipitate.pair\\(i)": .gap(816),
         "diffraction.precipitate.phase": .gap(816),
         "diffraction.precipitate.show": .gap(816),
