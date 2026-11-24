@@ -162,10 +162,10 @@ nonisolated final class FFTRoomWiringTests: XCTestCase {
                 (view as? NSPopUpButton) ?? view.subviews.lazy.compactMap { popUp(in: $0) }.first
             }
             func tree(_ view: NSView, _ depth: Int = 0) -> String {
-                ([String(repeating: "  ", count: depth) + String(describing: type(of: view))]
-                    + view.subviews.map { tree($0, depth + 1) }).joined(separator: "\n")
+                (["\(depth):" + String(describing: type(of: view))]
+                    + view.subviews.map { tree($0, depth + 1) }).joined(separator: " / ")
             }
-            let button = try XCTUnwrap(popUp(in: host), "the control draws a pop-up button; the host draws:\n\(tree(host))")
+            let button = try XCTUnwrap(popUp(in: host), "the control draws a pop-up button; the host draws: \(tree(host))")
             // How far the pop-up reaches from the row's leading edge: inside the row, or the row overflows the inspector.
             return (button.title, Double(button.convert(button.bounds, to: host).maxX))
         }
@@ -438,7 +438,7 @@ nonisolated final class FFTRoomWiringTests: XCTestCase {
             let text = try String(contentsOf: file, encoding: .utf8)
             guard text.contains("import Charts") else { continue }
             checked += 1
-            let code = text.split(separator: "\n", omittingEmptySubsequences: false).filter { !$0.trimmingCharacters(in: .whitespaces).hasPrefix("//") }.joined(separator: "\n")
+            let code = text.split(separator: "\n", omittingEmptySubsequences: false).filter { !$0.trimmingCharacters(in: .whitespaces).hasPrefix("//") }.joined(separator: " / ")
             let hits = pattern.numberOfMatches(in: code, range: NSRange(code.startIndex..., in: code))
             XCTAssertEqual(hits, 0, "\(file.lastPathComponent): .value(\"…\\(…)…\") in Charts code; use a String variable")
         }
