@@ -4,6 +4,8 @@
 //        with no Simulate button (a static crystal needs one orthogonal unit, computed once), Scherzer, and the method line that
 //        names every setting. The section's task runs the multislice when the specimen, the beam energy or the aperture changes, and
 //        each move puts a new image into the item. Presentation only; the state is `SimulationModel` and every number SimulatoKit's.
+//        MA3 (#895) adds the objective aperture, the field of view, the Potential readout and the Table… sheet, and puts the
+//        Microscope section and the transfer function strip under it.
 //
 
 import ShellControls
@@ -15,6 +17,7 @@ import TEMSession
 struct SimulationHRTEMSection: View {
     let item: OpenItem
     @Environment(AppState.self) private var appState
+    @State private var showsTable = false
 
     var body: some View {
         if let simulation = appState.simulationDocument(ofHRTEM: item) {
@@ -74,6 +77,37 @@ struct SimulationHRTEMSection: View {
                                     + "\(index + 1) of \(waves.waves.count) stored thicknesses")
                 .accessibilityIdentifier("simulation.hrtem.thickness")
             }
+            InspectorRow("Aperture") {
+                Toggle("Objective aperture", isOn: Binding(get: { model.optics.apertureMrad != nil },
+                                                           set: { on in change(simulation) { $0.apertureMrad = on ? Self.defaultApertureMrad : nil } }))
+                    .help("An objective aperture cuts the transfer at its semiangle; a new aperture computes the exit waves again")
+                    .accessibilityIdentifier("simulation.hrtem.aperture")
+            }
+            if let aperture = model.optics.apertureMrad {
+                InspectorRow("Semiangle") {
+                    OptionalNumericField(title: "Aperture semiangle", value: aperture, format: defocusFormat, unit: "mrad") { mrad in
+                        change(simulation) { $0.apertureMrad = mrad }
+                    }
+                    .accessibilityIdentifier("simulation.hrtem.apertureSemiangle")
+                }
+            }
+            InspectorRow("Field of view") {
+                OptionalNumericField(title: "Field of view", value: model.optics.fieldOfViewNM, format: defocusFormat, unit: "nm") { nm in
+                    change(simulation) { $0.fieldOfViewNM = nm }
+                }
+                .help("The image's width and height, up to \(UnitDisplay.number(SimulationModel.largestFieldOfViewNM, digits: 3)) nm: whole units of the specimen are tiled to cover it")
+                .accessibilityIdentifier("simulation.hrtem.fieldOfView")
+            }
+            InspectorRow("Potential") {
+                Text("Lobato, infinite projection").foregroundStyle(.secondary)
+                    .accessibilityIdentifier("simulation.hrtem.potential")
+            }
+            InspectorActionRow {
+                Button("Defocus and Thickness Table…") { showsTable = true }
+                    .disabled(waves == nil)
+                    .help("Images of the specimen at five defocus values and five thicknesses; a click picks one")
+                    .accessibilityIdentifier("simulation.hrtem.table")
+            }
             if model.isComputing {
                 InspectorNote("Computing the exit waves…")
             } else if let failure = model.computeFailure {
@@ -88,11 +122,28 @@ struct SimulationHRTEMSection: View {
                     .accessibilityIdentifier("simulation.hrtem.method")
             }
         }
+        .sheet(isPresented: $showsTable) {
+            SimulationHRTEMTableSheet(model: model) { appState.refreshHRTEMImage(of: simulation) }
+        }
         .task(id: RunKey(crystal: crystal?.identity, zoneAxis: zoneAxis, thicknessNM: model.thicknessNM,
                          beamKV: analysis.typedBeamKV, apertureMrad: model.optics.apertureMrad,
                          strain: crystal.map { model.maximumStrain(crystal: $0, zoneAxis: zoneAxis) })) {
             await appState.computeHRTEMImage(of: simulation)
         }
+        SimulationMicroscopeSection(model: model, analysis: analysis) { appState.refreshHRTEMImage(of: simulation) }
+        switch Result(catching: { try HRTEMTransferCurve.of(model.optics, defocusNM: model.effectiveDefocusNM) }) {
+        case .success(let curve):
+            let reach = curve.frequencies.last ?? 0
+            SimulationTransferSection(curve: curve, spacings: analysis.strongestSpacings().filter { 10 / $0.d <= reach })
+        case .failure(let error):
+            InspectorSection("Transfer Function") { InspectorWarning("No transfer function: \(ErrorDetail.text(error))") }
+        }
+    }
+
+    /// Changes the optics through the model's one validated path and redraws the image; an aperture change also re-runs the
+    /// multislice through the task.
+    private func change(_ simulation: OpenItem, _ edit: (inout HRTEMOptics) -> Void) {
+        if simulation.multislice.changeOptics(edit) { appState.refreshHRTEMImage(of: simulation) }
     }
 
     /// What a change of re-runs the multislice; every other setting only re-images the stored waves.
@@ -106,6 +157,8 @@ struct SimulationHRTEMSection: View {
     }
 
     static let defocusRange = -100.0 ... 200.0
+    /// The semiangle an objective aperture starts at when it is turned on: abTEM's examples use 20 mrad.
+    static let defaultApertureMrad = 20.0
 
     private func scherzerText(_ model: SimulationModel) -> String {
         (try? model.optics.scherzerDefocusNM()).map { "\(UnitDisplay.number($0, digits: 4)) nm" } ?? "not defined for these optics"

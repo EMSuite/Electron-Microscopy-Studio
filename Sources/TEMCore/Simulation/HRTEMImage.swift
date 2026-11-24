@@ -27,6 +27,8 @@ package nonisolated struct HRTEMOptics: Sendable, Equatable {
     package var angularSpreadMrad = 0.0
     /// The objective aperture's semiangle, mrad; nil is none. It also sets the sampling.
     package var apertureMrad: Double?
+    /// The width the tiled image reaches at least, nm (the design's Field of view: the unit cell is tiled).
+    package var fieldOfViewNM = 4.0
 
     package init() {}
 
@@ -68,8 +70,6 @@ package nonisolated struct HRTEMExitWaves: Sendable, Equatable {
 }
 
 package nonisolated enum HRTEMImage {
-    /// The width the tiled image reaches at least, nm: a few unit cells of any crystal.
-    package static let viewWidthNM = 4.0
     /// The sampling without an aperture, Å: the kit's rule's finest (the smaller of 0.05 Å and λ / 3β is 0.05 Å for any β below
     /// about 160 mrad at 200 kV).
     package static let finestSampling = 0.05
@@ -159,14 +159,14 @@ package nonisolated enum HRTEMImage {
                               apertureMrad: optics.apertureMrad, specimen: specimen)
     }
 
-    /// The image of the stored exit wave `thicknessIndex` at `defocusNM`, tiled to at least `viewWidthNM` across, as an
+    /// The image of the stored exit wave `thicknessIndex` at `defocusNM`, tiled to at least the field of view across, as an
     /// image of the app in the simulated pattern's lab frame: x down the rows, y along the columns (the kit's own storage order, no
     /// flip), calibrated in nm.
     package static func image(_ exit: HRTEMExitWaves, thicknessIndex: Int, defocusNM: Double, optics: HRTEMOptics,
                               name: String) throws -> CalibratedImage {
         let wave = exit.waves[min(max(thicknessIndex, 0), exit.waves.count - 1)]
         let grid = wave.grid
-        let tile = (x: tiles(grid.extentX), y: tiles(grid.extentY))
+        let tile = (x: tiles(grid.extentX, optics.fieldOfViewNM), y: tiles(grid.extentY, optics.fieldOfViewNM))
         let field = try optics.transferFunction(defocusNM: defocusNM).images(of: [wave], defocus: [defocusNM * 10], tile: tile)[0][0]
         // The kit's storage order is the image: lab x down the rows, lab y along the columns, row 0 at x = 0, as the simulated
         // pattern and the crystal pane draw the lab frame (py4DSTEM's), so this image's FFT lines up with the pattern (#931).
@@ -193,6 +193,6 @@ package nonisolated enum HRTEMImage {
             .joined(separator: " · ")
     }
 
-    /// How many units across reach `viewWidthNM`.
-    static func tiles(_ extent: Double) -> Int { max(1, Int((viewWidthNM * 10 / extent).rounded(.up))) }
+    /// How many units of `extent` Å reach `widthNM`.
+    static func tiles(_ extent: Double, _ widthNM: Double) -> Int { max(1, Int((widthNM * 10 / extent).rounded(.up))) }
 }

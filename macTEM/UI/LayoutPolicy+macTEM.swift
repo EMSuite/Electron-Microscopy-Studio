@@ -22,6 +22,8 @@ extension LayoutPolicy {
 
     /// The Patterns room's map progress bar in the pane header: short, beside the title (rule 4).
     static let paneHeaderProgressWidth: CGFloat = 80
+    /// The HRTEM defocus by thickness table sheet's least height, with its readable width (rule 4).
+    static let hrtemTableMinimumHeight: CGFloat = 480
     /// The Diffraction room's readout table under the pattern: room content, named once (rule 4).
     static let diffractionReadoutHeight: CGFloat = 170
     /// The Spots table beside the readout once Index answered (#785): its share of the width, the readout keeps the rest (rule 4).
