@@ -176,14 +176,18 @@ package final class SimulationModel {
     package func changeOptics(_ edit: (inout HRTEMOptics) -> Void) -> Bool {
         var new = optics
         edit(&new)
-        let valid = new.volts.isFinite && new.volts > 0 && new.csMM.isFinite
-            && new.focalSpreadNM.isFinite && new.focalSpreadNM >= 0 && new.angularSpreadMrad.isFinite && new.angularSpreadMrad >= 0
-            && (new.apertureMrad.map { $0.isFinite && $0 > 0 } ?? true)
-            && new.fieldOfViewNM.isFinite && new.fieldOfViewNM > 0 && new.fieldOfViewNM <= Self.largestFieldOfViewNM
-        guard valid else { return false }
+        guard Self.isValid(new) else { return false }
         if new.volts != optics.volts || new.apertureMrad != optics.apertureMrad { stop() }
         optics = new
         return true
+    }
+
+    /// Every value of `optics` valid, as `changeOptics` keeps them.
+    package nonisolated static func isValid(_ optics: HRTEMOptics) -> Bool {
+        optics.volts.isFinite && optics.volts > 0 && optics.csMM.isFinite
+            && optics.focalSpreadNM.isFinite && optics.focalSpreadNM >= 0 && optics.angularSpreadMrad.isFinite && optics.angularSpreadMrad >= 0
+            && (optics.apertureMrad.map { $0.isFinite && $0 > 0 } ?? true)
+            && optics.fieldOfViewNM.isFinite && optics.fieldOfViewNM > 0 && optics.fieldOfViewNM <= largestFieldOfViewNM
     }
 
     /// Makes the image of the stored waves at the current settings off the main actor, passes it through `prepare` there too (the
@@ -345,9 +349,17 @@ package final class SimulationModel {
             setThermal(nil)
             return
         }
-        guard thermal == nil, let crystal else { return }
+        guard thermal == nil, let new = thermalTurnedOn(crystal: crystal) else { return }
+        setThermal(new)
+    }
+
+    /// What turning frozen phonons on for `crystal` sets: the σ and configurations set before when they name the same elements,
+    /// else the defaults. Nil without a crystal.
+    package func thermalTurnedOn(crystal: DiffractionCrystal?) -> HRTEMThermal? {
+        guard let crystal else { return nil }
         let defaults = HRTEMThermal.defaults(for: crystal.structure.sites.map(\.z))
-        if let lastThermal, Set(lastThermal.sigmas.keys) == Set(defaults.sigmas.keys) { setThermal(lastThermal) } else { setThermal(defaults) }
+        if let lastThermal, Set(lastThermal.sigmas.keys) == Set(defaults.sigmas.keys) { return lastThermal }
+        return defaults
     }
 
     /// A frozen-phonon run is going in this document.
