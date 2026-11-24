@@ -143,6 +143,7 @@ extension AppState {
             if landing == .image, [.edx, .eels, .patterns, .indexing, .maps].contains(navigation.workspaceArea) { selectWorkspace(.image) }
             await openItems.settled()
             landSimulation(made)
+            await landHRTEM(made)?.value
             let closed = made.filter { openItems.item($0.id) == nil }.map { $0.url }
             var opened: String?
             if let image = imageSession.image {
@@ -409,9 +410,10 @@ extension AppState {
     nonisolated static func read(_ request: ReadRequest) async throws -> OpenedImage {
         // The generated demo image is answered from memory (`--demo-fixture`), through the same item, row and canvas as a file.
         if DemoDocuments.isDemo(request.url) {
-            let image = request.url == DemoDocuments.patternURL ? DemoDocuments.diffractionPattern()
-                : DemoDocuments.isSimulation(request.url) ? DemoDocuments.simulationCanvas(name: request.url.lastPathComponent)
-                : DemoDocuments.lattice()
+            let name = request.url.lastPathComponent
+            let image = DemoDocuments.isSimulation(request.url) ? DemoDocuments.simulationCanvas(name: name)
+                : DemoDocuments.isHRTEM(request.url) ? DemoDocuments.hrtemPlaceholder(name: name)
+                : request.url == DemoDocuments.patternURL ? DemoDocuments.diffractionPattern() : DemoDocuments.lattice()
             let canvas = canvas(for: image)
             return OpenedImage(image: image, canvas: canvas, metadata: AcquisitionMetadata(), url: request.url,
                                thumbnail: canvas.thumbnail(maxSide: Thumbnail.defaultMaxSide),

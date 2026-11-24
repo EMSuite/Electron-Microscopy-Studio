@@ -536,3 +536,16 @@ slot per merge burst, not one per merge.
 
 **What would reverse it.** The macOS queue again holding pull requests back for long, with main seldom red; then the
 nightly alone again.
+
+## 2026-11-24 — A Simulation document's HRTEM image is an item of its own, in a tab beside its document
+
+**What.** Show HRTEM Image opens "HRTEM of Simulation 1" as a separate item through the app's own Open, so a window that holds the
+Simulation document gives the image a tab of its own. The two are paired by name across the windows on screen: the image tab
+draws from the document's exit waves, and Defocus or Thickness in either redraws it. The design said images appear in Imaging
+"from the same document".
+
+**Why.** One item is one picture in this app (its pixels, marks, FFT region and session file), and one window holds one file
+since 2026-11-10. A second item reuses the Image room whole (FFT, Profile, the scale bar, Export Image) with no special case.
+
+**What would reverse it.** Paul's drive finding the pair confusing (two tabs for one simulation); then the Image room would show
+a Simulation document's image as a view of that item instead.

@@ -14,11 +14,12 @@ import TEMSession
 
 struct SimulationSpecimenSection: View {
     let item: OpenItem
+    @Environment(AppState.self) private var appState
 
     var body: some View {
         let analysis = item.diffraction
         let model = item.multislice
-        let crystal: DiffractionCrystal? = analysis.crystal.phaseID == nil ? nil : analysis.crystal
+        let crystal = analysis.simulatedPhase
         let zoneAxis = analysis.simulation.zoneAxis
         let specimen = model.specimen(crystal: crystal, zoneAxis: zoneAxis)
         InspectorSection("Specimen") {
@@ -35,6 +36,11 @@ struct SimulationSpecimenSection: View {
                         .accessibilityIdentifier("simulation.specimen.box")
                 }
                 InspectorNote(SimulationSpecimen.summary(built, phase: analysis.crystal.name, zoneAxis: zoneAxis))
+                InspectorActionRow {
+                    Button("Show HRTEM Image") { appState.showHRTEMImage(of: item) }
+                        .help("Opens the specimen's HRTEM image in the Image room, with live Defocus and Thickness")
+                        .accessibilityIdentifier("simulation.specimen.hrtem")
+                }
             case .failure(let refusal):
                 InspectorWarning(refusal.sentence)
                 if let strain = refusal.acceptableStrain, let crystal {
