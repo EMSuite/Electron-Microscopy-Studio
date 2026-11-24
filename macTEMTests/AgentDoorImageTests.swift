@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import ImagoCore
 import ShellAgentDoor
 import ShellLayout
 import TEMCore

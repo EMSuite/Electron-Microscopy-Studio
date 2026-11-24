@@ -8,7 +8,9 @@
 
 import Foundation
 import ShellAgentDoor
+import ShellEDXModel
 import ShellLayout
+import SpectroEELS
 import TEMCore
 import TEMSession
 import XCTest

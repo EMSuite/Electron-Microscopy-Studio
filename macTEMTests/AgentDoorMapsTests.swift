@@ -174,7 +174,8 @@ nonisolated final class AgentDoorMapsTests: XCTestCase {
         try await waitUntil("the texture to land", seconds: 120) { state.maps.texture != nil && !state.maps.isTexturing }
         let figure = try await call("get_maps_picture", ["which": "texture"])
         XCTAssertTrue(figure.image, figure.text)
-        let landed = try XCTUnwrap((try json(try await call("get_maps").text)["texture"] as? [String: Any])?["landed"] as? [String: Any])
+        let mapsText = try await call("get_maps").text
+        let landed = try XCTUnwrap((try json(mapsText)["texture"] as? [String: Any])?["landed"] as? [String: Any])
         XCTAssertEqual(landed["points"] as? Int, state.maps.texture?.points)
     }
 }

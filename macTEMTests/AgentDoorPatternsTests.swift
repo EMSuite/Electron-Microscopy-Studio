@@ -140,7 +140,8 @@ nonisolated final class AgentDoorPatternsTests: XCTestCase {
     @MainActor func testTheSimulationOverlayAndTheSessionRows() async throws {
         let state = try await nickelWindow()
         try await waitUntil("the pattern to be on screen", seconds: 30) { state.ebsd.patternPosition != nil }
-        let off = try XCTUnwrap(try json(try await call("get_patterns").text)["simulation"] as? [String: Any])
+        let patternsText = try await call("get_patterns").text
+        let off = try XCTUnwrap(try json(patternsText)["simulation"] as? [String: Any])
         XCTAssertEqual(off["mode"] as? String, "off")
         XCTAssertEqual(off["can_overlay"] as? Bool, true, "the nickel scan stores orientations")
 

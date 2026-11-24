@@ -160,7 +160,8 @@ nonisolated final class AgentDoorIndexingTests: XCTestCase {
         try await waitUntil("the pattern as indexed to be on screen", seconds: 30) {
             state.indexing.patternPosition == EBSDPosition(row: 2, column: 3) && state.indexing.patternPresentation.canvas != nil
         }
-        let point = try XCTUnwrap((try json(try await call("get_indexing").text)["run"] as? [String: Any])?["picked_point"] as? [String: Any])
+        let indexingText = try await call("get_indexing").text
+        let point = try XCTUnwrap((try json(indexingText)["run"] as? [String: Any])?["picked_point"] as? [String: Any])
         XCTAssertNotNil(point["confidence"], "a Hough point's confidence index")
 
         let map = try await call("get_indexing_picture", ["which": "map"])

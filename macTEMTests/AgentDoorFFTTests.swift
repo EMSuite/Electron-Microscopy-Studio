@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import ImagoCore
 import ShellAgentDoor
 import ShellLayout
 import TEMCore
@@ -97,7 +98,8 @@ nonisolated final class AgentDoorFFTTests: XCTestCase {
         let found = try await call("set_fft_spots", ["find": true])
         XCTAssertFalse(found.refused, found.text)
         try await waitUntil("the spots to be found and measured", seconds: 60) { item.fft.spots.count > 0 && self.spotsSettled(item) }
-        let spots = try XCTUnwrap((try json(try await call("get_fft").text)["spots"] as? [String: Any])?["list"] as? [[String: Any]])
+        let fftText = try await call("get_fft").text
+        let spots = try XCTUnwrap((try json(fftText)["spots"] as? [String: Any])?["list"] as? [[String: Any]])
         let lattice = spots.filter { ($0["d"] as? Double).map { abs($0 - 0.235) < 0.01 } ?? false }
         XCTAssertFalse(lattice.isEmpty, "a spot at the planted 0.235 nm: \(spots.map { $0["d"] ?? "-" })")
         XCTAssertEqual(lattice.first?["d_unit"] as? String, "nm")
