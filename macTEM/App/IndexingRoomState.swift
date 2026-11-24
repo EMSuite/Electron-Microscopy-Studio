@@ -155,25 +155,28 @@ final class IndexingRoomState {
         guard let document = session.patterns.document else { report("Nothing to export yet: no dataset is open."); return }
         guard let result = session.result, result.reachedCount > 0 else { report("Nothing to export yet: Index has not run."); return }
         let layer = session.layer, refined = session.shownRun?.refinement != nil
-        let data: Data
+        let made: Data
         do {
-            data = try await Self.bytes(Self.input(kind, from: session, document: document, result: result))
+            made = try await Self.bytes(Self.input(kind, from: session, document: document, result: result))
         } catch let nothing as NothingToWrite {
             report(nothing.words); return
         } catch {
             report("Export failed: \(error.localizedDescription)"); return
         }
         exportLayer = layer
+        let draft = Self.record(kind, data: made, layer: exportLayer, method: result.method, refined: refined,
+                                fileName: document.fileName)
+        // The bytes with their methods record inside (#817); the session's record keeps the figure as written.
+        let data = await ExportSnapshot.semExport(made, file: draft, fileExtension: kind.fileExtension, sourceURL: document.url,
+                                                  sourceKind: "EBSD patterns",
+                                                  shape: [document.dataset.scanColumns, document.dataset.scanRows,
+                                                          document.dataset.patternColumns, document.dataset.patternRows])
         let record = Self.record(kind, data: data, layer: exportLayer, method: result.method, refined: refined,
                                  fileName: document.fileName)
-        let written = await ExportSnapshot.semExport(data, file: record, fileExtension: kind.fileExtension, sourceURL: document.url,
-                                                     sourceKind: "EBSD patterns",
-                                                     shape: [document.dataset.scanColumns, document.dataset.scanRows,
-                                                             document.dataset.patternColumns, document.dataset.patternRows])
         if let directory {
             let name = (document.fileName as NSString).deletingPathExtension + kind.suffix(layer: exportLayer)
             do {
-                let url = try ExportDirectoryFile.write(written, named: name + "." + kind.fileExtension, into: directory)
+                let url = try ExportDirectoryFile.write(data, named: name + "." + kind.fileExtension, into: directory)
                 onWritten?(record.written(to: url, at: Date()))
                 report("Exported \(url.lastPathComponent)")
             } catch {
@@ -182,7 +185,7 @@ final class IndexingRoomState {
             return
         }
         pendingRecord = record
-        exportData = written
+        exportData = data
         exporting = kind
     }
 

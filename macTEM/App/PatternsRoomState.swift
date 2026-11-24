@@ -196,12 +196,13 @@ final class PatternsRoomState {
     /// folder) as `name`, or handed to the save panel.
     @MainActor private func finish(_ kind: PatternsExportKind, data: Data, record makeRecord: (Data) -> SEMExportedFile, name: String,
                                    document: EBSDSession.Document, directory: URL?, report: (String) -> Void) async {
-        let record = makeRecord(data)
         let fileExtension = kind.contentType.preferredFilenameExtension ?? "txt"
         let dataset = document.dataset
-        let data = await ExportSnapshot.semExport(data, file: record, fileExtension: fileExtension, sourceURL: document.url,
+        let data = await ExportSnapshot.semExport(data, file: makeRecord(data), fileExtension: fileExtension, sourceURL: document.url,
                                                   sourceKind: "EBSD patterns",
                                                   shape: [dataset.scanColumns, dataset.scanRows, dataset.patternColumns, dataset.patternRows])
+        // The session's record keeps the figure as written, its methods record inside.
+        let record = makeRecord(data)
         if let directory {
             do {
                 let url = try ExportDirectoryFile.write(data, named: name + "." + fileExtension, into: directory)

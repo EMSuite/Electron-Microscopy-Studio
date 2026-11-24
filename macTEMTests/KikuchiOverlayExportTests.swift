@@ -10,6 +10,7 @@
 import XCTest
 import FormatoCore
 import ImageIO
+import ShellExport
 import TEMCore
 import TEMSession
 @testable import macTEM
@@ -51,8 +52,12 @@ nonisolated final class KikuchiOverlayExportTests: XCTestCase {
         await state.export(.overlayCSV, from: session, directory: dir) { reports.append($0) }
         XCTAssertEqual(reports.last, "Exported \(stem).csv")
         let csv = try String(contentsOf: dir.appendingPathComponent("\(stem).csv"), encoding: .utf8)
-        XCTAssertEqual(csv, KikuchiOverlay.csv(overlay))
-        XCTAssertTrue(csv.hasPrefix("feature,h_or_u,k_or_v,l_or_w,label,x1_px,y1_px,x2_px,y2_px,theta_rad\nband,"))
+        // The methods record is the file's one `#` line (#817), before the header; the rest is the overlay's CSV as it was.
+        let lines = csv.split(separator: "\n", maxSplits: 1, omittingEmptySubsequences: false)
+        XCTAssertEqual(ExportMethods.record(inText: csv)?.exportKind, "patterns-overlay-csv")
+        XCTAssertTrue(lines.first?.hasPrefix(ExportMethods.textPrefix) == true)
+        XCTAssertEqual(lines.count == 2 ? String(lines[1]) : "", KikuchiOverlay.csv(overlay))
+        XCTAssertTrue(lines.last?.hasPrefix("feature,h_or_u,k_or_v,l_or_w,label,x1_px,y1_px,x2_px,y2_px,theta_rad\nband,") == true)
 
         await state.export(.overlayPNG, from: session, directory: dir) { reports.append($0) }
         let pngName = "patterns_v2 pattern r\(position.row) c\(position.column) overlay.png"
