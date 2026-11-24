@@ -263,9 +263,12 @@ enum RoomExports {
 
     /// The EELS room's: the bytes of `kind`, the maps as the Maps control shows them, to the room's save panel or into a UI journey's
     /// export folder, with the room's line in the status line.
-    static func eels(_ kind: EELSExportKind, appState: AppState) {
-        appState.eelsRoom.export(kind, from: appState.eels, maps: EELSMapsBlock.shownMaps(appState.eels, appState.eelsRoom),
-                                 directory: appState.exportDirectory) { appState.statusText = $0 }
+    @discardableResult
+    static func eels(_ kind: EELSExportKind, appState: AppState) -> Task<Void, Never> {
+        Task {
+            await appState.eelsRoom.export(kind, from: appState.eels, maps: EELSMapsBlock.shownMaps(appState.eels, appState.eelsRoom),
+                                           directory: appState.exportDirectory) { appState.statusText = $0 }
+        }
     }
 
     /// The Patterns room's: the bytes of `kind` at the pattern on screen, to the room's save panel or into a UI journey's export

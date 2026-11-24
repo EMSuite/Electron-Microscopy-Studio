@@ -195,9 +195,11 @@ final class AppState {
         // gives way to it); both go back when the dataset closes, a map opened on its own stays.
         ebsd.onBind = { [weak self] document in
             guard let self else { return }
-            self.indexing.bind(document)
-            self.maps.patternsChanged(to: OrientationMapSession.patternsDocument(fileName: document.fileName, url: document.url,
-                                                                                 dataset: document.dataset))
+            // Made once for both rooms: it walks every point of the map (#929).
+            let mapsDocument = OrientationMapSession.patternsDocument(fileName: document.fileName, url: document.url,
+                                                                      dataset: document.dataset)
+            self.indexing.bind(document, mapsDocument: mapsDocument)
+            self.maps.patternsChanged(to: mapsDocument)
         }
         ebsd.onClose = { [weak self] in
             self?.indexing.close()

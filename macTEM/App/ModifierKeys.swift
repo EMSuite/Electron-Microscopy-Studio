@@ -10,4 +10,6 @@ import AppKit
 nonisolated enum ModifierKeys {
     /// Whether ⌘ is down now (`NSEvent.modifierFlags`).
     static var commandIsDown: Bool { NSEvent.modifierFlags.contains(.command) }
+    /// Whether ⌥ is down now: the Diffraction room's Tilt tool turns the overlay in the plane on an ⌥ drag (#787).
+    static var optionIsDown: Bool { NSEvent.modifierFlags.contains(.option) }
 }

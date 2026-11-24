@@ -51,7 +51,10 @@ nonisolated enum AgentDoorCoverage {
         "diffraction.export": .personOnly(exportReason),
         "diffraction.family": .tool("set_diffraction"),
         "diffraction.fitRing": .tool("set_diffraction"),
+        "diffraction.index.fitScale": .gap(791),
+        "diffraction.index.flip": .gap(791),
         "diffraction.index.removeSpots": .gap(791),
+        "diffraction.index.solution": .gap(791),
         "diffraction.index.verdict": .gap(791),
         "diffraction.pane": .tool("get_image"),
         "diffraction.readout": .tool("get_diffraction"),
@@ -63,6 +66,7 @@ nonisolated enum AgentDoorCoverage {
         "diffraction.simulation.doubleDiffraction": .gap(791),
         "diffraction.simulation.excitationError": .gap(791),
         "diffraction.simulation.labels": .gap(791),
+        "diffraction.simulation.place": .gap(791),
         "diffraction.simulation.show": .gap(791),
         "diffraction.simulation.turn": .gap(791),
         "diffraction.simulation.zone": .gap(791),
@@ -429,6 +433,7 @@ nonisolated enum AgentDoorCoverage {
     static let menuItems: [String: Reach] = [
         // File
         "New Window": .personOnly(windowReason),
+        "New Simulation": .gap(846),
         "Open Image…": .tool("open_file"),
         "recents.title(of: entry)": .personOnly(openReason),
         "Clear Menu": .personOnly(openCloseReason),

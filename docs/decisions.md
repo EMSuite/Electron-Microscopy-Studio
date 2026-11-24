@@ -551,3 +551,17 @@ is placed by this rule.
 
 **What would reverse it.** A TIA file whose `.emi` names its detector some other way, or holds EDS and EELS series together; then
 the series' detector document, matched by more than its index.
+
+## 2026-11-24 — CI: a pull request's `unit` runs on the org's Mac runner (reverses 2026-11-06 for that job)
+
+**What.** On a pull request from this repo, `unit` runs on the org's self-hosted Mac runner while the org variable
+`MACEM_MAC_RUNNER` is set; a fork's pull request, main, tags and the nightly stay on GitHub's `macos-26`. The runner runs
+as its own standard user in that user's login session (XCTest launches the app), one job at a time, and clears
+DerivedData and the app's preferences and folders before each job. Check names are unchanged.
+
+**Why.** GitHub gives the org five macOS machines; with many pull requests open, `unit` queued for hours (51 runs queued
+here on 24 Nov). The 2026-11-06 rule kept pull requests off the Mac so that none waited on it being awake; the variable
+now answers that: deleting it sends every job back to `macos-26` at once.
+
+**What would reverse it.** The Mac often asleep or away while pull requests wait, or a failure that only the Mac's state
+explains; then delete the variable, and this line back to `runs-on: macos-26`.
