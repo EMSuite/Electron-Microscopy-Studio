@@ -251,6 +251,11 @@ private struct DiffractionPatternPane: View {
                     SimulatedSpotsOverlay(spots: simulated, showsLabels: analysis.simulation.showsLabels, layout: layout)
                         .allowsHitTesting(false)
                 }
+                // The shown variants of a precipitate (#808), magenta, under the measured marks.
+                if item.diffractionVariants.isShown, case .success(let set)? = item.diffractionVariants.variants(analysis: analysis, image: image) {
+                    VariantSpotsOverlay(pixels: item.diffractionVariants.pixels(of: set, analysis: analysis, image: image), layout: layout)
+                        .allowsHitTesting(false)
+                }
                 DiffractionOverlay(analysis: analysis, view: view, rows: rows, layout: layout, drag: drag.flatMap { radii(from: $0.start, to: $0.end, layout: layout) })
                     .allowsHitTesting(false)
                 // The spot cursor, for the eyes, once a key or an action has moved it.
@@ -676,6 +681,24 @@ private struct SimulatedSpotsOverlay: View {
                 let p = layout.point(column: spot.column, row: spot.row)
                 let r = 3 + 6 * CGFloat(spot.relative.squareRoot())
                 ctx.draw(Text(spot.label).font(.caption).foregroundStyle(.cyan), at: CGPoint(x: p.x + r + 2, y: p.y + r + 2), anchor: .topLeading)
+            }
+        }
+        .accessibilityHidden(true)
+    }
+}
+
+/// The shown variants' spots (#808): a magenta ring per merged spot, its size growing with the square root of its intensity against
+/// the strongest, as the simulated spots are drawn; a spot several variants predict is one ring.
+private struct VariantSpotsOverlay: View {
+    let pixels: [VariantPixel]
+    let layout: DiffractionLayout
+
+    var body: some View {
+        Canvas { ctx, _ in
+            for spot in pixels {
+                let p = layout.point(column: spot.column, row: spot.row)
+                let r = 3 + 6 * CGFloat(spot.relative.squareRoot())
+                ctx.stroke(Path(ellipseIn: CGRect(x: p.x - r, y: p.y - r, width: 2 * r, height: 2 * r)), with: .color(.pink), lineWidth: 1.5)
             }
         }
         .accessibilityHidden(true)

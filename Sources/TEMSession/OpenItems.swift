@@ -311,6 +311,8 @@ package final class OpenItem: Identifiable {
     package let diffractionPowder = DiffractionPowder()
     /// The Diffraction room's Find Phases for this file (#812): Fit scale and the last ranking.
     package let diffractionPhases = DiffractionPhaseFinder()
+    /// The Diffraction room's precipitate for this file (#808): which, its relationship, the hidden variants.
+    package let diffractionVariants = DiffractionVariants()
     /// The committed zoom and pan; kept per item, through eviction and re-read. Not observed: the pane reads it once,
     /// when it is made, and writes it at the end of every gesture — observing it would re-evaluate the pane's parent
     /// on each write for nothing.

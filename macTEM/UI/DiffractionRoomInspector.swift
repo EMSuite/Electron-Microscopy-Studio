@@ -1,6 +1,6 @@
 //
 //  DiffractionRoomInspector.swift
-//  Role: the Diffraction room's Settings (design section 3): Centre, Calibration, Display, Tools, Crystal, Index, Holder, Simulation, Powder, Rings, Export (control placement §2:
+//  Role: the Diffraction room's Settings (design section 3): Centre, Calibration, Display, Tools, Crystal, Index, Holder, Simulation, Precipitate, Powder, Rings, Export (control placement §2:
 //        what I am looking at, then the job; Centre stays above Calibration, which it feeds). Presentation only;
 //        the state is `DiffractionAnalysis` and every number DiffractoKit's. Every field commits on Return or blur
 //        (`OptionalNumericField`), every control has an accessibility identifier for the journey.
@@ -31,6 +31,7 @@ struct DiffractionRoomSettings: View {
             DiffractionIndexSection(analysis: analysis)
             DiffractionHolderSection(item: item)
             DiffractionSimulationSection(session: item.session, analysis: analysis)
+            DiffractionPrecipitateSection(item: item)
             DiffractionPowderSection(item: item)
             DiffractionRingsSection(session: item.session, analysis: analysis, view: view)
             DiffractionExportSection(session: item.session, analysis: analysis)
