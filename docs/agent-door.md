@@ -77,7 +77,7 @@ Behind "Let agents run analyses". Each goes through the entry point its control 
 | `set_particles` | the Particles section's settings (bright or dark, manual level or Otsu, smoothing, connectivity, minimum area, region, mask tint), Show Objects, Hide, and the object selected |
 | `set_fft` | the FFT room's Region (a square, centred, whole), taper (the Window menu), smoothing and band-pass, the source pane's view, the mask's radius and edge, the spot finder's settings, the HRTEM filters' parameters, and Filter |
 | `set_fft_spots` | Find Spots, Measure at… (whole bins from the centre), selects and removes spots, puts spots in or out of the mask |
-| `set_diffraction` | the Diffraction room's Centre (typed, or a fitted ring's), Calibration (standard, ring, Calibrate on Ring, Clear, typed Δq and kV for a file without them, camera and pixel pitch), Crystal (a standard, k_max, tolerance), the annulus, Fit Ring, the tool and the log display |
+| `set_diffraction` | the Diffraction room's Centre (typed, or a fitted ring's), Calibration (standard, ring, Calibrate on Ring, Clear, typed Δq and kV for a file without them, camera and pixel pitch), Phases (a standard as the crystal, k_max, tolerance; the library's phases are #781), the annulus, Fit Ring, the tool and the log display |
 | `set_diffraction_marks` | adds a spot as a click on the pattern does, selects a ring or spot, removes one or all |
 | `select_grains` | selects grains as the grain table does, or none |
 

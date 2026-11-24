@@ -19,26 +19,58 @@ import DiffractoGeometry
 import DiffractoOrientation
 import TEMCore
 
-/// The crystal indexing is done against: a standard of the room, or one opened from a CIF.
-package enum DiffractionCrystal: Sendable, Equatable {
+/// A phase of the person's library (#779), as the room uses it: its id, its name and its structure, with the structure's
+/// fingerprint (an edited lattice is another fingerprint). The library itself is EMSuiteUI's; the room needs only these.
+package nonisolated struct PhaseCrystal: Sendable, Equatable {
+    package let id: String
+    package let name: String
+    package let structure: CrystalStructure
+    package let fingerprint: String
+
+    package init(id: String, name: String, structure: CrystalStructure) {
+        self.id = id
+        self.name = name
+        self.structure = structure
+        self.fingerprint = CrystalStructure.Snapshot(structure).fingerprint
+    }
+}
+
+/// The crystal indexing is done against: a standard of the room, one opened from a CIF, or a phase of the library.
+package nonisolated enum DiffractionCrystal: Sendable, Equatable {
     case preset(StandardCrystal)
     case cif(LoadedCrystal)
+    case phase(PhaseCrystal)
 
     package var name: String {
         switch self {
         case .preset(let s): s.name
         case .cif(let c): c.displayName
+        case .phase(let p): p.name
         }
     }
     package var structure: CrystalStructure {
         switch self {
         case .preset(let s): s.structure
         case .cif(let c): c.structure
+        case .phase(let p): p.structure
         }
     }
     package var sha256: String? {
         if case .cif(let c) = self { return c.sha256 }
         return nil
+    }
+    /// The library phase's id, when the crystal is one.
+    package var phaseID: String? {
+        if case .phase(let p) = self { return p.id }
+        return nil
+    }
+    /// What tells two crystals of the same name apart for the simulator's cache: the CIF's hash or the phase's fingerprint.
+    package var identity: String {
+        switch self {
+        case .preset(let s): "preset|\(s.name)"
+        case .cif(let c): "cif|\(c.sha256)"
+        case .phase(let p): "phase|\(p.id)|\(p.fingerprint)"
+        }
     }
 }
 
@@ -204,7 +236,7 @@ package final class DiffractionAnalysis {
     /// The kinematic list of the crystal at the current k_max and why there is none. Cached by crystal and k_max; it writes no observed state, so a
     /// view body may call it (the build runs on the first call after the crystal or k_max changed).
     private func listResult() -> (list: KinematicReflectionList?, failure: String?) {
-        let key = "\(crystal.name)|\(crystal.sha256 ?? "")|\(kMax)"
+        let key = "\(crystal.identity)|\(kMax)"
         if let listCache, listCache.key == key { return (listCache.list, listCache.failure) }
         let built: (list: KinematicReflectionList?, failure: String?)
         do { built = (try DiffractionCompute.list(of: crystal.structure, kMax: kMax), nil) }
@@ -326,7 +358,7 @@ package final class DiffractionAnalysis {
         }
         let pattern = DiffractionCompute.pattern(of: image)
         let structure = crystal.structure, phase = crystal.name
-        let key = "\(crystal.name)|\(crystal.sha256 ?? "")|\(volts)"
+        let key = "\(crystal.identity)|\(volts)"
         let shortest = list()?.families.first.map { 1 / $0.family.d } ?? 0.2
         let task = Task.detached(priority: .userInitiated) { [weak self] in
             let outcome: PatternIndexing.Outcome
@@ -529,7 +561,7 @@ package final class DiffractionAnalysis {
         // The simulator reaches the image's farthest corner, to at most 6 Å⁻¹ (d 0.17 Å), and is kept while the crystal and the
         // reach (to 0.1 Å⁻¹) stay.
         let reach = min(6, max(0.2, (ZoneAxisOverlay.reach(width: width, height: height, centre: centre, deltaQ: calibration.deltaQ) * 10).rounded(.up) / 10))
-        let simulatorKey = "\(crystal.name)|\(crystal.sha256 ?? "")|\(reach)"
+        let simulatorKey = "\(crystal.identity)|\(reach)"
         if simulatorCache?.key != simulatorKey {
             do { simulatorCache = (simulatorKey, try SpotPatternSimulator(structure: crystal.structure, kMax: reach), nil) }
             catch { simulatorCache = (simulatorKey, nil, error.localizedDescription) }
