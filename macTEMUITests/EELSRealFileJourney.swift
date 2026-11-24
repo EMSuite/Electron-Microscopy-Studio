@@ -150,7 +150,8 @@ nonisolated final class EELSRealFileJourney: Journey {
         }
     }
 
-    /// A check that needs a real mouse drag or wheel: XCUITest's own drag does not reach the room's DragGesture (2026-10-22, EDS). Booked "unverified, drag".
+    /// A check that needs a real mouse drag or wheel. Booked "unverified, drag". (The 2026-10-22 reason, that XCUITest's drag does not reach a
+    /// DragGesture, did not hold: it draws an EDS region, #634, EDXRegionDragJourney. These checks can move to XCUITest's drag.)
     @MainActor func unverifiedDrag(_ what: String) { unverified[currentLine] = what }
 
     /// Picks a segment of a SegmentedPicker by its title (a radio button or a button, as the picker exposes it).
