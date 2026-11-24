@@ -55,7 +55,7 @@ The rooms:
   Your marks are saved in a session file next to the image. An SEM TIFF shows the microscope's settings, and a Thermo
   Fisher or Tescan databar can be hidden or shown under the picture (Settings > Images).
 - **FFT**: the transform of the image or a region, spots and their d-spacings, the radial profile, a masked inverse,
-  and ABSF and Wiener filters.
+  and ABSF and Wiener filters. The transform exports as a PNG, or as a PDF or SVG figure with its rings and labels as vectors.
 - **EDS**: Velox and GMS spectrum images, and SEM-EDS maps, line scans and spectra. Pick elements from the periodic
   table or let Auto ID suggest them, then get net, wt%, at% and thickness maps, regions, and the Cliff-Lorimer
   composition.
