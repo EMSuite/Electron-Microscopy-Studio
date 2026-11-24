@@ -14,6 +14,7 @@ import XCTest
 import DiffractoCore
 import DiffractoGeometry
 import DiffractoOrientation
+import ShellLayout
 import TEMCore
 import TEMSession
 @testable import macTEM
@@ -216,6 +217,6 @@ nonisolated final class DiffractionIndexTests: XCTestCase {
 private extension CrystalOrientation {
     nonisolated static var identityForTests: CrystalOrientation {
         // swiftlint:disable:next force_try
-        try! CrystalOrientation(matrix: matrix_identity_double3x3)
+        try! CrystalOrientation(zoneAxis: SIMD3(0, 0, 1), cell: StandardCrystals.named("Al")!.structure.cell)
     }
 }
