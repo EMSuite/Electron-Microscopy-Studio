@@ -9,6 +9,7 @@
 
 import Charts
 import ShellInspector
+import ShellLayout
 import SwiftUI
 import DiffractoCore
 import DiffractoScattering
@@ -187,7 +188,7 @@ struct DiffractionPowderChart: View {
         .chartXAxisLabel(xTitle, alignment: .center)
         .chartYAxisLabel("I (of 100)")
         .chartLegend(table.phases.count > 1 ? .visible : .hidden)
-        .frame(height: 140)
+        .frame(height: LayoutPolicy.powderChartHeight)
         .accessibilityLabel("Powder pattern")
         .accessibilityValue(table.phases.indices.map { table.headline(phase: $0) }.joined(separator: ". "))
     }

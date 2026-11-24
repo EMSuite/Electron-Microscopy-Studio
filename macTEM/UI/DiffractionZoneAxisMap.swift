@@ -8,6 +8,7 @@
 //        Until the crystal pane (R7, #790) gives the map its own tab, it lives here.
 //
 
+import ShellLayout
 import SwiftUI
 import DiffractoGeometry
 import TEMCore
@@ -40,7 +41,7 @@ struct DiffractionZoneAxisMap: View {
             draw(into: &context, map: map)
         }
         .aspectRatio(1, contentMode: .fit)
-        .frame(maxWidth: 260)
+        .frame(maxWidth: LayoutPolicy.zoneAxisMapMaximum)
         .onGeometryChange(for: CGSize.self) { $0.size } action: { size = $0 }
         .contentShape(Rectangle())
         .gesture(SpatialTapGesture().onEnded { tap in pick(at: tap.location) })
@@ -139,7 +140,7 @@ private struct DiffractionZoneAxisMapLegend: View {
                     Text(name).font(.caption2.monospacedDigit())
                 } icon: {
                     Rectangle().fill(DiffractionZoneAxisMap.familyColours[i % DiffractionZoneAxisMap.familyColours.count])
-                        .frame(width: 10, height: 2)
+                        .frame(width: LayoutPolicy.zoneAxisLegendLine.width, height: LayoutPolicy.zoneAxisLegendLine.height)
                 }
             }
         }

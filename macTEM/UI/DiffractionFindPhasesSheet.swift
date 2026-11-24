@@ -7,6 +7,7 @@
 //        Candidates: the room's standards and the crystals of the open patterns, until My Phases (A2) lands.
 //
 
+import ShellLayout
 import SwiftUI
 import DiffractoCore
 import TEMCore
@@ -64,7 +65,7 @@ struct DiffractionFindPhasesSheet: View {
             if let result = finder.result {
                 if result.pattern == DiffractionPhaseFinder.pattern(analysis: item.diffraction, image: image) {
                     DiffractionPhaseTable(result: result, selection: $selection)
-                        .frame(minHeight: 180)
+                        .frame(minHeight: LayoutPolicy.findPhasesTableMinimum)
                     notes(result)
                 } else {
                     Label(DiffractionPhaseFinder.staleSentence, systemImage: "arrow.clockwise").font(.callout).foregroundStyle(.secondary)
@@ -82,7 +83,8 @@ struct DiffractionFindPhasesSheet: View {
             }
         }
         .padding(20)
-        .frame(minWidth: 620, idealWidth: 700, minHeight: 360)
+        .frame(minWidth: LayoutPolicy.findPhasesSheet.min.width, idealWidth: LayoutPolicy.findPhasesSheet.idealWidth,
+               minHeight: LayoutPolicy.findPhasesSheet.min.height)
     }
 
     @ViewBuilder

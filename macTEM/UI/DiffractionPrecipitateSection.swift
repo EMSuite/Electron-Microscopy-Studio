@@ -8,6 +8,7 @@
 //
 
 import ShellInspector
+import ShellLayout
 import SwiftUI
 import DiffractoCore
 import TEMCore
@@ -142,7 +143,7 @@ private struct DiffractionRelationshipFields: View {
             texts = t
         }))
         .textFieldStyle(.roundedBorder)
-        .frame(width: 72)
+        .frame(width: LayoutPolicy.precipitateIndexFieldWidth)
         .onSubmit(apply)
         .accessibilityLabel(name)
         .accessibilityIdentifier("diffraction.precipitate.pair\(i)")
