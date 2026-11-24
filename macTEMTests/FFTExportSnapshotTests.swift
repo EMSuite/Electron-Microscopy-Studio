@@ -15,6 +15,7 @@
 
 import ShellMetal
 import AppKit
+import FormatoCore
 import UniformTypeIdentifiers
 import XCTest
 import TEMCore

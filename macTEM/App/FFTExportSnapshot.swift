@@ -51,9 +51,12 @@ nonisolated struct ExportTransformSnapshot: Sendable {
     /// resampled to the shape the pane draws (`FFTExport.asShown`), else one pixel per bin.
     nonisolated func write(to url: URL, options: ImageExport.Options, asShown: Bool = false) async throws -> ImageExport.Rendered {
         let spotsDrawn = options.marks ? marks.count : 0
+        var drawn: [String] = ["the transform, log₁₀|F|² in the window shown, grey"]
+        if options.scaleBar { drawn.append("a scale bar") }
+        if spotsDrawn > 0 { drawn.append("the measured spots") }
+        if asShown { drawn.append("resampled to the shape the room shows") }
         var record = methods
-        record?.drawn = ["the transform, log₁₀|F|² in the window shown, grey"] + (options.scaleBar ? ["a scale bar"] : [])
-            + (spotsDrawn > 0 ? ["the measured spots"] : []) + (asShown ? ["resampled to the shape the room shows"] : [])
+        record?.drawn = drawn
         guard asShown else {
             return try await ImageExport.export(source: FFTExport.transformSource(header), display: display, marks: marks, options: options,
                                                 provenance: FFTExport.transformProvenance(header, spotsDrawn: spotsDrawn), methods: record,
