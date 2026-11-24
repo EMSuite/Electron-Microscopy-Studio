@@ -473,6 +473,7 @@ nonisolated enum AgentDoorCoverage {
         "simulation.hrtem.fieldOfView": .tool("set_simulation"),
         "simulation.hrtem.method": .tool("read_simulation"),
         "simulation.hrtem.potential": .tool("read_simulation"),
+        "simulation.hrtem.saveScript": .gap(918),
         "simulation.hrtem.scherzer": .tool("set_simulation"),
         "simulation.hrtem.table": .personOnly(hrtemTableReason),
         "simulation.hrtem.table.cell.\\(r).\\(c)": .tool("set_simulation"),
