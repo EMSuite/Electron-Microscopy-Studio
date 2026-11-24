@@ -74,6 +74,25 @@ nonisolated struct ExportTransformSnapshot: Sendable {
     }
 }
 
+extension ExportTransformSnapshot {
+    /// The transform as a vector figure (#902, plan row X10): the picture at its own bins (or as shown), the spots and their
+    /// labels and the reciprocal scale bar as vectors and text, through the Image room's figure (`FigureExport.export`).
+    nonisolated func writeFigure(to url: URL, options: ImageExport.Options, asShown: Bool, width: FigureStyle.Width,
+                                 format: FigureExport.Format, leaveOutFileNames: Bool = false) async throws
+        -> (scene: FigureScene, barLeftOut: Bool) {
+        let (header, methods) = ExportSnapshot.named(header: header, methods: methods, leaveOutFileNames: leaveOutFileNames)
+        var drawn: [String] = ["the transform, log₁₀|F|² in the window shown, grey", "as a vector figure"]
+        if options.scaleBar { drawn.append("a scale bar") }
+        if options.marks, !marks.isEmpty { drawn.append("the measured spots") }
+        if asShown { drawn.append("resampled to the shape the room shows") }
+        var record = methods
+        record?.drawn = drawn
+        let shown = asShown ? FFTExport.asShown(display: display, marks: marks, header: header) : (display: display, marks: marks, header: header)
+        return try await FigureExport.export(source: FFTExport.transformSource(shown.header), display: shown.display, marks: shown.marks,
+                                             options: options, width: width, format: format, methods: record, to: url)
+    }
+}
+
 /// Everything Export Radial Profile… needs.
 nonisolated struct ExportRadialProfileSnapshot: Sendable {
     let header: FFTExportHeader

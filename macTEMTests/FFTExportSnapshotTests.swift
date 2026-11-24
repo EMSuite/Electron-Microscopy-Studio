@@ -244,6 +244,29 @@ nonisolated final class FFTExportSnapshotTests: XCTestCase {
         XCTAssertEqual(ExportMethods.record(inText: text)?.sources.first?.fileName, "source 1")
     }
 
+    /// The transform as a vector figure (#902): the bins at their own pixels, one ring a measured spot, the reciprocal bar's label as
+    /// text in the SVG. Red before: the transform wrote PNG only.
+    @MainActor func testTheTransformIsAVectorFigure() async throws {
+        let (image, analysis) = try await landed()
+        try await measure(analysis, row: 37, col: 40, count: 1)
+        let transform = try XCTUnwrap(ExportSnapshot.transformSnapshot(image: image, url: Self.url, analysis: analysis, software: Self.software))
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("fft-figure-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let url = dir.appendingPathComponent("fft.svg")
+        let made = try await transform.writeFigure(to: url, options: ImageExport.Options(scaleBar: true, marks: true), asShown: false,
+                                                   width: .mm90, format: .svg)
+        guard case .raster(let picture, _) = try XCTUnwrap(made.scene.layers.first) else { return XCTFail("the picture first") }
+        XCTAssertEqual(picture.width, transform.display.width)
+        let rings = made.scene.layers.reduce(0) { count, layer in
+            if case .markers(let markers) = layer { count + markers.centers.count } else { count }
+        }
+        XCTAssertEqual(rings, transform.marks.count)
+        XCTAssertEqual(made.scene.widthMM, 90)
+        let svg = try String(contentsOf: url, encoding: .utf8)
+        XCTAssertTrue(svg.contains("<text"), "the labels are text")
+    }
+
     @MainActor func testNoMeasuredSpotMeansNoSpotsSnapshot() async throws {
         let (image, analysis) = try await landed()
         XCTAssertNil(ExportSnapshot.spotsSnapshot(image: image, url: Self.url, analysis: analysis, software: Self.software))
