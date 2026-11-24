@@ -1,6 +1,6 @@
 //
 //  DiffractionRoomInspector.swift
-//  Role: the Diffraction room's Settings (design section 3): Centre, Calibration, Display, Tools, Crystal, Rings, Export (control placement §2:
+//  Role: the Diffraction room's Settings (design section 3): Centre, Calibration, Display, Tools, Crystal, Simulation, Rings, Export (control placement §2:
 //        what I am looking at, then the job; Centre stays above Calibration, which it feeds). Presentation only;
 //        the state is `DiffractionAnalysis` and every number DiffractoKit's. Every field commits on Return or blur
 //        (`OptionalNumericField`), every control has an accessibility identifier for the journey.
@@ -28,6 +28,7 @@ struct DiffractionRoomSettings: View {
             DiffractionDisplaySection(view: view)
             DiffractionToolsSection(view: view)
             DiffractionCrystalSection(analysis: analysis)
+            DiffractionSimulationSection(session: item.session, analysis: analysis)
             DiffractionRingsSection(session: item.session, analysis: analysis, view: view)
             DiffractionExportSection(session: item.session, analysis: analysis)
         }
@@ -172,6 +173,92 @@ private struct DiffractionCrystalSection: View {
             case .failure(let error): analysis.crystalRefused(error.localizedDescription)
             }
         }
+    }
+}
+
+/// The simulated spots of a typed zone axis over the pattern (#782): on or off, the zone axis ("[1 1 0]", "110", "1̄10"), its turn in
+/// the plane and the hkl labels. The crystal is the Crystal section's, the scale and beam the Calibration's; the overlay is drawn
+/// again on every change of any of them. The zone axis commits on Return or when the field loses focus; a text that is not a zone
+/// axis is named and the last one stays.
+private struct DiffractionSimulationSection: View {
+    let session: ImageSession
+    private var image: CalibratedImage { session.imageOrBlank }
+    let analysis: DiffractionAnalysis
+    @State private var draft: String?
+    @State private var refused: String?
+    @FocusState private var editing: Bool
+
+    var body: some View {
+        let settings = analysis.simulation
+        InspectorSection("Simulation") {
+            InspectorRow("Spots") {
+                Toggle("Show simulated spots", isOn: Binding(get: { analysis.simulation.isShown }, set: { analysis.simulation.isShown = $0 }))
+                    .toggleStyle(.switch).labelsHidden()
+                    .help("The crystal's kinematical spot pattern at the zone axis below, drawn over the pattern with the scale and centre in use")
+                    .accessibilityIdentifier("diffraction.simulation.show")
+            }
+            InspectorRow("Zone axis") {
+                TextField("Zone axis", text: Binding(get: { draft ?? ZoneAxisText.text(settings.zoneAxis) }, set: { draft = $0 }),
+                          prompt: Text("[0 0 1]"))
+                    .labelsHidden().textFieldStyle(.roundedBorder).monospacedDigit()
+                    .focused($editing)
+                    .onSubmit { commit() }
+                    .onChange(of: editing) { if !editing { commit() } }
+                    .help("The beam direction [u v w]: \"[1 1 0]\", \"1 1 0\", \"110\" or \"1̄10\"")
+                    .accessibilityIdentifier("diffraction.simulation.zone")
+            }
+            if let refused { InspectorWarning(refused) }
+            InspectorRow("Turn") {
+                OptionalNumericField(title: "In-plane turn", value: settings.inPlaneDegrees, format: pixelFormat, unit: "°") { degrees in
+                    guard degrees.isFinite else { return }
+                    analysis.simulation.inPlaneDegrees = degrees.truncatingRemainder(dividingBy: 360)
+                }
+                .help("The pattern's turn about the beam, counter-clockwise from down the rows toward along the columns")
+                .accessibilityIdentifier("diffraction.simulation.turn")
+            }
+            InspectorRow("Labels") {
+                Toggle("Show hkl labels", isOn: Binding(get: { analysis.simulation.showsLabels }, set: { analysis.simulation.showsLabels = $0 }))
+                    .toggleStyle(.switch).labelsHidden()
+                    .help("Each simulated spot's hkl beside it (the 60 strongest)")
+                    .accessibilityIdentifier("diffraction.simulation.labels")
+            }
+            if let line = DiffractionSimulationText.summary(analysis.simulatedSpots(image: image), crystal: analysis.crystal.name,
+                                                             zoneAxis: settings.zoneAxis) {
+                switch analysis.simulatedSpots(image: image) {
+                case .failure?: InspectorWarning(line)
+                default: InspectorNote(line)
+                }
+            }
+        }
+    }
+
+    private func commit() {
+        guard let text = draft else { return }
+        if let uvw = ZoneAxisText.parse(text) {
+            analysis.simulation.zoneAxis = uvw
+            refused = nil
+            draft = nil
+        } else {
+            refused = "\"\(text)\" is not a zone axis: type three whole numbers, not all 0, such as [1 1 0] or 1̄10."
+        }
+    }
+}
+
+/// The Simulation section's line and the pattern's spoken words for the overlay. Pure.
+nonisolated enum DiffractionSimulationText {
+    /// "Al [0 1 1]: 24 spots on the pattern.", or why there are none; nil while the overlay is off.
+    static func summary(_ result: DiffractionAnalysis.SimulatedSpots?, crystal: String, zoneAxis: SIMD3<Int>) -> String? {
+        switch result {
+        case nil: nil
+        case .success(let spots)?: "\(crystal) \(ZoneAxisText.text(zoneAxis)): \(UnitDisplay.count(spots.count, "spot", "spots")) on the pattern."
+        case .failure(let absence)?: absence.sentence + "."
+        }
+    }
+
+    /// What VoiceOver adds to the pattern's value: ", 24 simulated spots of [0 1 1]"; nothing while the overlay is off or has none.
+    static func spoken(_ result: DiffractionAnalysis.SimulatedSpots?, zoneAxis: SIMD3<Int>) -> String {
+        guard case .success(let spots)? = result else { return "" }
+        return ", \(UnitDisplay.count(spots.count, "simulated spot", "simulated spots")) of \(ZoneAxisText.text(zoneAxis))"
     }
 }
 
