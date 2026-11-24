@@ -164,7 +164,8 @@ nonisolated final class AgentDoorIndexTests: XCTestCase {
         XCTAssertFalse(pressed.refused, pressed.text)
         XCTAssertFalse(analysis.fitScale)
         try await waitUntil("Index to land", seconds: 60) { !analysis.isIndexing }
-        let answer = try XCTUnwrap(try json(try await call("get_spot_table").text)["answer"] as? [String: Any])
+        let table = try await call("get_spot_table")
+        let answer = try XCTUnwrap(try json(table.text)["answer"] as? [String: Any])
         if analysis.indexOutcome?.orientation != nil {
             XCTAssertEqual(try XCTUnwrap(answer["scale"] as? Double), 1, accuracy: 1e-9, "Fit scale off holds the room's scale")
             XCTAssertEqual(answer["solution"] as? Int, 1)
