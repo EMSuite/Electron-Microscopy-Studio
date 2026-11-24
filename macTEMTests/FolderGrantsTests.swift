@@ -178,7 +178,7 @@ nonisolated final class FolderGrantsTests: XCTestCase {
     func testTheRoutingAsksForNoFolderForAFileModeOrAReadableScan() async throws {
         XCTAssertNotEqual(geteuid(), 0, "root reads a mode-000 file; run this as a user")
         let (_, folder, scan) = try acquisition()
-        let routed = await AppState.inventories([scan])
+        let routed = await AppState.inventories([scan], memory: ProcessInfo.processInfo.physicalMemory)
         let readable = try XCTUnwrap(routed.first)
         XCTAssertEqual(readable.inventory, FileInventory(ebsdPatterns: true))
         XCTAssertFalse(readable.asksForFolder)
@@ -186,7 +186,7 @@ nonisolated final class FolderGrantsTests: XCTestCase {
         let settings = folder.appendingPathComponent("Setting.txt")
         try FileManager.default.setAttributes([.posixPermissions: 0], ofItemAtPath: settings.path)
         addTeardownBlock { try? FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: settings.path) }
-        let again = await AppState.inventories([scan])
+        let again = await AppState.inventories([scan], memory: ProcessInfo.processInfo.physicalMemory)
         let refused = try XCTUnwrap(again.first)
         XCTAssertNotNil(refused.inventory.refusal)
         XCTAssertEqual(refused.inventory.refusal, NORDIFOpening.unreadableSettingsRefusal(scan))

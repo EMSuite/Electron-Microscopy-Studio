@@ -59,8 +59,11 @@ and the Hough row loop each grow the process footprint by a few scan rows, never
 ## Size table (2.5, #904)
 
 What each room needs to open a large file: the app's peak memory footprint and its footprint at rest after the open, over the
-file's stored bytes, each counted above the empty app's footprint. These factors are what the size rule (#905) uses to refuse a file
-this Mac cannot hold before it reads it. Quality bar 3 sets the targets: 3 at the peak and 2 at rest.
+file's stored bytes, each counted above the empty app's footprint. These factors are what the size rule (#905, `RoomSizeRule`) uses to
+refuse a file this Mac cannot hold before it reads it: the room's peak factor times the bytes it reads whole (a TIFF stack's one
+frame) against this Mac's memory minus 4 GB, in a sentence that names the file, what the room needs, what the Mac has and what works
+instead. The Patterns, Indexing and Maps rooms stream their scans and are not refused. A room's factor in the rule is never below its
+measured peak (`RoomSizeRuleTests`); until a room is measured it is 3. Quality bar 3 sets the targets: 3 at the peak and 2 at rest.
 
 The files are generated, a 1, 4 and 16 GB one of each kind, with random values (`tools/size-table/make_files.py`): a 16-bit TIFF
 image, a 16-bit MRC image and a TIFF stack of 4096 x 4096 frames for the Image room, a float32 EELS and a uint16 EDS spectrum image

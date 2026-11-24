@@ -141,6 +141,9 @@ final class AppState {
     @ObservationIgnored var launchFilesForTabs: [URL] = []
     /// Opens whose routing or reads are still running: a window with one is taken, though it holds nothing yet.
     @ObservationIgnored var opensInFlight = 0
+    /// This Mac's memory, in bytes, which the size rule holds each file against before it is read (`RoomSizeRule`, #905). A test sets
+    /// a smaller one.
+    @ObservationIgnored var physicalMemory = ProcessInfo.processInfo.physicalMemory
     /// Brings this state's window forward (`WindowTabbing`, the one place the `NSWindow` is known); nil while no window shows it.
     @ObservationIgnored var showWindow: (() -> Void)?
     /// This state's own window (an `NSWindow`, from `WindowTabbing`; typed `AnyObject` so this file needs no AppKit): the window a

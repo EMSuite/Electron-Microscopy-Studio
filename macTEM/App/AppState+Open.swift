@@ -61,7 +61,7 @@ extension AppState {
             // By content (FormatoKit's sniff), off the main actor: an HDF5 file is opened under the HDF5 lock. The sniff runs inside the
             // security scope the panel, a drop or Finder granted. The FILE decides, not the room the person is in: a file is opened into
             // every room that has data in it (`FileInventory`), and the window lands in the room of the richest dataset.
-            var inventories = await Self.inventories(urls)
+            var inventories = await Self.inventories(urls, memory: physicalMemory)
             // A NORDIF scan whose settings file the sandbox refused asks for its folder, once per folder in an Open (`FolderPanels`): the
             // grant is kept (`FolderGrants`) and the scan is routed again inside it. Declined, the scan keeps its refusal. A folder
             // granted for an earlier scan of this Open that is around this one too (their common parent) reaches it: nothing is asked.
@@ -80,7 +80,7 @@ extension AppState {
                     }
                     answered[folder] = chosen != nil
                 }
-                if answered[folder] == true, let again = await Self.inventories([url]).first { inventories[index] = again }
+                if answered[folder] == true, let again = await Self.inventories([url], memory: physicalMemory).first { inventories[index] = again }
             }
             var images: [URL] = []
             var landing: FileInventory.Landing?
@@ -167,7 +167,7 @@ extension AppState {
     /// so no empty tab is left behind. A NORDIF scan that asks for its folder is not refused here: its own tab asks. Returns the
     /// refused files' sentences.
     private func tabsChecked(_ urls: [URL], windows: AppWindows) async -> [String] {
-        let looked = await Self.inventories(urls)
+        let looked = await Self.inventories(urls, memory: physicalMemory)
         windows.openInTabs(looked.filter { $0.inventory.refusal == nil || $0.asksForFolder }.map(\.url))
         return looked.compactMap { $0.asksForFolder ? nil : $0.inventory.refusal }
     }
@@ -210,9 +210,11 @@ extension AppState {
     /// remembered). The generated demo image is an image, in memory, with no bookmark. The file a vendor file is read with (an EBSD
     /// scan's `.ang` or `.ctf` beside its patterns, and back) is granted first, inside that scope: the sandbox grants the picked file
     /// only, and the routing already reads the other (`RelatedFileAccess`). A NORDIF scan's folder granted at an earlier Open is held
-    /// for its routing (`FolderGrants`); `asksForFolder` is set for one whose settings file the sandbox refused without a grant.
+    /// for its routing (`FolderGrants`); `asksForFolder` is set for one whose settings file the sandbox refused without a grant. A file
+    /// a room would read whole and a Mac of `memory` bytes cannot hold is refused here, before a pixel is read (`RoomSizeRule`, #905).
     @concurrent
-    nonisolated static func inventories(_ urls: [URL]) async -> [(url: URL, inventory: FileInventory, bookmark: Data?, asksForFolder: Bool)] {
+    nonisolated static func inventories(_ urls: [URL], memory: UInt64)
+        async -> [(url: URL, inventory: FileInventory, bookmark: Data?, asksForFolder: Bool)] {
         urls.map { url in
             if DemoDocuments.isDemo(url) { return (url: url, inventory: FileInventory(image: true), bookmark: nil, asksForFolder: false) }
             let scoped = url.startAccessingSecurityScopedResource()
@@ -220,7 +222,11 @@ extension AppState {
             RelatedFileAccess.grant(for: url)
             let folder = FolderGrants.hold(forFolderOf: url)
             defer { folder?.release() }
-            let inventory = FileRouting.inventory(path: url.path)
+            var inventory = FileRouting.inventory(path: url.path)
+            if inventory.refusal == nil, let tooLarge = RoomSizeRule.refusal(fileName: url.lastPathComponent, inventory: inventory,
+                                                                             storedBytes: RoomSizeRule.readBytes(path: url.path), memory: memory) {
+                inventory = FileInventory(refusal: tooLarge)
+            }
             let bookmark = inventory.refusal == nil ? (try? SecurityScopedBookmark.make(for: url)) : nil
             let asks = FolderGrants.asksForFolder(refused: inventory.refusal != nil, settingsError: NORDIFOpening.settingsOpenError(url))
             return (url: url, inventory: inventory, bookmark: bookmark, asksForFolder: asks)
