@@ -9,6 +9,7 @@
 //  hash is SHA-256 over the method record's compact sorted-keys JSON, recomputed here from the file. Nothing here makes a number.
 //
 
+import ShellExport
 import XCTest
 import AppKit
 import CryptoKit
@@ -114,7 +115,7 @@ nonisolated final class EELSExportInfoTests: XCTestCase {
         let session = try await dualRoom()
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("eels-msa-\(UUID().uuidString)")
         var said = ""
-        EELSRoomState().export(.spectrumMSA, from: session, maps: [], directory: dir) { said = $0 }
+        await EELSRoomState().export(.spectrumMSA, from: session, maps: [], directory: dir) { said = $0 }
         XCTAssertEqual(said, "Exported dual spectrum.msa")
         XCTAssertEqual(try Data(contentsOf: dir.appendingPathComponent("dual spectrum.msa")), try session.spectrumMSA())
         try? FileManager.default.removeItem(at: dir)
@@ -130,7 +131,7 @@ nonisolated final class EELSExportInfoTests: XCTestCase {
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         try Data("keep".utf8).write(to: folder.appendingPathComponent("inside.txt"))
         var said = ""
-        EELSRoomState().export(.spectrumMSA, from: session, maps: [], directory: dir) { said = $0 }
+        await EELSRoomState().export(.spectrumMSA, from: session, maps: [], directory: dir) { said = $0 }
         XCTAssertEqual(said, "Export failed: The file could not be written. \u{201C}dual spectrum.msa\u{201D} is a folder.")
         var isDirectory: ObjCBool = false
         XCTAssertTrue(FileManager.default.fileExists(atPath: folder.path, isDirectory: &isDirectory) && isDirectory.boolValue)
@@ -148,9 +149,18 @@ nonisolated final class EELSExportInfoTests: XCTestCase {
         let expected: [(EELSExportKind, String, Data)] = [(.spectrum, "dual spectrum.csv", csv), (.spectrumMSA, "dual spectrum.msa", msa)]
         for (kind, name, bytes) in expected {
             var said = ""
-            EELSRoomState().export(kind, from: session, maps: [], directory: dir) { said = $0 }
+            await EELSRoomState().export(kind, from: session, maps: [], directory: dir) { said = $0 }
             XCTAssertEqual(said, "Exported \(name)")
-            XCTAssertEqual(try Data(contentsOf: dir.appendingPathComponent(name)), bytes, name)
+            let written = try Data(contentsOf: dir.appendingPathComponent(name))
+            guard kind == .spectrum else { XCTAssertEqual(written, bytes, name); continue }
+            // The CSV carries its methods record (#817) as one more `#` line; every other line is the session's.
+            let text = try XCTUnwrap(String(data: written, encoding: .utf8))
+            let record = try XCTUnwrap(ExportMethods.record(inText: text), "the spectrum CSV carries its methods record")
+            XCTAssertEqual(record.room, "eels")
+            XCTAssertEqual(record.exportKind, "eels-spectrum")
+            XCTAssertEqual(record.sources.first?.kind, "EELS spectrum image")
+            XCTAssertEqual(Data(text.split(separator: "\n", omittingEmptySubsequences: false).filter { !$0.hasPrefix(ExportMethods.textPrefix) }
+                .joined(separator: "\n").utf8), bytes, name)
         }
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: dir.path).sorted(), ["dual spectrum.csv", "dual spectrum.msa"])
     }

@@ -60,24 +60,28 @@ final class EELSRoomState {
 
     /// Makes the bytes of `kind` and opens the save panel, or, with `directory` (the UI journeys' export folder), writes the file there through
     /// `ExportDirectoryFile`; says why when there is nothing to write or the file cannot be written. The EDS room's `EDXRoomState.export`.
-    @MainActor func export(_ kind: EELSExportKind, from session: EELSSession, maps: [EELSMapTile], directory: URL? = nil, report: (String) -> Void) {
-        let data: Data?
+    @MainActor func export(_ kind: EELSExportKind, from session: EELSSession, maps: [EELSMapTile], directory: URL? = nil,
+                           report: (String) -> Void) async {
+        let made: Data?
         switch kind {
-        case .results: data = session.resultsCSV.map { Data($0.utf8) }
-        case .spectrum: data = session.spectrumCSV.map { Data($0.utf8) }
+        case .results: made = session.resultsCSV.map { Data($0.utf8) }
+        case .spectrum: made = session.spectrumCSV.map { Data($0.utf8) }
         case .spectrumMSA:
-            do { data = try session.spectrumMSA() } catch { report("MSA export failed: \(error.localizedDescription)"); return }
-        case .regions: data = session.regionsCSV.map { Data($0.utf8) }
-        case .diagnostics: data = session.diagnosticsCSV.map { Data($0.utf8) }
-        case .method: data = session.methodJSON.map { Data($0.utf8) }
+            do { made = try session.spectrumMSA() } catch { report("MSA export failed: \(error.localizedDescription)"); return }
+        case .regions: made = session.regionsCSV.map { Data($0.utf8) }
+        case .diagnostics: made = session.diagnosticsCSV.map { Data($0.utf8) }
+        case .method: made = session.methodJSON.map { Data($0.utf8) }
         case .mapsPNG:
             let chosen = Set(EELSMixComposition.selection(appearance.mix, maps: maps))
-            data = session.figureContent(maps: maps, mix: maps.filter { chosen.contains($0.id) }, appearance: appearance, scaleBar: exportScaleBar, regions: exportRegions)
+            made = session.figureContent(maps: maps, mix: maps.filter { chosen.contains($0.id) }, appearance: appearance, scaleBar: exportScaleBar, regions: exportRegions)
                 .flatMap { EDXMapsFigure.png($0) }
         }
-        guard let data else { report("Nothing to export yet for \(kind.title.dropLast())."); return }
+        guard let made else { report("Nothing to export yet for \(kind.title.dropLast())."); return }
+        let ext = kind.contentType.preferredFilenameExtension ?? "txt"
+        // The bytes with their methods record inside (#817).
+        let data = await ExportSnapshot.eelsExport(made, exportKind: "eels-" + kind.rawValue, fileExtension: ext, source: session.source,
+                                                   methodJSON: session.methodJSON)
         if let directory {
-            let ext = kind.contentType.preferredFilenameExtension ?? "txt"
             let name = (session.fileName as NSString).deletingPathExtension + kind.suffix + "." + ext
             do {
                 let url = try ExportDirectoryFile.write(data, named: name, into: directory)

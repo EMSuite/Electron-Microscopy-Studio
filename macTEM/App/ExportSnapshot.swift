@@ -193,6 +193,20 @@ enum ExportSnapshot {
         }
     }
 
+    /// An EELS room export with its methods record inside (#817), read from the room's method JSON: a CSV or the maps PNG (an MSA's
+    /// header and the method JSON stay as they are). The source is the spectrum image by its counts' fingerprint, worked out off the
+    /// main actor; the bytes come back as they were when there is no spectrum image or the record cannot be written.
+    @concurrent nonisolated static func eelsExport(_ data: Data, exportKind: String, fileExtension: String, source loaded: LoadedEELS?,
+                                                   methodJSON: String?) async -> Data {
+        guard ["png", "csv"].contains(fileExtension.lowercased()), let loaded else { return data }
+        let image = loaded.image
+        let size = (try? FileManager.default.attributesOfItem(atPath: loaded.filePath)[.size] as? Int) ?? image.counts.count * 8
+        let source = MethodsRecord.Source(fileName: loaded.fileName, byteCount: size, fingerprint: ExportMethods.fingerprint(ofCounts: image.counts),
+                                          kind: "EELS spectrum image", shape: [image.nx, image.ny, image.channels])
+        let record = ExportMethods.eelsRecord(app: methodsApp(), exportKind: exportKind, source: source, methodJSON: methodJSON)
+        return (try? ExportMethods.embedding(record, inFileWithExtension: fileExtension, data: data)) ?? data
+    }
+
     /// An SEM room's export with its methods record inside (#817), from the record the session keeps of it: the source file's
     /// fingerprint is read off the main actor (a pattern file is gigabytes). The bytes come back as they were when the source cannot be
     /// read again or the kind holds no record (a method JSON, a `.ctf`): an export never fails for its record.

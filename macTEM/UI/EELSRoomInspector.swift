@@ -584,7 +584,8 @@ struct EELSExportSection: View {
 
     private func exportButton(_ kind: EELSExportKind, _ title: String, _ symbol: String, enabled: Bool, help: String) -> some View {
         Button(title, systemImage: symbol) {
-            state.export(kind, from: session, maps: EELSMapsBlock.shownMaps(session, state), directory: appState.exportDirectory) { appState.statusText = $0 }
+            let maps = EELSMapsBlock.shownMaps(session, state)
+            Task { await state.export(kind, from: session, maps: maps, directory: appState.exportDirectory) { appState.statusText = $0 } }
         }
         .disabled(!enabled)
         .help(help)
