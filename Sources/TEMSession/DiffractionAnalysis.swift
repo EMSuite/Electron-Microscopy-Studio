@@ -331,7 +331,7 @@ package final class DiffractionAnalysis {
                 if Task.isCancelled { return }
                 outcome = PatternIndexing.index(found: found, centre: centre, calibration: calibration, indexer: indexer, phase: phase)
             } catch {
-                let words = (error as? CustomStringConvertible)?.description ?? error.localizedDescription
+                let words = String(describing: error)
                 outcome = PatternIndexing.Outcome(phase: phase, verdict: .notFound(words), spots: [], explained: 0, indexed: 0,
                                                   orientation: nil, alternatives: [], zoneAxis: nil, zoneAxisAngle: nil, scale: nil,
                                                   misfitPercent: nil)
