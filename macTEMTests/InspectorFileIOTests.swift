@@ -118,8 +118,8 @@ nonisolated final class InspectorFileIOTests: XCTestCase {
             }
         }
         let inspector = try FFTRoomWiringTests.squeezedUI("DiffractionRoomInspector.swift")
-        XCTAssertTrue(inspector.contains("let url = try DiffractionReadoutExport.write(text, imageFileName: image.fileName, into: directory)"))
-        XCTAssertTrue(inspector.contains("defaultFilename: DiffractionReadoutExport.baseName(of: image.fileName)) { result in"))
+        XCTAssertTrue(inspector.contains(": DiffractionReadoutExport.write(text, imageFileName: image.fileName, into: directory)"))
+        XCTAssertTrue(inspector.contains("defaultFilename: exportName) { result in"))
     }
 
     /// The Particles section makes its CSV document when Export CSV… is pressed and drops it when the panel is done; the body

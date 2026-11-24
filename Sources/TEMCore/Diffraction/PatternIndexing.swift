@@ -9,6 +9,7 @@
 //
 
 import Foundation
+import ImagoCore
 import DiffractoCore
 import DiffractoGeometry
 import DiffractoOrientation
@@ -20,19 +21,25 @@ package nonisolated enum PatternIndexing {
 
     /// One spot Index reads: its centre in pixels and, for a spot the kit found, its intensity (nil: a clicked spot, #784).
     package struct Mark: Sendable, Equatable {
+        /// The spot mark's id (`MeasuredSpot.id`), so a row of the Spots table selects its mark.
+        package let id: UUID
         package let row: Double
         package let column: Double
         package let intensity: Double?
-        package init(row: Double, column: Double, intensity: Double?) {
-            self.row = row; self.column = column; self.intensity = intensity
+        package init(id: UUID, row: Double, column: Double, intensity: Double?) {
+            self.id = id; self.row = row; self.column = column; self.intensity = intensity
         }
     }
 
     /// One spot Index read, in pixels and q, with the hkl the orientation gives it (nil: not explained, or past `reach`).
     package struct Spot: Sendable, Equatable {
+        /// The mark's id.
+        package let id: UUID
         package let row: Double
         package let column: Double
         package let intensity: Double?
+        /// The distance from the centre Index ran about, pixels.
+        package let radiusPx: Double
         /// (qx, qy), Å⁻¹.
         package let q: SIMD2<Double>
         package var hkl: MillerIndex?
@@ -137,7 +144,8 @@ package nonisolated enum PatternIndexing {
                               indexer: PatternOrientation, phase: String) -> Outcome {
         var spots = marks.compactMap { m -> Spot? in
             guard let position = Self.q(row: m.row, column: m.column, centre: centre, calibration: calibration) else { return nil }
-            return Spot(row: m.row, column: m.column, intensity: m.intensity, q: position, hkl: nil, dListed: nil)
+            return Spot(id: m.id, row: m.row, column: m.column, intensity: m.intensity,
+                        radiusPx: hypot(m.row - centre.row, m.column - centre.column), q: position, hkl: nil, dListed: nil)
         }
         let clicked = spots.contains { $0.intensity == nil }
         let inReach = spots.indices.filter { spots[$0].qLength <= reach }
@@ -212,6 +220,64 @@ package nonisolated enum PatternIndexing {
         return Outcome(phase: phase, verdict: verdict, spots: spots, explained: matched, indexed: measured.count,
                        orientation: orientation, alternatives: alternatives, zoneAxis: near.map { $0.uvw },
                        zoneAxisAngle: near.map { $0.angle }, scale: scale, misfitPercent: misfit, zoneAxisOnly: clicked)
+    }
+
+    // MARK: The Spots table (#785)
+
+    /// One row of the Spots table: the spot's number in the readout ("Spot 3"), its hkl, R, q, d, the expected d of its hkl, Δd/d
+    /// and its phase. The sort keys are never nil (an unexplained spot sorts after every explained one).
+    package struct SpotRow: Sendable, Equatable, Identifiable {
+        package let id: UUID
+        package let number: Int
+        package let hkl: MillerIndex?
+        package let radiusPx: Double
+        package let q: Double
+        package let d: Double
+        package let dExpected: Double?
+        package let deltaPercent: Double?
+        /// The phase the hkl is of; "" for a spot the orientation does not explain.
+        package let phase: String
+
+        package init(id: UUID, number: Int, hkl: MillerIndex?, radiusPx: Double, q: Double, d: Double, dExpected: Double?,
+                     deltaPercent: Double?, phase: String) {
+            self.id = id; self.number = number; self.hkl = hkl; self.radiusPx = radiusPx; self.q = q; self.d = d
+            self.dExpected = dExpected; self.deltaPercent = deltaPercent; self.phase = phase
+        }
+
+        package var hklText: String { hkl.map { ZoneAxisText.label($0) } ?? "" }
+        package var dExpectedKey: Double { dExpected ?? .infinity }
+        package var deltaKey: Double { deltaPercent ?? .infinity }
+    }
+
+    /// The rows of `outcome`'s spots that are still marked, numbered as the readout numbers them (`numbers`: a mark's id to its
+    /// number), in the marks' order.
+    package static func rows(_ outcome: Outcome, numbers: [UUID: Int]) -> [SpotRow] {
+        outcome.spots.compactMap { s in
+            guard let number = numbers[s.id] else { return nil }
+            return SpotRow(id: s.id, number: number, hkl: s.hkl, radiusPx: s.radiusPx, q: s.qLength, d: s.d, dExpected: s.dListed,
+                           deltaPercent: s.deltaPercent, phase: s.hkl == nil ? "" : outcome.phase)
+        }.sorted { $0.number < $1.number }
+    }
+
+    /// The Spots CSV's columns, the table's in its order.
+    package static let csvColumns = "spot,hkl,R_px,q_per_A,d_A,d_expected_A,delta_percent,phase"
+
+    /// The Spots CSV: the file, the crystal and Index's line as `#` lines, then one line per row in the order given.
+    package static func csv(rows: [SpotRow], fileName: String, line: String) -> String {
+        func g(_ v: Double?) -> String { v.map { String(format: "%.9g", $0) } ?? "" }
+        var lines = [
+            "# \(AppName.writer) diffraction spots",
+            "# file: \(CSVText.headerValue(fileName))",
+            "# index: \(CSVText.headerValue(line))",
+            csvColumns,
+        ]
+        for r in rows {
+            // The hkl as plain signed integers ("1 -1 1"): a reader parses it without the overbar.
+            let hkl = r.hkl.map { "\($0.h) \($0.k) \($0.l)" } ?? ""
+            lines.append(["\(r.number)", hkl, g(r.radiusPx), g(r.q), g(r.d), g(r.dExpected), g(r.deltaPercent),
+                          CSVText.quoted(r.phase)].joined(separator: ","))
+        }
+        return lines.joined(separator: "\n") + "\n"
     }
 
     // MARK: Settings and solutions (#787)

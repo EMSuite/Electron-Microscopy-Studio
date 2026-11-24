@@ -63,7 +63,8 @@ The rooms:
   see the crystal's simulated spots, with their hkl, over the pattern (with the spots double diffraction adds, and an excitation
   error to set), or press Index to find the spots and the crystal's full
   orientation (the found spots stay as marks to remove or add to; clicked spots give the zone axis); step through tied solutions,
-  flip 180°, fit the scale or hold it, and drag the simulated spots to tilt them (⌥ drag turns them; ⌥ and an arrow tilt by a step).
+  flip 180°, fit the scale or hold it, and drag the simulated spots to tilt them (⌥ drag turns them; ⌥ and an arrow tilt by a step); the Spots table lists each
+  spot's hkl, expected d and misfit, and exports as a Spots CSV.
   Phases come from your library: Add Phase… finds one on the Materials Project or opens a CIF, and a phase added once works offline.
   File > New Simulation (⇧⌘N) opens a pattern with no file: add a phase and type a zone axis to see its spots;
   its Specimen section builds the phase along that axis into the slab a simulation computes, with its box, atoms and strain,

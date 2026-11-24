@@ -282,12 +282,6 @@ private struct DiffractionIndexSection: View {
                     .help("The pattern's turn about the beam, counter-clockwise from down the rows toward along the columns")
                     .accessibilityIdentifier("diffraction.simulation.turn")
             }
-            InspectorRow("Spots") {
-                Button("Remove Spots") { DiffractionUndo.removeSpots(in: analysis, undoManager: undoManager) }
-                    .disabled(analysis.spots.isEmpty)
-                    .help("Removes every spot, found or clicked, and keeps the rings and their scale: Index then finds the spots again")
-                    .accessibilityIdentifier("diffraction.index.removeSpots")
-            }
             // Index's solutions, Flip and Fit scale (#787).
             let solutions = analysis.solutions.count
             InspectorRow("Solution") {
@@ -301,11 +295,16 @@ private struct DiffractionIndexSection: View {
                     .accessibilityValue(solutions > 0 ? "\(analysis.solutionIndex + 1) of \(solutions)" : "none")
                     .accessibilityIdentifier("diffraction.index.solution")
             }
-            InspectorRow("Flip") {
+            // The section's two actions in one row of buttons (control placement §3), not buttons in label rows.
+            InspectorActionRow {
                 Button("Flip 180°") { analysis.flip() }
                     .disabled(!settings.isShown || analysis.drawnOrientation == nil)
                     .help("Turns the simulated spots 180° about the beam: the look-alike a centrosymmetric pattern cannot tell apart")
                     .accessibilityIdentifier("diffraction.index.flip")
+                Button("Remove Spots") { DiffractionUndo.removeSpots(in: analysis, undoManager: undoManager) }
+                    .disabled(analysis.spots.isEmpty)
+                    .help("Removes every spot, found or clicked, and keeps the rings and their scale: Index then finds the spots again")
+                    .accessibilityIdentifier("diffraction.index.removeSpots")
             }
             InspectorRow("Fit scale") {
                 Toggle("Fit scale", isOn: Binding(get: { analysis.fitScale }, set: { analysis.fitScale = $0 }))
@@ -384,6 +383,13 @@ nonisolated enum DiffractionIndexText {
         }
         if indexed { return "Found by Index. Remove or click spots and Index again, or type a zone axis to set it by hand." }
         return "Index (⌘R) reads the marked spots: found ones give the full orientation, a clicked one the zone axis only."
+    }
+
+    /// The pattern's spoken words for Index's answer (#785): its line, and that its spots are listed in the Spots table, the
+    /// pattern's text alternative. "" before an answer.
+    static func spoken(_ line: String?, rows: Int) -> String {
+        guard let line else { return "" }
+        return ", Index: \(line); \(UnitDisplay.count(rows, "spot", "spots")) in the Spots table"
     }
 }
 
@@ -475,26 +481,36 @@ private struct DiffractionExportSection: View {
     @Environment(AppState.self) private var appState
     @State private var exporting = false
     @State private var document = RoomExportFile(text: "")
+    @State private var exportName = ""
 
     var body: some View {
         InspectorSection("Export", startsExpanded: false) {
             InspectorActionRow {
-                Button("Export Readout CSV…") { export() }
+                Button("Export Readout CSV…") { export(spots: false) }
                     .disabled(analysis.rings.isEmpty && analysis.spots.isEmpty)
                     .accessibilityIdentifier("diffraction.export")
             }
+            InspectorActionRow {
+                Button("Export Spots CSV…") { export(spots: true) }
+                    .disabled(analysis.indexSpotRows.isEmpty)
+                    .help("Index's spots as the Spots table lists them: hkl, R, q, d, the expected d, Δd/d and the phase")
+                    .accessibilityIdentifier("diffraction.export.spots")
+            }
         }
         .fileExporter(isPresented: $exporting, document: document, contentType: .commaSeparatedText,
-                      defaultFilename: DiffractionReadoutExport.baseName(of: image.fileName)) { result in
+                      defaultFilename: exportName) { result in
             if case .failure(let error) = result { appState.present(error) }
         }
     }
 
-    private func export() {
-        let text = ExportSnapshot.diffractionCSV(analysis, image: image, openItems: appState.openItems)
+    private func export(spots: Bool) {
+        let text = spots ? ExportSnapshot.diffractionSpotsCSV(analysis, image: image, openItems: appState.openItems)
+                         : ExportSnapshot.diffractionCSV(analysis, image: image, openItems: appState.openItems)
+        exportName = spots ? DiffractionReadoutExport.spotsBaseName(of: image.fileName) : DiffractionReadoutExport.baseName(of: image.fileName)
         if let directory = appState.exportDirectory {
             do {
-                let url = try DiffractionReadoutExport.write(text, imageFileName: image.fileName, into: directory)
+                let url = try spots ? ExportDirectoryFile.write(text, named: exportName + ".csv", into: directory)
+                                    : DiffractionReadoutExport.write(text, imageFileName: image.fileName, into: directory)
                 appState.statusText = "Exported \(url.lastPathComponent)"
             } catch { appState.present(error) }
         } else {
