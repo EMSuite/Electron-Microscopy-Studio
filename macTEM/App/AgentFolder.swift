@@ -37,7 +37,9 @@ final class AgentFolder {
         var stale = false
         let resolved: URL
         do {
-            resolved = try URL(resolvingBookmarkData: bookmark, options: [.withSecurityScope, .withoutUI],
+            // .withoutMounting: this runs on the main actor at every window's appear, and a folder on a share that is asleep
+            // must answer "not found" at once, never wait for the volume to mount (#926; Open Recent resolves the same way).
+            resolved = try URL(resolvingBookmarkData: bookmark, options: [.withSecurityScope, .withoutUI, .withoutMounting],
                                relativeTo: nil, bookmarkDataIsStale: &stale)
         } catch {
             unavailableReason = "The Agent folder chosen in Settings > Agents can no longer be found (\(error.localizedDescription)). "
@@ -76,7 +78,8 @@ final class AgentFolder {
     static func displayPath(bookmark: Data?) -> String? {
         guard let bookmark else { return nil }
         var stale = false
-        let resolved = try? URL(resolvingBookmarkData: bookmark, options: [.withSecurityScope, .withoutUI],
+        // .withoutMounting: Settings calls this from a view body (#926).
+        let resolved = try? URL(resolvingBookmarkData: bookmark, options: [.withSecurityScope, .withoutUI, .withoutMounting],
                                 relativeTo: nil, bookmarkDataIsStale: &stale)
         return resolved.map { ($0.path as NSString).abbreviatingWithTildeInPath }
     }
