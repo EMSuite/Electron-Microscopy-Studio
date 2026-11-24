@@ -11,6 +11,8 @@
 import XCTest
 
 nonisolated final class EDXRegionDragJourney: Journey {
+    private enum DragWay { case xcuiTest, xcuiTestSlow, xcuiTestAfterHover, realEvents }
+
     @MainActor private func mixTile() -> XCUIElement { app.groups.matching(NSPredicate(format: "label BEGINSWITH 'Colour mix map'")).firstMatch }
     /// The Regions table's row of the n-th region, present once a region is drawn.
     @MainActor private func regionRow(_ n: Int) -> XCUIElement { element("edx.regionTable.Region \(n).pixels") }
@@ -57,28 +59,29 @@ nonisolated final class EDXRegionDragJourney: Journey {
         var drawn = 0
         var results: [String] = []
         // Each attempt draws in its own quarter of the tile, so a later one never lands on an earlier region's handles.
-        func attempt(_ name: String, from: CGVector, to: CGVector, _ body: (XCUICoordinate, XCUICoordinate) -> Bool) throws {
-            try step(name) {
-                let a = mix.coordinate(withNormalizedOffset: from), b = mix.coordinate(withNormalizedOffset: to)
-                let sent = body(a, b)
+        let attempts: [(name: String, way: DragWay, from: CGVector, to: CGVector)] = [
+            ("XCUITest drag, default speed", .xcuiTest, CGVector(dx: 0.1, dy: 0.1), CGVector(dx: 0.4, dy: 0.4)),
+            ("XCUITest drag, slow, held at the end", .xcuiTestSlow, CGVector(dx: 0.6, dy: 0.1), CGVector(dx: 0.9, dy: 0.4)),
+            ("XCUITest drag after a hover", .xcuiTestAfterHover, CGVector(dx: 0.1, dy: 0.6), CGVector(dx: 0.4, dy: 0.9)),
+            ("real mouse events from the runner", .realEvents, CGVector(dx: 0.6, dy: 0.6), CGVector(dx: 0.9, dy: 0.9)),
+        ]
+        for attempt in attempts {
+            try step(attempt.name) {
+                let a = mix.coordinate(withNormalizedOffset: attempt.from), b = mix.coordinate(withNormalizedOffset: attempt.to)
+                var sent = true
+                switch attempt.way {
+                case .xcuiTest: a.click(forDuration: 0.2, thenDragTo: b)
+                case .xcuiTestSlow: a.click(forDuration: 0.3, thenDragTo: b, withVelocity: .slow, thenHoldForDuration: 0.5)
+                case .xcuiTestAfterHover:
+                    a.hover(); usleep(300_000)
+                    a.click(forDuration: 0.3, thenDragTo: b, withVelocity: .slow, thenHoldForDuration: 0.5)
+                case .realEvents: sent = realDrag(from: a.screenPoint, to: b.screenPoint)
+                }
                 let drew = sent && regionRow(drawn + 1).waitForExistence(timeout: 8)
                 if drew { drawn += 1 }
-                let line = "\(name): \(sent ? (drew ? "drew Region \(drawn)" : "drew nothing") : "not sent")"
-                results.append(line); note(name, line)
+                let line = "\(attempt.name): \(sent ? (drew ? "drew Region \(drawn)" : "drew nothing") : "not sent")"
+                results.append(line); note(attempt.name, line)
             }
-        }
-        try attempt("XCUITest drag, default speed", from: CGVector(dx: 0.1, dy: 0.1), to: CGVector(dx: 0.4, dy: 0.4)) { a, b in
-            a.click(forDuration: 0.2, thenDragTo: b); return true
-        }
-        try attempt("XCUITest drag, slow, held at the end", from: CGVector(dx: 0.6, dy: 0.1), to: CGVector(dx: 0.9, dy: 0.4)) { a, b in
-            a.click(forDuration: 0.3, thenDragTo: b, withVelocity: .slow, thenHoldForDuration: 0.5); return true
-        }
-        try attempt("XCUITest drag after a hover", from: CGVector(dx: 0.1, dy: 0.6), to: CGVector(dx: 0.4, dy: 0.9)) { a, b in
-            a.hover(); usleep(300_000)
-            a.click(forDuration: 0.3, thenDragTo: b, withVelocity: .slow, thenHoldForDuration: 0.5); return true
-        }
-        try attempt("real mouse events from the runner", from: CGVector(dx: 0.6, dy: 0.6), to: CGVector(dx: 0.9, dy: 0.9)) { a, b in
-            realDrag(from: a.screenPoint, to: b.screenPoint)
         }
         note("summary", results.joined(separator: "\n"))
     }
