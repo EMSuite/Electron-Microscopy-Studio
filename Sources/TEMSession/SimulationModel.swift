@@ -10,6 +10,7 @@
 //
 
 import DiffractoCore
+import DiffractoScattering
 import Foundation
 import Observation
 import TEMCore
@@ -113,6 +114,25 @@ package final class SimulationModel {
 
     /// Changes the lens or the beam; a voltage or an aperture other than the stored waves' makes `exitWavesAreCurrent` false.
     package func setOptics(_ new: HRTEMOptics) { optics = new }
+
+    /// The widest field of view, nm: 20 nm (at the finest sampling 4 000 pixels across; the image is made off the main actor).
+    package static let largestFieldOfViewNM = 20.0
+
+    /// Edits the optics, every control's one path: the edit is kept only when every value stays valid (a positive voltage, a finite
+    /// Cs, spreads of at least 0, an aperture above 0 or none, a field of view above 0 and at most `largestFieldOfViewNM`).
+    /// Returns whether it was kept.
+    @discardableResult
+    package func changeOptics(_ edit: (inout HRTEMOptics) -> Void) -> Bool {
+        var new = optics
+        edit(&new)
+        let valid = new.volts.isFinite && new.volts > 0 && new.csMM.isFinite
+            && new.focalSpreadNM.isFinite && new.focalSpreadNM >= 0 && new.angularSpreadMrad.isFinite && new.angularSpreadMrad >= 0
+            && (new.apertureMrad.map { $0.isFinite && $0 > 0 } ?? true)
+            && new.fieldOfViewNM.isFinite && new.fieldOfViewNM > 0 && new.fieldOfViewNM <= Self.largestFieldOfViewNM
+        guard valid else { return false }
+        optics = new
+        return true
+    }
 
     /// Makes the image of the stored waves at the current settings off the main actor, passes it through `prepare` there too (the
     /// caller's canvas and thumbnail), and hands the result to `deliver` (nothing before the first run). Calls while an image is being
@@ -262,4 +282,12 @@ extension DiffractionAnalysis {
     /// The phase a Simulation document simulates: the shown library phase; nil while the room uses a calibration standard or a loose
     /// CIF ("Add a phase to simulate.").
     package var simulatedPhase: DiffractionCrystal? { crystal.phaseID == nil ? nil : crystal }
+
+    /// The simulated phase's `count` strongest kinematic families (name and d, Å), strongest first (ties: the longer spacing first), for the transfer function
+    /// strip; empty without a phase or a list.
+    package func strongestSpacings(count: Int = 3) -> [(label: String, d: Double)] {
+        guard simulatedPhase != nil, let list = list() else { return [] }
+        return list.families.sorted { $0.intensity != $1.intensity ? $0.intensity > $1.intensity : $0.family.d > $1.family.d }.prefix(max(count, 0))
+            .map { (label: DiffractionCompute.familyName($0.family), d: $0.family.d) }
+    }
 }
