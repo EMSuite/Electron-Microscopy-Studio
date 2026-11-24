@@ -370,7 +370,7 @@ private struct DiffractionExportSection: View {
     }
 
     private func export() {
-        let text = analysis.exportText(image: image)
+        let text = ExportSnapshot.diffractionCSV(analysis, image: image, openItems: appState.openItems)
         if let directory = appState.exportDirectory {
             do {
                 let url = try DiffractionReadoutExport.write(text, imageFileName: image.fileName, into: directory)

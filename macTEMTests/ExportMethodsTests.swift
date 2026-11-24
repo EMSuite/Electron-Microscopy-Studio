@@ -186,3 +186,40 @@ nonisolated final class ExportMethodsSEMTests: XCTestCase {
         XCTAssertEqual(print.byteCount, 3)
     }
 }
+
+/// The Particles section's and the Diffraction readout's CSVs (#817): the record names the segmentation's settings and counts, or
+/// the readout's rings and spots, and sits on the CSV's `#` lines so the table reads as before.
+nonisolated final class ExportMethodsTableTests: XCTestCase {
+    private static let source = MethodsRecord.Source(fileName: "p.dm4", byteCount: 2000, fingerprint: String(repeating: "cd", count: 32),
+                                                     kind: "image", shape: [ParticleTests.width, ParticleTests.height])
+    private static let app = MethodsRecord.Software(name: "Electron Microscopy Studio", version: "2.2.0 (42)")
+
+    /// The planted objects' CSV carries the settings it was cut with and what was found, scikit-image's steps each named.
+    func testTheParticlesCSVCarriesItsSettingsAndCounts() throws {
+        var settings = ParticleSettings()
+        settings.sigma = 1
+        let report = try ParticleCompute.analyse(pixels: ParticleTests.planted(), width: ParticleTests.width, height: ParticleTests.height,
+                                                 settings: settings)
+        let record = ExportMethods.particleRecord(app: Self.app, source: Self.source, settings: report.settings,
+                                                  thresholdValue: report.thresholdValue, summary: report.summary)
+        let csv = ParticleFormat.csv(report, scale: ParticleScale(perPixel: 0.5, unit: "nm"), fileName: "p.dm4")
+        let written = try ExportMethods.embedding(record, inText: csv)
+        let read = try XCTUnwrap(ExportMethods.record(inText: written))
+        XCTAssertEqual(read, record)
+        XCTAssertEqual(read.steps.map(\.name), ["Smoothing", "Threshold", "Objects"])
+        XCTAssertEqual(read.steps[0].settings, [MethodsRecord.Quantity(name: "sigma", value: .number(1), units: "px")])
+        XCTAssertEqual(read.steps[1].settings.first { $0.name == "threshold fraction of the range" }?.value, .number(0.5))
+        XCTAssertEqual(read.results.first { $0.name == "counted" }?.value, .number(Double(report.summary.counted)))
+        XCTAssertEqual(read.references, [MethodsRecord.Software(name: "scikit-image", version: "0.26.0")])
+        XCTAssertEqual(written.split(separator: "\n").filter { !$0.hasPrefix("#") }, csv.split(separator: "\n").filter { !$0.hasPrefix("#") },
+                       "the table is as it was")
+    }
+
+    /// The readout's record counts its rings and spots.
+    func testTheDiffractionReadoutRecordCountsRingsAndSpots() {
+        let record = ExportMethods.diffractionRecord(app: Self.app, source: Self.source, rings: 3, spots: 2)
+        XCTAssertEqual(record.room, "diffraction")
+        XCTAssertEqual(record.exportKind, "diffraction-readout-csv")
+        XCTAssertEqual(record.results.map(\.value), [.number(3), .number(2)])
+    }
+}
