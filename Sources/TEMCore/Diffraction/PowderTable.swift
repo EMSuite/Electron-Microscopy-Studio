@@ -10,6 +10,7 @@
 //        Defaults are pymatgen's and the design's (EMSuite docs/design/diffraction-indexing.md, B5): Cu Kα, 10 to 90° shown,
 //        width 0.1° (rings 0.01 Å⁻¹), overlaps within 0.1° (rings 1 % of q, Index's tolerance), the table from 1 of 100.
 //        The peaks are computed over the shown range, so the strongest peak inside it is 100.
+//        EXACT: every number in the two files is written `%.17g` (`CSVText.number`), as FFTExport's are.
 //
 
 import Foundation
@@ -98,6 +99,8 @@ package nonisolated struct PowderRow: Sendable, Equatable, Identifiable {
 
 /// A phase the kit drew no pattern for, and the kit's reason.
 package nonisolated struct PowderRefusal: Sendable, Equatable {
+    /// The phase's place in `PowderTable.phases`: two phases may share a name.
+    package let index: Int
     package let phase: String
     package let reason: String
 }
@@ -121,12 +124,12 @@ package nonisolated struct PowderTable: Sendable, Equatable {
     package static func make(phases: [PowderPhase], settings: PowderSettings) -> PowderTable {
         var patterns: [PowderPattern?] = []
         var refusals: [PowderRefusal] = []
-        for phase in phases {
+        for (i, phase) in phases.enumerated() {
             do throws(PowderPatternError) {
                 patterns.append(try pattern(of: phase.structure, settings: settings))
             } catch {
                 patterns.append(nil)
-                refusals.append(PowderRefusal(phase: phase.name, reason: error.description))
+                refusals.append(PowderRefusal(index: i, phase: phase.name, reason: error.description))
             }
         }
         // the kit's marks over the computed patterns, mapped back to the phases' order
@@ -200,7 +203,7 @@ package nonisolated struct PowderTable: Sendable, Equatable {
     package func headline(phase i: Int) -> String {
         let name = phases[i].name
         guard let pattern = patterns[i] else {
-            return "\(name): " + (refusals.first { $0.phase == name }?.reason ?? "no pattern")
+            return "\(name): " + (refusals.first { $0.index == i }?.reason ?? "no pattern")
         }
         let shown = rows.filter { $0.phaseIndex == i }.count
         let range = settings.range
@@ -252,7 +255,7 @@ package nonisolated struct PowderTable: Sendable, Equatable {
 
     /// The peak table as CSV (R12): comment lines naming the pattern, then one row per table row, the same numbers.
     package func csv() -> String {
-        func g(_ v: Double) -> String { String(format: "%.9g", v) }
+        func g(_ v: Double) -> String { CSVText.number(v) }
         let positionColumn = settings.kind == .xray ? "two_theta_deg" : "q_per_A"
         var lines = ["# \(AppName.writer) powder pattern"]
         switch settings.kind {
@@ -268,7 +271,7 @@ package nonisolated struct PowderTable: Sendable, Equatable {
         lines.append("# overlaps: \(settings.markOverlaps ? "within \(resolution), peaks from \(g(settings.floor)) of 100" : "not marked")")
         for (i, p) in phases.enumerated() {
             lines.append("# phase: \(CSVText.headerValue(p.name))\(p.calculatedLattice ? " (lattice calculated)" : "")"
-                         + (patterns[i] == nil ? " refused: \(CSVText.headerValue(refusals.first { $0.phase == p.name }?.reason ?? ""))" : ""))
+                         + (patterns[i] == nil ? " refused: \(CSVText.headerValue(refusals.first { $0.index == i }?.reason ?? ""))" : ""))
         }
         lines.append("phase,hkl,multiplicity,d_A,\(positionColumn),intensity,overlaps,diagnostic")
         for r in rows {
@@ -291,7 +294,7 @@ package nonisolated struct PowderTable: Sendable, Equatable {
         var out = ""
         out.reserveCapacity(ys.count * 24)
         for (k, y) in ys.enumerated() {
-            out += String(format: "%.6f %.9g\n", range.lowerBound + Double(k) * step, y)
+            out += CSVText.number(range.lowerBound + Double(k) * step) + " " + CSVText.number(y) + "\n"
         }
         return out
     }

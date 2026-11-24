@@ -37,7 +37,10 @@ nonisolated final class TiltPlanningTests: XCTestCase {
         XCTAssertEqual(plan.calibrationSentence, TiltPlanning.uncalibratedSentence)
         let csv = plan.csv().split(separator: "\n").map(String.init)
         XCTAssertTrue(csv.contains("# tilt axis: not calibrated"))
-        XCTAssertTrue(csv.contains("\"[1 0 2]\",26.5651,,,") || csv.contains("[1 0 2],26.5651,,,"), "\(csv.prefix(12))")
+        let row102 = try XCTUnwrap(csv.first { $0.hasPrefix("\"[1 0 2]\",") || $0.hasPrefix("[1 0 2],") }, "\(csv.prefix(12))")
+        let cells = row102.split(separator: ",", omittingEmptySubsequences: false).map(String.init)
+        XCTAssertEqual(try XCTUnwrap(Double(cells[1])), atan(0.5) * 180 / .pi, accuracy: 1e-9, "26.5651°, written exact")
+        XCTAssertEqual(Array(cells.dropFirst(2)), ["", "", ""], "uncalibrated: no α, β or reach")
     }
 
     /// Calibrated: each pole's tilts are the kit holder's, moving there puts the pole on the beam, and the sentence says α, β

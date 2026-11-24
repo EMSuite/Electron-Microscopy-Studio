@@ -6,7 +6,8 @@
 //        tilts to a zone axis, the reach, the tilt axis calibrated from a second indexed pattern), the sentences the room says
 //        and the tilt list CSV. Every number is the kit's; this file names them. Nothing about a microscope is assumed: α and β
 //        are said only once the tilt axis is calibrated on the user's own two patterns.
-//        Pure and nonisolated: the room and the door call the same functions.
+//        Pure and nonisolated: the room and the door call the same functions. The CSV's numbers are exact, `%.17g`
+//        (`CSVText.number`), as FFTExport's are.
 //
 
 import Foundation
@@ -109,7 +110,7 @@ package nonisolated struct TiltPlan: Sendable, Equatable {
 
     /// The tilt list as CSV: zone axis, angle from the beam, α, β, reachable (α, β and reachable empty while uncalibrated).
     package func csv() -> String {
-        func g(_ v: Double) -> String { String(format: "%.6g", v) }
+        func g(_ v: Double) -> String { CSVText.number(v) }
         var lines = ["# \(AppName.writer) tilt list",
                      "# phase: \(CSVText.headerValue(phase))",
                      "# holder: now alpha \(g(holder.alphaDeg)) deg, beta \(g(holder.betaDeg)) deg (\(holder.source.rawValue)); "
@@ -162,10 +163,8 @@ package nonisolated enum TiltPlanning {
         var out: [SIMD2<Double>] = []
         for tilts in edge {
             guard let moved = kit.orientation(orientation, at: holder.tilts, movedTo: tilts) else { continue }
-            // the crystal direction on the beam after the move: c with moved.labCoordinates(c) = ẑ, i.e. cᵢ = (moved's lab eᵢ).z
-            let c = SIMD3(moved.labCoordinates(of: SIMD3(1, 0, 0)).z, moved.labCoordinates(of: SIMD3(0, 1, 0)).z,
-                          moved.labCoordinates(of: SIMD3(0, 0, 1)).z)
-            if let p = DiffractoGeometry.StereographicProjection.project(orientation.labCoordinates(of: c)) { out.append(p) }
+            // the crystal direction on the beam after the move, seen in today's lab frame
+            if let p = DiffractoGeometry.StereographicProjection.project(orientation.labCoordinates(of: moved.beamDirection)) { out.append(p) }
         }
         return out
     }

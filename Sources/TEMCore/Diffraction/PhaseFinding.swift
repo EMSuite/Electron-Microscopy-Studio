@@ -112,8 +112,9 @@ package nonisolated struct PhaseFindingResult: Sendable, Equatable {
 
     /// "14 phases from Materials Project, 3 from My Phases" (the larger source first).
     package var sourceSentence: String {
-        let counts = PhaseSource.allCases.map { s in (s, rows.filter { $0.source == s }.count) }
-            .filter { $0.1 > 0 }.sorted { $0.1 > $1.1 }
+        // Equal counts keep the sources' declared order: the sort is not promised to be stable.
+        let counts = PhaseSource.allCases.enumerated().map { i, s in (s, rows.filter { $0.source == s }.count, i) }
+            .filter { $0.1 > 0 }.sorted { ($0.1, -$0.2) > ($1.1, -$1.2) }
         guard let first = counts.first else { return "No phases to rank." }
         var parts = ["\(first.1) \(first.1 == 1 ? "phase" : "phases") from \(first.0.name)"]
         parts += counts.dropFirst().map { "\($0.1) from \($0.0.name)" }
