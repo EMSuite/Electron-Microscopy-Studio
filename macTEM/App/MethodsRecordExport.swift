@@ -20,6 +20,7 @@ import AppKit
 import ShellEDXModel
 import ShellExport
 import SpectroCore
+import SpectroEELS
 import TEMCore
 import TEMSession
 import UniformTypeIdentifiers
