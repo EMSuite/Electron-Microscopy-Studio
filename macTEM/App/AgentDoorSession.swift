@@ -13,7 +13,6 @@
 import Foundation
 import ShellAgentDoor
 import TEMCore
-import TEMSession
 
 extension MacTEMAgentDoor {
     static let sessionTools: [AgentTool] = [

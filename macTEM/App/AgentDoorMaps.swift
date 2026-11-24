@@ -122,8 +122,6 @@ extension MacTEMAgentDoor {
 
     // MARK: Answers
 
-    private static let mapsPoint = Locale(identifier: "en_US_POSIX")
-
     static func maps(_ appState: AppState) -> AgentToolOutput {
         let session = appState.maps
         guard let document = session.document else { return noMap }
