@@ -120,19 +120,19 @@ package nonisolated enum PatternIndexing {
     package static func index(found: [FoundSpot], centre: DiffractionCentre, calibration: DiffractionCalibration,
                               indexer: PatternOrientation, phase: String) -> Outcome {
         var spots = found.compactMap { f -> Spot? in
-            guard let q = q(row: f.row, column: f.column, centre: centre, calibration: calibration) else { return nil }
-            return Spot(row: f.row, column: f.column, intensity: f.intensity, q: q, hkl: nil, dListed: nil)
+            guard let position = Self.q(row: f.row, column: f.column, centre: centre, calibration: calibration) else { return nil }
+            return Spot(row: f.row, column: f.column, intensity: f.intensity, q: position, hkl: nil, dListed: nil)
         }
         let inReach = spots.indices.filter { spots[$0].qLength <= reach }
-        let q = inReach.map { spots[$0].q }, intensities = inReach.map { spots[$0].intensity }
+        let measured = inReach.map { spots[$0].q }, intensities = inReach.map { spots[$0].intensity }
         func refused(_ verdict: Verdict) -> Outcome {
-            Outcome(phase: phase, verdict: verdict, spots: spots, explained: 0, indexed: q.count, orientation: nil, alternatives: [],
+            Outcome(phase: phase, verdict: verdict, spots: spots, explained: 0, indexed: measured.count, orientation: nil, alternatives: [],
                     zoneAxis: nil, zoneAxisAngle: nil, scale: nil, misfitPercent: nil)
         }
-        guard q.count >= 2 else { return refused(.notFound(ZoneAxisRefusal.tooFewSpots(q.count).description)) }
-        guard let result = indexer.index(spots: q, intensities: intensities) else {
+        guard measured.count >= 2 else { return refused(.notFound(ZoneAxisRefusal.tooFewSpots(measured.count).description)) }
+        guard let result = indexer.index(spots: measured, intensities: intensities) else {
             // No start explains two spots: the solver says why (one row, no pair, too little).
-            if case .refused(let why) = indexer.solver.solve(q).verdict {
+            if case .refused(let why) = indexer.solver.solve(measured).verdict {
                 return refused(why == .oneRow ? .oneRow : .notFound(why.description))
             }
             return refused(.notFound(ZoneAxisRefusal.noCandidate.description))
@@ -147,7 +147,7 @@ package nonisolated enum PatternIndexing {
             guard d.isFinite, d > 0 else { continue }
             spots[i].hkl = hkl
             spots[i].dListed = d
-            if let delta = spots[i].deltaPercent { squares.append(delta * delta) }
+            if let delta: Double = spots[i].deltaPercent { squares.append(delta * delta) }
         }
         let misfit = squares.isEmpty ? nil : (squares.reduce(0, +) / Double(squares.count)).squareRoot()
         let near = best.orientation.nearestZoneAxis(cell: cell)
@@ -162,9 +162,9 @@ package nonisolated enum PatternIndexing {
         } else {
             verdict = .found
         }
-        return Outcome(phase: phase, verdict: verdict, spots: spots, explained: best.positions.matched, indexed: q.count,
-                       orientation: best.orientation, alternatives: result.alternatives.map(\.orientation),
-                       zoneAxis: near.map(\.uvw), zoneAxisAngle: near.map(\.angle), scale: best.scale, misfitPercent: misfit)
+        return Outcome(phase: phase, verdict: verdict, spots: spots, explained: best.positions.matched, indexed: measured.count,
+                       orientation: best.orientation, alternatives: result.alternatives.map { $0.orientation },
+                       zoneAxis: near.map { $0.uvw }, zoneAxisAngle: near.map { $0.angle }, scale: best.scale, misfitPercent: misfit)
     }
 
     // MARK: Words
