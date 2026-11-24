@@ -67,7 +67,7 @@ extension MacTEMAgentDoor {
                 let table = powderTable(item, image: image, others: others)
                 var out = powder(table)
                 if let kind = call.arguments["write"] {
-                    switch writePowder(table, kind: kind, file: call.arguments["file"], item: item, image: image, call: call) {
+                    switch writePowder(table, kind: kind, file: call.arguments["file"], image: image, call: call) {
                     case .written(let name): out["written"] = name
                     case .refused(let refusal): return refusal
                     }
@@ -350,7 +350,7 @@ extension MacTEMAgentDoor {
         return out
     }
 
-    private static func writePowder(_ table: PowderTable, kind: String, file: String?, item: OpenItem, image: CalibratedImage,
+    private static func writePowder(_ table: PowderTable, kind: String, file: String?, image: CalibratedImage,
                                     call: AgentToolCall) -> Written {
         guard let appState = call.window?.state as? AppState else { return .refused(notAWindowRefusal) }
         let base = DiffractionPowderExport.baseName(of: image.fileName)
