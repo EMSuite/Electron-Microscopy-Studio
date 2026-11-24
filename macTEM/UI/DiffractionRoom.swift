@@ -50,19 +50,16 @@ struct DiffractionRoom: View {
             DiffractionPatternPane(item: item, analysis: analysis, view: view, rows: rows)
                 .modifier(DiffractionZoomCommands(item: item, view: view))
             Divider()
-            // Index's spots beside the readout once it has an answer (#785): hkl, expected d and misfit per spot.
-            Group {
+            // Index's spots beside the readout once it has an answer (#785): hkl, expected d and misfit per spot. One readout table
+            // in both cases, so it keeps its selection and scroll when Index answers. Side by side, the spots a fixed share: split
+            // views are banned by the UI contract (docs/architecture.md).
+            HStack(spacing: 0) {
+                DiffractionReadoutTable(analysis: analysis, view: view, rows: rows)
                 if analysis.indexOutcome != nil {
-                    // Side by side, the spots a fixed share: split views are banned by the UI contract (docs/architecture.md).
-                    HStack(spacing: 0) {
-                        DiffractionReadoutTable(analysis: analysis, view: view, rows: rows)
-                        Divider()
-                        DiffractionSpotTable(view: view, rows: analysis.indexSpotRows)
-                            .frame(minWidth: LayoutPolicy.diffractionSpotsMinWidth, idealWidth: LayoutPolicy.diffractionSpotsWidth,
-                                   maxWidth: LayoutPolicy.diffractionSpotsMaxWidth)
-                    }
-                } else {
-                    DiffractionReadoutTable(analysis: analysis, view: view, rows: rows)
+                    Divider()
+                    DiffractionSpotTable(view: view, rows: analysis.indexSpotRows)
+                        .frame(minWidth: LayoutPolicy.diffractionSpotsMinWidth, idealWidth: LayoutPolicy.diffractionSpotsWidth,
+                               maxWidth: LayoutPolicy.diffractionSpotsMaxWidth)
                 }
             }
             .frame(height: LayoutPolicy.diffractionReadoutHeight)
