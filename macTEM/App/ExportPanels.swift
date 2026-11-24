@@ -262,6 +262,23 @@ enum ExportPanels {
         return hosting
     }
 
+    /// The "Leave out file names" checkbox alone, sized once as `accessory(for:)` is.
+    static func fileNameAccessory(for choice: ExportFileNameChoice) -> NSHostingView<ExportFileNameAccessory> {
+        let hosting = NSHostingView(rootView: ExportFileNameAccessory(choice: choice))
+        hosting.frame = NSRect(origin: .zero, size: hosting.fittingSize)
+        return hosting
+    }
+
+    /// The checkbox as the person last left it (off the first time).
+    static func rememberedFileNameChoice(_ defaults: UserDefaults = .standard) -> ExportFileNameChoice {
+        ExportFileNameChoice(leaveOut: defaults.bool(forKey: ExportMethods.leaveOutFileNamesKey))
+    }
+
+    /// Kept for the next panel once the person pressed Export.
+    static func remember(_ choice: ExportFileNameChoice, in defaults: UserDefaults = .standard) {
+        defaults.set(choice.leaveOut, forKey: ExportMethods.leaveOutFileNamesKey)
+    }
+
     // MARK: Present, then write
 
     /// `panel` as a sheet on `window`, and how it ended. A window that closes under its sheet takes the sheet with it
@@ -281,8 +298,11 @@ enum ExportPanels {
     private static func presentImagePanel(_ snapshot: ExportImageSnapshot, on window: NSWindow,
                                           appState: AppState) async {
         let choices = ExportImageChoices(snapshot.defaults)
+        let fileNames = rememberedFileNameChoice()
+        choices.fileNames = fileNames
         let panel = imagePanel(for: snapshot, choices: choices)
         guard await present(panel, on: window) == .OK, let url = panel.url else { return }
+        remember(fileNames)
 
         // Counted from the panel's OK to the infobar's last line, per window (`AppState.exportsWriting`): two exports of one window
         // never interleave its status lines or write one destination twice, and another window's export is not held up (#625).
@@ -293,7 +313,7 @@ enum ExportPanels {
                                              offersMarks: choices.offersMarks)
         appState.statusText = ExportSnapshot.exportingLine(name: name)
         do {
-            let rendered = try await snapshot.write(to: url, options: options)
+            let rendered = try await snapshot.write(to: url, options: options, leaveOutFileNames: fileNames.leaveOut)
             report(ExportSnapshot.imageDoneLine(name: name, width: rendered.width, height: rendered.height,
                                                 barLeftOut: rendered.barLeftOut), in: appState)
         } catch {
@@ -303,8 +323,11 @@ enum ExportPanels {
 
     private static func presentProfilePanel(_ snapshot: ExportProfileSnapshot, on window: NSWindow,
                                             appState: AppState) async {
+        let fileNames = rememberedFileNameChoice()
         let panel = profilePanel(for: snapshot)
+        panel.accessoryView = fileNameAccessory(for: fileNames)
         guard await present(panel, on: window) == .OK, let url = panel.url else { return }
+        remember(fileNames)
 
         // Counted from the panel's OK to the infobar's last line, per window (`AppState.exportsWriting`): two exports of one window
         // never interleave its status lines or write one destination twice, and another window's export is not held up (#625).
@@ -313,7 +336,7 @@ enum ExportPanels {
         let name = url.lastPathComponent
         appState.statusText = ExportSnapshot.exportingLine(name: name)
         do {
-            try await snapshot.write(to: url)
+            try await snapshot.write(to: url, leaveOutFileNames: fileNames.leaveOut)
             report(ExportSnapshot.profileDoneLine(name: name, samples: snapshot.profile.samples.count), in: appState)
         } catch {
             appState.present(error)
@@ -382,14 +405,17 @@ enum ExportPanels {
 
     private static func presentResultsPanel(_ snapshot: ExportResultsSnapshot, on window: NSWindow?, appState: AppState) async {
         let url: URL
+        let fileNames = rememberedFileNameChoice()
         if let directory = appState.exportDirectory {
             try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             url = directory.appendingPathComponent(snapshot.defaultName)
         } else {
             guard let window else { return }
             let panel = resultsPanel(for: snapshot)
+            panel.accessoryView = fileNameAccessory(for: fileNames)
             guard await present(panel, on: window) == .OK, let chosen = panel.url else { return }
             url = chosen
+            remember(fileNames)
         }
 
         // Counted from the panel's OK to the infobar's last line, per window (`AppState.exportsWriting`): two exports of one window
@@ -399,7 +425,7 @@ enum ExportPanels {
         let name = url.lastPathComponent
         appState.statusText = ExportSnapshot.exportingLine(name: name)
         do {
-            try await snapshot.write(to: url)
+            try await snapshot.write(to: url, leaveOutFileNames: fileNames.leaveOut)
             report(ResultsFormat.exportingDoneLine(name: name, rows: snapshot.rows.count), in: appState)
         } catch {
             appState.present(error)

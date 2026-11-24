@@ -205,8 +205,8 @@ table eXSpy uses, values unchanged (SpectroKit's NOTICE). Its eXSpy/HyperSpy and
 FormatoKit (a Swift package the app is built with)
 ================================================================================
 
-The app links FormatoKit (https://github.com/mac4DSTEM/FormatoKit, tag 0.18.0, commit
-63e6b8e5334eb0ead9f4aecfc281aa9b4c378779), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only, for its DM3/DM4, Velox EMD, TIFF
+The app links FormatoKit (https://github.com/mac4DSTEM/FormatoKit, tag 0.19.0, commit
+873f2f252eb09f20128f65c25daafaa66a9a6548), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only, for its DM3/DM4, Velox EMD, TIFF
 and MRC readers and its HDF5 layer, which SpectroKit held until 0.4.0, including the root-attribute file layer
 (`HDF5RootAttributes`) the session sidecar is written and read through since FormatoKit 0.5.0: it was this app's own HDF5 binding (an adapted
 copy of mac4DSTEM's BraggVectorEMDWriter binding), moved into the kit, and the app no longer carries a copy. Its own third-party notices
@@ -229,9 +229,10 @@ Both texts ship in the application bundle at `Contents/Resources/Licenses/` with
 DiffractoKit (a Swift package the app is built with)
 ================================================================================
 
-The app links DiffractoKit (https://github.com/mac4DSTEM/DiffractoKit, tag 0.15.1, commit
-76ea90dc889551f547b4708b754b6f2a69e9a942), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only, for crystal structures, the CIF
-import, kinematic reflection lists, ring and ellipse calibration and the indexing of a measured |q|. Its scattering table and lattice conventions are py4DSTEM's (GPL-3.0); pymatgen (MIT) was
+The app links DiffractoKit (https://github.com/mac4DSTEM/DiffractoKit, tag 0.19.0, commit
+727a5e7131aedd2d754f82f6c57e88c243e13906), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only, for crystal structures, the CIF
+import, kinematic reflection lists, ring and ellipse calibration, the indexing of a measured |q|, simulated spot patterns and
+the orientation of a spot pattern. Its scattering table and lattice conventions are py4DSTEM's (GPL-3.0); pymatgen (MIT) was
 its oracle and none of its code is copied. Its own third-party notices are in its NOTICE.
 
 ================================================================================
@@ -247,8 +248,8 @@ histogram. Its references are NumPy, SciPy and scikit-image; none of their code 
 MacEMUI (a Swift package the app is built with)
 ================================================================================
 
-The app links MacEMUI (https://github.com/mac4DSTEM/MacEMUI, tag 0.13.0, commit
-13d7a89b8ecc5a077eafdf1c474cb6366cda2ece), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only: the window shell, the
+The app links MacEMUI (https://github.com/mac4DSTEM/MacEMUI, tag 0.14.0, commit
+c2614cb43474afffb0f1064ee5f7e6afe4562950), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only: the window shell, the
 inspector, the controls, the Metal image view, the EDS room and the agent door macEM shares with mac4DSTEM.
 
 ================================================================================

@@ -1,0 +1,91 @@
+# The accessibility audit, weekly (2.3 plan row Q6): AccessibilityAuditJourney walks every room on Help > Open Demo Data and runs
+# Xcode's audit on each (description, element detection, hit region, contrast), on GitHub's macos-26 runner. Its list goes into
+# one standing issue, "Accessibility audit", replaced each week, so the count is read in one place and a fix shows as a shorter
+# list. REPORT ONLY: the journey fails while it finds an issue; this workflow stays green when it wrote the list, and fails only
+# when the journey did not reach its end (no count in the log), so a broken walk is not read as a clean one.
+#
+# Never on the Mac: only GitHub's runner (ui.yml's MACEM_MAC_RUNNER is not read here), so the weekly run drives no one's screen.
+# Never on a pull request. By hand: Actions > Accessibility audit > Run workflow.
+name: Accessibility audit
+
+on:
+  schedule:
+    - cron: "23 6 * * 0"   # Sunday
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: accessibility-audit
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    name: Accessibility audit (every room on the demo data)
+    runs-on: macos-26
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      issues: write
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@v7
+      - name: Gate folder, automation mode and a wide screen (as ui.yml)
+        run: |
+          echo "MACTEM_GATE_DIR=$RUNNER_TEMP/gate" >> "$GITHUB_ENV"
+          sudo automationmodetool enable-automationmode-without-authentication
+          brew install displayplacer >/dev/null 2>&1 || true
+          if command -v displayplacer >/dev/null; then
+            id=$(displayplacer list | awk -F': ' '/^Persistent screen id/ {print $2; exit}')
+            mode=$(displayplacer list | grep -E '^  mode [0-9]+: res:' | sed -E 's/.*res:([0-9]+)x([0-9]+).*/\1 \2/' | sort -n -k1,1 -k2,2 | tail -1)
+            if [ -n "$id" ] && [ -n "$mode" ]; then
+              set -- $mode
+              displayplacer "id:$id res:${1}x${2} origin:(0,0) degree:0" || true
+            fi
+            displayplacer list | grep -E '^Resolution:' || true
+          fi
+      - name: Run the audit journey
+        # It fails while the audit finds an issue; the next step reads the list from the log either way.
+        continue-on-error: true
+        run: tools/run-tests.sh ui AccessibilityAuditJourney
+      - name: The list into the standing issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          log="$MACTEM_GATE_DIR/ui.log"
+          count=$(sed -nE 's/.*ACCESSIBILITY_ISSUES ([0-9]+).*/\1/p' "$log" 2>/dev/null | tail -1)
+          {
+            echo "The weekly accessibility audit of every room on the demo data (AccessibilityAuditJourney: description, element"
+            echo "detection, hit region, contrast), on GitHub's macos-26 runner. Replaced by each run; last run: $RUN_URL"
+            echo
+            if [ -z "$count" ]; then
+              echo "**The journey did not reach its end**, so this is no count. From the log:"
+              echo; echo '```'; grep -E "error:|FAILED|failed" "$log" 2>/dev/null | tail -20; echo '```'
+            elif [ "$count" = "0" ]; then
+              echo "**No issues.**"
+            else
+              echo "**$count issues**, by room:"
+              echo
+              # One line per issue, as the journey printed it; each list item is the room, the element and the audit's words.
+              sed -nE 's/.*ACCESSIBILITY_ISSUE (.*)$/- \1/p' "$log" | head -150
+            fi
+          } > body.md
+          cat body.md
+          title="Accessibility audit"
+          n=$(gh issue list -R "$GITHUB_REPOSITORY" --state open --search "in:title \"$title\"" --json number,title -q ".[] | select(.title == \"$title\") | .number" | head -1)
+          if [ -z "$n" ]; then gh issue create -R "$GITHUB_REPOSITORY" --title "$title" --body-file body.md
+          else gh issue edit "$n" -R "$GITHUB_REPOSITORY" --body-file body.md; fi
+          [ -n "$count" ] || { echo "the journey did not reach its end"; exit 1; }
+      - name: Upload the screenshots and the log
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: accessibility-audit-${{ github.run_number }}
+          path: |
+            ${{ runner.temp }}/gate/ui-screenshots
+            ${{ runner.temp }}/gate/ui.log
+          if-no-files-found: warn
+          retention-days: 14

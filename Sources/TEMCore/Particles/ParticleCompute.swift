@@ -255,11 +255,11 @@ package nonisolated enum ParticleFormat {
         return "median length \(number(l * scale.perPixel, locale: locale)) \(scale.unit) · mean width \(number(w * scale.perPixel, locale: locale)) \(scale.unit)"
     }
 
-    /// The note for an image that is a render (a TIFF of the screen, #110, or a PNG or JPEG picture, #792): its burnt-in labels and scale bar are pixels and are found as
+    /// The note for an image that is a render (a TIFF of the screen, #110): its burnt-in labels and scale bar are pixels and are found as
     /// objects. nil for any other image.
     package static func renderNote(notes: [String]) -> String? {
         guard notes.contains(where: { $0.hasPrefix(TIFFImageReader.Note.render) || $0.hasPrefix(TIFFImageReader.Note.colourRender)
-            || $0 == PictureImageReader.Note.picture })
+                                    || $0 == PictureImageReader.Note.picture })
         else { return nil }
         return "This image is a render: burnt-in labels and scale bars are pixels and are found as objects. Draw a region that leaves them out."
     }

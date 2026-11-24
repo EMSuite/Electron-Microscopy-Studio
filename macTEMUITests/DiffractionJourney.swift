@@ -108,7 +108,7 @@ nonisolated final class DiffractionJourney: Journey {
             XCTAssertEqual(d(of: "spot1"), 1.4419, accuracy: 3e-3)
         }
         try step("export the readout") {
-            waitFor("diffraction.export").click()
+            openSection("Export", showing: "diffraction.export").click()
             let bar = waitFor("status.bar", timeout: 30)
             let done = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label CONTAINS[c] 'exported' OR value CONTAINS[c] 'exported'"), object: bar)
             XCTAssertEqual(XCTWaiter().wait(for: [done], timeout: 30), .completed, "status bar: \(bar.label)")

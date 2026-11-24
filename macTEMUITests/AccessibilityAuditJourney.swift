@@ -5,11 +5,13 @@
 //  room on its spectrum image, the Image room on the generated SEM image, the EDS room on the shipped SEM-EDS spectrum, Patterns and
 //  Indexing on the nickel scan, Maps on the steel map, and the Results room last. Each room is audited for what VoiceOver needs:
 //  every element says what it is (sufficient description), every element the audit sees on screen is in the accessibility tree
-//  (element detection), and every control is big enough to hit (hit region). Contrast and clipped text are not audited here: they
-//  follow the reader's appearance and the Metal panes draw pixels, not text.
+//  (element detection), every control is big enough to hit (hit region), and text stands out from what is behind it (contrast,
+//  2.3 plan row Q6). Clipped text is not audited here: it follows the reader's text size, and the Metal panes draw pixels, not text.
 //  The journey does not stop at a room's issues. It records each one with the room and the element's identifier and label, walks on,
 //  and fails once at the end with the whole list, kept as an attachment beside the room's screenshot, so one run on the Mac lists
-//  every issue to fix. The first run is expected to fail; the fixes it lists are what turn it green. Before every click the journey
+//  every issue to fix. The first run is expected to fail; the fixes it lists are what turn it green. Each issue is also printed as
+//  one `ACCESSIBILITY_ISSUE` line and the count as `ACCESSIBILITY_ISSUES`, which the weekly workflow (accessibility.yml) reads from
+//  the log into its standing issue. Before every click the journey
 //  checks that macTEM is frontmost (`openDemoData`, `requireFrontmost`). An audit reads the accessibility tree only: it moves no
 //  pointer and types nothing.
 //
@@ -18,7 +20,7 @@ import XCTest
 
 nonisolated final class AccessibilityAuditJourney: Journey {
     /// What each room is audited for (the header says why contrast and clipped text are left out).
-    private static var audited: XCUIAccessibilityAuditType { [.sufficientElementDescription, .elementDetection, .hitRegion] }
+    private static var audited: XCUIAccessibilityAuditType { [.sufficientElementDescription, .elementDetection, .hitRegion, .contrast] }
 
     /// One line per issue the audits found, by room, in the order they were found.
     @MainActor private var issues: [String] = []
@@ -31,6 +33,7 @@ nonisolated final class AccessibilityAuditJourney: Journey {
             return true   // recorded, not failed here: the journey fails once, at the end, with every room's issues
         }
         issues += found
+        for line in found { print("ACCESSIBILITY_ISSUE \(line)") }
         let report = XCTAttachment(string: found.isEmpty ? "no issues" : found.joined(separator: "\n"))
         report.name = "accessibility audit, \(room): \(found.count) issues"
         report.lifetime = .keepAlways
@@ -130,6 +133,7 @@ nonisolated final class AccessibilityAuditJourney: Journey {
         report.name = "accessibility audit: \(issues.count) issues"
         report.lifetime = .keepAlways
         add(report)
+        print("ACCESSIBILITY_ISSUES \(issues.count)")
         XCTAssertTrue(issues.isEmpty, "\(issues.count) accessibility issues, all in the attachment; the first five: "
                                       + issues.prefix(5).joined(separator: " | "))
     }

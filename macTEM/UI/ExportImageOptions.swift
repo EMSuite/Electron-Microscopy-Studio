@@ -25,6 +25,8 @@ final class ExportImageChoices {
     /// The FFT transform's "As shown" (#636): offered only when its bins are not square, off by default (one pixel per bin).
     let offersAsShown: Bool
     var asShown = false
+    /// "Leave out file names" (#817): offered by the Image room's panel, whose PNG carries a methods record; nil elsewhere.
+    var fileNames: ExportFileNameChoice?
 
     enum Kind: Sendable {
         case marks, spots
@@ -75,6 +77,9 @@ struct ExportImageOptions: View {
                 Toggle("As shown", isOn: $choices.asShown)
                     .help("Resample to the shape the room shows (square pixels in q); off, the PNG has one pixel per bin")
                     .accessibilityIdentifier("export.asShownToggle")
+            }
+            if let fileNames = choices.fileNames {
+                ExportFileNameOption(choice: fileNames)
             }
         }
         .toggleStyle(.checkbox)

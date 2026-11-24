@@ -35,6 +35,8 @@
 				<string>map</string>
 			</array>
 		</dict>
+		<!-- A PNG or JPEG (#792): a pattern from a paper or a camera export. Alternate, so the app is offered under Open With
+		     for pictures and never becomes their default. -->
 		<dict>
 			<key>CFBundleTypeName</key>
 			<string>Picture</string>

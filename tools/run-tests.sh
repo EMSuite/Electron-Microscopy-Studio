@@ -37,6 +37,8 @@ resolve_mactem_developer_dir
 . "$ROOT/tools/lib/unit-skips.sh"
 # app_warnings <root> <log>: the compiler warnings in macTEM/ and macTEMTests/, listed and counted; exit 1 when there is one.
 . "$ROOT/tools/lib/app-warnings.sh"
+# kit_bounds <Package.swift> <Package.resolved> <pbxproj> <workspace Package.resolved>: each lower bound is the resolved version.
+. "$ROOT/tools/lib/kit-bounds.sh"
 # core_warnings <log>: the warnings `core` counts, all but SwiftPM's repository-cache notes; exit 1 when there is one.
 . "$ROOT/tools/lib/core-warnings.sh"
 # assert_mactem_store_names <app> <root>: the App Store build's names (release_build checks them as release-store.sh does).
@@ -47,7 +49,7 @@ scientific=(metadata-parity profile-parity export-parity fft-export-parity sidec
 diagnostic=()                    # never gated
 owner_only=()                    # the owner's own runs
 retired=()                       # kept for history, not run
-support=(crystal-structures picture-pins sem-readers)     # not harnesses
+support=(crystal-structures sem-readers picture-parity)     # not harnesses
 references=(sem)                 # emits committed reference bundles (Python, Linux CI: .github/workflows/sem-parity.yml); macTEMTests compares
 
 # A near-full disk fakes code regressions (mac4DSTEM, 2026-08-06: three runs, three different spurious failure
@@ -437,6 +439,9 @@ inventory() {
   echo "== the core gate fails a compiler or SwiftPM warning, and not SwiftPM's repository-cache notes"
   "$ROOT/tools/lib/core-warnings-selftest.sh" || rc=1
 
+  echo "== the bounds check fails a lower bound that is not the resolved version"
+  "$ROOT/tools/lib/kit-bounds-selftest.sh" || rc=1
+
   echo "== tools classification"
   local -a all=("${scientific[@]}" "${diagnostic[@]}" "${owner_only[@]}" "${retired[@]}" "${support[@]}" "${references[@]}")
   for name in "${all[@]}"; do
@@ -505,17 +510,11 @@ inventory() {
     echo "  every SWIFT_PACKAGE_NAME must be \"\$(SRCROOT:file:lower:c99extidentifier)\", never a literal name"; rc=1
   fi
 
-  echo "== kits: version ranges in Package.swift, Package.resolved inside them"
-  # The kits are imported by version range (`from:`), never a local path; Package.resolved holds the versions built, and the
-  # harnesses build them through SwiftPM from it. A resolved version must lie in the range: at least the lower bound, same major.
-  local kit pkg_version res_version
-  for kit in DiffractoKit FormatoKit ImagoKit SpectroKit MacEMUI; do
-    pkg_version="$(sed -nE "s#.*github\.com/mac4DSTEM/$kit(\.git)?\", from: \"([0-9.]+)\".*#\2#p" "$ROOT/Package.swift")"
-    res_version="$(awk -v id="${kit:l}" '$0 ~ "\"identity\" *: *\"" id "\"" { f = 1 } f && /"version"/ { gsub(/[",]/, "", $3); print $3; exit }' "$ROOT/Package.resolved")"
-    [[ -n "$pkg_version" && -n "$res_version" && "${pkg_version%%.*}" == "${res_version%%.*}" \
-       && "$(printf '%s\n' "$pkg_version" "$res_version" | sort -V | head -1)" == "$pkg_version" ]] \
-      || { echo "  Package.swift takes $kit from '$pkg_version', Package.resolved has '$res_version'"; rc=1; }
-  done
+  echo "== packages: each lower bound is the version both Package.resolved files pin (tools/lib/kit-bounds.sh, #806)"
+  # The kits and MacEMUI by `from:` range in Package.swift, Sparkle by up to next major in the project; the harnesses build the kits
+  # through SwiftPM from Package.resolved. A package update moves the bound with the pin.
+  kit_bounds "$ROOT/Package.swift" "$ROOT/Package.resolved" "$ROOT/macTEM.xcodeproj/project.pbxproj" \
+    "$ROOT/macTEM.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved" || rc=1
 
   # Any import form: an attribute (@preconcurrency, @_exported), an access level, an import kind (`import class`).
   local imports='^[[:space:]]*(@[[:alnum:]_]+(\([^)]*\))?[[:space:]]+)*((public|package|internal|fileprivate|private)[[:space:]]+)?import[[:space:]]+([[:alnum:]_]+[[:space:]]+)?'

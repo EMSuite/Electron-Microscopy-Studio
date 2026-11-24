@@ -7,6 +7,7 @@
 
 import Foundation
 import ImagoCore
+import ShellExport
 
 extension ProfileCSV {
     /// What a line profile is checked against (the Results room and its CSV show it verbatim); the `# validation:` line adds
@@ -26,13 +27,14 @@ extension ProfileCSV {
     }
 
     /// Renders and writes off the main actor (`ExportFile.write`); throws `ExportFile.Failure.noSamples` for an empty
-    /// profile, so a caller that checked nothing is still told.
+    /// profile, so a caller that checked nothing is still told. `methods`, when given, is one more header line (`ExportMethods`).
     @concurrent package static func export(_ profile: LineProfile, start: ImagePoint, end: ImagePoint,
                                            source: ExportSource, shown: (unit: String, factor: Double)?,
-                                           to url: URL) async throws {
-        guard let text = text(profile, start: start, end: end, source: source, shown: shown) else {
+                                           methods: MethodsRecord? = nil, to url: URL) async throws {
+        guard var text = text(profile, start: start, end: end, source: source, shown: shown) else {
             throw ExportFile.Failure.noSamples
         }
+        if let methods { text = try ExportMethods.embedding(methods, inText: text) }
         try ExportFile.write(Data(text.utf8), to: url)
     }
 }

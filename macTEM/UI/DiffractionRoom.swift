@@ -80,7 +80,7 @@ private struct DiffractionHeader: View {
         let volts = analysis.volts(for: image)
         HStack(spacing: 8) {
             Text(image.fileName).font(.callout.weight(.semibold)).lineLimit(1).truncationMode(.middle).layoutPriority(1)
-            Text(DiffractionHeaderText.summary(image: image, calibration: calibration, volts: volts))
+            Text(summary(calibration: calibration, volts: volts))
                 .font(.callout).foregroundStyle(.secondary).lineLimit(1).truncationMode(.tail)
                 .accessibilityIdentifier("diffraction.scale")
                 .accessibilityValue(DiffractionValueFormat.scale(calibration?.deltaQ))
@@ -96,14 +96,9 @@ private struct DiffractionHeader: View {
         .padding(.horizontal, LayoutPolicy.infobarHorizontalPadding)
         .frame(height: LayoutPolicy.paneHeaderHeight)
     }
-}
 
-/// The header's words after the file name: the size, the beam, where the scale came from. A picture (a PNG or JPEG, #792) says first
-/// that it is a picture, not counts, and, until a scale is typed or fitted, that the file holds none.
-nonisolated enum DiffractionHeaderText {
-    static func summary(image: CalibratedImage, calibration: DiffractionCalibration?, volts: Double?) -> String {
-        var parts = image.isPicture ? ["Picture, not counts"] : []
-        parts.append("\(image.width) × \(image.height) px")
+    private func summary(calibration: DiffractionCalibration?, volts: Double?) -> String {
+        var parts = ["\(image.width) × \(image.height) px"]
         if let volts { parts.append("\(Num.sig(volts / 1000, 4)) kV\(image.voltage != nil ? " (file)" : "")") }
         if let calibration {
             parts.append("scale: \(calibration.sourceText)")
@@ -111,7 +106,7 @@ nonisolated enum DiffractionHeaderText {
             if let l = calibration.ring?.lengthPixels { parts.append("L \(Num.fixed(l, 0)) px") }
             if let mm = calibration.ring?.lengthMillimetres { parts.append("L \(Num.fixed(mm, 0)) mm") }
         } else {
-            parts.append(image.isPicture ? "scale not in the file" : "no scale yet")
+            parts.append("no scale yet")
         }
         return parts.joined(separator: " · ")
     }
@@ -226,6 +221,12 @@ private struct DiffractionPatternPane: View {
                         .displayTransform(MetalDisplayTransform(paneSize: box, imageBox: box, zoom: layout.zoom, offset: layout.offset))
                         .allowsHitTesting(false)
                 }
+                // The simulated spots of the typed zone axis (#782), under the measured marks; redrawn whenever the zone axis, its turn,
+                // the crystal, the centre or the scale changes (`DiffractionAnalysis.simulatedSpots`).
+                if let simulated = try? analysis.simulatedSpots(image: image)?.get() {
+                    SimulatedSpotsOverlay(spots: simulated, showsLabels: analysis.simulation.showsLabels, layout: layout)
+                        .allowsHitTesting(false)
+                }
                 DiffractionOverlay(analysis: analysis, view: view, rows: rows, layout: layout, drag: drag.flatMap { radii(from: $0.start, to: $0.end, layout: layout) })
                     .allowsHitTesting(false)
                 // The spot cursor, for the eyes, once a key or an action has moved it.
@@ -289,7 +290,7 @@ private struct DiffractionPatternPane: View {
             .accessibilityLabel("Diffraction pattern")
             // q and d under the pointer, as the status line reads them; else the pattern's size, rings and spots. This pane is the readout's one writer.
             .modifier(ReadoutAccessibilityValue(readout: { appState.diffractionRoom.readout },
-                                                fallback: "\(image.width) by \(image.height) pixels, \(UnitDisplay.count(analysis.rings.count, "ring", "rings")), \(UnitDisplay.count(analysis.spots.count, "spot", "spots"))"))
+                                                fallback: "\(image.width) by \(image.height) pixels, \(UnitDisplay.count(analysis.rings.count, "ring", "rings")), \(UnitDisplay.count(analysis.spots.count, "spot", "spots"))" + DiffractionSimulationText.spoken(analysis.simulatedSpots(image: image), zoneAxis: analysis.simulation.zoneAxis)))
             .accessibilityAction(named: "Zoom in") { view.zoom(by: 2, image: image) }
             .accessibilityAction(named: "Zoom out") { view.zoom(by: 0.5, image: image) }
             .accessibilityAction(named: "Reset zoom") { view.fitView() }
@@ -591,6 +592,40 @@ private struct DiffractionOverlay: View {
     private func label(for row: DiffractionReadoutRow) -> String {
         guard let d = row.d else { return "" }
         return "d \(Num.fixed(d, 3)) Å" + (row.family.map { " · \($0)" } ?? "")
+    }
+}
+
+/// The simulated spots of a typed zone axis (#782): a ring per spot, its size growing with the square root of its intensity
+/// against the strongest, in cyan (the measured spots are red crosses, the rings yellow), and its hkl beside it when Labels is on.
+/// Labels go on the 60 strongest spots of at least 2 % of the strongest, so a dense pattern stays readable; the caption font is 10 pt.
+private struct SimulatedSpotsOverlay: View {
+    let spots: [ZoneAxisOverlay.Spot]
+    let showsLabels: Bool
+    let layout: DiffractionLayout
+
+    static let labelledCount = 60
+    static let labelledFraction = 0.02
+
+    /// The spots that carry their hkl: the strongest first, as `spots` comes.
+    static func labelled(_ spots: [ZoneAxisOverlay.Spot]) -> [ZoneAxisOverlay.Spot] {
+        Array(spots.filter { $0.relative >= labelledFraction }.prefix(labelledCount))
+    }
+
+    var body: some View {
+        Canvas { ctx, _ in
+            for spot in spots {
+                let p = layout.point(column: spot.column, row: spot.row)
+                let r = 3 + 6 * CGFloat(spot.relative.squareRoot())
+                ctx.stroke(Path(ellipseIn: CGRect(x: p.x - r, y: p.y - r, width: 2 * r, height: 2 * r)), with: .color(.cyan), lineWidth: 1.5)
+            }
+            guard showsLabels else { return }
+            for spot in Self.labelled(spots) {
+                let p = layout.point(column: spot.column, row: spot.row)
+                let r = 3 + 6 * CGFloat(spot.relative.squareRoot())
+                ctx.draw(Text(spot.label).font(.caption).foregroundStyle(.cyan), at: CGPoint(x: p.x + r + 2, y: p.y + r + 2), anchor: .topLeading)
+            }
+        }
+        .accessibilityHidden(true)
     }
 }
 

@@ -511,3 +511,28 @@ Xcode), and nothing else in the app uses them. ⌘1…⌘9 per room would come b
 
 **Reversal.** Remove the two buttons from the Workspace menu in `macTEMApp.swift`. The keyboard-only journey then cannot reach a
 second room in a workspace.
+
+## 2026-11-23 — The accessibility audit runs weekly on GitHub's runner (2.3 plan row Q6)
+
+**What.** A new workflow, `accessibility.yml`, runs `AccessibilityAuditJourney` every Sunday and by hand on GitHub's `macos-26`
+(never on the Mac: it does not read `MACEM_MAC_RUNNER`) and writes the journey's list into one standing issue, "Accessibility
+audit", replaced by each run. The journey now also audits contrast, and prints each issue and the count to the log, where the
+workflow reads them. `ui.yml` stays by hand only.
+
+**Why.** The audit listed every issue only when someone ran the journeys, so a regression waited for the next release walk. The
+2026-11-10 rule that keeps the journeys off a schedule protects the Mac's screen; a GitHub runner has no one at it.
+
+**What would reverse it.** The weekly run costing more macOS runner time than the org's queue can spare; then by hand again.
+
+## 2026-11-24 — CI: `unit` runs again on a push to main (reverses 2026-11-12)
+
+**What.** A push to main runs `unit` (inventory, core, unit) again, unless the merge changes only docs: the `changes` job now
+reads the merge commit as it reads a pull request. A newer push to main cancels the older run (the workflow's concurrency
+group), so a burst of merges is tested once, at its newest commit.
+
+**Why.** The nightly review found that main could go red unnoticed until the nightly: the ruleset does not require a
+branch to be up to date, so two pull requests that each passed alone can break each other. The cost is at most one macOS
+slot per merge burst, not one per merge.
+
+**What would reverse it.** The macOS queue again holding pull requests back for long, with main seldom red; then the
+nightly alone again.

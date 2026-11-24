@@ -55,7 +55,7 @@ build `-Onone` in Debug (see "Known limitations").
 2. **Read, off the main actor.** `AppState.read` holds the sandbox scope only while the file is read, then calls
    `ImageOpening.openNow` (`TEMCore/Data/ImageOpening.swift`): the reader by extension, then the object rule (the
    first object that is not the thumbnail, has exactly two dimensions larger than one, and whose axes do not carry
-   two different units). PNG and JPEG are the app's own reading through ImageIO (`PictureImageReader`, pinned to RosettaSciIO 0.14.0 and Pillow 13.0.0); DM3/DM4, TIFF, MRC and Velox `.emd` are all FormatoKit's readings behind TEMCore's thin seams (`TIFFImageReader`, `MRCImageReader`,
+   two different units). DM3/DM4, TIFF, MRC and Velox `.emd` are all FormatoKit's readings behind TEMCore's thin seams (`TIFFImageReader`, `MRCImageReader`,
    `VeloxImageReader` over one frame and one hyperslab, `KitImages`); the libhdf5 the `.emd` reader loads is FormatoKit's FormatoLibHDF5 framework in `Contents/Frameworks`; the result is a `CalibratedImage`
    (`TEMCore/Data/CalibratedImage.swift`): Float32 pixels, row-major, and each axis's origin, scale and unit exactly
    as the file states them.
@@ -294,7 +294,7 @@ the settings a room recorded with an exported file.
 ## Known limitations
 
 - Reads 2D images from DM3/DM4, TIFF (with the Thermo/FEI, Zeiss and Tescan SEM records), one-image MRC, Velox `.emd` and
-  JEOL `.img`/`.map`, and PNG and JPEG pictures (`PictureImageReader`, ImageIO in the app: not counts, no scale from the file); a stack opens at "frame 1 of N" and steps through its frames with ← and →. Reads spectrum images and
+  JEOL `.img`/`.map`; a stack opens at "frame 1 of N" and steps through its frames with ← and →. Reads spectrum images and
   single spectra from Velox `.emd`, GMS `.dm4`, `.msa`, HyperSpy `.hspy`, Bruker `.bcf`/`.spx`, EDAX `.spd`/`.lsd`/`.spc`
   and JEOL `.pts`/`.eds`/`.asw`; EBSD and TKD patterns from h5ebsd (kikuchipy, Bruker, EDAX, Oxford H5OINA), EDAX
   `.up1`/`.up2`, Oxford `.ebsp` and NORDIF `Pattern.dat`; orientation maps from `.ang`, `.ctf` and map-only `.h5oina`. A hexagonal EBSD grid is

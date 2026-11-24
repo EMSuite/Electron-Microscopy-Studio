@@ -27,8 +27,8 @@ and under the one in front its rooms. What the file holds decides the room it op
 
 - **TEM**: DigitalMicrograph (.dm3, .dm4), Velox (.emd), TIFF and MRC images; EDS spectrum images from Velox and GMS,
   EELS spectrum images from GMS, and single .msa spectra.
-- **Pictures**: a diffraction pattern saved as PNG or JPEG (from a paper or a camera export) opens as a picture: not
-  counts and no scale from the file; its scale is typed or fitted to a ring of a known phase in the Diffraction room.
+- **Pictures**: a pattern or image saved as PNG or JPEG (from a paper or a camera export) opens as a picture, not counts;
+  its scale is typed or fitted to a ring of a known phase.
 - **SEM images**: TIFF from Thermo Fisher (FEI), Zeiss and Tescan, read with the microscope's settings, and JEOL .img
   and .map files.
 - **SEM-EDS**: Bruker .bcf and .spx, EDAX .spd, .lsd and .spc, JEOL .pts, .eds and .asw, and a single spectrum in a
@@ -59,7 +59,8 @@ The rooms:
   composition.
 - **EELS**: Dual-EELS spectrum images. Align the zero-loss peak, map t/λ, pick edges from the periodic table, and fit
   their intensities and at%.
-- **Diffraction**: calibrate on a ring of a standard, then index rings and spots and read their d-spacings.
+- **Diffraction**: calibrate on a ring of a standard, then index rings and spots and read their d-spacings; type a zone axis to
+  see the crystal's simulated spots, with their hkl, over the pattern.
 - **Patterns**: the EBSD or TKD scan beside the live pattern, with mean intensity, virtual BSE, image quality and
   average dot product maps. Remove the static and dynamic backgrounds, rescale or normalise, equalise, filter, bin,
   average neighbouring patterns and denoise with NLPAR. Draw the Kikuchi bands of the file's stored orientations over

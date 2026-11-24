@@ -322,7 +322,7 @@ package final class ImagePresentation {
     /// so the two overlapped. On a render the bar therefore starts hidden, and Show Scale Bar brings it back (docs/decisions.md,
     /// 2026-11-11). Display only: no number changes.
     package nonisolated static func startsWithScaleBar(notes: [String]) -> Bool {
-        !notes.contains(TIFFImageReader.Note.render)
+        !notes.contains(TIFFImageReader.Note.render) && !notes.contains(PictureImageReader.Note.picture)
     }
 
     /// What the Display section says under Show Scale Bar on a render (`startsWithScaleBar(notes:)`): why the bar starts hidden.

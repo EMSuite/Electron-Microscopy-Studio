@@ -73,14 +73,14 @@ package nonisolated enum ImageOpening {
                 throw Refusal.tiff(file: formatoDisplayFileName(path), refusal)
             }
         }
-        if SEMEDSOpening.imageExtensions.contains(ext) {
-            do { return try SEMEDSOpening.image(url: URL(fileURLWithPath: path)) } catch let refusal as SEMEDSReadError {
-                throw Refusal.jeol(file: formatoDisplayFileName(path), reason: refusal.text)
-            }
-        }
         if PictureImageReader.extensions.contains(ext) {
             do { return try PictureImageReader.read(path: path) } catch let refusal as PictureImageReader.Refusal {
                 throw Refusal.picture(file: formatoDisplayFileName(path), refusal)
+            }
+        }
+        if SEMEDSOpening.imageExtensions.contains(ext) {
+            do { return try SEMEDSOpening.image(url: URL(fileURLWithPath: path)) } catch let refusal as SEMEDSReadError {
+                throw Refusal.jeol(file: formatoDisplayFileName(path), reason: refusal.text)
             }
         }
         if ext == "mrc" {
