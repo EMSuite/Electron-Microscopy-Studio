@@ -4,8 +4,8 @@
 //  each way a journey can drag is tried in turn on the colour mix, and the Regions table says whether it drew: XCUITest's own drag
 //  at its default speed, the same drag slow with a hold at the end, the same drag after the pointer has hovered over the tile, and
 //  real mouse events posted from the runner (guarded: macEM frontmost, both points in its window). Each attempt attaches what it
-//  saw, so one run names which of them reach the region's DragGesture. A diagnosis, not a gate: it fails only when the room never
-//  showed the tools.
+//  saw; a way that does not draw fails its own test, so one run names which of them reach the region's DragGesture. A diagnosis
+//  run by hand (ui.yml), not a gate.
 //
 
 import XCTest
@@ -45,7 +45,8 @@ nonisolated final class EDXRegionDragJourney: Journey {
         return true
     }
 
-    @MainActor func testWhichDragDrawsARegion() throws {
+    /// One way of dragging on a fresh launch: true when the Regions table gained Region 1.
+    @MainActor private func drags(_ way: DragWay) throws -> Bool {
         try step("launch with the demo spectrum image, Rectangle tool") {
             launch(["--demo-spectrum-fixture"])
             waitFor("workspace.edx", timeout: 30).click()
@@ -56,33 +57,28 @@ nonisolated final class EDXRegionDragJourney: Journey {
         }
         let mix = mixTile()
         note("mix tile", "frame \(mix.frame), hittable \(mix.isHittable)")
-        var drawn = 0
-        var results: [String] = []
-        // Each attempt draws in its own quarter of the tile, so a later one never lands on an earlier region's handles.
-        let attempts: [(name: String, way: DragWay, from: CGVector, to: CGVector)] = [
-            ("XCUITest drag, default speed", .xcuiTest, CGVector(dx: 0.1, dy: 0.1), CGVector(dx: 0.4, dy: 0.4)),
-            ("XCUITest drag, slow, held at the end", .xcuiTestSlow, CGVector(dx: 0.6, dy: 0.1), CGVector(dx: 0.9, dy: 0.4)),
-            ("XCUITest drag after a hover", .xcuiTestAfterHover, CGVector(dx: 0.1, dy: 0.6), CGVector(dx: 0.4, dy: 0.9)),
-            ("real mouse events from the runner", .realEvents, CGVector(dx: 0.6, dy: 0.6), CGVector(dx: 0.9, dy: 0.9)),
-        ]
-        for attempt in attempts {
-            try step(attempt.name) {
-                let a = mix.coordinate(withNormalizedOffset: attempt.from), b = mix.coordinate(withNormalizedOffset: attempt.to)
-                var sent = true
-                switch attempt.way {
-                case .xcuiTest: a.click(forDuration: 0.2, thenDragTo: b)
-                case .xcuiTestSlow: a.click(forDuration: 0.3, thenDragTo: b, withVelocity: .slow, thenHoldForDuration: 0.5)
-                case .xcuiTestAfterHover:
-                    a.hover(); usleep(300_000)
-                    a.click(forDuration: 0.3, thenDragTo: b, withVelocity: .slow, thenHoldForDuration: 0.5)
-                case .realEvents: sent = realDrag(from: a.screenPoint, to: b.screenPoint)
-                }
-                let drew = sent && regionRow(drawn + 1).waitForExistence(timeout: 8)
-                if drew { drawn += 1 }
-                let line = "\(attempt.name): \(sent ? (drew ? "drew Region \(drawn)" : "drew nothing") : "not sent")"
-                results.append(line); note(attempt.name, line)
+        var drew = false
+        try step("drag \(way)") {
+            let a = mix.coordinate(withNormalizedOffset: CGVector(dx: 0.2, dy: 0.2))
+            let b = mix.coordinate(withNormalizedOffset: CGVector(dx: 0.7, dy: 0.7))
+            var sent = true
+            switch way {
+            case .xcuiTest: a.click(forDuration: 0.2, thenDragTo: b)
+            case .xcuiTestSlow: a.click(forDuration: 0.3, thenDragTo: b, withVelocity: .slow, thenHoldForDuration: 0.5)
+            case .xcuiTestAfterHover:
+                a.hover(); usleep(300_000)
+                a.click(forDuration: 0.3, thenDragTo: b, withVelocity: .slow, thenHoldForDuration: 0.5)
+            case .realEvents: sent = realDrag(from: a.screenPoint, to: b.screenPoint)
             }
+            drew = sent && regionRow(1).waitForExistence(timeout: 8)
+            note("result", "\(way): \(sent ? (drew ? "drew Region 1" : "drew nothing") : "not sent")")
         }
-        note("summary", results.joined(separator: "\n"))
+        return drew
     }
+
+    // One method per way, so the run's list of failed tests names the ways that do not draw (the runner prints failed names only).
+    @MainActor func test1_XCUITestDragAtDefaultSpeedDrawsARegion() throws { XCTAssertTrue(try drags(.xcuiTest)) }
+    @MainActor func test2_XCUITestSlowDragDrawsARegion() throws { XCTAssertTrue(try drags(.xcuiTestSlow)) }
+    @MainActor func test3_XCUITestDragAfterAHoverDrawsARegion() throws { XCTAssertTrue(try drags(.xcuiTestAfterHover)) }
+    @MainActor func test4_RealMouseEventsDrawARegion() throws { XCTAssertTrue(try drags(.realEvents)) }
 }
