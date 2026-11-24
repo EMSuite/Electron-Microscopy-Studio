@@ -35,6 +35,7 @@ struct DiffractionRoomSettings: View {
             DiffractionSimulationSection(item: item)
             if DemoDocuments.isSimulation(item.url) { SimulationSpecimenSection(item: item) }
             DiffractionRingsSection(session: item.session, analysis: analysis, view: view)
+            DiffractionThicknessSection(item: item)
             DiffractionExportSection(session: item.session, analysis: analysis)
         }
         .onAppear { analysis.bind(image) }
