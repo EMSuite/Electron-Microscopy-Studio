@@ -54,23 +54,11 @@ nonisolated final class EDXRealFileJourney: Journey {
         let a = XCTAttachment(string: string); a.name = name; a.lifetime = .keepAlways; add(a)
     }
 
-    /// Real mouse events posted from the runner (XCUITest's own drag does not reach SwiftUI's DragGesture), behind the suite's guard
-    /// for synthetic events: nothing is sent unless macTEM is the foreground app and both points lie inside its window. (A System Events
-    /// script cannot drive the drag from the runner: System Events refuses the sandboxed runner, "Application isn't running".) Returns
-    /// false when nothing was sent.
-    @MainActor func realDrag(from a: CGPoint, to b: CGPoint) -> Bool {
-        guard app.state == .runningForeground else { attach("drag refused", "macEM is not frontmost"); return false }
-        let w = app.windows.firstMatch.frame
-        guard w.contains(a), w.contains(b) else { attach("drag refused", "a point is outside the window \(w)"); return false }
-        func post(_ type: CGEventType, _ p: CGPoint) { CGEvent(mouseEventSource: nil, mouseType: type, mouseCursorPosition: p, mouseButton: .left)?.post(tap: .cghidEventTap) }
-        post(.mouseMoved, a); usleep(150_000)
-        post(.leftMouseDown, a); usleep(100_000)
-        for i in 1...20 {
-            let t = Double(i) / 20
-            post(.leftMouseDragged, CGPoint(x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t)); usleep(20_000)
-        }
-        post(.leftMouseUp, b)
-        return true
+    /// XCUITest's own drag from one point of an element to another (#634: it reaches the region's DragGesture; CGEvents posted from the
+    /// runner do not). Points are fractions of the element's frame.
+    @MainActor func drag(in e: XCUIElement, from a: CGVector, to b: CGVector) {
+        e.coordinate(withNormalizedOffset: a).click(forDuration: 0.3, thenDragTo: e.coordinate(withNormalizedOffset: b), withVelocity: .slow,
+                                                     thenHoldForDuration: 0.3)
     }
 
     /// A real scroll wheel over a point (guarded like the drag).
@@ -181,18 +169,13 @@ nonisolated final class EDXRealFileJourney: Journey {
         XCTAssertEqual(resultsHeader().contains("Whole map"), true, "before drawing the results read: \(resultsHeader())")
         try step("Rectangle tool, drag on the colour mix") {
             chooseTool(1)
-            if !realDrag(from: point(in: mix, 0.3, 0.3), to: point(in: mix, 0.6, 0.6)) {
-                // Not faked: the synthesized drag does not reach the DragGesture.
-                throw XCTSkip("the drag was refused by its guard (see the attachment)")
-            }
-            _ = app.staticTexts.matching(NSPredicate(format: "label == 'Results · Region 1' OR value == 'Results · Region 1'")).firstMatch.waitForExistence(timeout: 15)
+            drag(in: mix, from: CGVector(dx: 0.3, dy: 0.3), to: CGVector(dx: 0.6, dy: 0.6))
+            let drawn = app.staticTexts.matching(NSPredicate(format: "label == 'Results · Region 1' OR value == 'Results · Region 1'")).firstMatch
+            XCTAssertTrue(drawn.waitForExistence(timeout: 15), "the drag drew nothing: the header reads \"\(resultsHeader())\"")
         }
-        // 2026-10-22: CGEvents posted from the runner left the room unchanged (Rectangle tool selected, header still Whole map). Whether the
-        // events do not reach the app or the room ignores them is not decided from here, so this skips instead of calling it a finding.
-        try XCTSkipUnless(resultsHeader().contains("Region 1"), "a posted drag with the Rectangle tool drew nothing (header \"\(resultsHeader())\"); draw by hand")
         try step("drag a handle (Select tool)") {
             chooseTool(0)
-            XCTAssertTrue(realDrag(from: point(in: mix, 0.6, 0.6), to: point(in: mix, 0.7, 0.7)))
+            drag(in: mix, from: CGVector(dx: 0.6, dy: 0.6), to: CGVector(dx: 0.7, dy: 0.7))
         }
         try step("Delete removes it; the header returns to Whole map") {
             app.typeKey(.delete, modifierFlags: [])
