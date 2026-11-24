@@ -80,12 +80,12 @@ nonisolated final class HRTEMControlsTests: XCTestCase {
     }
 
     /// Rows at the stored periods nearest 2, 4, 6 … nm, each used once and in range. Si [1 1 0] has a 0.768 nm period, so 2 nm is
-    /// period 3 (index 2), 4 nm period 5 (index 4); a 4 nm specimen has 6 periods, so the rows stop at index 5. Mutation: rows from 0,
-    /// repeated rows, an index past the waves.
+    /// period 3 (index 2), 4 nm period 5 (index 4); a 4 nm specimen is the 5 whole periods nearest it (SimulatoKit 0.7.0), so the
+    /// rows stop at index 4. Mutation: rows from 0, repeated rows, an index past the waves.
     func testTheThicknessRowsStepFromTheFirstStep() throws {
         let exit = try siliconWaves()
-        XCTAssertEqual(exit.waves.count, 6)
-        XCTAssertEqual(HRTEMImage.thicknessRows(exit, stepNM: 2, count: 5), [2, 4, 5])
+        XCTAssertEqual(exit.waves.count, 5)
+        XCTAssertEqual(HRTEMImage.thicknessRows(exit, stepNM: 2, count: 5), [2, 4])
         XCTAssertEqual(HRTEMImage.thicknessRows(exit, stepNM: 0.768, count: 5), [0, 1, 2, 3, 4])
         XCTAssertEqual(HRTEMImage.thicknessRows(exit, stepNM: 0, count: 5), [])
     }
@@ -174,6 +174,6 @@ nonisolated final class HRTEMControlsTests: XCTestCase {
         let exit = try siliconWaves(optics: optics)
         let table = try HRTEMImage.table(exit, defocusNM: [50, 60], thicknessIndices: [0, 2], optics: optics, name: "t")
         let text = HRTEMImage.tableDescription(table, exit: exit, optics: optics)
-        XCTAssertTrue(text.hasPrefix("HRTEM defocus by thickness table · columns: defocus 50, 60 nm · rows: thickness 0.768, 2.3 nm · each cell 2 nm wide · HRTEM · Si [1 1 0] · "), text)
+        XCTAssertTrue(text.hasPrefix("HRTEM defocus by thickness table · columns: defocus 50, 60 nm · rows: thickness 0.768, 2.304 nm · each cell 2 nm wide · HRTEM · Si [1 1 0] · "), text)
     }
 }
