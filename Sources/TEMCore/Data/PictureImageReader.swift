@@ -59,9 +59,53 @@ package nonisolated enum PictureImageReader {
 
     package static func read(path: String) throws -> CalibratedImage {
         let url = URL(fileURLWithPath: path)
+        // ImageIO declines a header past its own limits without saying why, so the file's own header is read first: a picture
+        // too large is refused by its size, not as "not a picture".
+        if let size = headerSize(url: url) {
+            let pixels = size.width.multipliedReportingOverflow(by: size.height)
+            if pixels.overflow || pixels.partialValue > maxPixels { throw Refusal.tooLarge(width: size.width, height: size.height) }
+        }
         let options = [kCGImageSourceShouldCache: false] as CFDictionary
         guard let source = CGImageSourceCreateWithURL(url as CFURL, options) else { throw Refusal.notPicture }
         return try read(source: source, fileName: formatoDisplayFileName(path))
+    }
+
+    /// The width and height a PNG's IHDR or a JPEG's start-of-frame states, read from the first 256 KiB; nil when neither is there.
+    private static func headerSize(url: URL) -> (width: Int, height: Int)? {
+        guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
+        defer { try? handle.close() }
+        guard let data = try? handle.read(upToCount: 256 * 1_024) else { return nil }
+        return headerSize(bytes: [UInt8](data))
+    }
+
+    private static func headerSize(bytes: [UInt8]) -> (width: Int, height: Int)? {
+        func big(_ at: Int, _ count: Int) -> Int? {
+            guard at >= 0, at + count <= bytes.count else { return nil }
+            return bytes[at ..< at + count].reduce(0) { $0 << 8 | Int($1) }
+        }
+        let png: [UInt8] = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]
+        if bytes.starts(with: png) {
+            guard bytes.count >= 24, Array(bytes[12 ..< 16]) == Array("IHDR".utf8),
+                  let width = big(16, 4), let height = big(20, 4) else { return nil }
+            return (width, height)
+        }
+        guard bytes.starts(with: [0xFF, 0xD8]) else { return nil }
+        var at = 2
+        while at + 4 <= bytes.count {
+            guard bytes[at] == 0xFF else { return nil }
+            let marker = bytes[at + 1]
+            if marker == 0xFF { at += 1; continue }
+            if marker == 0x01 || (0xD0 ... 0xD7).contains(marker) { at += 2; continue }
+            guard let length = big(at + 2, 2), length >= 2 else { return nil }
+            let frame = (0xC0 ... 0xCF).contains(marker) && ![0xC4, 0xC8, 0xCC].contains(marker)
+            if frame {
+                guard let height = big(at + 5, 2), let width = big(at + 7, 2) else { return nil }
+                return (width, height)
+            }
+            if marker == 0xDA { return nil }
+            at += 2 + length
+        }
+        return nil
     }
 
     private static func read(source: CGImageSource, fileName: String) throws -> CalibratedImage {
