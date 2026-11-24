@@ -108,10 +108,10 @@ nonisolated final class HyperSpyExportTests: XCTestCase {
         try await waitUntil("the demo pattern to open", seconds: 60) { state.openItems.selected?.session.image != nil }
         state.navigation.workspaceArea = .diffraction
         XCTAssertTrue(HyperSpyExportPanel.isAvailable(in: state))
-        let pattern = try XCTUnwrap(try HyperSpyExportPanel.snapshot(of: state))
+        let pattern = try XCTUnwrap(HyperSpyExportPanel.snapshot(of: state))
         XCTAssertEqual(pattern.kind, .electronDiffraction)
         state.navigation.workspaceArea = .image
-        let image = try XCTUnwrap(try HyperSpyExportPanel.snapshot(of: state))
+        let image = try XCTUnwrap(HyperSpyExportPanel.snapshot(of: state))
         XCTAssertEqual(image.kind, .generic)
         state.navigation.workspaceArea = .fft
         XCTAssertFalse(HyperSpyExportPanel.isAvailable(in: state))
@@ -170,7 +170,7 @@ nonisolated final class HyperSpyExportTests: XCTestCase {
         state.navigation.workspaceArea = .eels
         XCTAssertTrue(HyperSpyExportPanel.isAvailable(in: state))
         XCTAssertFalse(HyperSpyExportPanel.isAvailable(in: state, coreLoss: true), "the demo has no core loss")
-        let snapshot = try XCTUnwrap(try HyperSpyExportPanel.snapshot(of: state))
+        let snapshot = try XCTUnwrap(HyperSpyExportPanel.snapshot(of: state))
         XCTAssertEqual(snapshot.kind, .eels)
         let url = folder.appendingPathComponent("eels.hspy")
         try await HyperSpyExportPanel.write(snapshot, to: url, leaveOutFileNames: false, software: "test")

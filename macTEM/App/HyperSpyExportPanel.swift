@@ -14,17 +14,19 @@ import AppKit
 import FormatoCore
 import FormatoHSPY
 import ShellExport
+import SpectroEELS
 import TEMCore
 import TEMSession
 import UniformTypeIdentifiers
 
 @MainActor
 enum HyperSpyExportPanel {
-    /// What a write needs, taken when the item is chosen: an image's signal (its pixels a copy), or the EELS room's spectrum image
-    /// (shared, not copied; its record is made off the main actor, a pass over the cube), and the names.
+    /// What a write needs, taken when the item is chosen: the image or pattern, or the EELS room's spectrum image, each shared and
+    /// not copied (the signal's pixel copy and the EELS record's file hash are made off the main actor, in `write`), and the names.
     nonisolated struct Snapshot: Sendable {
         enum Content: Sendable {
-            case signal(FormatoSignal, HSPYSignalKind)
+            /// The image (`.generic`) or the pattern (`.electronDiffraction`, with the room's scale when it has one).
+            case image(CalibratedImage, HSPYSignalKind, scale: HyperSpyExport.PatternScale?)
             case eels(LoadedEELS, coreLoss: Bool, methodJSON: String?)
         }
 
@@ -39,7 +41,7 @@ enum HyperSpyExportPanel {
         /// The class HyperSpy builds on load.
         var kind: HSPYSignalKind {
             switch content {
-            case .signal(_, let kind): kind
+            case .image(_, let kind, _): kind
             case .eels: .eels
             }
         }
@@ -47,7 +49,7 @@ enum HyperSpyExportPanel {
         /// A cube, written a band at a time with progress and Stop.
         var isCube: Bool {
             switch content {
-            case .signal: false
+            case .image: false
             case .eels: true
             }
         }
@@ -77,7 +79,7 @@ enum HyperSpyExportPanel {
     }
 
     /// The room on screen's signal; nil when there is none.
-    static func snapshot(of appState: AppState, coreLoss: Bool = false, software: String = ExportSnapshot.softwareName()) throws -> Snapshot? {
+    static func snapshot(of appState: AppState, coreLoss: Bool = false, software: String = ExportSnapshot.softwareName()) -> Snapshot? {
         guard isAvailable(in: appState, coreLoss: coreLoss) else { return nil }
         if appState.navigation.workspaceArea == .eels {
             let session = appState.eels
@@ -101,27 +103,29 @@ enum HyperSpyExportPanel {
                 ExportMethods.diffractionRecord(app: ExportSnapshot.methodsApp(), source: $0, header: header,
                                                 rows: analysis.readout(image: image), exportKind: "diffraction-hspy")
             }
-            return Snapshot(content: .signal(try HyperSpyExport.patternSignal(image, scale: scale), .electronDiffraction), record: record,
+            return Snapshot(content: .image(image, .electronDiffraction, scale: scale), record: record,
                             beamEnergyKeV: beam ?? analysis.volts(for: image).map { $0 / 1000 }, name: name, directory: directory)
         }
         let record = ExportSnapshot.imageMethods(of: item, image: image, exportKind: "image-hspy", drawn: [], software: software)
-        return Snapshot(content: .signal(try HyperSpyExport.imageSignal(image), .generic), record: record, beamEnergyKeV: beam, name: name,
+        return Snapshot(content: .image(image, .generic, scale: nil), record: record, beamEnergyKeV: beam, name: name,
                         directory: directory)
     }
 
     /// Writes `snapshot` at `url`, the file's names left out of the title and the record when asked; a cube reports the fraction
     /// written and stops when its task is cancelled.
-    nonisolated static func write(_ snapshot: Snapshot, to url: URL, leaveOutFileNames: Bool, software: String,
+    @concurrent nonisolated static func write(_ snapshot: Snapshot, to url: URL, leaveOutFileNames: Bool, software: String,
                                   progress: @escaping @Sendable (Double) -> Void = { _ in }) async throws {
         var record = snapshot.record
         if case .eels(let loaded, let coreLoss, let methodJSON) = snapshot.content {
-            record = await eelsRecord(loaded, coreLoss: coreLoss, methodJSON: methodJSON)
+            record = ExportMethods.eelsRecord(app: ExportSnapshot.methodsApp(), exportKind: coreLoss ? "eels-core-loss-hspy" : "eels-hspy",
+                                              source: await ExportSnapshot.eelsSource(loaded), methodJSON: methodJSON)
         }
         if leaveOutFileNames { record = record?.withoutFileNames() }
         let title = leaveOutFileNames ? ExportMethods.anonymousName(0) : snapshot.name
         var options = try HyperSpyExport.options(title: title, software: software, record: record, beamEnergyKeV: snapshot.beamEnergyKeV)
         switch snapshot.content {
-        case .signal(let signal, let kind):
+        case .image(let image, let kind, let scale):
+            let signal = kind == .electronDiffraction ? try HyperSpyExport.patternSignal(image, scale: scale) : try HyperSpyExport.imageSignal(image)
             try await HyperSpyExport.write(signal, kind: kind, options: options, to: url)
         case .eels(let loaded, let coreLoss, _):
             if let mrad = snapshot.convergenceMrad, mrad.isFinite { options.metadata[HyperSpyExport.convergenceKey] = .number(mrad) }
@@ -142,23 +146,11 @@ enum HyperSpyExportPanel {
         }
     }
 
-    /// The EELS room's record of the cube written, off the main actor: its fingerprint is a pass over the counts.
-    @concurrent nonisolated private static func eelsRecord(_ loaded: LoadedEELS, coreLoss: Bool, methodJSON: String?) async -> MethodsRecord {
-        ExportSnapshot.eelsMethods(exportKind: coreLoss ? "eels-core-loss-hspy" : "eels-hspy", source: loaded, methodJSON: methodJSON)
-    }
-
     /// File > Export as HyperSpy File… (with `coreLoss`, Export Core Loss as HyperSpy File… in the EELS room): the save panel, then
     /// the write. With `--export-dir` (a UI journey) it is written into that folder without a panel.
     @discardableResult
     static func export(appState: AppState, coreLoss: Bool = false) -> Task<Void, Never>? {
-        let snapshot: Snapshot?
-        do {
-            snapshot = try self.snapshot(of: appState, coreLoss: coreLoss)
-        } catch {
-            appState.present(error)
-            return nil
-        }
-        guard let snapshot else { return nil }
+        guard let snapshot = snapshot(of: appState, coreLoss: coreLoss) else { return nil }
         let software = ExportSnapshot.softwareName()
         if let directory = appState.exportDirectory {
             return Task.immediate {
