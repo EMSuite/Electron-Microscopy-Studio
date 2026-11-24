@@ -22,10 +22,11 @@ struct DiffractionCrystalPane: View {
             if let orientation = DiffractionCrystalScenes.shown(analysis) {
                 CrystalView(DiffractionCrystalScenes.scene(for: analysis.crystal), orientation: CrystalPaneModel.view(orientation),
                             accessibilityLabel: CrystalPaneModel.label(phase: analysis.crystal.name, orientation: orientation,
-                                                                       cell: analysis.crystal.structure.cell)) { change in
-                    // The crystal turned by hand: the simulated spots turn with it.
-                    if let turned = CrystalPaneModel.orientation(view: change.orientation) { analysis.turnByHand(to: turned) }
-                }
+                                                                       cell: analysis.crystal.structure.cell),
+                            onOrientationChange: { change in
+                                // The crystal turned by hand: the simulated spots turn with it.
+                                if let turned = CrystalPaneModel.orientation(view: change.orientation) { analysis.turnByHand(to: turned) }
+                            })
             } else {
                 Text("Show the simulated spots, or Index, to see the crystal down the beam.")
                     .font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.center).padding(12)
