@@ -134,7 +134,8 @@ nonisolated final class AgentDoorFFTTests: XCTestCase {
         let run = try await call("set_fft", ["strain_reference": "centredQuarter", "strain": true])
         XCTAssertFalse(run.refused, run.text)
         try await waitUntil("the maps", seconds: 60) { item.fft.strain != nil || item.fft.strainFailure != nil }
-        let strain = try XCTUnwrap(try json(try await call("get_fft").text)["strain"] as? [String: Any])
+        let read = try await call("get_fft")
+        let strain = try XCTUnwrap(try json(read.text)["strain"] as? [String: Any])
         XCTAssertEqual(strain["reference"] as? String, "centredQuarter")
         XCTAssertEqual(strain["validation"] as? String, strainValidationNote)
         let last = try XCTUnwrap(strain["last_run"] as? [String: Any], "\(strain)")
