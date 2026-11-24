@@ -167,8 +167,8 @@ extension MacTEMAgentDoor {
         case .failure(let refusal): return .refused(.refusal(status: 403, message: refusal.message))
         case .success(let url):
             do {
-                try ExportDirectoryFile.write(text, named: url.lastPathComponent, into: url.deletingLastPathComponent())
-                return .written(folder.relativePath(of: url))
+                let written = try ExportDirectoryFile.write(text, named: url.lastPathComponent, into: url.deletingLastPathComponent())
+                return .written(folder.relativePath(of: written))
             } catch {
                 return .refused(.refusal(status: 500, message: "Could not write \(name): \(error.localizedDescription)"))
             }

@@ -9,6 +9,7 @@
 import XCTest
 import DiffractoCore
 import DiffractoScattering
+import FormatoCore
 import ImagoCore
 import ShellExport
 import TEMCore
