@@ -210,7 +210,7 @@ package nonisolated enum PatternIndexing {
         let verdict: Verdict
         if let tie {
             verdict = .tied(count: tie)
-        } else if abs(scale - 1) >= window - 1e-3 {
+        } else if window > 0, abs(scale - 1) >= window - 1e-3 {
             verdict = .scaleAtLimit
         } else if flagged || agreement < indexer.solver.settings.minimumAgreement {
             verdict = .poor
@@ -280,10 +280,35 @@ package nonisolated enum PatternIndexing {
         return lines.joined(separator: "\n") + "\n"
     }
 
+    // MARK: Settings and solutions (#787)
+
+    /// Fit scale's window: Index fits the measured |q| over |g| within ±3 % (the kit's default), or holds it at 1 when Fit scale is off.
+    package static let scaleWindow = 0.03
+
+    /// The solver's settings for Index: the kit's, with the scale window open (Fit scale on) or shut.
+    package static func solverSettings(fitScale: Bool) -> ZoneAxisSolver.Settings {
+        ZoneAxisSolver.Settings(scaleWindow: fitScale ? scaleWindow : 0)
+    }
+
+    /// The most solutions the Index section steps through.
+    package static let solutionLimit = 5
+
+    /// The orientations a person can step through: the best, then the ones the pattern cannot tell from it, at most five.
+    package static func solutions(_ o: Outcome) -> [CrystalOrientation] {
+        guard let best = o.orientation else { return [] }
+        return Array(([best] + o.alternatives).prefix(solutionLimit))
+    }
+
     // MARK: Words
 
     /// "[001]", "[1̄10]", "[10 0 1]": the zone axis as the header writes it (the hkl label's digits and bars).
     package static func zoneText(_ uvw: SIMD3<Int>) -> String { "[" + ZoneAxisText.label(MillerIndex(uvw.x, uvw.y, uvw.z)) + "]" }
+
+    /// "Al · 2.1° from [001]", or "Al [001]" within 0.5° of the zone axis (`angle` in radians).
+    package static func place(phase: String, zoneAxis uvw: SIMD3<Int>, angle: Double) -> String {
+        let degrees = angle * 180 / .pi
+        return degrees < 0.5 ? "\(phase) \(zoneText(uvw))" : "\(phase) · \(String(format: "%.1f", degrees))° from \(zoneText(uvw))"
+    }
 
     /// What the header adds when clicked spots gave the answer.
     package static let zoneAxisOnlyNote = "zone axis only: clicked spots carry no intensities, so the tilt needs Index on found spots"
@@ -292,10 +317,7 @@ package nonisolated enum PatternIndexing {
     /// the zone axis, the verdict's words before it when it is not a plain find.
     package static func header(_ o: Outcome) -> String {
         var place: String?
-        if let uvw = o.zoneAxis, let angle = o.zoneAxisAngle {
-            let degrees = angle * 180 / .pi
-            place = degrees < 0.5 ? "\(o.phase) \(zoneText(uvw))" : "\(o.phase) · \(String(format: "%.1f", degrees))° from \(zoneText(uvw))"
-        }
+        if let uvw = o.zoneAxis, let angle = o.zoneAxisAngle { place = Self.place(phase: o.phase, zoneAxis: uvw, angle: angle) }
         var facts: [String] = []
         if o.orientation != nil {
             facts.append("\(o.explained) of \(o.indexed) spots explained")

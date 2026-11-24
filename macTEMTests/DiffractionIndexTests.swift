@@ -127,6 +127,24 @@ nonisolated final class DiffractionIndexTests: XCTestCase {
         XCTAssertEqual(a.simulation.scale, 1)
     }
 
+    /// Fit scale off (#787): Index holds the room's scale, |q| over |g| at 1, and a held scale is never "at its limit". Red before:
+    /// the indexer always fitted within ±3 %, and a shut window read as a scale at its limit.
+    @MainActor func testFitScaleOffHoldsTheRoomsScale() async throws {
+        let al = try XCTUnwrap(StandardCrystals.named("Al"))
+        let truth = try CrystalOrientation(zoneAxis: SIMD3(0, 1, 1), inPlaneAngle: 0.4, cell: al.structure.cell)
+        let image = try planted(truth, crystal: al)
+        let a = analysis(for: image, crystal: al)
+        a.fitScale = false
+        await a.index(image: image)?.value
+        let o = try XCTUnwrap(a.indexOutcome)
+        XCTAssertNotNil(o.orientation, PatternIndexing.header(o))
+        XCTAssertEqual(try XCTUnwrap(o.scale), 1, accuracy: 1e-9, "the scale is held")
+        XCTAssertNotEqual(o.verdict, .scaleAtLimit)
+        XCTAssertEqual(a.solutionIndex, 0)
+        XCTAssertEqual(a.solutions.first, o.orientation)
+        XCTAssertFalse(a.isTurnedByHand)
+    }
+
     @MainActor func testStopAndANewCrystalDropTheAnswer() async throws {
         let al = try XCTUnwrap(StandardCrystals.named("Al"))
         let truth = try CrystalOrientation(zoneAxis: SIMD3(0, 0, 1), inPlaneAngle: 0.2, cell: al.structure.cell)
