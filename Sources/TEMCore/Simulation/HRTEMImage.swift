@@ -11,6 +11,7 @@
 //
 
 import Foundation
+import ImagoCore
 import SimulatoCore
 import SimulatoMultislice
 import SimulatoProbe
