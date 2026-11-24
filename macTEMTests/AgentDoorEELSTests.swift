@@ -135,7 +135,7 @@ nonisolated final class AgentDoorEELSTests: XCTestCase {
         XCTAssertFalse(drawn.refused, drawn.text)
         XCTAssertEqual(state.eels.pins.count, before + 1)
         let pin = try XCTUnwrap(state.eels.selectedPin)
-        XCTAssertTrue(state.activityLog.messages.contains { $0.hasPrefix("An agent used EELS region (region rectangle;") })
+        XCTAssertTrue(state.activityLog.messages.contains { $0.contains("  An agent used EELS region (region rectangle;") })
 
         let whole = try await call("set_eels_region", ["region": "whole"])
         XCTAssertFalse(whole.refused, whole.text)

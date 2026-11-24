@@ -86,7 +86,7 @@ nonisolated final class AgentDoorPatternsTests: XCTestCase {
         let picked = try await call("select_scan_position", ["x": 10, "y": 5])
         XCTAssertFalse(picked.refused, picked.text)
         XCTAssertTrue(state.ebsd.pinned == EBSDPosition(row: 5, column: 10))
-        XCTAssertTrue(state.activityLog.messages.contains { $0.hasSuffix("An agent used Patterns room position (x 10; y 5).") }, "\(state.activityLog.messages)")
+        XCTAssertTrue(state.activityLog.messages.contains { $0.hasSuffix("An agent used Scan position (x 10; y 5).") }, "\(state.activityLog.messages)")
         let off = try await call("select_scan_position", ["x": DemoDocuments.Shipped.nickelEBSDColumns, "y": 0])
         XCTAssertTrue(off.refused, "a column past the scan is refused, not clamped")
         XCTAssertTrue(state.ebsd.pinned == EBSDPosition(row: 5, column: 10))
@@ -103,7 +103,7 @@ nonisolated final class AgentDoorPatternsTests: XCTestCase {
         XCTAssertEqual(state.ebsd.pipeline.dynamicStage.std, 5)
         XCTAssertTrue(state.ebsd.pipeline.nlpar.isOn)
         XCTAssertTrue(state.ebsd.pipeline.staticStage == before.staticStage, "a stage not named stays as it was")
-        XCTAssertTrue(state.activityLog.messages.contains { $0.hasPrefix("An agent used Pattern processing") })
+        XCTAssertTrue(state.activityLog.messages.contains { $0.contains("  An agent used Pattern processing (") })
 
         let crossed = try await call("set_pattern_processing", ["intensity_low": 90, "intensity_high": 10])
         XCTAssertTrue(crossed.refused)
