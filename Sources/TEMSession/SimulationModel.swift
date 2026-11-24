@@ -628,4 +628,19 @@ extension DiffractionAnalysis {
     package static let shared = SimulationGate()
     /// The model whose run goes; nil when none does.
     package fileprivate(set) var owner: ObjectIdentifier?
+
+    /// The sentence for a run another document's run keeps waiting.
+    package static let busySentence = "Another document is simulating; this one can run when it ends."
+
+    /// Takes this Mac's one simulation for `id`; false while another holds it (the same `id` may take it again).
+    package func acquire(_ id: ObjectIdentifier) -> Bool {
+        guard owner == nil || owner == id else { return false }
+        owner = id
+        return true
+    }
+
+    /// Gives it back, when `id` holds it.
+    package func release(_ id: ObjectIdentifier) {
+        if owner == id { owner = nil }
+    }
 }

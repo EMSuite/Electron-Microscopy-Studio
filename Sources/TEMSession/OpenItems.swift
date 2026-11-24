@@ -315,6 +315,8 @@ package final class OpenItem: Identifiable {
     package let diffractionPhases = DiffractionPhaseFinder()
     /// The Diffraction room's precipitate for this file (#808): which, its relationship, the hidden variants.
     package let diffractionVariants = DiffractionVariants()
+    /// A Simulation document's convergent-beam pattern (#912, MA9); unused by a measured file.
+    package let cbed = CBEDModel()
     /// The committed zoom and pan; kept per item, through eviction and re-read. Not observed: the pane reads it once,
     /// when it is made, and writes it at the end of every gesture — observing it would re-evaluate the pane's parent
     /// on each write for nothing.
@@ -700,7 +702,7 @@ package final class OpenItems {
     /// Replaces the pixels of an item the app computes (an HRTEM image, `DemoDocuments.isHRTEM`) with `opened`; nothing for a file's
     /// item, whose pixels are only ever the file's.
     package func showComputed(_ item: OpenItem, _ opened: OpenedImage) {
-        guard DemoDocuments.isHRTEM(item.url) else { return }
+        guard DemoDocuments.isHRTEM(item.url) || DemoDocuments.isCBED(item.url) else { return }
         item.publishComputed(opened)
     }
 
@@ -930,6 +932,7 @@ package final class OpenItems {
         item.cancelRead()
         item.closeStack()
         item.multislice.stop()   // a frozen-phonon run ends with its document (#896), freeing the one-run gate
+        item.cbed.stop()         // and a CBED run (#912)
         item.releasePixels()
         queue.removeAll { $0 === item }
         guard let index = items.firstIndex(where: { $0 === item }) else { return }
