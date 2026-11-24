@@ -10,7 +10,7 @@
 //        (`eelsAvailability`), the Patterns room's six (`patternsAvailability`), the Indexing room's five
 //        (`indexingAvailability`) and the Maps room's four (`mapsAvailability`) are listed while their room shows its document,
 //        each through the room's own export (`RoomExports`), the call its inspector button makes. Every room ends the group with
-//        Export Methods Record… and puts Copy Methods Paragraph in the Edit menu after the pasteboard's items (#818,
+//        Export Methods Record… and puts Copy Methods Paragraph (⌥⌘C, the design's F3) in the Edit menu after the pasteboard's items (#818,
 //        `MethodsRecordExport`), both enabled while the room holds a result.
 //
 //        PLACEMENT: after the Save group, which this app's File menu fills with Close Image and Close Window (`ImageCommands`
@@ -105,6 +105,7 @@ struct ExportCommands: Commands {
         CommandGroup(after: .pasteboard) {
             Divider()
             Button("Copy Methods Paragraph") { if let appState { MethodsRecordExport.copyParagraph(appState: appState) } }
+                .keyboardShortcut("c", modifiers: [.command, .option])
                 .disabled(methods != true)
                 .accessibilityIdentifier("menu.copyMethodsParagraph")
         }
