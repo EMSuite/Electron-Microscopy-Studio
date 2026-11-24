@@ -243,6 +243,13 @@ jobs:
           ref: ${{ github.event.pull_request.base.sha }}
           sparse-checkout: tools/lib/snapshots-publish.sh
           sparse-checkout-cone-mode: false
+      # Once, while main has no publisher (the PR that brings it, #805): this repo's own PR head supplies it. Forks never get here.
+      - if: hashFiles('tools/lib/snapshots-publish.sh') == ''
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          sparse-checkout: tools/lib/snapshots-publish.sh
+          sparse-checkout-cone-mode: false
       - uses: actions/download-artifact@v8
         continue-on-error: true   # no artifact: no new or changed picture
         with:

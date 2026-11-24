@@ -34,7 +34,7 @@ done
 sha=$(git -C "$work" rev-parse HEAD)
 
 body="$marker
-**Snapshots** that are new or differ from their reference at ${GITHUB_SHA:0:8} (light and dark, drawn on macos-26 at 2x). After review, commit each under \`__Snapshots__/\` beside its test.
+**Snapshots** that are new or differ from their reference at ${GITHUB_SHA:0:8} (light and dark, drawn on the org's Mac runner at 2x). After review, commit each under \`__Snapshots__/\` beside its test.
 "
 for picture in "${pictures[@]}"; do
   body+="
