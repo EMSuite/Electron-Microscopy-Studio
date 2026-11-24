@@ -71,8 +71,8 @@ struct SimulationCBEDRows: View {
                 .help("The largest angle the pattern shows; it sets the sampling, so it must hold the probe and the first ring (20 to 400 mrad)")
                 .accessibilityIdentifier("diffraction.simulation.cbed.edge")
             }
-            let blocker = showBlocker(volts: volts, semiangle: semiangle, shortestG: shortestG)
-            planRows(volts: volts)
+            let blocker = appState.cbedBlocker(of: item)
+            planRows()
             if let blocker, !model.isComputing { InspectorWarning(blocker) }
             InspectorActionRow {
                 if model.isComputing {
@@ -81,7 +81,7 @@ struct SimulationCBEDRows: View {
                         .accessibilityIdentifier("diffraction.simulation.cbed.stop")
                 } else {
                     Button("Show CBED Pattern") { appState.showCBEDPattern(of: item) }
-                        .disabled(semiangle == nil || blocker != nil)
+                        .disabled(blocker != nil)
                         .help("Opens the pattern in the Diffraction room and runs the probe through the slab")
                         .accessibilityIdentifier("diffraction.simulation.cbed.show")
                 }
@@ -100,24 +100,10 @@ struct SimulationCBEDRows: View {
         }
     }
 
-    /// Why Show CBED Pattern cannot run, in the order a person fixes them: no phase, a refused specimen, no beam energy, an edge
-    /// that cuts the discs off, another document's run.
-    private func showBlocker(volts: Double?, semiangle: Double?, shortestG: Double?) -> String? {
-        let analysis = item.diffraction
-        guard let phase = analysis.simulatedPhase else { return "Add a phase to simulate." }
-        if case .failure(let refusal) = item.multislice.specimen(crystal: phase, zoneAxis: analysis.simulation.zoneAxis) { return refusal.sentence }
-        guard let volts else { return "Type the beam energy to simulate." }
-        if let semiangle, let sentence = CBEDRun.edgeSentence(edgeMrad: item.cbed.settings.edgeMrad, semiangleMrad: semiangle,
-                                                              shortestG: shortestG, volts: volts) { return sentence }
-        return item.cbed.blocker
-    }
-
     /// The plan before a run: the box the angular step needs, and the small-box chip.
     @ViewBuilder
-    private func planRows(volts: Double?) -> some View {
-        let analysis = item.diffraction
-        if let volts, case .success(let built)? = analysis.simulatedPhase.map({ item.multislice.specimen(crystal: $0, zoneAxis: analysis.simulation.zoneAxis) }),
-           let plan = try? CBEDRun.plan(built, settings: item.cbed.settings, volts: volts) {
+    private func planRows() -> some View {
+        if let plan = appState.cbedPlan(of: item) {
             InspectorNote(plan.sentence).accessibilityIdentifier("diffraction.simulation.cbed.plan")
             if let small = plan.smallBoxSentence { InspectorWarning(small) }
         }

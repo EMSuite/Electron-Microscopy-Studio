@@ -41,6 +41,37 @@ extension AppState {
         }
     }
 
+    /// The Simulation document whose thickness Use in Simulation sets for a measurement on `item`: `item` itself, or the document
+    /// its CBED pattern belongs to; nil for a measured file.
+    func thicknessSimulation(of item: OpenItem) -> OpenItem? {
+        DemoDocuments.isSimulation(item.url) ? item : simulationDocument(ofCBED: item)
+    }
+
+    /// Why Show CBED Pattern cannot run for `simulation`, in the order a person fixes them: no phase, a refused specimen, no beam
+    /// energy, no semiangle, an edge that cuts the discs off, another document's run. The section and the door read this one.
+    func cbedBlocker(of simulation: OpenItem) -> String? {
+        let analysis = simulation.diffraction
+        guard let phase = analysis.simulatedPhase else { return "Add a phase to simulate." }
+        if case .failure(let refusal) = simulation.multislice.specimen(crystal: phase, zoneAxis: analysis.simulation.zoneAxis) { return refusal.sentence }
+        guard let volts = analysis.typedBeamKV.map({ $0 * 1000 }) else { return "Type the beam energy to simulate." }
+        let shortestG = analysis.shortestZeroOrderG(image: simulation.session.imageOrBlank)
+        guard let semiangle = simulation.cbed.semiangle(shortestG: shortestG, volts: volts) else {
+            return "Type the convergence semiangle: this zone has no reflection for Fit Discs."
+        }
+        if let sentence = CBEDRun.edgeSentence(edgeMrad: simulation.cbed.settings.edgeMrad, semiangleMrad: semiangle,
+                                               shortestG: shortestG, volts: volts) { return sentence }
+        return simulation.cbed.blocker
+    }
+
+    /// The plan of a run of `simulation`'s CBED settings before it runs (the box the angular step needs); nil while there is no
+    /// specimen or beam energy.
+    func cbedPlan(of simulation: OpenItem) -> CBEDRun.Plan? {
+        let analysis = simulation.diffraction
+        guard let volts = analysis.typedBeamKV.map({ $0 * 1000 }), let phase = analysis.simulatedPhase,
+              case .success(let built) = simulation.multislice.specimen(crystal: phase, zoneAxis: analysis.simulation.zoneAxis) else { return nil }
+        return try? CBEDRun.plan(built, settings: simulation.cbed.settings, volts: volts)
+    }
+
     /// Runs the probe for `simulation`'s crystal, axis and settings at the document's beam energy, then draws the pattern into its item.
     func computeCBEDPattern(of simulation: OpenItem) async {
         let analysis = simulation.diffraction

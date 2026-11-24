@@ -44,6 +44,10 @@ door this one follows (4DSTEM Studio `docs/agent-door.md`). This app hands the d
 | `get_fft_picture` | `which` transform (Transform PNG…: the spectrum in its Display window, reciprocal scale bar, a ring per measured spot) or source (what the source pane shows) |
 | `get_diffraction` | the Diffraction room for the shown pattern: the centre and its source, the scale in use (a ring fit on a standard, the file's axis or a typed Δq) with the wavelength and camera length a fit gives, the beam energy and camera, the standard and its families, the crystal with its lattice and library phase id, k_max and the tolerance, the annulus and tool, every ring and spot, and the readout (radius, q, d, family, listed d, deviation, verdict); with `csv`, Export Readout CSV…'s text |
 | `read_simulation` | the shown Simulation document or its HRTEM image: phase, zone axis, the specimen's summary or refusal (with the strain Build with Strain would accept), the optics, defocus and stored thicknesses, the potential and transfer (point resolution, aperture cut-off, Scherzer defocus), the method line, frozen phonons (σ, configurations, the plan line or why it does not fit, the run's progress, the convergence and where it was read), Place Beside and its readout, whether a run is going or the waves are stale, and the sections' failure sentences |
+| `read_dynamical` | the Simulation section's Intensities: Kinematic or Dynamical, the stored thicknesses and the one shown, the method line, why the kinematical spots are drawn instead, the beams with their intensity, and Index's spot rows with theirs |
+| `read_cbed` | the Beam and CBED rows: the settings, the semiangle used and the largest that keeps the discs apart, the overlap sentence, the plan and small-box warning, why Show CBED Pattern cannot run, the run's progress and failure, the stored patterns, the depth chip and the method line |
+| `read_thickness` | the Thickness section for the pattern shown: the verdict and sentence, the thickness, extinction distances and residual, the fringe line, the method line, the profile with the fitted curve and the minima, and whether Use in Simulation is offered |
+| `read_stem` | the STEM section: the settings with the defocus and step used, the plan line, the wrap and band warnings, why Simulate cannot run, the run's progress and positions, whether the settings changed since, the detector band, the scattered intensity against angle, the "not quantitative" chip and the method line |
 | `get_indexing_picture` | `which` map (the layer as Export's Map PNG… draws it), pattern (as indexed, without the band overlay) or best_match (a Dictionary run's) |
 
 Every picture and number comes from the code that draws or exports it for the person, so the agent judges what the
@@ -82,6 +86,15 @@ Behind "Let agents run analyses". Each goes through the entry point its control 
 | `set_diffraction_marks` | adds a spot as a click on the pattern does, selects a ring or spot, removes one or all |
 | `set_simulation` | the Simulation document's settings through its sections' controls: the library phase and zone axis, thickness and Build with Strain, defocus or Scherzer and the thickness shown, voltage, optics preset, Cs, spreads, aperture, field of view, frozen phonons with σ and configurations, Place Beside (the measured image, layout, rotation, inset size) |
 | `run_simulation` | Show HRTEM Image and its run: the static lattice's exit waves, or Simulate and Continue with frozen phonons; `stop_run` stops it and keeps the configurations done |
+| `set_dynamical` | the Simulation section's Intensities: Kinematic or Dynamical (Dynamical runs the multislice, as the section does) and the stored thickness shown |
+| `set_cbed` | the Simulation section's Beam (Parallel or Convergent) and CBED settings: semiangle or Fit Discs, largest thickness, angular step, pattern edge, and the stored pattern shown |
+| `run_cbed` | Show CBED Pattern: opens the pattern in the Diffraction room and runs the probe; refused with the section's words while it cannot run |
+| `stop_cbed` | the CBED section's Stop; the patterns stored stay |
+| `measure_thickness` | Measure Thickness on the pattern shown: the two-beam fit across the diffracted disc (Kelly et al. 1975); `read_thickness` gives the verdict |
+| `use_measured_thickness` | Use in Simulation: the thickness found becomes the Simulation document's specimen thickness |
+| `set_stem` | the STEM section: semiangle, defocus or Scherzer, scan step or Nyquist, Collect to, and the detector (a preset, or Custom with inner and outer angles on whole rings) |
+| `run_stem` | Show STEM Image and Simulate or Continue; the image fills as it is computed; refused with the section's words while it cannot run |
+| `stop_stem` | the STEM section's Stop; the positions done stay and `run_stem` continues |
 | `select_grains` | selects grains as the grain table does, or none |
 
 The EDS tools are EMSuiteUI's `EDXAgentTools`, written once and registered by both apps.
