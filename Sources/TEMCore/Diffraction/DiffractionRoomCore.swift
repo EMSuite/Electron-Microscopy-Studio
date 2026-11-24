@@ -118,7 +118,7 @@ package nonisolated enum DiffractionCompute {
     /// A clicked spot's subpixel centre (`PatternSpot.refine`, window half `half`), read from a crop about the click rather than the whole
     /// image, so a click copies a few hundred pixels and not a uint8 or uint16 image's whole Float32 widening (#928). Three recentrings move
     /// the window at most `2 half` from the click and it reaches `half` beyond that, so a crop of `4 half` holds every pixel the whole image
-    /// would have given; the crop is clamped where the image is, so the answer is the whole image's.
+    /// would have given; the crop is clamped where the image is, so the answer is the whole image's to rounding.
     package static func refineSpot(in image: CalibratedImage, row: Double, column: Double, half: Int = 5) -> (row: Double, column: Double)? {
         guard row.isFinite, column.isFinite, abs(row) < 1e9, abs(column) < 1e9, half >= 1, half < 10_000 else { return nil }
         let reach = 4 * half, w = image.width, h = image.height

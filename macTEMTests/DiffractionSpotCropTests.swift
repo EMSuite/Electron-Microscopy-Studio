@@ -53,4 +53,19 @@ nonisolated final class DiffractionSpotCropTests: XCTestCase {
             XCTAssertNil(DiffractionCompute.refineSpot(in: image, row: row, column: column), "click (\(row), \(column))")
         }
     }
+
+    /// A Float32 image with a missing pixel beside the spot: the crop skips it as the kit does on the whole image.
+    func testAFloatImageWithAMissingPixelAgrees() {
+        let w = 64, h = 48
+        var pixels = [Float](repeating: 0, count: w * h)
+        for y in 0 ..< h { for x in 0 ..< w { pixels[y * w + x] = Float(10 + 900 * exp(-(pow(Double(y) - 20.4, 2) + pow(Double(x) - 31.7, 2)) / 8)) } }
+        pixels[21 * w + 30] = .nan
+        let image = CalibratedImage(width: w, height: h, pixels: pixels, x: nil, y: nil, fileName: "nan.tif", source: "test", voltage: nil)
+        let whole = DiffractionPattern(width: w, height: h, pixels: pixels)
+        let expected = PatternSpot.refine(pattern: whole, row: 21, column: 31)
+        let cropped = DiffractionCompute.refineSpot(in: image, row: 21, column: 31)
+        XCTAssertNotNil(expected)
+        XCTAssertEqual(cropped?.row ?? .nan, expected?.row ?? 0, accuracy: 1e-9)
+        XCTAssertEqual(cropped?.column ?? .nan, expected?.column ?? 0, accuracy: 1e-9)
+    }
 }
