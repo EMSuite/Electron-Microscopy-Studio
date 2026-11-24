@@ -130,3 +130,59 @@ nonisolated final class ExportMethodsTests: XCTestCase {
         XCTAssertNil(bytes.range(of: Data("planted".utf8)), "the data file's name is nowhere in the PNG")
     }
 }
+
+/// The SEM rooms' records (#817): built from the record the session keeps of an export, each method a step with the package it
+/// follows, the room's settings as the export's step, and the record inside a `.ang`, a CSV and a PNG by the file's extension.
+nonisolated final class ExportMethodsSEMTests: XCTestCase {
+    private static let fingerprint = String(repeating: "0123456789abcdef", count: 4)
+    private static let app = MethodsRecord.Software(name: "Electron Microscopy Studio", version: "2.2.0 (42)")
+
+    private func record() -> MethodsRecord {
+        let file = SEMExportedFile(room: "Indexing", what: "EDAX ANG", source: "patterns_v2.h5",
+                                   fields: [SEMSessionField("Layer", "IPF-Z"), SEMSessionField("Binning", "2")],
+                                   methods: [.houghIndexing, .angWriter])
+        let source = MethodsRecord.Source(fileName: "patterns_v2.h5", byteCount: 1000, fingerprint: Self.fingerprint, kind: "EBSD patterns",
+                                          shape: [75, 55, 60, 60])
+        return ExportMethods.semRecord(file, app: Self.app, exportKind: "indexing-edax-ang", source: source)
+    }
+
+    /// Hough indexing follows pyEBSDindex as kikuchipy drives it, the .ang writer orix: the steps name them in that order, and the
+    /// settings are the export's own step (a number as a number).
+    func testAnIndexingRecordNamesItsMethodsAndTheirPackages() {
+        let record = record()
+        XCTAssertEqual(record.room, "indexing")
+        XCTAssertEqual(record.steps.map(\.name), [SEMMethod.houghIndexing.title, SEMMethod.angWriter.title, "EDAX ANG"])
+        XCTAssertEqual(record.steps.map(\.method).prefix(2), [SEMMethod.houghIndexing.sentence, SEMMethod.angWriter.sentence])
+        XCTAssertEqual(record.steps[0].reference?.name, "pyebsdindex")
+        XCTAssertEqual(record.steps[1].reference?.name, "orix")
+        XCTAssertEqual(record.references.map(\.name), ["pyebsdindex", "kikuchipy", "orix"])
+        XCTAssertEqual(record.steps[2].settings, [MethodsRecord.Quantity(name: "Layer", value: .text("IPF-Z")),
+                                                  MethodsRecord.Quantity(name: "Binning", value: .number(2))])
+        XCTAssertEqual(record.drawn, ["EDAX ANG"])
+        XCTAssertEqual(record.kits, ExportMethods.kits)
+    }
+
+    /// The record goes in by the file's extension: a `.ang` after its header, a CSV, a PNG; a method JSON and a `.ctf` stay as they were.
+    func testTheRecordGoesInByTheFilesExtension() throws {
+        let record = record()
+        let ang = "# TEM_PIXperUM          1.000000\n# HEADER: End\n  0.1 0.2 0.3 0.0 0.0 1.0 0.9 1 1.0 0.5\n"
+        let written = try ExportMethods.embedding(record, inFileWithExtension: "ang", data: Data(ang.utf8))
+        let text = try XCTUnwrap(String(data: written, encoding: .utf8))
+        XCTAssertEqual(ExportMethods.record(inText: text), record)
+        XCTAssertEqual(text.split(separator: "\n").last, "  0.1 0.2 0.3 0.0 0.0 1.0 0.9 1 1.0 0.5", "the data line is as it was")
+        let json = Data("{\"a\":1}".utf8)
+        XCTAssertEqual(try ExportMethods.embedding(record, inFileWithExtension: "json", data: json), json)
+        let ctf = Data("Channel Text File\nPrj test\n".utf8)
+        XCTAssertEqual(try ExportMethods.embedding(record, inFileWithExtension: "ctf", data: ctf), ctf)
+    }
+
+    /// The source's fingerprint is the SHA-256 of its bytes ("abc": the FIPS 180-2 example) and its size.
+    func testTheFingerprintIsTheFilesSHA256() throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("fingerprint-\(UUID().uuidString).bin")
+        try Data("abc".utf8).write(to: url)
+        defer { try? FileManager.default.removeItem(at: url) }
+        let print = try ExportMethods.fingerprint(ofFileAt: url)
+        XCTAssertEqual(print.sha256, "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")
+        XCTAssertEqual(print.byteCount, 3)
+    }
+}
