@@ -309,4 +309,3 @@ extension MacTEMAgentDoor {
         return state
     }
 }
-
