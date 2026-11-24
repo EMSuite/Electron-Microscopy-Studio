@@ -10,7 +10,7 @@ import TEMSession
 
 nonisolated final class LargeImageLaunchTests: XCTestCase {
 
-    func testTheFlagTakesASideInRangeOnly() {
+    @MainActor func testTheFlagTakesASideInRangeOnly() {
         XCTAssertEqual(LaunchOptions(arguments: ["--demo-large-image", "2048"]).demoLargeImageSide, 2048)
         XCTAssertEqual(LaunchOptions(arguments: ["--demo-large-image", "4096"]).demoLargeImageSide, 4096)
         XCTAssertNil(LaunchOptions(arguments: ["--demo-large-image"]).demoLargeImageSide, "no side after the flag")
