@@ -210,9 +210,11 @@ jobs:
           echo "MACTEM_REQUIRE_SEM_DATA=1" >> "$GITHUB_ENV"
       - name: Run the unit gate
         # The room snapshots (macTEMTests/RoomSnapshotTests, #805) compare here: TEST_RUNNER_ reaches the tests through xcodebuild.
+        # Only on the org's Mac runner, where pull requests run (#957): fonts and AppKit's controls differ between macOS versions, so
+        # the references are that Mac's, and GitHub's macos-26 (main, tags, the nightly, a fork's PR) skips them.
         run: tools/run-tests.sh unit
         env:
-          TEST_RUNNER_SNAPSHOTS: "1"
+          TEST_RUNNER_SNAPSHOTS: ${{ runner.environment == 'self-hosted' && '1' || '' }}
           TEST_RUNNER_SNAPSHOT_ARTIFACTS: ${{ runner.temp }}/snapshots
       # New and changed snapshot pictures leave this read-only job as an artifact; the snapshots job attaches them (suite#137).
       - name: Keep new and changed snapshots for the snapshots job

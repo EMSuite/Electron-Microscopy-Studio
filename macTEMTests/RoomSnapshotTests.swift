@@ -2,7 +2,8 @@
 //  RoomSnapshotTests.swift
 //  Snapshots of the app's rooms in light and in dark (#805, plan row P11 of 2.3), on EMSuiteUI's ShellSnapshotTesting (suite#137):
 //  each room drawn at a fixed window size and compared with the PNG committed under __Snapshots__/RoomSnapshotTests/. They compare only
-//  on CI's unit job, where SNAPSHOTS=1 is set; a Mac's run skips them (fonts and AppKit's controls differ between Macs). A picture that
+//  on CI's unit job on the org's Mac runner, where SNAPSHOTS=1 is set; elsewhere they skip (fonts and AppKit's controls differ
+//  between Macs and macOS versions). A picture that
 //  is new or differs fails the test, and CI puts it on the pr-pictures branch and in one comment on the pull request: that is the PR's
 //  picture (CONTRIBUTING.md, Snapshot tests).
 //
