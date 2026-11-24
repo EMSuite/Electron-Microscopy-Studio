@@ -11,6 +11,7 @@ import XCTest
 import DiffractoCore
 import SimulatoCore
 import SimulatoProbe
+import ImagoCore
 import TEMCore
 import TEMSession
 @testable import macTEM

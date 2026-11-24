@@ -19,6 +19,7 @@ import DiffractoGeometry
 import SimulatoCore
 import SimulatoMultislice
 import SimulatoProbe
+import ImagoCore
 import TEMCore
 import TEMSession
 @testable import macTEM
