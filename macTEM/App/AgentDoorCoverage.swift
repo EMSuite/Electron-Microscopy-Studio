@@ -416,6 +416,8 @@ nonisolated enum AgentDoorCoverage {
         "welcome.crashReport.dismiss": .personOnly(crashReportReason),
         "welcome.crashReport.report": .personOnly(crashReportReason),
         "welcome.loadingStage": .seen,
+        "welcome.recent": .personOnly(openReason),
+        "welcome.recent.\\(index)": .personOnly(openReason),
         "welcome.loadingStatus": .seen,
         "welcome.openImage": .tool("open_file"),
         "welcome.stopOpening": .personOnly(openCloseReason),

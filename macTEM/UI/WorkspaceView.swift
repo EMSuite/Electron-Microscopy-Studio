@@ -252,6 +252,10 @@ struct WelcomeWorkspace: View {
                     .help("Open a demo document in its room")
                     .accessibilityIdentifier("welcome.tryDemo")
                 }
+                recentList
+                Text(WelcomeRecents.dropHint)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
             }
             .padding(.horizontal, 36)
             .padding(.vertical, 44)
@@ -259,6 +263,52 @@ struct WelcomeWorkspace: View {
         }
         // macOS hands the report over a little after the launch: read the folder again whenever the window comes forward.
         .onChange(of: appearsActive) { _, active in if active { crash.refresh() } }
+    }
+
+    /// The files File > Open Recent lists, each opened by a click (#802); nothing while there are none.
+    @ViewBuilder private var recentList: some View {
+        let entries = appState.recents.entries
+        let rows = WelcomeRecents.rows(paths: entries.map(\.path), titles: entries.map { appState.recents.title(of: $0) })
+        if !rows.isEmpty {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Recent")
+                    .font(.headline)
+                    .foregroundStyle(.secondary)
+                    .accessibilityAddTraits(.isHeader)
+                VStack(spacing: 0) {
+                    // The rows are made from `entries` in its order, so a row's offset is its entry's.
+                    ForEach(Array(rows.enumerated()), id: \.element.path) { index, row in
+                        let entry = entries[index]
+                        if index > 0 { Divider() }
+                        Button { appState.openRecent(entry) } label: {
+                            HStack(spacing: 10) {
+                                Image(systemName: "doc")
+                                    .foregroundStyle(.secondary)
+                                    .accessibilityHidden(true)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(row.title).lineLimit(1).truncationMode(.middle)
+                                    Text(row.folder).font(.callout).foregroundStyle(.secondary).lineLimit(1).truncationMode(.head)
+                                }
+                                Spacer(minLength: 0)
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .help(row.path)
+                        .accessibilityLabel("Open \(row.title)")
+                        .accessibilityHint("in \(row.folder)")
+                        .accessibilityIdentifier("welcome.recent.\(index)")
+                    }
+                }
+                .background(.quaternary.opacity(0.35), in: RoundedRectangle(cornerRadius: 8))
+                .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(.separator))
+            }
+            .frame(maxWidth: LayoutPolicy.readableWidth)
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("welcome.recent")
+        }
     }
 }
 
