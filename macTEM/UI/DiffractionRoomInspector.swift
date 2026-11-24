@@ -431,7 +431,8 @@ private struct DiffractionExportSection: View {
     }
 
     private func export(spots: Bool) {
-        let text = spots ? analysis.spotsExportText(image: image) : ExportSnapshot.diffractionCSV(analysis, image: image, openItems: appState.openItems)
+        let text = spots ? ExportSnapshot.diffractionSpotsCSV(analysis, image: image, openItems: appState.openItems)
+                         : ExportSnapshot.diffractionCSV(analysis, image: image, openItems: appState.openItems)
         exportName = spots ? DiffractionReadoutExport.spotsBaseName(of: image.fileName) : DiffractionReadoutExport.baseName(of: image.fileName)
         if let directory = appState.exportDirectory {
             do {

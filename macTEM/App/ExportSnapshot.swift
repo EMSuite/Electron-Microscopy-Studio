@@ -193,6 +193,14 @@ enum ExportSnapshot {
         }
     }
 
+    /// The Diffraction room's Spots CSV (#785) with the same methods record inside as its readout CSV.
+    static func diffractionSpotsCSV(_ analysis: DiffractionAnalysis, image: CalibratedImage, openItems: OpenItems) -> String {
+        let rings = analysis.rings.count, spots = analysis.spots.count
+        return embeddingMethods(in: analysis.spotsExportText(image: image), of: image, openItems: openItems) {
+            ExportMethods.diffractionRecord(app: $0, source: $1, rings: rings, spots: spots)
+        }
+    }
+
     /// An SEM room's export with its methods record inside (#817), from the record the session keeps of it: the source file's
     /// fingerprint is read off the main actor (a pattern file is gigabytes). The bytes come back as they were when the source cannot be
     /// read again or the kind holds no record (a method JSON, a `.ctf`): an export never fails for its record.
