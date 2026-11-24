@@ -77,7 +77,8 @@ package nonisolated enum FileRouting {
     /// What an Open routes, by kind in words, with the extensions each comes with: `openableExtensions` is made from it, and so is the
     /// sentence a file of any other extension is refused with (`openableSentence`), so a room's files are never left out of either.
     package static let openableKinds: [(kind: String, extensions: [String])] = [
-        (kind: "TEM and SEM images", extensions: ImageOpening.readableExtensions),
+        (kind: "TEM and SEM images", extensions: ImageOpening.readableExtensions.filter { !PictureImageReader.extensions.contains($0) }),
+        (kind: "patterns and images saved as pictures", extensions: PictureImageReader.extensions),
         (kind: "EDS and EELS spectra and spectrum images", extensions: EDXOpening.readableExtensions + EELSOpening.readableExtensions),
         (kind: "EBSD patterns and orientation maps", extensions: EBSDOpening.readableExtensions),
     ]
@@ -129,6 +130,9 @@ package nonisolated enum FileRouting {
         // SEM-EDS map files (Bruker, EDAX, JEOL; FormatoKit's sniff knows none of them), by extension: a spectrum image or one spectrum for
         // the EDS room, a JEOL image or element map for the Image room. The readers say in words what a file lacks when it is opened.
         if SEMEDSOpening.isImageFile(path: path) { return FileInventory(image: true) }
+        // A PNG or JPEG (#792): a picture, opened as an image for the Image, FFT and Diffraction rooms; its reader says in words what it
+        // refuses (CMYK, an animation, too many pixels).
+        if PictureImageReader.isPicture(path: path) { return FileInventory(image: true) }
         if SEMEDSOpening.isSingleSpectrumFile(path: path) { return FileInventory(singleSpectrum: true) }
         if SEMEDSOpening.opensInEDS(path: path) { return FileInventory(edsSpectrumImage: true) }
         // HyperSpy's own HDF5 layout (`.hspy`, which FormatoKit's sniff does not know): one spectrum opens in the EDS room, anything else is
@@ -188,6 +192,9 @@ package nonisolated enum FileRouting {
             if held.spectra > 0, !found.image, !found.edsSpectrumImage, !found.eelsSpectrumImage { found.singleSpectrum = true }
             if !found.image, !found.edsSpectrumImage, !found.eelsSpectrumImage, !found.singleSpectrum { found.image = true }
             return found
+        case .hyperSpy:
+            // Taken above (`HyperSpySpectrumFile.isHyperSpyFile` asks the same sniff); reached only if the file changed in between.
+            return FileInventory(refusal: "\(name) is a HyperSpy file that is not one spectrum \(AppName.display) opens.")
         case .empad, .merlinMIB, .hdf5:
             return FileInventory(refusal: "\(name) is a 4D dataset or an HDF5 file that is neither a Velox file nor an EBSD scan: \(AppName.display) opens images, spectra and EBSD patterns; open it in 4DSTEM Studio.")
         case .unknown:

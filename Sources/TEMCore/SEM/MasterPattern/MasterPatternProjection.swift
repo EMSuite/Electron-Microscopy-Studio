@@ -71,6 +71,8 @@ package nonisolated enum MasterPatternProjection {
         case flatPattern(Int)
         case noMetalDevice
         case metal(String)
+        /// More values than the GPU projection's 32-bit indices address (or one buffer holds): the count asked for (#624).
+        case tooLarge(Int)
 
         package var errorDescription: String? {
             switch self {
@@ -83,6 +85,7 @@ package nonisolated enum MasterPatternProjection {
             case .flatPattern(let i): return "Pattern \(i) is flat, so it cannot be rescaled."
             case .noMetalDevice: return "This Mac has no Metal device for the GPU projection."
             case .metal(let text): return "The GPU projection failed: \(text)"
+            case .tooLarge(let n): return "\(n) values are more than the GPU projection can address; project fewer patterns at a time."
             }
         }
     }

@@ -324,7 +324,7 @@ nonisolated final class EELSRealFileJourney: Journey {
 
         line(11, "export results CSV, spectrum CSV, maps PNG, method JSON") {
             try step("the Export section") {
-                showSettings(waitingFor: "eels.export.method")
+                inspectorTab("Settings"); openSection("Export", showing: "eels.export.method")
                 let present = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'eels.export.'")).allElementsBoundByIndex.map { "\($0.identifier) \"\($0.label)\"" }
                 attach("export buttons", present.joined(separator: "\n"))
                 let labels = present.joined(separator: " ")

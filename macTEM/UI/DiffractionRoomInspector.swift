@@ -336,7 +336,7 @@ private struct DiffractionExportSection: View {
     @State private var document = RoomExportFile(text: "")
 
     var body: some View {
-        InspectorSection("Export") {
+        InspectorSection("Export", startsExpanded: false) {
             InspectorActionRow {
                 Button("Export Readout CSV…") { export() }
                     .disabled(analysis.rings.isEmpty && analysis.spots.isEmpty)

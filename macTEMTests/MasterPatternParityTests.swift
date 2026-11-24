@@ -314,4 +314,47 @@ nonisolated final class MasterPatternParityTests: XCTestCase {
             XCTAssertLessThanOrEqual(worst, MasterPatternProjectionMetal.tolerance * span / 2, "pattern \(n)")
         }
     }
+
+    // MARK: - The GPU projector of a dictionary (#624)
+
+    /// A dictionary projected chunk by chunk through one `Projector` (the master pattern uploaded once, the buffers made once)
+    /// gives the one-shot projection's patterns to the bit, the last chunk short; a chunk past the projector's capacity is refused.
+    /// Skipped where the Mac has no Metal device.
+    func testTheProjectorGivesTheOneShotPatternsChunkByChunk() throws {
+        guard MasterPatternProjectionMetal.isAvailable else { throw XCTSkip("no Metal device on this machine") }
+        let c = try projectionCase("ni")
+        let rotations = c.rotations + (0 ..< 200).map { k -> SIMD4<Double> in
+            let t = Double(k) * 0.031, u = Double(k) * 0.017
+            let q = SIMD4(cos(t), sin(t) * cos(u), sin(t) * sin(u) * 0.6, sin(t) * sin(u) * 0.8)
+            return q / (q * q).sum().squareRoot()
+        }
+        let whole = try MasterPatternProjectionMetal.project(master: c.master, rotations: rotations, detector: c.detector)
+        let projector = try MasterPatternProjectionMetal.Projector(master: c.master, detector: c.detector, capacity: 64)
+        var chunked: [Float] = []
+        var start = 0
+        while start < rotations.count {
+            let end = min(rotations.count, start + 64)
+            try projector.withPatterns(rotations[start ..< end]) { chunked.append(contentsOf: $0) }
+            start = end
+        }
+        XCTAssertEqual(chunked.count, whole.count)
+        XCTAssertTrue(chunked == whole, "the chunked projection differs from the one-shot one")
+        XCTAssertThrowsError(try projector.withPatterns(rotations[0 ..< 65]) { _ in }) {
+            XCTAssertEqual($0 as? MasterPatternProjection.Error, .tooLarge(65 * c.detector.rows * c.detector.columns))
+        }
+    }
+
+    /// The kernel indexes the output as pattern × pixels + pixel in 32-bit unsigned integers: a projector whose chunks would pass
+    /// 2^32 − 1 values is refused with a typed error before anything is allocated, on any Mac. Red before #624: the index wrapped
+    /// silently and the patterns past it overwrote the first ones.
+    func testAProjectionPastThe32BitIndexIsRefused() throws {
+        let c = try projectionCase("ni")
+        let pixels = c.detector.rows * c.detector.columns
+        let tooMany = Int(UInt32.max) / pixels + 1
+        XCTAssertThrowsError(try MasterPatternProjectionMetal.Projector(master: c.master, detector: c.detector, capacity: tooMany)) {
+            XCTAssertEqual($0 as? MasterPatternProjection.Error, .tooLarge(tooMany * pixels))
+        }
+        let reason = MasterPatternProjection.Error.tooLarge(tooMany * pixels).errorDescription ?? ""
+        XCTAssertTrue(reason.hasSuffix("project fewer patterns at a time."), reason)
+    }
 }

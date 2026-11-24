@@ -47,8 +47,9 @@ extension MacTEMAgentDoor {
             1. Look. `list_windows` names the windows; `get_window` says the room, the open files with their size, calibration and \
             voltage, the status line and any error. `get_image` draws the shown image as Export Image… draws it; `get_results` gives \
             the finished numbers as Export Results… writes them; `get_log` gives the Output lines.
-            2. Open. The person opens their own files (File > Open). `open_demo` opens one of the shipped demo documents in its room, \
-            as Help > Open Demo Data does, for trying a room.
+            2. Open. `list_agent_folder` lists the Agent folder the person chose in Settings > Agents; `open_file` opens one of its \
+            files as File > Open does, in the room that fits it. Files elsewhere stay the person's to open. `open_demo` opens one of \
+            the shipped demo documents in its room, as Help > Open Demo Data does, for trying a room.
             3. Move. `select_room` moves the window to a room, as the room bar does; a room the window's files do not fill is refused \
             with the reason the room bar gives.
             4. Work the room. Topic eds for the EDS room. The other rooms' controls are the person's for now: look at their result \
