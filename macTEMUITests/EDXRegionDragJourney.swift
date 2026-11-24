@@ -9,7 +9,7 @@
 //  with CGEvent from the UI-test runner (the same 20-step drag EDXRealFileJourney posted) drew nothing. The runner may synthesize
 //  input through XCUITest, but a CGEvent it posts to the HID tap is not delivered to the app under test. The 31 Oct note that blamed
 //  the tile's tap gestures (MapTileView) no longer holds: the tile's clicks sit inside the viewport and the region layer's drag comes
-//  first. The journeys now drag with XCUITest. (EDXRealFileJourney's wheel still posts CGEvents and skips when they draw nothing.)
+//  first. The journeys now drag with XCUITest. (EDXRealFileJourney's wheel check still posts CGEvents.)
 //
 
 import XCTest
