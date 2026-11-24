@@ -162,6 +162,13 @@ private struct ImageCommands: Commands {
             // A window per file: an empty one to open a file in, also as a tab (the system's Window > Merge All Windows and tab bar).
             Button("New Window") { openWindow(id: "image") }
                 .keyboardShortcut("n", modifiers: .command)
+            // A simulated pattern with no measured one, in the Diffraction room (#788): as Open Image…, with no window focused it opens
+            // one and the simulation there (`MenuActionRelay`); a window that holds a file gives it a tab of its own.
+            Button("New Simulation") { perform(.newSimulation) }
+                .keyboardShortcut("n", modifiers: [.command, .shift])
+                .disabled(!MenuActionRelay.isEnabled(
+                    hasFocusedWindow: appState != nil,
+                    blocked: appState?.imageSession.isLoading == true))
             // With no window focused it opens one and runs there (`MenuActionRelay`), so it is enabled then too.
             Button("Open Image…") { perform(.openImage) }
                 .keyboardShortcut("o", modifiers: .command)

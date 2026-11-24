@@ -203,6 +203,63 @@ package nonisolated enum ExportMethods {
                              drawn: [])
     }
 
+    /// The EELS room's record of one export, read from the room's method JSON (`EELSCompute.methodJSON`): the thickness map's rule
+    /// with its settings and counts, the Deconvolve stage and the edge fit when they ran, each paper the JSON names as a citation.
+    package static func eelsRecord(app: MethodsRecord.Software, exportKind: String, source: MethodsRecord.Source, methodJSON: String?,
+                                   drawn: [String] = []) -> MethodsRecord {
+        let object = methodJSON.flatMap { try? JSONSerialization.jsonObject(with: Data($0.utf8)) as? [String: Any] } ?? [:]
+        var steps: [MethodsRecord.Step] = []
+        var results: [MethodsRecord.Quantity] = []
+        var citations: [MethodsRecord.Citation] = []
+        func cite(_ text: Any?) {
+            guard let text = text as? String, !text.isEmpty, !citations.contains(where: { $0.text == text }) else { return }
+            citations.append(MethodsRecord.Citation(text: text))
+        }
+        if let method = object["method"] as? String {
+            let settingKeys = ["zero_loss", "estimated_tolerance_counts_per_eV", "mean_free_path_nm", "angular_correction"]
+            steps.append(MethodsRecord.Step(name: "Thickness t/λ", method: method,
+                                            settings: quantities(object.filter { settingKeys.contains($0.key) })))
+            results += quantities(object.filter { ["pixels_with_t_over_lambda", "pixels_unavailable"].contains($0.key) })
+            cite(object["reference"])
+        }
+        for (key, name) in [("deconvolution", "Deconvolution"), ("edge_fit", "Edge fit")] {
+            guard let stage = object[key] as? [String: Any] else { continue }
+            let method = (stage["method"] as? String) ?? (stage["model"] as? String) ?? name.lowercased()
+            steps.append(MethodsRecord.Step(name: name, method: method,
+                                            settings: quantities(stage.filter { !["method", "model", "reference"].contains($0.key) })))
+            cite(stage["reference"])
+        }
+        return MethodsRecord(app: app, room: "eels", exportKind: exportKind, kits: kits, sources: [source], steps: steps, results: results,
+                             drawn: drawn, citations: citations)
+    }
+
+    /// A JSON object's plain values as quantities, by key: a number as a number, a boolean as a flag, a text as text, a list of texts
+    /// as texts and a list of numbers as one text; a nested object is left out. A number's key states its unit: "_per_eV" counts per
+    /// eV, "_eV" eV, "_nm" nm. A text has none ("axis end" where an energy could stand).
+    static func quantities(_ object: [String: Any]) -> [MethodsRecord.Quantity] {
+        func isFlag(_ number: NSNumber) -> Bool { CFGetTypeID(number) == CFBooleanGetTypeID() }
+        func units(_ key: String) -> String? {
+            key.hasSuffix("_per_eV") ? "counts/eV" : key.hasSuffix("_eV") ? "eV" : key.hasSuffix("_nm") ? "nm" : nil
+        }
+        return object.sorted { $0.key < $1.key }.compactMap { key, value in
+            switch value {
+            case let number as NSNumber where isFlag(number):
+                return MethodsRecord.Quantity(name: key, value: .flag(number.boolValue))
+            case let number as NSNumber where number.doubleValue.isFinite:
+                return MethodsRecord.Quantity(name: key, value: .number(number.doubleValue), units: units(key))
+            case let text as String:
+                return MethodsRecord.Quantity(name: key, value: .text(text))
+            case let texts as [String]:
+                return MethodsRecord.Quantity(name: key, value: .texts(texts))
+            case let numbers as [NSNumber] where numbers.allSatisfy({ !isFlag($0) && $0.doubleValue.isFinite }):
+                return MethodsRecord.Quantity(name: key, value: .text(numbers.map { "\($0.doubleValue)" }.joined(separator: ", ")),
+                                              units: units(key))
+            default:
+                return nil
+            }
+        }
+    }
+
     /// An SEM room's record of one export, from the record the session keeps of it (`SEMExportedFile`): each method that made it a
     /// step, with the pinned package its parity tests hold it to, and the room's settings as the export's own step.
     package static func semRecord(_ file: SEMExportedFile, app: MethodsRecord.Software, exportKind: String,
@@ -251,6 +308,14 @@ package nonisolated enum ExportMethods {
             count += block.count
         }
         return (hasher.finalize().map { String(format: "%02x", $0) }.joined(), count)
+    }
+
+    /// The SHA-256 of bytes held in memory, hashed in place: a spectrum image's stored counts when its file cannot be read again.
+    /// The build is arm64 only, so the bytes are already little-endian.
+    package static func fingerprint(ofBytes bytes: UnsafeRawBufferPointer) -> String {
+        var hasher = SHA256()
+        hasher.update(bufferPointer: bytes)
+        return hasher.finalize().map { String(format: "%02x", $0) }.joined()
     }
 
     // MARK: - Helpers

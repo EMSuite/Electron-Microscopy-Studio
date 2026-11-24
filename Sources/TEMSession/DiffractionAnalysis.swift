@@ -246,10 +246,11 @@ package final class DiffractionAnalysis {
         fitTask?.cancel()
         failure = nil
         isFitting = true
-        let pattern = DiffractionCompute.pattern(of: image)
         let volts = volts(for: image), pitch = pitchMM
         let standardName = standard.name
         let task = Task.detached(priority: .userInitiated) { [weak self] in
+            // A uint8 or uint16 image's Float32 copy is made here, off the main actor (#928).
+            let pattern = DiffractionCompute.pattern(of: image)
             let result = DiffractionCompute.fitRing(pattern: pattern, centre: centre, inner: inner, outer: outer, isCancelled: { Task.isCancelled })
             if Task.isCancelled { return }
             await self?.landRing(result, inner: inner, outer: outer, family: family, standard: standardName, volts: volts, pitch: pitch, generation: gen)
@@ -333,7 +334,6 @@ package final class DiffractionAnalysis {
         let marked = spots.compactMap { s in
             s.row.flatMap { r in s.column.map { c in PatternIndexing.Mark(id: s.id, row: r, column: c, intensity: s.intensity) } }
         }
-        let pattern = DiffractionCompute.pattern(of: image)
         let structure = crystal.structure, phase = crystal.name
         let fit = fitScale
         let key = "\(crystal.name)|\(crystal.sha256 ?? "")|\(volts)" + (fit ? "" : "|fixed scale")
@@ -344,6 +344,8 @@ package final class DiffractionAnalysis {
             do {
                 var marks = marked
                 if marks.isEmpty {
+                    // A uint8 or uint16 image's Float32 copy is made here, off the main actor (#928).
+                    let pattern = DiffractionCompute.pattern(of: image)
                     let located = try PatternIndexing.findSpots(pattern: pattern, centre: centre, shortestG: shortest, calibration: calibration)
                     marks = located.map { PatternIndexing.Mark(id: UUID(), row: $0.row, column: $0.column, intensity: $0.intensity) }
                     found = marks
@@ -496,8 +498,7 @@ package final class DiffractionAnalysis {
 
     /// A click on the pattern: the centre is refined (the kit's `PatternSpot.refine`), and the spot is listed with its radius and indexing.
     package func addSpot(image: CalibratedImage, row: Double, column: Double) {
-        let refined = PatternSpot.refine(pattern: DiffractoGeometry.DiffractionPattern(width: image.width, height: image.height, pixels: image.pixels),
-                                         row: row, column: column)
+        let refined = DiffractionCompute.refineSpot(in: image, row: row, column: column)
         let spot: MeasuredSpot
         if let refined {
             spot = MeasuredSpot(clickRow: row, clickColumn: column, row: refined.row, column: refined.column, radius: nil, refusal: nil)
@@ -597,9 +598,10 @@ package final class DiffractionAnalysis {
             return .failure(SimulationAbsence(sentence: "Needs a scale: calibrate on a standard's ring, or type Δq"))
         }
         guard let volts else { return .failure(SimulationAbsence(sentence: "Needs the beam energy: type it under Calibration")) }
-        // The simulator reaches the image's farthest corner, to at most 6 Å⁻¹ (d 0.17 Å), and is kept while the crystal and the
-        // reach (to 0.1 Å⁻¹) stay.
-        let reach = min(6, max(0.2, (ZoneAxisOverlay.reach(width: width, height: height, centre: centre, deltaQ: calibration.deltaQ) * 10).rounded(.up) / 10))
+        // The simulator reaches the image's farthest corner, to at most the kit's k_max cap (`ReflectionList.maximumKMax`, 4 Å⁻¹,
+        // d 0.25 Å: past it the kit refuses the whole list, so a wide pattern drew no spot at all), and is kept while the crystal and
+        // the reach (to 0.1 Å⁻¹) stay.
+        let reach = min(ReflectionList.maximumKMax, max(0.2, (ZoneAxisOverlay.reach(width: width, height: height, centre: centre, deltaQ: calibration.deltaQ) * 10).rounded(.up) / 10))
         let simulatorKey = "\(crystal.name)|\(crystal.sha256 ?? "")|\(reach)"
         if simulatorCache?.key != simulatorKey {
             do { simulatorCache = (simulatorKey, try SpotPatternSimulator(structure: crystal.structure, kMax: reach), nil) }

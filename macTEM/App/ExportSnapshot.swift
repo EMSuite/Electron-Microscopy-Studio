@@ -21,6 +21,7 @@ import ShellMetal
 import ImagoCore
 import Foundation
 import ShellExport
+import SpectroEELS
 import TEMCore
 import TEMSession
 
@@ -199,6 +200,40 @@ enum ExportSnapshot {
         return embeddingMethods(in: analysis.spotsExportText(image: image), of: image, openItems: openItems) {
             ExportMethods.diffractionRecord(app: $0, source: $1, rings: rings, spots: spots)
         }
+    }
+
+    /// Whether an EELS export carries a methods record: a CSV or the maps PNG (an MSA's header and the method JSON stay as they are).
+    nonisolated static func eelsExportCarriesRecord(fileExtension: String) -> Bool { ["png", "csv"].contains(fileExtension.lowercased()) }
+
+    /// The EELS spectrum image as its methods record names it (#817): the file's SHA-256, streamed in 8 MiB blocks as the SEM rooms'
+    /// is, when the file can be read (the same before and after Align, which replaces the cube, not the file); else the cube's stored
+    /// counts hashed in place, never widened (#571), at the precision the kind names. Off the main actor: a cube is gigabytes.
+    @concurrent nonisolated static func eelsSource(_ loaded: LoadedEELS) async -> MethodsRecord.Source {
+        let image = loaded.image, shape = [image.nx, image.ny, image.channels]
+        if !loaded.filePath.isEmpty, let print = try? ExportMethods.fingerprint(ofFileAt: URL(fileURLWithPath: loaded.filePath)) {
+            return MethodsRecord.Source(fileName: loaded.fileName, byteCount: print.byteCount, fingerprint: print.sha256,
+                                        kind: "EELS spectrum image", shape: shape)
+        }
+        let stored = image.storedCounts
+        let held: (sha256: String, bytes: Int, precision: String)
+        if let singles = stored.singles {
+            held = singles.withUnsafeBytes { (ExportMethods.fingerprint(ofBytes: $0), $0.count, "float32") }
+        } else {
+            held = stored.withDoubles { buffer in
+                let bytes = UnsafeRawBufferPointer(buffer)
+                return (ExportMethods.fingerprint(ofBytes: bytes), bytes.count, "float64")
+            }
+        }
+        return MethodsRecord.Source(fileName: loaded.fileName, byteCount: held.bytes, fingerprint: held.sha256,
+                                    kind: "EELS spectrum image, counts as held (\(held.precision))", shape: shape)
+    }
+
+    /// An EELS room export with its methods record inside (#817), read from the room's method JSON; the bytes come back as they were
+    /// when the record cannot be written.
+    @concurrent nonisolated static func eelsExport(_ data: Data, exportKind: String, fileExtension: String, source: MethodsRecord.Source,
+                                                   methodJSON: String?) async -> Data {
+        let record = ExportMethods.eelsRecord(app: methodsApp(), exportKind: exportKind, source: source, methodJSON: methodJSON)
+        return (try? ExportMethods.embedding(record, inFileWithExtension: fileExtension, data: data)) ?? data
     }
 
     /// An SEM room's export with its methods record inside (#817), from the record the session keeps of it: the source file's
