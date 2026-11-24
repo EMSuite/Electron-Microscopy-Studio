@@ -147,6 +147,7 @@ extension AppState {
     /// Closes every file this window holds (images, the spectrum images, the EBSD dataset, the orientation maps), letting go of their pixels: its window closed
     /// with nothing to lose (`AppWindows.windowWillClose`).
     func releaseFiles() {
+        hyperSpyWrite?.task.cancel() // a HyperSpy file half written from the cube is left out, as Stop leaves it
         for id in openItems.items.map(\.id) { openItems.close(id) }
         eels.close()
         edx.close()

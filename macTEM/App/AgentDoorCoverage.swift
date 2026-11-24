@@ -316,7 +316,6 @@ nonisolated enum AgentDoorCoverage {
         "menu.exportHyperSpy": .personOnly(exportReason),
         "menu.exportHyperSpyCoreLoss": .personOnly(exportReason),
         "menu.exportMethodsRecord": .tool("get_methods_record"),
-        "menu.stopHyperSpy": .personOnly(exportReason),
         "particles.connectivity": .tool("set_particles"),
         "particles.counts": .tool("get_image_room"),
         "particles.density": .tool("get_image_room"),

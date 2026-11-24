@@ -1,6 +1,6 @@
 //
 //  HyperSpyExport.swift
-//  Role: File > Export as HyperSpy File… (#819, plan row X3): an image, a diffraction pattern or an EELS cube as a HyperSpy file (.hspy, layout
+//  Role: File > Export HyperSpy File… (#819, plan row X3): an image, a diffraction pattern or an EELS cube as a HyperSpy file (.hspy, layout
 //        3.3, FormatoKit's `HSPYWriter`) that `hs.load` opens as the class HyperSpy's own reader builds (pin H2: Signal2D for an
 //        image, pyxem's ElectronDiffraction2D for a pattern, exspy's EELSSpectrum for a cube, written a band of rows at a time with
 //        progress and Stop). The pixels keep their stored type (uint8, uint16 or float32), the

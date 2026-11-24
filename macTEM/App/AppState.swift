@@ -149,8 +149,18 @@ final class AppState {
     /// Exports of this window being rendered and written right now (never more than one: a second is refused with a beep). Per window,
     /// so a write in one window never blocks an export in another (#625).
     @ObservationIgnored var exportsWriting = 0
-    /// A HyperSpy file being written from a cube (#819): File > Stop HyperSpy Export cancels it; nil while none is.
-    var hyperSpyWrite: Task<Void, any Error>?
+    /// A HyperSpy file being written from the EELS room's cube (#819): the room's running work, which the toolbar shows with its
+    /// fraction and ⌘. stops (`isEELSRoomBusy`); nil while none is.
+    var hyperSpyWrite: HyperSpyCubeWrite?
+    /// Whether the EELS room has work in flight: its run, or a HyperSpy file being written from its cube.
+    var isEELSRoomBusy: Bool { eels.isBusy || hyperSpyWrite != nil }
+
+    /// Ends the EELS room's work: a cube's write at its next band (the destination is left as it was), and the room's run. While
+    /// both are in flight the toolbar names the run, and one ⌘. stops both.
+    func stopEELSRoom() {
+        hyperSpyWrite?.task.cancel()
+        if eels.isBusy { eels.stop() }
+    }
     /// When each room with a busy line last became busy (`markBusy`): the start of the toolbar's busy clock (`RunClock`). Not
     /// observed: the clock ticks on its own.
     @ObservationIgnored var busySince: [WorkspaceArea: Date] = [:]
@@ -337,4 +347,11 @@ final class AppState {
         errorTitle = ErrorDetail.title(error)
         statusText = "Error: \(detail)"
     }
+}
+
+/// A HyperSpy file being written from the EELS cube: the write, the file's name for the toolbar's busy line, and how far it is.
+struct HyperSpyCubeWrite {
+    let task: Task<Void, any Error>
+    let fileName: String
+    var fraction = 0.0
 }

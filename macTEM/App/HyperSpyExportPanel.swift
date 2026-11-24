@@ -1,6 +1,6 @@
 //
 //  HyperSpyExportPanel.swift
-//  Role: File > Export as HyperSpy File… (#819, plan row X3) in the Image and Diffraction rooms: the selected file's image, or the
+//  Role: File > Export HyperSpy File… (#819, plan row X3) in the Image and Diffraction rooms: the selected file's image, or the
 //        pattern on screen, as a `.hspy` that HyperSpy loads as Signal2D or pyxem's ElectronDiffraction2D (`HyperSpyExport`, TEMCore),
 //        its methods record in the metadata tree. The pixels keep their stored type; a pattern the room has a scale for gets its
 //        reciprocal axes in Å⁻¹ with the zero at the centre. The EELS and EDS rooms' cubes follow in their own change (#819).
@@ -146,7 +146,7 @@ enum HyperSpyExportPanel {
         }
     }
 
-    /// File > Export as HyperSpy File… (with `coreLoss`, Export Core Loss as HyperSpy File… in the EELS room): the save panel, then
+    /// File > Export HyperSpy File… (with `coreLoss`, Export Core Loss HyperSpy File… in the EELS room): the save panel, then
     /// the write. With `--export-dir` (a UI journey) it is written into that folder without a panel.
     @discardableResult
     static func export(appState: AppState, coreLoss: Bool = false) -> Task<Void, Never>? {
@@ -179,13 +179,8 @@ enum HyperSpyExportPanel {
         }
     }
 
-    /// File > Stop HyperSpy Export: the cube's write ends at its next band, and the destination is left as it was.
-    static func stop(appState: AppState) {
-        appState.hyperSpyWrite?.cancel()
-    }
-
-    /// The write, counted as the window's export; a cube's runs as `appState.hyperSpyWrite`, so Stop can cancel it, and its
-    /// fraction goes to the infobar.
+    /// The write, counted as the window's export; a cube's runs as `appState.hyperSpyWrite`, the EELS room's running work, so the
+    /// toolbar shows its fraction and ⌘. stops it.
     private static func finish(_ snapshot: Snapshot, to url: URL, leaveOutFileNames: Bool, software: String, appState: AppState) async {
         appState.exportsWriting += 1
         defer { appState.exportsWriting -= 1 }
@@ -193,19 +188,17 @@ enum HyperSpyExportPanel {
         appState.statusText = ExportSnapshot.exportingLine(name: name)
         let write = Task {
             try await Self.write(snapshot, to: url, leaveOutFileNames: leaveOutFileNames, software: software) { fraction in
-                Task { @MainActor in
-                    if appState.hyperSpyWrite != nil { appState.statusText = "Exporting \(name)… \(Int((fraction * 100).rounded())) %" }
-                }
+                Task { @MainActor in if appState.hyperSpyWrite?.fileName == name { appState.hyperSpyWrite?.fraction = fraction } }
             }
         }
-        if snapshot.isCube { appState.hyperSpyWrite = write }
+        if snapshot.isCube { appState.hyperSpyWrite = HyperSpyCubeWrite(task: write, fileName: name) }
         let result = await write.result
         appState.hyperSpyWrite = nil
         switch result {
         case .success:
             appState.statusText = "Exported \(name)"
         case .failure(let error) where error is FormatoCancelled || error is CancellationError:
-            appState.statusText = "Stopped the export of \(name); nothing was written."
+            appState.statusText = "Stopped the export of \(name), nothing was written"
         case .failure(let error):
             appState.present(error)
         }

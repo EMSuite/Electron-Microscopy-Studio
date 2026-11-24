@@ -77,6 +77,7 @@ enum BusyOperation {
             let s = appState.eels
             let next = s.stages.first { $0.stage.isRun && $0.state != .current }?.stage
             return eels(opening: s.isOpening, openSentence: appState.statusText, computing: s.isComputing, stage: next)
+                ?? appState.hyperSpyWrite.map { "Exporting \($0.fileName)…" }
         case .patterns:
             let s = appState.ebsd
             return patterns(opening: s.isOpening, processing: s.isProcessing, mapping: s.isMapping, qualityMapping: s.isQualityMapping,
@@ -105,7 +106,7 @@ enum BusyOperation {
     static func toolbarOperation(room: WorkspaceArea, appState: AppState) -> String? {
         let busy: Bool = switch room {
         case .edx: appState.edx.isBusy
-        case .eels: appState.eels.isBusy
+        case .eels: appState.isEELSRoomBusy
         case .patterns: appState.ebsd.isBusy
         case .indexing: appState.indexing.isBusy
         case .maps: appState.maps.isBusy
@@ -161,7 +162,7 @@ enum BusyOperation {
     static func isBusy(_ room: WorkspaceArea, appState: AppState) -> Bool {
         switch room {
         case .edx: appState.edx.isBusy
-        case .eels: appState.eels.isBusy
+        case .eels: appState.isEELSRoomBusy
         case .patterns: appState.ebsd.isBusy
         case .indexing: appState.indexing.isBusy || appState.ebsd.isOpening
         case .maps: appState.maps.isOpening || appState.maps.isSegmenting || appState.maps.isTexturing

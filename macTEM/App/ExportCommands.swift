@@ -12,8 +12,8 @@
 //        each through the room's own export (`RoomExports`), the call its inspector button makes. Every room ends the group with
 //        Export Methods Record… and puts Copy Methods Paragraph (⌥⌘C, the design's F3) in the Edit menu after the pasteboard's items (#818,
 //        `MethodsRecordExport`), both enabled while the room holds a result. The Image, Diffraction and EELS rooms list Export
-//        as HyperSpy File… before it (#819, `HyperSpyExportPanel`), the EELS room's core loss on its own item, and Stop HyperSpy
-//        Export while a cube is written.
+//        HyperSpy File… before it (#819, `HyperSpyExportPanel`) and the EELS room's core loss on its own item; a cube's write is
+//        the room's running work, which ⌘. stops.
 //
 //        PLACEMENT: after the Save group, which this app's File menu fills with Close Image and Close Window (`ImageCommands`
 //        replaces it) — the anchor already known to render here. `.importExport`, the HIG's home of Export, would put the items
@@ -118,21 +118,17 @@ struct ExportCommands: Commands {
         }
     }
 
-    /// Export as HyperSpy File… (#819) in the Image, Diffraction and EELS rooms, the EELS room's core loss on an item of its own,
-    /// and Stop HyperSpy Export while a cube is being written.
+    /// Export HyperSpy File… (#819) in the Image, Diffraction and EELS rooms, and the EELS room's core loss on an item of its own. A
+    /// cube's write is the EELS room's running work, which ⌘. stops.
     @ViewBuilder
     private func hyperSpyItems(_ appState: AppState, available: Bool) -> some View {
-        Button("Export as HyperSpy File…") { HyperSpyExportPanel.export(appState: appState) }
+        Button("Export HyperSpy File…") { HyperSpyExportPanel.export(appState: appState) }
             .disabled(!available)
             .accessibilityIdentifier("menu.exportHyperSpy")
         if HyperSpyExportPanel.hasCoreLoss(appState) {
-            Button("Export Core Loss as HyperSpy File…") { HyperSpyExportPanel.export(appState: appState, coreLoss: true) }
+            Button("Export Core Loss HyperSpy File…") { HyperSpyExportPanel.export(appState: appState, coreLoss: true) }
                 .disabled(!HyperSpyExportPanel.isAvailable(in: appState, coreLoss: true))
                 .accessibilityIdentifier("menu.exportHyperSpyCoreLoss")
-        }
-        if appState.hyperSpyWrite != nil {
-            Button("Stop HyperSpy Export") { HyperSpyExportPanel.stop(appState: appState) }
-                .accessibilityIdentifier("menu.stopHyperSpy")
         }
     }
 

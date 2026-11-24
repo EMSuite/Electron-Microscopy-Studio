@@ -1,6 +1,6 @@
 //
 //  HyperSpyExportTests.swift
-//  Export as HyperSpy File… (#819, plan row X3; `HyperSpyExport`, `HyperSpyExportPanel`): an image and a pattern written as .hspy
+//  Export HyperSpy File… (#819, plan row X3; `HyperSpyExport`, `HyperSpyExportPanel`): an image and a pattern written as .hspy
 //  and read back with FormatoKit's own reader (the kit's pins H2 and H4 hold it to HyperSpy 2.5.0's): the pixels at their stored
 //  type, the axes with their calibration (a pattern's in Å⁻¹ with the zero at the centre), HyperSpy's signal type for the class,
 //  and the methods record and the beam energy in the metadata tree. Too little free space is refused before anything is written.
@@ -178,6 +178,24 @@ nonisolated final class HyperSpyExportTests: XCTestCase {
         XCTAssertEqual(read.signalType, "EELS")
         guard case .text(let json)? = read.metadata[HyperSpyExport.recordKey]?.value else { return XCTFail("no record") }
         XCTAssertEqual(try MethodsRecord.decode(json).room, "eels")
+    }
+
+    /// A cube's write is the EELS room's running work: the toolbar names it with its fraction, ⌘. stops it, and the File menu has no
+    /// Stop item of its own. Mutation: the write left out of the room's busy state, or ⌘. not cancelling it - red.
+    @MainActor func testACubesWriteIsTheEELSRoomsRunningWork() async throws {
+        let state = AppState(launch: LaunchOptions(arguments: []))
+        state.navigation.workspaceArea = .eels
+        XCTAssertFalse(RoomPrimaryAction.canStop(room: .eels, appState: state))
+        let task = Task<Void, any Error> { try await Task.sleep(for: .seconds(60)) }
+        state.hyperSpyWrite = HyperSpyCubeWrite(task: task, fileName: "cube.hspy", fraction: 0.4)
+        XCTAssertTrue(state.isEELSRoomBusy)
+        XCTAssertTrue(RoomPrimaryAction.canStop(room: .eels, appState: state))
+        XCTAssertEqual(BusyOperation.name(room: .eels, appState: state), "Exporting cube.hspy…")
+        XCTAssertEqual(BusyOperation.toolbarOperation(room: .eels, appState: state), "Exporting cube.hspy…")
+        XCTAssertEqual(try XCTUnwrap(RoomProgress.fraction(room: .eels, appState: state)), 0.4, accuracy: 1e-12)
+        RoomPrimaryAction.stopActive(state)
+        XCTAssertTrue(task.isCancelled)
+        _ = await task.result
     }
 }
 

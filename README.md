@@ -80,7 +80,7 @@ The rooms:
 - **Methods**: every export carries a record of how its numbers were made (the source by fingerprint, each step and setting,
   the app and kit versions). File > Export Methods Record… saves the room's record as JSON, and Edit > Copy Methods
   Paragraph copies it as a paragraph for a paper's methods section.
-- **HyperSpy files**: File > Export as HyperSpy File… writes the Image room's image, the Diffraction room's pattern or the
+- **HyperSpy files**: File > Export HyperSpy File… writes the Image room's image, the Diffraction room's pattern or the
   EELS room's spectrum image as a .hspy that `hs.load` opens (Signal2D, pyxem's ElectronDiffraction2D in Å⁻¹, or exspy's
   EELSSpectrum), at its stored bit depth, with the methods record in its metadata. A cube shows its progress and can be stopped.
 
