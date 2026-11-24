@@ -346,8 +346,11 @@ enum ExportPanels {
     private static func presentTransformPanel(_ snapshot: ExportTransformSnapshot, on window: NSWindow,
                                               appState: AppState) async {
         let choices = ExportImageChoices(snapshot.defaults, kind: .spots, offersAsShown: snapshot.offersAsShown)
+        let fileNames = rememberedFileNameChoice()
+        choices.fileNames = fileNames
         let panel = transformPanel(for: snapshot, choices: choices)
         guard await present(panel, on: window) == .OK, let url = panel.url else { return }
+        remember(fileNames)
 
         // Counted from the panel's OK to the infobar's last line, per window (`AppState.exportsWriting`): two exports of one window
         // never interleave its status lines or write one destination twice, and another window's export is not held up (#625).
@@ -357,7 +360,8 @@ enum ExportPanels {
         let options = ExportSnapshot.options(scaleBar: choices.scaleBar, marks: choices.marks, offersMarks: choices.offersMarks)
         appState.statusText = ExportSnapshot.exportingLine(name: name)
         do {
-            let rendered = try await snapshot.write(to: url, options: options, asShown: choices.asShown)
+            let rendered = try await snapshot.write(to: url, options: options, asShown: choices.asShown,
+                                                    leaveOutFileNames: fileNames.leaveOut)
             report(ExportSnapshot.transformDoneLine(name: name, width: rendered.width, height: rendered.height,
                                                     spots: options.marks ? snapshot.marks.count : 0,
                                                     barLeftOut: rendered.barLeftOut, asShown: choices.asShown), in: appState)
@@ -368,8 +372,11 @@ enum ExportPanels {
 
     private static func presentRadialProfilePanel(_ snapshot: ExportRadialProfileSnapshot, on window: NSWindow,
                                                   appState: AppState) async {
+        let fileNames = rememberedFileNameChoice()
         let panel = radialProfilePanel(for: snapshot)
+        panel.accessoryView = fileNameAccessory(for: fileNames)
         guard await present(panel, on: window) == .OK, let url = panel.url else { return }
+        remember(fileNames)
 
         // Counted from the panel's OK to the infobar's last line, per window (`AppState.exportsWriting`): two exports of one window
         // never interleave its status lines or write one destination twice, and another window's export is not held up (#625).
@@ -378,7 +385,7 @@ enum ExportPanels {
         let name = url.lastPathComponent
         appState.statusText = ExportSnapshot.exportingLine(name: name)
         do {
-            try await snapshot.write(to: url)
+            try await snapshot.write(to: url, leaveOutFileNames: fileNames.leaveOut)
             report(ExportSnapshot.radialProfileDoneLine(name: name, bins: snapshot.bins), in: appState)
         } catch {
             appState.present(error)
@@ -386,8 +393,11 @@ enum ExportPanels {
     }
 
     private static func presentSpotsPanel(_ snapshot: ExportSpotsSnapshot, on window: NSWindow, appState: AppState) async {
+        let fileNames = rememberedFileNameChoice()
         let panel = spotsPanel(for: snapshot)
+        panel.accessoryView = fileNameAccessory(for: fileNames)
         guard await present(panel, on: window) == .OK, let url = panel.url else { return }
+        remember(fileNames)
 
         // Counted from the panel's OK to the infobar's last line, per window (`AppState.exportsWriting`): two exports of one window
         // never interleave its status lines or write one destination twice, and another window's export is not held up (#625).
@@ -396,7 +406,7 @@ enum ExportPanels {
         let name = url.lastPathComponent
         appState.statusText = ExportSnapshot.exportingLine(name: name)
         do {
-            try await snapshot.write(to: url)
+            try await snapshot.write(to: url, leaveOutFileNames: fileNames.leaveOut)
             report(ExportSnapshot.spotsDoneLine(name: name, spots: snapshot.rows.count), in: appState)
         } catch {
             appState.present(error)

@@ -49,7 +49,9 @@ nonisolated struct ExportTransformSnapshot: Sendable {
 
     /// What the panel's OK does: this snapshot's own source, display and spots, to the chosen file; with `asShown`, the picture
     /// resampled to the shape the pane draws (`FFTExport.asShown`), else one pixel per bin.
-    nonisolated func write(to url: URL, options: ImageExport.Options, asShown: Bool = false) async throws -> ImageExport.Rendered {
+    nonisolated func write(to url: URL, options: ImageExport.Options, asShown: Bool = false,
+                           leaveOutFileNames: Bool = false) async throws -> ImageExport.Rendered {
+        let (header, methods) = ExportSnapshot.named(header: header, methods: methods, leaveOutFileNames: leaveOutFileNames)
         let spotsDrawn = options.marks ? marks.count : 0
         var drawn: [String] = ["the transform, log₁₀|F|² in the window shown, grey"]
         if options.scaleBar { drawn.append("a scale bar") }
@@ -84,7 +86,9 @@ nonisolated struct ExportRadialProfileSnapshot: Sendable {
     /// The methods record the CSV carries (#817); nil for an image read from no file.
     var methods: MethodsRecord?
 
-    nonisolated func write(to url: URL) async throws {
+    /// `leaveOutFileNames` names the image "source 1" in the CSV's header and in its record (the panel's "Leave out file names").
+    nonisolated func write(to url: URL, leaveOutFileNames: Bool = false) async throws {
+        let (header, methods) = ExportSnapshot.named(header: header, methods: methods, leaveOutFileNames: leaveOutFileNames)
         try await RadialProfileCSV.export(profile, header: header, methods: methods, to: url)
     }
 }
@@ -103,7 +107,9 @@ nonisolated struct ExportSpotsSnapshot: Sendable {
     /// The methods record the CSV carries (#817); nil for an image read from no file.
     var methods: MethodsRecord?
 
-    nonisolated func write(to url: URL) async throws {
+    /// `leaveOutFileNames` names the image "source 1" in the CSV's header and in its record (the panel's "Leave out file names").
+    nonisolated func write(to url: URL, leaveOutFileNames: Bool = false) async throws {
+        let (header, methods) = ExportSnapshot.named(header: header, methods: methods, leaveOutFileNames: leaveOutFileNames)
         try await SpotsCSV.export(rows: rows, omitted: omitted, maskRadius: maskRadius, maskEdge: maskEdge, notes: notes,
                                   header: header, methods: methods, to: url)
     }
@@ -112,6 +118,15 @@ nonisolated struct ExportSpotsSnapshot: Sendable {
 // MARK: - The rules
 
 extension ExportSnapshot {
+
+    /// An FFT export's header and record as written: unchanged, or with the image's file name left out of both ("source 1").
+    nonisolated static func named(header: FFTExportHeader, methods: MethodsRecord?, leaveOutFileNames: Bool)
+        -> (header: FFTExportHeader, methods: MethodsRecord?) {
+        guard leaveOutFileNames else { return (header, methods) }
+        var header = header
+        header.fileName = ExportMethods.anonymousName(0)
+        return (header, methods?.withoutFileNames())
+    }
 
     // MARK: Enabled
 

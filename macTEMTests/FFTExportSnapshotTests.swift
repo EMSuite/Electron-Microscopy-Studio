@@ -225,6 +225,25 @@ nonisolated final class FFTExportSnapshotTests: XCTestCase {
         XCTAssertEqual(drawn, ["the transform, log₁₀|F|² in the window shown, grey", "a scale bar", "the measured spots"])
     }
 
+    /// "Leave out file names" in the FFT panels: the spots CSV names the image "source 1" in its header and its record, and the file's
+    /// name is nowhere in it. Red before: the FFT snapshots wrote the file name whatever the panel said.
+    @MainActor func testTheSpotsCSVLeavesOutTheFileNameWhenAsked() async throws {
+        let (image, analysis) = try await landed()
+        try await measure(analysis, row: 37, col: 40, count: 1)
+        var spots = try XCTUnwrap(ExportSnapshot.spotsSnapshot(image: image, url: Self.url, analysis: analysis, software: Self.software))
+        let source = MethodsRecord.Source(fileName: image.fileName, byteCount: 1000, fingerprint: String(repeating: "ab", count: 32), kind: "image",
+                                          shape: [image.width, image.height])
+        spots.methods = ExportMethods.fftRecord(app: MethodsRecord.Software(name: "Electron Microscopy Studio", version: "2.2.0 (1)"),
+                                                exportKind: "fft-spots-csv", source: source, header: spots.header,
+                                                product: .spots(count: 1, maskRadius: spots.maskRadius, maskEdge: spots.maskEdge), drawn: [])
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("fft-anonymous-\(UUID().uuidString).csv")
+        defer { try? FileManager.default.removeItem(at: url) }
+        try await spots.write(to: url, leaveOutFileNames: true)
+        let text = try String(contentsOf: url, encoding: .utf8)
+        XCTAssertFalse(text.contains((image.fileName as NSString).deletingPathExtension), text)
+        XCTAssertEqual(ExportMethods.record(inText: text)?.sources.first?.fileName, "source 1")
+    }
+
     @MainActor func testNoMeasuredSpotMeansNoSpotsSnapshot() async throws {
         let (image, analysis) = try await landed()
         XCTAssertNil(ExportSnapshot.spotsSnapshot(image: image, url: Self.url, analysis: analysis, software: Self.software))
