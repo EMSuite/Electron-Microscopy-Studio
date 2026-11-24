@@ -172,6 +172,7 @@ extension MacTEMAgentDoor {
         out.merge([
             "standard": analysis.standard.name, "families": families, "family": analysis.familyIndex,
             "crystal": analysis.crystal.name, "crystal_from_cif": analysis.crystal.sha256 != nil,
+            "crystal_lattice": analysis.crystal.lattice, "crystal_phase": AgentJSON.orNull(analysis.crystal.phaseID),
             "crystal_failure": AgentJSON.orNull(analysis.crystalFailure),
             "k_max_per_angstrom": AgentJSON.number(analysis.kMax), "tolerance_percent": AgentJSON.number(analysis.tolerancePercent),
         ]) { _, new in new }

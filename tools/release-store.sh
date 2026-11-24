@@ -73,7 +73,7 @@ codesign -d --entitlements :- "$APP" > "$OUT/store-entitlements.plist" 2>/dev/nu
 if /usr/libexec/PlistBuddy -c 'Print :com.apple.security.get-task-allow' "$OUT/store-entitlements.plist" >/dev/null 2>&1; then
   echo "The store app carries get-task-allow." >&2; exit 1
 fi
-# The sandbox entitlements exactly: no network client, nothing the store listing does not declare.
+# The sandbox entitlements exactly: nothing the store listing does not declare.
 assert_mactem_store_entitlements "$OUT/store-entitlements.plist"
 [[ -f "$APP/Contents/Resources/PrivacyInfo.xcprivacy" ]] || { echo "The app has no privacy manifest." >&2; exit 1; }
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :ITSAppUsesNonExemptEncryption' "$APP/Contents/Info.plist" 2>/dev/null)" == false ]] \

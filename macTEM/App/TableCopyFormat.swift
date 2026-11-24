@@ -13,6 +13,7 @@
 
 import Foundation
 import TEMCore
+import DiffractoCore
 
 /// Rows of a table as tab-separated text for the pasteboard.
 nonisolated enum TableCopyText {
@@ -131,6 +132,66 @@ nonisolated enum DiffractionReadoutFormat {
     /// ⌘C's text for `rows` (in the order given: the table's); "" for no rows.
     static func copyText(_ rows: [DiffractionReadoutRow], locale: Locale = .autoupdatingCurrent) -> String {
         TableCopyText.text(titles: Column.allCases.map(\.copiedTitle), rows: rows.map { cells($0, locale: locale) })
+    }
+}
+
+/// The Diffraction room's Spots table (#785): its columns in the table's order, each cell as the table shows it, and its sorting.
+nonisolated enum DiffractionSpotFormat {
+    nonisolated enum Column: CaseIterable, Sendable {
+        case spot, hkl, radius, q, d, dExpected, delta, phase
+
+        var title: String {
+            switch self {
+            case .spot: "Spot"
+            case .hkl: "hkl"
+            case .radius: "R px"
+            case .q: "q Å⁻¹"
+            case .d: "d Å"
+            case .dExpected: "d expected"
+            case .delta: "Δd/d %"
+            case .phase: "Phase"
+            }
+        }
+
+        /// What VoiceOver calls the column: symbols and units in words.
+        var spoken: String {
+            switch self {
+            case .spot: "Spot"
+            case .hkl: "h k l"
+            case .radius: "radius, pixels"
+            case .q: "q, inverse ångströms"
+            case .d: "d, ångströms"
+            case .dExpected: "d expected, ångströms"
+            case .delta: "delta d over d, percent"
+            case .phase: "Phase"
+            }
+        }
+    }
+
+    /// One cell as the table shows it: the spot's number, the hkl with its bars, R to two decimals, q to five, d and the expected d
+    /// to four, Δd/d with its sign, the phase; a dash where there is no value.
+    static func cell(_ column: Column, _ row: PatternIndexing.SpotRow, locale: Locale = .autoupdatingCurrent) -> String {
+        switch column {
+        case .spot: return "\(row.number)"
+        case .hkl: return row.hkl == nil ? UnitDisplay.noValue : row.hklText
+        case .radius: return Num.fixed(row.radiusPx, 2, locale: locale)
+        case .q: return Num.fixed(row.q, 5, locale: locale)
+        case .d: return Num.fixed(row.d, 4, locale: locale)
+        case .dExpected: return row.dExpected.map { Num.fixed($0, 4, locale: locale) } ?? UnitDisplay.noValue
+        case .delta: return row.deltaPercent.map { Num.signed($0, 2, locale: locale) } ?? UnitDisplay.noValue
+        case .phase: return row.phase.isEmpty ? UnitDisplay.noValue : row.phase
+        }
+    }
+
+    /// The hkl in words for VoiceOver ("1, minus 1, 1"): the overbar is not read aloud.
+    static func spokenHKL(_ row: PatternIndexing.SpotRow) -> String {
+        guard let hkl = row.hkl else { return "not explained" }
+        return [hkl.h, hkl.k, hkl.l].map { $0 < 0 ? "minus \(-$0)" : "\($0)" }.joined(separator: ", ")
+    }
+
+    /// The rows in the table's sort order; rows that tie keep the order of their spot numbers.
+    static func sorted(_ rows: [PatternIndexing.SpotRow], by order: [KeyPathComparator<PatternIndexing.SpotRow>]) -> [PatternIndexing.SpotRow] {
+        rows.sorted(using: order + [KeyPathComparator(\PatternIndexing.SpotRow.number)])
     }
 }
 

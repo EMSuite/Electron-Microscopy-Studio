@@ -1,6 +1,6 @@
 //
 //  DiffractionRoomInspector.swift
-//  Role: the Diffraction room's Settings (design section 3): Centre, Calibration, Display, Tools, Crystal, Index, Holder, Simulation, Precipitate, Powder, Rings, Export (control placement §2:
+//  Role: the Diffraction room's Settings (design section 3): Centre, Calibration, Display, Tools, Phases, Index, Holder, Simulation, Precipitate, Powder, Rings, Export (control placement §2:
 //        what I am looking at, then the job; Centre stays above Calibration, which it feeds). Presentation only;
 //        the state is `DiffractionAnalysis` and every number DiffractoKit's. Every field commits on Return or blur
 //        (`OptionalNumericField`), every control has an accessibility identifier for the journey.
@@ -8,6 +8,8 @@
 
 import ShellControls
 import ShellInspector
+import ShellPhaseLibrary
+import ShellPhaseViews
 import SwiftUI
 import UniformTypeIdentifiers
 import TEMCore
@@ -27,7 +29,7 @@ struct DiffractionRoomSettings: View {
             DiffractionCalibrationSection(session: item.session, analysis: analysis, view: view)
             DiffractionDisplaySection(view: view)
             DiffractionToolsSection(view: view)
-            DiffractionCrystalSection(item: item, analysis: analysis)
+            DiffractionPhasesSection(item: item, analysis: analysis)
             DiffractionIndexSection(analysis: analysis)
             DiffractionHolderSection(item: item)
             DiffractionSimulationSection(session: item.session, analysis: analysis)
@@ -143,24 +145,35 @@ private struct DiffractionCalibrationSection: View {
     }
 }
 
-private struct DiffractionCrystalSection: View {
+/// The Phases section (#779), in place of Crystal: the phases of the person's library, each with its marker shape and colour, shown
+/// or hidden, and its lattice; Add Phase… opens EMSuiteUI's sheet (search the Materials Project, or Open CIF…). In this first slice
+/// one phase is shown at a time and is the crystal Index, the readout and the simulated spots use; with none shown the room uses
+/// its calibration standard. The library is on this Mac, so a phase added once works offline.
+private struct DiffractionPhasesSection: View {
     let item: OpenItem
     let analysis: DiffractionAnalysis
+    @State private var adding = false
     @State private var importing = false
     @State private var findingPhases = false
+    @State private var addModel = AddPhaseModel(library: PhaseServices.library, client: PhaseServices.client,
+                                                keyStore: PhaseServices.keyStore)
+    private var library: PhaseLibrary { PhaseServices.library }
 
     var body: some View {
-        InspectorSection("Crystal") {
-            InspectorRow("Crystal") {
-                Picker("Crystal", selection: Binding(get: { analysis.crystal.sha256 == nil ? analysis.crystal.name : "cif" },
-                                                     set: { name in if let s = StandardCrystals.named(name) { analysis.setCrystal(.preset(s)) } })) {
-                    ForEach(StandardCrystals.all, id: \.name) { Text($0.name).tag($0.name) }
-                    if analysis.crystal.sha256 != nil { Text(analysis.crystal.name).tag("cif") }
-                }
-                .labelsHidden().fixedSize().accessibilityIdentifier("diffraction.crystal")
+        InspectorSection("Phases") {
+            if library.phases.isEmpty {
+                InspectorNote("No phases yet. Add Phase… searches the Materials Project or opens a CIF.")
+            }
+            ForEach(Array(DiffractionPhases.ordered(library.phases).enumerated()), id: \.element.id) { index, phase in
+                DiffractionPhaseRow(phase: phase, index: index, analysis: analysis)
+            }
+            if !library.unreadable.isEmpty {
+                InspectorWarning("\(library.unreadable.count) phase record\(library.unreadable.count == 1 ? "" : "s") could not be read: \(library.unreadable.joined(separator: "; "))")
             }
             InspectorActionRow {
-                Button("Open CIF…") { importing = true }.accessibilityIdentifier("diffraction.cif")
+                Button("Add Phase…") { adding = true }
+                    .help("Find a phase on the Materials Project, or open a CIF. Until a phase is shown, the room indexes against \(analysis.standard.name), the calibration standard.")
+                    .accessibilityIdentifier("diffraction.phases.add")
                 Button("Find Phases…") { findingPhases = true }
                     .help("Ranks the room's standards and the open crystals by how many of the measured rings or marked spots each explains")
                     .accessibilityIdentifier("diffraction.findPhases")
@@ -173,17 +186,76 @@ private struct DiffractionCrystalSection: View {
                 OptionalNumericField(title: "Indexing tolerance", value: analysis.tolerancePercent, format: pixelFormat, unit: "% of q") { analysis.setTolerance(percent: $0) }
             }
         }
+        .task { await PhaseServices.loadLibrary() }
         .sheet(isPresented: $findingPhases) { DiffractionFindPhasesSheet(item: item) }
+        .sheet(isPresented: $adding) {
+            AddPhaseSheet(model: addModel, onOpenCIF: { importing = true }) { phase in
+                DiffractionPhases.set(phase, shown: true, in: analysis)
+            }
+        }
         .fileImporter(isPresented: $importing, allowedContentTypes: [UTType(filenameExtension: "cif") ?? .plainText, .plainText]) { result in
             switch result {
             case .success(let url):
                 Task {
-                    do { analysis.setCrystal(.cif(try await DiffractionCIF.load(url))) }
-                    catch { analysis.crystalRefused(error.localizedDescription) }
+                    do {
+                        let (loaded, bytes) = try await DiffractionCIF.loadWithBytes(url)
+                        let phase = try DiffractionPhases.addCIF(loaded, bytes: bytes, fileName: url.lastPathComponent, to: library)
+                        DiffractionPhases.set(phase, shown: true, in: analysis)
+                    } catch {
+                        analysis.crystalRefused(error.localizedDescription)
+                    }
                 }
             case .failure(let error): analysis.crystalRefused(error.localizedDescription)
             }
         }
+    }
+}
+
+/// One phase: its marker shape in its colour, whether it is shown, its name and source, and its lattice.
+private struct DiffractionPhaseRow: View {
+    let phase: Phase
+    let index: Int
+    let analysis: DiffractionAnalysis
+
+    var body: some View {
+        let style = DiffractionPhases.style(at: index)
+        let colour = DiffractionPhases.colours[style.colourIndex]
+        let shown = analysis.crystal.phaseID == phase.id
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 6) {
+                Image(systemName: style.marker.systemImage)
+                    .foregroundStyle(colour.color)
+                    .accessibilityLabel("\(colour.name) \(style.marker.spoken) marker")
+                Toggle(isOn: Binding(get: { shown }, set: { DiffractionPhases.set(phase, shown: $0, in: analysis) })) {
+                    Text(phase.name).lineLimit(1)
+                }
+                .toggleStyle(.checkbox)
+                .help(shown ? "Shown: Index, the readout and the simulated spots use this phase" : "Show this phase")
+                .accessibilityLabel("Show \(phase.name)")
+                .accessibilityIdentifier("diffraction.phases.show.\(phase.id)")
+                Spacer(minLength: 0)
+                if let attribution = phase.source.attribution {
+                    Text(attribution.replacingOccurrences(of: "Materials Project · ", with: ""))
+                        .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                        .help(attribution)
+                }
+            }
+            Text(DiffractionPhases.latticeText(phase.structure().cell) + (phase.isEdited ? " (edited)" : ""))
+                .font(.caption).monospacedDigit().foregroundStyle(.secondary)
+                .accessibilityLabel("Lattice of \(phase.name): \(DiffractionPhases.latticeText(phase.structure().cell))")
+                .accessibilityIdentifier("diffraction.phases.lattice.\(phase.id)")
+            if DiffractionPhases.isOutdated(phase, in: analysis) {
+                // The room keeps its own copy of the phase it uses (#780): the library's change waits for this button.
+                HStack(spacing: 6) {
+                    Label("Changed in your library since it was shown here.", systemImage: "arrow.triangle.2.circlepath")
+                        .font(.caption).foregroundStyle(.secondary)
+                    Button("Update from Library") { DiffractionPhases.set(phase, shown: true, in: analysis) }
+                        .help("Use the library's copy of this phase; Index and the readout start again")
+                        .accessibilityIdentifier("diffraction.phases.update.\(phase.id)")
+                }
+            }
+        }
+        .padding(.vertical, 2)
     }
 }
 
@@ -217,12 +289,6 @@ private struct DiffractionIndexSection: View {
                     .help("The pattern's turn about the beam, counter-clockwise from down the rows toward along the columns")
                     .accessibilityIdentifier("diffraction.simulation.turn")
             }
-            InspectorRow("Spots") {
-                Button("Remove Spots") { DiffractionUndo.removeSpots(in: analysis, undoManager: undoManager) }
-                    .disabled(analysis.spots.isEmpty)
-                    .help("Removes every spot, found or clicked, and keeps the rings and their scale: Index then finds the spots again")
-                    .accessibilityIdentifier("diffraction.index.removeSpots")
-            }
             // Index's solutions, Flip and Fit scale (#787).
             let solutions = analysis.solutions.count
             InspectorRow("Solution") {
@@ -236,11 +302,16 @@ private struct DiffractionIndexSection: View {
                     .accessibilityValue(solutions > 0 ? "\(analysis.solutionIndex + 1) of \(solutions)" : "none")
                     .accessibilityIdentifier("diffraction.index.solution")
             }
-            InspectorRow("Flip") {
+            // The section's two actions in one row of buttons (control placement §3), not buttons in label rows.
+            InspectorActionRow {
                 Button("Flip 180°") { analysis.flip() }
                     .disabled(!settings.isShown || analysis.drawnOrientation == nil)
                     .help("Turns the simulated spots 180° about the beam: the look-alike a centrosymmetric pattern cannot tell apart")
                     .accessibilityIdentifier("diffraction.index.flip")
+                Button("Remove Spots") { DiffractionUndo.removeSpots(in: analysis, undoManager: undoManager) }
+                    .disabled(analysis.spots.isEmpty)
+                    .help("Removes every spot, found or clicked, and keeps the rings and their scale: Index then finds the spots again")
+                    .accessibilityIdentifier("diffraction.index.removeSpots")
             }
             InspectorRow("Fit scale") {
                 Toggle("Fit scale", isOn: Binding(get: { analysis.fitScale }, set: { analysis.fitScale = $0 }))
@@ -264,7 +335,7 @@ private struct DiffractionIndexSection: View {
     }
 }
 
-/// The simulated spots over the pattern (#782): on or off, and the hkl labels. The crystal is the Crystal section's, the scale and
+/// The simulated spots over the pattern (#782): on or off, and the hkl labels. The crystal is the Phases section's, the scale and
 /// beam the Calibration's, the orientation the Index section's; the overlay is drawn again on every change of any of them.
 private struct DiffractionSimulationSection: View {
     let session: ImageSession
@@ -319,6 +390,13 @@ nonisolated enum DiffractionIndexText {
         }
         if indexed { return "Found by Index. Remove or click spots and Index again, or type a zone axis to set it by hand." }
         return "Index (⌘R) reads the marked spots: found ones give the full orientation, a clicked one the zone axis only."
+    }
+
+    /// The pattern's spoken words for Index's answer (#785): its line, and that its spots are listed in the Spots table, the
+    /// pattern's text alternative. "" before an answer.
+    static func spoken(_ line: String?, rows: Int) -> String {
+        guard let line else { return "" }
+        return ", Index: \(line); \(UnitDisplay.count(rows, "spot", "spots")) in the Spots table"
     }
 }
 
@@ -410,26 +488,36 @@ private struct DiffractionExportSection: View {
     @Environment(AppState.self) private var appState
     @State private var exporting = false
     @State private var document = RoomExportFile(text: "")
+    @State private var exportName = ""
 
     var body: some View {
         InspectorSection("Export", startsExpanded: false) {
             InspectorActionRow {
-                Button("Export Readout CSV…") { export() }
+                Button("Export Readout CSV…") { export(spots: false) }
                     .disabled(analysis.rings.isEmpty && analysis.spots.isEmpty)
                     .accessibilityIdentifier("diffraction.export")
             }
+            InspectorActionRow {
+                Button("Export Spots CSV…") { export(spots: true) }
+                    .disabled(analysis.indexSpotRows.isEmpty)
+                    .help("Index's spots as the Spots table lists them: hkl, R, q, d, the expected d, Δd/d and the phase")
+                    .accessibilityIdentifier("diffraction.export.spots")
+            }
         }
         .fileExporter(isPresented: $exporting, document: document, contentType: .commaSeparatedText,
-                      defaultFilename: DiffractionReadoutExport.baseName(of: image.fileName)) { result in
+                      defaultFilename: exportName) { result in
             if case .failure(let error) = result { appState.present(error) }
         }
     }
 
-    private func export() {
-        let text = ExportSnapshot.diffractionCSV(analysis, image: image, openItems: appState.openItems)
+    private func export(spots: Bool) {
+        let text = spots ? ExportSnapshot.diffractionSpotsCSV(analysis, image: image, openItems: appState.openItems)
+                         : ExportSnapshot.diffractionCSV(analysis, image: image, openItems: appState.openItems)
+        exportName = spots ? DiffractionReadoutExport.spotsBaseName(of: image.fileName) : DiffractionReadoutExport.baseName(of: image.fileName)
         if let directory = appState.exportDirectory {
             do {
-                let url = try DiffractionReadoutExport.write(text, imageFileName: image.fileName, into: directory)
+                let url = try spots ? ExportDirectoryFile.write(text, named: exportName + ".csv", into: directory)
+                                    : DiffractionReadoutExport.write(text, imageFileName: image.fileName, into: directory)
                 appState.statusText = "Exported \(url.lastPathComponent)"
             } catch { appState.present(error) }
         } else {

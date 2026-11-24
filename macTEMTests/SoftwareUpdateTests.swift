@@ -38,15 +38,15 @@ nonisolated final class SoftwareUpdateTests: XCTestCase {
         XCTAssertTrue(store.keys.allSatisfy { !$0.hasPrefix("SU") }, "the store build names no updater")
     }
 
-    /// Mutation: give the store build the installer exception or a network client, or the download any other extra entitlement - red.
+    /// Both builds reach the Materials Project (#778); the download adds only the installer exception. Mutation: give the store build
+    /// the installer exception, or the download any other extra entitlement - red.
     func testTheDownloadsEntitlementsAreTheStoresPlusTheUpdatersOwn() throws {
         let store = try plist("macTEM/macTEM.entitlements")
         var direct = try plist("macTEM/macTEM-Direct.entitlements")
         let names = try XCTUnwrap(direct.removeValue(forKey: "com.apple.security.temporary-exception.mach-lookup.global-name") as? [String])
         XCTAssertEqual(names, ["$(PRODUCT_BUNDLE_IDENTIFIER)-spks", "$(PRODUCT_BUNDLE_IDENTIFIER)-spki"])
-        XCTAssertEqual(direct.removeValue(forKey: "com.apple.security.network.client") as? Bool, true, "the feed is fetched by the app itself")
         XCTAssertEqual(NSDictionary(dictionary: direct), NSDictionary(dictionary: store))
-        XCTAssertNil(store["com.apple.security.network.client"], "the store build makes no outgoing connection")
+        XCTAssertEqual(store["com.apple.security.network.client"] as? Bool, true, "the feed and the Materials Project share the one outgoing permission")
     }
 
     /// Mutation: a configuration that forgets the switch, or a store build that keeps the framework - red.

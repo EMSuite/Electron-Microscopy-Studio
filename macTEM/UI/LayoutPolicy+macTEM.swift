@@ -24,6 +24,8 @@ extension LayoutPolicy {
     static let paneHeaderProgressWidth: CGFloat = 80
     /// The Diffraction room's readout table under the pattern: room content, named once (rule 4).
     static let diffractionReadoutHeight: CGFloat = 170
+    /// The Diffraction room's crystal pane beside the pattern (#790): wide enough for the cell and its legend, the pattern keeps the rest.
+    static let diffractionCrystalWidth: CGFloat = 280
     /// The colour dot before a region's name in the Table tab.
     static let regionSwatchSize: CGFloat = 9
     /// The Indexing room's IPF colour key in the map pane's footer: legible beside the scale bar, small enough not to hide the map.

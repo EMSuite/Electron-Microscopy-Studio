@@ -42,6 +42,8 @@ nonisolated enum ParticleExport {
 /// "<image name> diffraction.csv" in that folder.
 nonisolated enum DiffractionReadoutExport {
     static func baseName(of imageFileName: String) -> String { (imageFileName as NSString).deletingPathExtension + " diffraction" }
+    /// The Spots CSV's name (#785): "<image> spots".
+    static func spotsBaseName(of imageFileName: String) -> String { (imageFileName as NSString).deletingPathExtension + " spots" }
 
     static func write(_ text: String, imageFileName: String, into directory: URL) throws -> URL {
         try ExportDirectoryFile.write(text, named: baseName(of: imageFileName) + ".csv", into: directory)
@@ -56,5 +58,14 @@ enum DiffractionCIF {
         defer { if scoped { url.stopAccessingSecurityScopedResource() } }
         let data = try Data(contentsOf: url)
         return try CrystalLoading.load(bytes: data, fileName: url.lastPathComponent)
+    }
+
+    /// The CIF with its bytes, for the phase library, which keeps the file as it came (#779).
+    @concurrent
+    nonisolated static func loadWithBytes(_ url: URL) async throws -> (crystal: LoadedCrystal, bytes: Data) {
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        let data = try Data(contentsOf: url)
+        return (try CrystalLoading.load(bytes: data, fileName: url.lastPathComponent), data)
     }
 }

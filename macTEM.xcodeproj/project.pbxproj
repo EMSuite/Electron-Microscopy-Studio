@@ -21,7 +21,10 @@
 		B00000000000000000000193 /* ShellEDXAgent in Frameworks */ = {isa = PBXBuildFile; productRef = B00000000000000000000192 /* ShellEDXAgent */; };
 		B00000000000000000000162 /* ShellEDXModel in Frameworks */ = {isa = PBXBuildFile; productRef = B00000000000000000000161 /* ShellEDXModel */; };
 		B00000000000000000000202 /* ShellExport in Frameworks */ = {isa = PBXBuildFile; productRef = B00000000000000000000201 /* ShellExport */; };
+		B00000000000000000000212 /* ShellPhaseLibrary in Frameworks */ = {isa = PBXBuildFile; productRef = B00000000000000000000211 /* ShellPhaseLibrary */; };
+		B00000000000000000000222 /* ShellPhaseViews in Frameworks */ = {isa = PBXBuildFile; productRef = B00000000000000000000221 /* ShellPhaseViews */; };
 		B00000000000000000000172 /* ShellAgentDoor in Frameworks */ = {isa = PBXBuildFile; productRef = B00000000000000000000171 /* ShellAgentDoor */; };
+		B00000000000000000000212 /* ShellCrystal in Frameworks */ = {isa = PBXBuildFile; productRef = B00000000000000000000211 /* ShellCrystal */; };
 		B00000000000000000000181 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = B00000000000000000000180 /* Sparkle */; };
 /* End PBXBuildFile section */
 
@@ -99,7 +102,10 @@
 				B00000000000000000000193 /* ShellEDXAgent in Frameworks */,
 				B00000000000000000000162 /* ShellEDXModel in Frameworks */,
 				B00000000000000000000202 /* ShellExport in Frameworks */,
+				B00000000000000000000212 /* ShellPhaseLibrary in Frameworks */,
+				B00000000000000000000222 /* ShellPhaseViews in Frameworks */,
 				B00000000000000000000172 /* ShellAgentDoor in Frameworks */,
+				B00000000000000000000212 /* ShellCrystal in Frameworks */,
 				B00000000000000000000181 /* Sparkle in Frameworks */,
 			);
 		};
@@ -170,7 +176,10 @@
 				B00000000000000000000192 /* ShellEDXAgent */,
 				B00000000000000000000161 /* ShellEDXModel */,
 				B00000000000000000000201 /* ShellExport */,
+				B00000000000000000000211 /* ShellPhaseLibrary */,
+				B00000000000000000000221 /* ShellPhaseViews */,
 				B00000000000000000000171 /* ShellAgentDoor */,
+				B00000000000000000000211 /* ShellCrystal */,
 				B00000000000000000000180 /* Sparkle */,
 			);
 			productName = macTEM;
@@ -855,9 +864,21 @@
 			isa = XCSwiftPackageProductDependency;
 			productName = ShellExport;
 		};
+		B00000000000000000000211 /* ShellPhaseLibrary */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ShellPhaseLibrary;
+		};
+		B00000000000000000000221 /* ShellPhaseViews */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ShellPhaseViews;
+		};
 		B00000000000000000000171 /* ShellAgentDoor */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = ShellAgentDoor;
+		};
+		B00000000000000000000211 /* ShellCrystal */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ShellCrystal;
 		};
 		B00000000000000000000180 /* Sparkle */ = {
 			isa = XCSwiftPackageProductDependency;
