@@ -482,6 +482,9 @@ inventory() {
     fi
   done
 
+  echo "== the public-data fetcher refuses a wrong hash and a malformed manifest (tools/public-data.tsv)"
+  "$ROOT/tools/lib/fetch-public-data-selftest.sh" || rc=1
+
   echo "== kit boundary (no Accelerate / Metal / vDSP in the app outside tools/kit-boundary.allow)"
   "$ROOT/tools/check-kit-boundary.sh" || rc=1
 

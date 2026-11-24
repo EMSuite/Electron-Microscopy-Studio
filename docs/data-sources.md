@@ -7,6 +7,12 @@ Every public dataset the SEM program reads, with its source, licence and DOI. Tw
 - **Datasets** are downloaded by `tools/parity/sem/fetch-data.sh` into `References/sem-data/` (gitignored) from
   `tools/parity/sem/data-manifest.txt`, which holds each file's URL and sha256. Zenodo-hosted files are marked
   `manual` in the manifest: the cloud runners cannot reach Zenodo, so they are fetched on the Mac.
+- **Public data files** for the demos, recipes and checks beyond the SEM program are listed in `tools/public-data.tsv`
+  (destination, hash, URL, licence, DOI; suite ADR 0006). The `Public data` workflow (`.github/workflows/public-data.yml`,
+  run by hand) fetches them on GitHub's Linux runner, which reaches Zenodo, checks each hash with
+  `tools/lib/fetch-public-data.sh`, and keeps them as the run's `public-data` artifact and in the Actions cache; unpack
+  the artifact into `References/public-data/` (gitignored). The first entry is pyxem's twinned GaAs nanowire scan
+  (CC BY 4.0, DOI 10.5281/zenodo.15490547), the source of the 2.3 demo pattern (#804).
 
 The licence rule (program spec, 2026-11-06): GPL-compatible only. macEM is GPL-3.0-only; CC BY 4.0 data and GPL-3
 test files are compatible, and each entry below says which it is. Demo data shipped with the app is listed in the
