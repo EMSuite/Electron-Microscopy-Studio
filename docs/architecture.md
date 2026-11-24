@@ -293,9 +293,9 @@ the settings a room recorded with an exported file.
 
 ## Known limitations
 
-- Reads 2D images from DM3/DM4, TIFF (with the Thermo/FEI, Zeiss and Tescan SEM records), one-image MRC, TIA `.ser`/`.emi` (images and patterns; the first frame of a series), Velox `.emd` and
+- Reads 2D images from DM3/DM4, TIFF (with the Thermo/FEI, Zeiss and Tescan SEM records), one-image MRC, TIA `.ser`/`.emi` (images and patterns; the first frame of a series; an `.emi` opens each of its series), Velox `.emd` and
   JEOL `.img`/`.map`; a stack opens at "frame 1 of N" and steps through its frames with ← and →. Reads spectrum images and
-  single spectra from Velox `.emd`, GMS `.dm4`, `.msa`, HyperSpy `.hspy`, Bruker `.bcf`/`.spx`, EDAX `.spd`/`.lsd`/`.spc`
+  single spectra from Velox `.emd`, GMS `.dm4`, `.msa`, HyperSpy `.hspy`, TIA `.ser` (EDS or EELS by its `.emi`, asked once without one), Bruker `.bcf`/`.spx`, EDAX `.spd`/`.lsd`/`.spc`
   and JEOL `.pts`/`.eds`/`.asw`; EBSD and TKD patterns from h5ebsd (kikuchipy, Bruker, EDAX, Oxford H5OINA), EDAX
   `.up1`/`.up2`, Oxford `.ebsp` and NORDIF `Pattern.dat`; orientation maps from `.ang`, `.ctf` and map-only `.h5oina`. A hexagonal EBSD grid is
   refused (D-SEM-9).

@@ -1,7 +1,7 @@
 //
 //  TIAImageReaderTests.swift
-//  A TIA image or pattern opens (#901): the routing sends a `.ser` or an `.emi` of an image series to the image rooms and refuses a
-//  series of spectra in words; the open reads the image with its calibration in the app's terms (the scale, and the origin from the
+//  A TIA image or pattern opens (#901): the routing sends a `.ser` or an `.emi` of an image series to the image rooms and sends a
+//  series of spectra to their rooms (`TIASpectraTests`); the open reads the image with its calibration in the app's terms (the scale, and the origin from the
 //  offset the kit keeps in metres or 1/metres), its voltage and the panel's metadata from the `.emi`; a `.ser` alone says its units
 //  are assumed; an `.emi` whose `.ser` cannot be opened is refused in a sentence that names the folder. The files are planted here
 //  (the TIA layout FormatoTIA reads: series header, one dimension, the offset arrays, one element and its time tag; an `.emi` with
@@ -90,7 +90,7 @@ nonisolated final class TIAImageReaderTests: XCTestCase {
     // MARK: Routing
 
     /// Mutation: the `.tia` arm sends a spectrum to the image rooms, or `ser`/`emi` leave `openableExtensions`.
-    func testTheRoutingSendsATIAImageToTheImageRoomsAndRefusesSpectraInWords() throws {
+    func testTheRoutingSendsATIAImageToTheImageRoomsAndSpectraElsewhere() throws {
         XCTAssertTrue(FileRouting.openableExtensions.contains("ser"))
         XCTAssertTrue(FileRouting.openableExtensions.contains("emi"))
         let patterns = try patternFolder()
@@ -100,8 +100,7 @@ nonisolated final class TIAImageReaderTests: XCTestCase {
                                                             spectrum: true)])
         let found = FileRouting.inventory(path: spectra.appendingPathComponent("spectrum_1.ser").path)
         XCTAssertFalse(found.image)
-        XCTAssertEqual(found.refusal, "spectrum_1.ser is not read: it holds TIA spectra; Electron Microscopy Studio opens TIA images and "
-                       + "diffraction patterns, and TIA spectra are not opened yet.")
+        XCTAssertTrue(found.asksForSpectraRoom, "spectra go to their room (TIASpectraTests), never the image rooms")
         XCTAssertThrowsError(try ImageOpening.openNow(path: spectra.appendingPathComponent("spectrum_1.ser").path)) { error in
             XCTAssertEqual(error as? ImageOpening.Refusal, .tia(file: "spectrum_1.ser", .spectra))
         }

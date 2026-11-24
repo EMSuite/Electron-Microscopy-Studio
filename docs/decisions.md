@@ -536,3 +536,18 @@ slot per merge burst, not one per merge.
 
 **What would reverse it.** The macOS queue again holding pull requests back for long, with main seldom red; then the
 nightly alone again.
+
+## 2026-11-24 — TIA spectra: the room is read from the whole .emi (#906)
+
+**What.** A TIA series of spectra opens in the EDS room when its `.emi` records a `<ShapingTime>` (an EDS detector: FEI-Edx,
+EDAX) and in the EELS room when it records a `<GainCorrection>` or `<BiasCorrection>` (the EELS spectrometer's CCD). The whole
+`.emi` is read, not the series' own document. An `.emi` that records both or neither, or a `.ser` with no `.emi`, asks once
+which room; the answer is kept per file for the app's life, and the agent door's `open_file` gives it as `room`.
+
+**Why.** RosettaSciIO and FormatoKit give every TIA series the signal type "", so the `.emi` is the only witness. RosettaSciIO's
+document of `_1.ser` is the first, which is the scan's in every public file (the detector's is the second), so the series' own
+document would say nothing. Every public TIA spectrum in FormatoKit's fixtures (the `new` EDS files and the `old` EELS files)
+is placed by this rule.
+
+**What would reverse it.** A TIA file whose `.emi` names its detector some other way, or holds EDS and EELS series together; then
+the series' detector document, matched by more than its index.

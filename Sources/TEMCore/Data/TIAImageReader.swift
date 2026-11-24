@@ -9,8 +9,9 @@
 //  it; the note names it when the `.emi` holds more than one ("series 1 of 2: ..._1.ser"). A `.ser` opens with the metadata of
 //  the `.emi` of its acquisition (`<name>.emi` beside `<name>_<digit>.ser`) when that one reads, and alone otherwise: then the
 //  image's units are assumed (TIA's `.ser` does not say whether its axes are lengths or reciprocal lengths; FormatoTIA calls
-//  them metres, as RosettaSciIO does) and the note says "units assumed, no .emi". A series of spectra is refused in words
-//  (TIA spectra and spectrum images open in their rooms in a later change, #906).
+//  them metres, as RosettaSciIO does) and the note says "units assumed, no .emi". A series of spectra opens in its room
+//  (`TIASpectra`, #906); an Open of an `.emi` that reads opens each of its series as a file of its own, so this reader is
+//  handed an `.emi` only by a caller that reads it directly.
 //
 //  THE FRAME: a series of images (a preview, a STEM map of frames) opens its first frame, never a sum, and says "frame 1 of N".
 //
@@ -46,7 +47,7 @@ package nonisolated enum TIAImageReader {
         package var reason: String {
             switch self {
             case .unreadable(let detail): "it could not be read (\(detail))."
-            case .spectra: "it holds TIA spectra; \(AppName.display) opens TIA images and diffraction patterns, and TIA spectra are not opened yet."
+            case .spectra: "it holds TIA spectra, which open in the EDS or EELS room from their .ser files."
             case .noSeries: "none of its series holds data."
             }
         }
