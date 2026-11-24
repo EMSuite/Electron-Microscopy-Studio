@@ -305,6 +305,8 @@ package final class OpenItem: Identifiable {
     /// The Diffraction room's tool, annulus, selection and zoom for this file: view state, apart from the results above. Its canvas (the
     /// pattern as drawn, full size) goes with the item's pixels (`releasePixels`); the room builds it again when it shows the file.
     package let diffractionView = DiffractionViewState()
+    /// A Simulation document's specimen and multislice settings (2.5); unused by a measured file. Never swapped: numbers, no pixels.
+    package let multislice = SimulationModel()
     /// The committed zoom and pan; kept per item, through eviction and re-read. Not observed: the pane reads it once,
     /// when it is made, and writes it at the end of every gesture — observing it would re-evaluate the pane's parent
     /// on each write for nothing.

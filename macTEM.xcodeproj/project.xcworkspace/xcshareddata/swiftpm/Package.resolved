@@ -38,6 +38,15 @@
       }
     },
     {
+      "identity" : "simulatokit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/EMSuite/SimulatoKit",
+      "state" : {
+        "revision" : "3a8cd3de6bf127d457603de08d4aee1f6961cfc4",
+        "version" : "0.6.0"
+      }
+    },
+    {
       "identity" : "spectrokit",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/mac4DSTEM/SpectroKit",
