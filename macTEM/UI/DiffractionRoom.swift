@@ -57,7 +57,8 @@ struct DiffractionRoom: View {
                         DiffractionReadoutTable(analysis: analysis, view: view, rows: rows)
                         Divider()
                         DiffractionSpotTable(view: view, rows: analysis.indexSpotRows)
-                            .frame(minWidth: 300, idealWidth: 380, maxWidth: 460)
+                            .frame(minWidth: LayoutPolicy.diffractionSpotsMinWidth, idealWidth: LayoutPolicy.diffractionSpotsWidth,
+                                   maxWidth: LayoutPolicy.diffractionSpotsMaxWidth)
                     }
                 } else {
                     DiffractionReadoutTable(analysis: analysis, view: view, rows: rows)
