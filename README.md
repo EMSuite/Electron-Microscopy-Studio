@@ -66,6 +66,7 @@ The rooms:
   flip 180°, fit the scale or hold it, and drag the simulated spots to tilt them (⌥ drag turns them; ⌥ and an arrow tilt by a step); the Spots table lists each
   spot's hkl, expected d and misfit, and exports as a Spots CSV.
   Phases come from your library: Add Phase… finds one on the Materials Project or opens a CIF, and a phase added once works offline.
+  The crystal pane beside the pattern shows the phase in 3D down the same beam, and turning it turns the spots.
   File > New Simulation (⇧⌘N) opens the simulated spots with no measured pattern under them.
 - **Patterns**: the EBSD or TKD scan beside the live pattern, with mean intensity, virtual BSE, image quality and
   average dot product maps. Remove the static and dynamic backgrounds, rescale or normalise, equalise, filter, bin,

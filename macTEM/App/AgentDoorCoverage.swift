@@ -46,6 +46,7 @@ nonisolated enum AgentDoorCoverage {
         "diffraction.calibration.clear": .tool("set_diffraction"),
         "diffraction.camera": .tool("set_diffraction"),
         "diffraction.centre.useRing": .tool("set_diffraction"),
+        "diffraction.crystalPane": .gap(846),
         "diffraction.export": .personOnly(exportReason),
         "diffraction.export.spots": .personOnly(exportReason),
         "diffraction.family": .tool("set_diffraction"),

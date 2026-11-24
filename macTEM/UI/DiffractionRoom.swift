@@ -47,8 +47,14 @@ struct DiffractionRoom: View {
         let rows = analysis.readout(image: image)
         VStack(spacing: 0) {
             DiffractionHeader(item: item, analysis: analysis, view: view)
-            DiffractionPatternPane(item: item, analysis: analysis, view: view, rows: rows)
-                .modifier(DiffractionZoomCommands(item: item, view: view))
+            // The crystal beside the pattern (#790), down the same beam: one orientation drives both.
+            HStack(spacing: 0) {
+                DiffractionCrystalPane(analysis: analysis)
+                    .frame(width: LayoutPolicy.diffractionCrystalWidth)
+                Divider()
+                DiffractionPatternPane(item: item, analysis: analysis, view: view, rows: rows)
+                    .modifier(DiffractionZoomCommands(item: item, view: view))
+            }
             Divider()
             // One table under the pattern: the readout, or once Index has an answer, its Spots table (#785: hkl, expected d and
             // misfit per spot), picked in the strip's header. Never both side by side: they share R, q, d and Δd/d and do not fit a
