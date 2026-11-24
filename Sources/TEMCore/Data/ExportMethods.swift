@@ -19,6 +19,7 @@ import CryptoKit
 import FormatoCore
 import Foundation
 import ImagoCore
+import ImagoFFT
 import ShellExport
 
 package nonisolated enum ExportMethods {
@@ -114,6 +115,53 @@ package nonisolated enum ExportMethods {
         return MethodsRecord(app: app, room: "image", exportKind: exportKind, kits: kits,
                              references: [MethodsRecord.Software(name: "scikit-image", version: "0.26.0")],
                              sources: [source], steps: measured.steps, results: measured.results, drawn: drawn)
+    }
+
+    /// What an FFT room export is of, beyond the transform itself.
+    package enum FFTProduct: Sendable {
+        /// The spectrum as a PNG.
+        case transform
+        /// The radial profile, its `bins` rows.
+        case radialProfile(bins: Int)
+        /// The measured spots, `count` rows, with the inverse's mask.
+        case spots(count: Int, maskRadius: Double, maskEdge: Double)
+    }
+
+    /// The FFT room's record of one export: the transform of the region (numpy's `fft2`, as ImagoKit's parity tests hold it) with its
+    /// region and frequency steps, then the radial profile or the spot measurement it was read from.
+    package static func fftRecord(app: MethodsRecord.Software, exportKind: String, source: MethodsRecord.Source, header: FFTExportHeader,
+                                  product: FFTProduct, drawn: [String]) -> MethodsRecord {
+        let numpy = MethodsRecord.Software(name: "numpy", version: "2.5.4")
+        var region = [MethodsRecord.Quantity(name: "width", value: .number(Double(header.spectrumWidth)), units: "px"),
+                      MethodsRecord.Quantity(name: "height", value: .number(Double(header.spectrumHeight)), units: "px")]
+        if let crop = header.crop {
+            region += [MethodsRecord.Quantity(name: "left column", value: .number(Double(crop.col)), units: "px"),
+                       MethodsRecord.Quantity(name: "top row", value: .number(Double(crop.row)), units: "px")]
+        }
+        region += [MethodsRecord.Quantity(name: "frequency step x", value: .number(header.spacingX), units: header.unitsX),
+                   MethodsRecord.Quantity(name: "frequency step y", value: .number(header.spacingY), units: header.unitsY)]
+        var steps = [MethodsRecord.Step(name: header.crop == nil ? "FFT of the whole image" : "FFT of a region",
+                                        method: "unnormalised forward 2D FFT of the pixels as read, no window, the mean not removed; |F|² centred",
+                                        reference: numpy, settings: region)]
+        var results: [MethodsRecord.Quantity] = []
+        switch product {
+        case .transform:
+            break
+        case .radialProfile(let bins):
+            steps.append(MethodsRecord.Step(name: "Radial profile", method: "mean |F|² over rings of |q|, the DC bin left out",
+                                            reference: numpy))
+            results.append(MethodsRecord.Quantity(name: "bins", value: .number(Double(bins))))
+        case .spots(let count, let maskRadius, let maskEdge):
+            steps.append(MethodsRecord.Step(name: "Spot measurement",
+                                            method: "centroid of |F|² over the 5 × 5 bins around the largest power near the click, "
+                                                + "on a Hann-windowed, mean-removed copy of the region; d = 1/|q|",
+                                            reference: numpy,
+                                            settings: [MethodsRecord.Quantity(name: "mask radius", value: .number(maskRadius), units: "bins"),
+                                                       MethodsRecord.Quantity(name: "mask edge", value: .number(maskEdge), units: "bins")]))
+            results.append(MethodsRecord.Quantity(name: "spots", value: .number(Double(count))))
+        }
+        return MethodsRecord(app: app, room: "fft", exportKind: exportKind, kits: kits, references: [numpy], sources: [source],
+                             steps: steps, results: results, drawn: drawn)
     }
 
     /// An SEM room's record of one export, from the record the session keeps of it (`SEMExportedFile`): each method that made it a

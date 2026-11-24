@@ -21,6 +21,7 @@ import TEMCore
 import TEMSession
 import ImagoCore
 import ImagoFFT
+import ShellExport
 @testable import macTEM
 
 nonisolated final class FFTExportSnapshotTests: XCTestCase {
@@ -187,6 +188,40 @@ nonisolated final class FFTExportSnapshotTests: XCTestCase {
         XCTAssertEqual(snapshot.notes, ["With noise, d is good to 1\u{2013}5 % at 64 px and 0.5\u{2013}3 % at 128 px."])
         XCTAssertEqual(snapshot.defaultName, "plant-spots-r64x64-x16-y0")
         XCTAssertEqual(snapshot.message, "1 spot measured \u{00B7} 1 not listed (refused, still measuring or no peak)")
+    }
+
+    /// The spots CSV and the transform PNG carry their methods record (#817): the transform of region A (numpy's fft2, its region and
+    /// frequency steps), the spot measurement with the mask, and in the PNG what was drawn. Red before: neither file held a record.
+    @MainActor func testTheSpotsAndTheTransformCarryTheirMethodsRecord() async throws {
+        let (image, analysis) = try await landed()
+        try await measure(analysis, row: 37, col: 40, count: 1)
+        let source = MethodsRecord.Source(fileName: "plant.dm4", byteCount: 1000, fingerprint: String(repeating: "ab", count: 32), kind: "image",
+                                          shape: [image.width, image.height])
+        let app = MethodsRecord.Software(name: "Electron Microscopy Studio", version: "2.2.0 (1)")
+        var spots = try XCTUnwrap(ExportSnapshot.spotsSnapshot(image: image, url: Self.url, analysis: analysis, software: Self.software))
+        spots.methods = ExportMethods.fftRecord(app: app, exportKind: "fft-spots-csv", source: source, header: spots.header,
+                                                product: .spots(count: 1, maskRadius: spots.maskRadius, maskEdge: spots.maskEdge), drawn: [])
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("fft-methods-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let csvURL = dir.appendingPathComponent("spots.csv")
+        try await spots.write(to: csvURL)
+        let record = try XCTUnwrap(ExportMethods.record(inText: String(contentsOf: csvURL, encoding: .utf8)))
+        XCTAssertEqual(record.room, "fft")
+        XCTAssertEqual(record.steps.map(\.name), ["FFT of a region", "Spot measurement"])
+        XCTAssertEqual(record.steps[0].reference, MethodsRecord.Software(name: "numpy", version: "2.5.4"))
+        XCTAssertEqual(record.steps[0].settings.prefix(4).map(\.value), [.number(64), .number(64), .number(16), .number(0)],
+                       "region A: 64 × 64 bins from column 16, row 0")
+        XCTAssertEqual(record.steps[1].settings.map(\.value), [.number(3), .number(2)], "the mask's radius and edge in bins")
+        XCTAssertEqual(record.results, [MethodsRecord.Quantity(name: "spots", value: .number(1))])
+
+        var transform = try XCTUnwrap(ExportSnapshot.transformSnapshot(image: image, url: Self.url, analysis: analysis, software: Self.software))
+        transform.methods = ExportMethods.fftRecord(app: app, exportKind: "fft-transform-png", source: source, header: transform.header,
+                                                    product: .transform, drawn: [])
+        let pngURL = dir.appendingPathComponent("fft.png")
+        _ = try await transform.write(to: pngURL, options: ImageExport.Options(scaleBar: true, marks: true))
+        let drawn = try XCTUnwrap(ExportMethods.record(inPNG: Data(contentsOf: pngURL))).drawn
+        XCTAssertEqual(drawn, ["the transform, log₁₀|F|² in the window shown, grey", "a scale bar", "the measured spots"])
     }
 
     @MainActor func testNoMeasuredSpotMeansNoSpotsSnapshot() async throws {
