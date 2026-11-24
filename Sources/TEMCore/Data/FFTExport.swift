@@ -17,6 +17,7 @@
 import Foundation
 import ImagoCore
 import ImagoFFT
+import ShellExport
 
 package nonisolated enum FFTExport {
 
@@ -135,8 +136,11 @@ extension RadialProfileCSV {
         text(profile, header: h, title: "\(AppName.writer) radial profile", validation: FFTExport.profileValidation, lineage: FFTExport.lineage)
     }
 
-    @concurrent package static func export(_ profile: RadialProfile, header: FFTExportHeader, to url: URL) async throws {
-        guard let text = text(profile, header: header) else { throw ExportFile.Failure.noSamples }
+    /// `methods`, when given, is one more header line (`ExportMethods`, #817).
+    @concurrent package static func export(_ profile: RadialProfile, header: FFTExportHeader, methods: MethodsRecord? = nil,
+                                           to url: URL) async throws {
+        guard var text = text(profile, header: header) else { throw ExportFile.Failure.noSamples }
+        if let methods { text = try ExportMethods.embedding(methods, inText: text) }
         try ExportFile.write(Data(text.utf8), to: url)
     }
 }
@@ -150,10 +154,12 @@ extension SpotsCSV {
              title: "\(AppName.writer) spots", validation: FFTExport.spotsValidation, lineage: FFTExport.lineage)
     }
 
+    /// `methods`, when given, is one more header line (`ExportMethods`, #817).
     @concurrent package static func export(rows: [Row], omitted: Int, maskRadius: Double, maskEdge: Double, notes: [String],
-                                           header: FFTExportHeader, to url: URL) async throws {
-        guard let text = text(rows: rows, omitted: omitted, maskRadius: maskRadius, maskEdge: maskEdge, notes: notes,
+                                           header: FFTExportHeader, methods: MethodsRecord? = nil, to url: URL) async throws {
+        guard var text = text(rows: rows, omitted: omitted, maskRadius: maskRadius, maskEdge: maskEdge, notes: notes,
                               header: header) else { throw ExportFile.Failure.noSpots }
+        if let methods { text = try ExportMethods.embedding(methods, inText: text) }
         try ExportFile.write(Data(text.utf8), to: url)
     }
 }
