@@ -173,8 +173,10 @@ package nonisolated enum DictionaryIndexing {
     /// values; float64, or the float32 a GPU projection gives, widened exactly), centred for NCC and divided by their Euclidean norm
     /// in float64, written as `U` to `out`: float64 for the CPU, float32 straight into the GPU's buffer. A flat pattern divides zero
     /// by zero, so its values are NaN, as kikuchipy's are. The patterns are spread over the cores (#624).
-    static func prepare<T: BinaryFloatingPoint, U: BinaryFloatingPoint>(_ source: UnsafePointer<T>, count: Int, pixels: Int, kept: [Int],
-                                                                        metric: Metric, into out: UnsafeMutablePointer<U>) {
+    /// The generic types are `SendableMetatype` because the workers use their conversions.
+    static func prepare<T: BinaryFloatingPoint & SendableMetatype, U: BinaryFloatingPoint & SendableMetatype>(
+        _ source: UnsafePointer<T>, count: Int, pixels: Int, kept: [Int], metric: Metric, into out: UnsafeMutablePointer<U>
+    ) {
         let n = kept.count
         guard count > 0, n > 0 else { return }
         let all = n == pixels
@@ -197,8 +199,8 @@ package nonisolated enum DictionaryIndexing {
 
     /// `prepare` of the block's patterns `patterns` (stored type, widened to float64 per pattern) written as `U` to `out`, pattern
     /// after pattern, spread over the cores.
-    static func prepare<U: BinaryFloatingPoint>(_ stored: StoredPatterns, patterns: [Int], kept: [Int], metric: Metric,
-                                                into out: UnsafeMutablePointer<U>) {
+    static func prepare<U: BinaryFloatingPoint & SendableMetatype>(_ stored: StoredPatterns, patterns: [Int], kept: [Int],
+                                                                   metric: Metric, into out: UnsafeMutablePointer<U>) {
         let n = kept.count
         guard !patterns.isEmpty, n > 0 else { return }
         let mask: [Int]? = n == stored.pixels ? nil : kept
@@ -312,7 +314,7 @@ package nonisolated enum DictionaryIndexing {
 
         /// Merges a chunk's score matrix (patterns × `count`, row-major, float64 from the CPU or float32 from the GPU, widened
         /// exactly), whose column 0 is dictionary index `offset`.
-        mutating func merge<S: BinaryFloatingPoint>(_ chunk: UnsafePointer<S>, count: Int, offset: Int) {
+        mutating func merge<S: BinaryFloatingPoint & SendableMetatype>(_ chunk: UnsafePointer<S>, count: Int, offset: Int) {
             guard patterns > 0, count > 0, keepN > 0 else { return }
             let k = keepN, n = patterns
             let rowsPerJob = 32
