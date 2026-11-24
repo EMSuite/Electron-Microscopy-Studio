@@ -132,7 +132,7 @@ ported from where, and `NOTICE` the licences.
 
 | Under `Sources/TEMCore/` | holds | `docs/parity.md` section |
 |---|---|---|
-| `SEM/` (its own files) | the EBSD and TKD pattern readers (`EBSDH5Reader` for h5ebsd, `EDAXBinaryReader`, `OxfordBinaryReader`) and their doors (`EBSDOpening`, `EDAXOpening`, `OxfordOpening`), the map readers `ANGReader` and `CTFReader`, `EBSDDataset` and `EBSDPatternAccess`, the Patterns room's pure part and its virtual BSE images (`EBSDBrowsing`, `VirtualBSEImaging`), the pattern processing (`PatternPipeline`, `PatternProcessing`, `PatternFilters`, `PatternWindow`, `AdaptiveHistogramEqualization`, `NeighbourAveraging`, `NLPAR`), `PatternQuality`, the detector geometry (`EBSDDetectorProjection`, `PCCalibrationMovingScreen`), the SEM TIFF record (`SEMImageMetadata`) and HyperSpy's `.hspy` spectrum (`HyperSpySpectrumFile`) | Readers; SEM images (TIFF); Pattern processing; Pattern filters; Pattern quality; Detector geometry; Patterns room |
+| `SEM/` (its own files) | the EBSD and TKD pattern readers (`EBSDH5Reader` for h5ebsd, `EDAXBinaryReader`, `OxfordBinaryReader`) and their doors (`EBSDOpening`, `EDAXOpening`, `OxfordOpening`), the map readers `ANGReader` and `CTFReader`, `EBSDDataset` and `EBSDPatternAccess`, the Patterns room's pure part and its virtual BSE images (`EBSDBrowsing`, `VirtualBSEImaging`), the pattern processing (`PatternPipeline`, `PatternProcessing`, `PatternFilters`, `PatternWindow`, `AdaptiveHistogramEqualization`, `NeighbourAveraging`, `NLPAR`), `PatternQuality`, the detector geometry (`EBSDDetectorProjection`, `PCCalibrationMovingScreen`), the SEM TIFF record (`SEMImageMetadata`) and a HyperSpy file's spectrum (`HyperSpySpectrumFile`, on FormatoKit's reader) | Readers; SEM images (TIFF); Pattern processing; Pattern filters; Pattern quality; Detector geometry; Patterns room |
 | `SEM/NORDIF/` | a NORDIF acquisition: `Setting.txt`, `Pattern.dat`, its bitmaps and calibration patterns, and the door that opens them as one dataset | Readers |
 | `SEM/Orientation/` | orix's rotations, point groups, orientations and misorientations, vectors and projections, Miller indices, fundamental sectors, colour keys and cubochoric sampling; the crystal lattice the texture and simulation code share | Orientation maths |
 | `SEM/CrystalMap/` | orix's `CrystalMap` and `PhaseList`, one type for every map reader and indexing result; the neighbour misorientation; the Maps room's pictures (`OrientationMaps`) and analysis (`MapAnalysis`) | Crystal map |
@@ -169,8 +169,9 @@ FormatoKit's sniff decides, since the sniff knows none of these formats (an h5eb
 
 - SEM-EDS files go by extension (`SEMEDSOpening`): a Bruker `.bcf`, an EDAX `.spd`/`.lsd` or a JEOL `.pts`/`.asw` is an EDS
   spectrum image and a `.spx`/`.spc`/`.eds` one spectrum, both for the EDS room (`EDXOpening.open`); a JEOL `.img`/`.map`
-  is an image for the Image room (`ImageOpening`). A HyperSpy `.hspy` whose header `HyperSpySpectrumFile` reads is one
-  spectrum for the EDS room.
+  is an image for the Image room (`ImageOpening`). A HyperSpy file (`.hspy`, or HyperSpy's layout as `.h5`/`.hdf5`) is read with
+  FormatoKit's `HSPYReader` (`HyperSpyOpening`): each experiment goes to its room (an image to the Image room, an EELS signal to
+  the EELS room, an EDS spectrum image or a spectrum to the EDS room, `HyperSpySpectrumFile` for the spectrum).
 - The vendors' EBSD files (`EBSDOpening.isVendorFile`: EDAX `.up1`/`.up2`/`.ang`, Oxford `.ebsp`/`.ctf`, and a `.dat` with a
   NORDIF `Setting.txt` beside it): a pattern file, or a map with the pattern file of its name beside it, is a pattern
   dataset for the Patterns room; an `.ang` or `.ctf` alone (`EBSDOpening.isLoneMap`) is an orientation map for the Maps room.

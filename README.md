@@ -27,11 +27,13 @@ and under the one in front its rooms. What the file holds decides the room it op
 
 - **TEM**: DigitalMicrograph (.dm3, .dm4), Velox (.emd), TIFF and MRC images; EDS spectrum images from Velox and GMS,
   EELS spectrum images from GMS, and single .msa spectra.
+- **HyperSpy**: a .hspy file's images, EELS and EDS spectrum images and spectra, each in its room (several in one file
+  open together, as a Velox file's do), read with FormatoKit's reader.
 - **Pictures**: a pattern or image saved as PNG or JPEG (from a paper or a camera export) opens as a picture, not counts;
   its scale is typed or fitted to a ring of a known phase.
 - **SEM images**: TIFF from Thermo Fisher (FEI), Zeiss and Tescan, read with the microscope's settings, and JEOL .img
   and .map files.
-- **SEM-EDS**: Bruker .bcf and .spx, EDAX .spd, .lsd and .spc, JEOL .pts, .eds and .asw, and a single spectrum in a
+- **SEM-EDS**: Bruker .bcf and .spx, EDAX .spd, .lsd and .spc, JEOL .pts, .eds and .asw, and an SEM spectrum in a
   HyperSpy .hspy file.
 - **EBSD and TKD patterns**: h5ebsd from kikuchipy, Bruker, EDAX and Oxford Instruments (.h5oina), EDAX .up1 and .up2,
   Oxford .ebsp and NORDIF Pattern.dat.

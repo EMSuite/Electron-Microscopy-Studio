@@ -65,6 +65,8 @@ package nonisolated enum ImageOpening {
     /// Reads the image at `path`, synchronously. The app calls it inside `AppState.read`, off the main actor.
     package static func openNow(path: String) throws -> CalibratedImage {
         let ext = (path as NSString).pathExtension.lowercased()
+        // A HyperSpy file's first image (#820): FormatoKit's reader, at the stored type.
+        if HyperSpySpectrumFile.isHyperSpyFile(path: path) { return try HyperSpyOpening.image(path: path) }
         guard readableExtensions.contains(ext) else {
             throw Refusal.unreadableFormat(file: formatoDisplayFileName(path), ext: ext)
         }

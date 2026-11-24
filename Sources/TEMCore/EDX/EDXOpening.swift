@@ -11,7 +11,8 @@ package enum EDXOpening {
 
     /// Header-only for a DM4, one HDF5 open for an EMD. Run off the main actor.
     package static func isSpectrumImage(at url: URL) -> Bool {
-        SEMEDSOpening.opensInEDS(path: url.path) || SpectrumImageOpener.kind(ofFileAt: url.path) != .other
+        if HyperSpySpectrumFile.isHyperSpyFile(path: url.path) { return HyperSpyOpening.inventory(path: url.path).opensInEDS }
+        return SEMEDSOpening.opensInEDS(path: url.path) || SpectrumImageOpener.kind(ofFileAt: url.path) != .other
             || FileRouting.isSingleSpectrum(path: url.path)
     }
 
@@ -21,6 +22,12 @@ package enum EDXOpening {
     package static func open(url: URL, progress: (@Sendable (Double) -> Void)? = nil) throws -> LoadedSpectrumImage {
         if SEMEDSOpening.opensInEDS(path: url.path) {
             let loaded = try SEMEDSOpening.open(url: url, progress: progress)
+            progress?(1)
+            return loaded
+        }
+        // A HyperSpy file's EDS spectrum image (#820); a file of spectra only opens its first as one pixel, below.
+        if HyperSpySpectrumFile.isHyperSpyFile(path: url.path), HyperSpyOpening.inventory(path: url.path).edsSpectrumImage {
+            let loaded = try HyperSpyOpening.edsSpectrumImage(path: url.path)
             progress?(1)
             return loaded
         }

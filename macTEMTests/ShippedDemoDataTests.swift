@@ -152,6 +152,10 @@ nonisolated final class ShippedDemoDataTests: XCTestCase {
                            + "Electron Microscopy Studio opens single spectra from HyperSpy files.")
             XCTAssertFalse(text.contains("__unnamed__"))
         }
+        // The Open route says the same and where such a file opens (#820).
+        XCTAssertEqual(FileRouting.inventory(path: url.path).refusal,
+                       "hyperspy-4d-unnamed.hspy holds a 4-dimensional signal (a 4D-STEM or EBSD dataset), which no room of Electron Microscopy Studio "
+                       + "opens: it opens images, spectra and spectrum images from HyperSpy files. Open a 4D-STEM file in 4DSTEM Studio.")
     }
 
     /// Help > Open Demo Data and `--demo-sem-eds` open the shipped spectrum into the EDS room through the app's own Open.
