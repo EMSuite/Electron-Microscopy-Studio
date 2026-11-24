@@ -51,6 +51,7 @@ nonisolated enum AgentDoorCoverage {
         "diffraction.export": .personOnly(exportReason),
         "diffraction.family": .tool("set_diffraction"),
         "diffraction.fitRing": .tool("set_diffraction"),
+        "diffraction.index.verdict": .gap(791),
         "diffraction.pane": .tool("get_image"),
         "diffraction.readout": .tool("get_diffraction"),
         "diffraction.remove": .tool("set_diffraction_marks"),

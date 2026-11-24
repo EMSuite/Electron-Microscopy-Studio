@@ -56,9 +56,10 @@ struct WorkspaceView: View {
 
     private var showsRun: Bool { InfobarRunPolicy.shows(area: appState.navigation.workspaceArea, eelsComputing: appState.eels.isComputing) || showsFit }
 
-    /// The Diffraction room's ring fit, while it runs and the room is shown.
+    /// The Diffraction room's ring fit or Index, while it runs and the room is shown.
     private var showsFit: Bool {
-        InfobarRunPolicy.showsFit(area: appState.navigation.workspaceArea, fitting: appState.openItems.selected?.diffraction.isFitting ?? false)
+        InfobarRunPolicy.showsFit(area: appState.navigation.workspaceArea,
+                                  fitting: appState.openItems.selected.map { $0.diffraction.isFitting || $0.diffraction.isIndexing } ?? false)
     }
 
     /// A room's pass in flight, in the infobar where every run of the suite sits (the owner, 2026-10-23: not a bar over the maps): the bar, the percent and Stop.
@@ -66,7 +67,11 @@ struct WorkspaceView: View {
     private var runSlot: some View {
         if showsFit, let analysis = appState.openItems.selected?.diffraction {
             // A fit has no fraction to show: the bar is indeterminate.
-            InfobarRunReadout(operation: "Ring fit", progress: nil, line: { _ in "Fitting" }, onCancel: { analysis.stop() })
+            if analysis.isIndexing {
+                InfobarRunReadout(operation: "Index", progress: nil, line: { _ in "Indexing" }, onCancel: { analysis.stop() })
+            } else {
+                InfobarRunReadout(operation: "Ring fit", progress: nil, line: { _ in "Fitting" }, onCancel: { analysis.stop() })
+            }
         } else if showsRun {
             let eels = appState.eels
             InfobarRunReadout(operation: "EELS", progress: eels.progress, line: { _ in InfobarRunPolicy.percent(eels.progress) }, onCancel: { eels.stop() })

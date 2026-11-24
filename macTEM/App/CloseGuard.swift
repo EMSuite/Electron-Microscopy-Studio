@@ -166,7 +166,7 @@ extension AppState {
         switch area {
         case .edx: edx.isBusy
         case .eels: eels.isBusy
-        case .diffraction: openItems.items.contains(where: { $0.diffraction.isFitting })
+        case .diffraction: openItems.items.contains(where: { $0.diffraction.isFitting || $0.diffraction.isIndexing })
         case .patterns: ebsd.isBusy
         case .indexing: indexing.isBusy
         case .maps: maps.isBusy

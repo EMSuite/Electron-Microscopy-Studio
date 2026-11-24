@@ -1,6 +1,6 @@
 //
 //  DiffractionRoomInspector.swift
-//  Role: the Diffraction room's Settings (design section 3): Centre, Calibration, Display, Tools, Crystal, Simulation, Rings, Export (control placement §2:
+//  Role: the Diffraction room's Settings (design section 3): Centre, Calibration, Display, Tools, Crystal, Index, Simulation, Rings, Export (control placement §2:
 //        what I am looking at, then the job; Centre stays above Calibration, which it feeds). Presentation only;
 //        the state is `DiffractionAnalysis` and every number DiffractoKit's. Every field commits on Return or blur
 //        (`OptionalNumericField`), every control has an accessibility identifier for the journey.
@@ -28,6 +28,7 @@ struct DiffractionRoomSettings: View {
             DiffractionDisplaySection(view: view)
             DiffractionToolsSection(view: view)
             DiffractionCrystalSection(analysis: analysis)
+            DiffractionIndexSection(analysis: analysis)
             DiffractionSimulationSection(session: item.session, analysis: analysis)
             DiffractionRingsSection(session: item.session, analysis: analysis, view: view)
             DiffractionExportSection(session: item.session, analysis: analysis)
@@ -176,13 +177,11 @@ private struct DiffractionCrystalSection: View {
     }
 }
 
-/// The simulated spots of a typed zone axis over the pattern (#782): on or off, the zone axis ("[1 1 0]", "110", "1̄10"), its turn in
-/// the plane and the hkl labels. The crystal is the Crystal section's, the scale and beam the Calibration's; the overlay is drawn
-/// again on every change of any of them. The zone axis commits on Return or when the field loses focus; a text that is not a zone
-/// axis is named and the last one stays.
-private struct DiffractionSimulationSection: View {
-    let session: ImageSession
-    private var image: CalibratedImage { session.imageOrBlank }
+/// The orientation the simulated spots are drawn at (#782, #783; the mockup's Index section): the zone axis ("[1 1 0]", "110",
+/// "1̄10") and its turn in the plane, which Index fills with what it found and the person types over. The zone axis commits on
+/// Return or when the field loses focus; a text that is not a zone axis is named and the last one stays. Typing either takes
+/// the drawn spots off Index's orientation.
+private struct DiffractionIndexSection: View {
     let analysis: DiffractionAnalysis
     @State private var draft: String?
     @State private var refused: String?
@@ -190,13 +189,7 @@ private struct DiffractionSimulationSection: View {
 
     var body: some View {
         let settings = analysis.simulation
-        InspectorSection("Simulation") {
-            InspectorRow("Spots") {
-                Toggle("Show simulated spots", isOn: Binding(get: { analysis.simulation.isShown }, set: { analysis.simulation.isShown = $0 }))
-                    .toggleStyle(.switch).labelsHidden()
-                    .help("The crystal's kinematical spot pattern at the zone axis below, drawn over the pattern with the scale and centre in use")
-                    .accessibilityIdentifier("diffraction.simulation.show")
-            }
+        InspectorSection("Index") {
             InspectorRow("Zone axis") {
                 TextField("Zone axis", text: Binding(get: { draft ?? ZoneAxisText.text(settings.zoneAxis) }, set: { draft = $0 }),
                           prompt: Text("[0 0 1]"))
@@ -209,12 +202,43 @@ private struct DiffractionSimulationSection: View {
             }
             if let refused { InspectorWarning(refused) }
             InspectorRow("Turn") {
-                OptionalNumericField(title: "In-plane turn", value: settings.inPlaneDegrees, format: pixelFormat, unit: "°") { degrees in
-                    guard degrees.isFinite else { return }
-                    analysis.simulation.inPlaneDegrees = degrees.truncatingRemainder(dividingBy: 360)
-                }
-                .help("The pattern's turn about the beam, counter-clockwise from down the rows toward along the columns")
-                .accessibilityIdentifier("diffraction.simulation.turn")
+                OptionalNumericField(title: "In-plane turn", value: settings.inPlaneDegrees, format: pixelFormat, unit: "°") { analysis.setTurn(degrees: $0) }
+                    .help("The pattern's turn about the beam, counter-clockwise from down the rows toward along the columns")
+                    .accessibilityIdentifier("diffraction.simulation.turn")
+            }
+            InspectorNote(settings.indexed != nil ? "Found by Index. Type a zone axis to set it by hand."
+                                                  : "Index (⌘R) finds the spots and the full orientation; or type a zone axis.")
+        }
+    }
+
+    private func commit() {
+        guard let text = draft else { return }
+        if let uvw = ZoneAxisText.parse(text) {
+            analysis.setZoneAxis(uvw)
+            refused = nil
+            draft = nil
+        } else {
+            refused = "\"\(text)\" is not a zone axis: type three whole numbers, not all 0, such as [1 1 0] or 1̄10."
+        }
+    }
+}
+
+/// The simulated spots over the pattern (#782): on or off, and the hkl labels. The crystal is the Crystal section's, the scale and
+/// beam the Calibration's, the orientation the Index section's; the overlay is drawn again on every change of any of them.
+private struct DiffractionSimulationSection: View {
+    let session: ImageSession
+    private var image: CalibratedImage { session.imageOrBlank }
+    let analysis: DiffractionAnalysis
+
+    var body: some View {
+        let settings = analysis.simulation
+        let simulated = analysis.simulatedSpots(image: image)
+        InspectorSection("Simulation") {
+            InspectorRow("Overlay") {
+                Toggle("Show simulated spots", isOn: Binding(get: { analysis.simulation.isShown }, set: { analysis.simulation.isShown = $0 }))
+                    .toggleStyle(.switch).labelsHidden()
+                    .help("The crystal's kinematical spot pattern at the Index section's orientation, drawn over the pattern with the scale and centre in use")
+                    .accessibilityIdentifier("diffraction.simulation.show")
             }
             InspectorRow("Labels") {
                 Toggle("Show hkl labels", isOn: Binding(get: { analysis.simulation.showsLabels }, set: { analysis.simulation.showsLabels = $0 }))
@@ -222,24 +246,12 @@ private struct DiffractionSimulationSection: View {
                     .help("Each simulated spot's hkl beside it (the 60 strongest)")
                     .accessibilityIdentifier("diffraction.simulation.labels")
             }
-            if let line = DiffractionSimulationText.summary(analysis.simulatedSpots(image: image), crystal: analysis.crystal.name,
-                                                             zoneAxis: settings.zoneAxis) {
-                switch analysis.simulatedSpots(image: image) {
+            if let line = DiffractionSimulationText.summary(simulated, crystal: analysis.crystal.name, zoneAxis: settings.zoneAxis) {
+                switch simulated {
                 case .failure?: InspectorWarning(line)
                 default: InspectorNote(line)
                 }
             }
-        }
-    }
-
-    private func commit() {
-        guard let text = draft else { return }
-        if let uvw = ZoneAxisText.parse(text) {
-            analysis.simulation.zoneAxis = uvw
-            refused = nil
-            draft = nil
-        } else {
-            refused = "\"\(text)\" is not a zone axis: type three whole numbers, not all 0, such as [1 1 0] or 1̄10."
         }
     }
 }
