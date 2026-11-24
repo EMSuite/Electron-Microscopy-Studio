@@ -79,18 +79,23 @@ nonisolated enum FFTPaneFormat {
         case .maskedInverse: "Masked Inverse"
         case .absf: "ABSF"
         case .wiener: "Wiener"
+        case .strainXX: "Strain εxx"
+        case .strainYY: "Strain εyy"
+        case .strainXY: "Strain εxy"
+        case .rotation: "Rotation"
         }
     }
 
     /// Why `view` cannot be chosen yet, by cause; nil when it can. The Masked Inverse says which of its two causes holds:
     /// no spot measured at all, or measured spots but none In Mask.
     static func unavailableReason(_ view: FFTAnalysis.SourceView, hasSpectrum: Bool, hasMeasuredSpot: Bool,
-                                  hasMaskSpot: Bool, hasFilterResult: Bool) -> String? {
+                                  hasMaskSpot: Bool, hasFilterResult: Bool, hasStrainResult: Bool = false) -> String? {
         switch view {
         case .original: nil
         case .region: hasSpectrum ? nil : "no transform yet"
         case .maskedInverse: hasMaskSpot ? nil : (hasMeasuredSpot ? "none in mask" : "no spot")
         case .absf, .wiener: hasFilterResult ? nil : "filter first"
+        case .strainXX, .strainYY, .strainXY, .rotation: hasStrainResult ? nil : "map strain first"
         }
     }
 
@@ -112,10 +117,10 @@ nonisolated enum FFTPaneFormat {
 
     /// The View menu, every view in order, for the view the pane shows and what exists: the control draws exactly these.
     static func menuEntries(selected: FFTAnalysis.SourceView, hasSpectrum: Bool, hasMeasuredSpot: Bool, hasMaskSpot: Bool,
-                            hasFilterResult: Bool) -> [MenuEntry] {
+                            hasFilterResult: Bool, hasStrainResult: Bool = false) -> [MenuEntry] {
         FFTAnalysis.SourceView.allCases.map { view in
             let reason = unavailableReason(view, hasSpectrum: hasSpectrum, hasMeasuredSpot: hasMeasuredSpot, hasMaskSpot: hasMaskSpot,
-                                           hasFilterResult: hasFilterResult)
+                                           hasFilterResult: hasFilterResult, hasStrainResult: hasStrainResult)
             return MenuEntry(view: view, title: menuTitle(view, reason: reason, isSelected: view == selected), isEnabled: reason == nil)
         }
     }
@@ -146,12 +151,36 @@ nonisolated enum FFTPaneFormat {
         "HRTEM filter · \(name) · \(size) × \(size) px"
     }
 
+    /// A strain map's plate: the component, its range drawn (symmetric about zero, ± the 99th percentile of its magnitudes), the spots
+    /// taken as g₁ and g₂, the reference window and the size. Strain is unitless and shown in %, the rotation in degrees, clockwise
+    /// positive on screen.
+    static func strainPlate(_ component: FFTStrainProduct.Component, product: FFTStrainProduct,
+                            locale: Locale = .autoupdatingCurrent) -> String {
+        let name: String, extent: String
+        let largest = Double(product.canvas(component).rawRange?.upperBound ?? 0)
+        switch component {
+        case .exx: name = "εxx"
+        case .eyy: name = "εyy"
+        case .exy: name = "εxy"
+        case .rotation: name = "rotation (clockwise +)"
+        }
+        if component == .rotation {
+            extent = "±\(UnitDisplay.number(largest * 180 / .pi, digits: 3, locale: locale))°"
+        } else {
+            extent = "±\(UnitDisplay.number(largest * 100, digits: 3, locale: locale)) %"
+        }
+        let key = product.key
+        let reference = "reference \(key.reference.title.lowercased())"
+        let canvas = product.canvas(component)
+        return "Strain (GPA) · \(name) \(extent) · g₁ spot \(key.g1.spot), g₂ spot \(key.g2.spot) · \(reference) · \(canvas.width) × \(canvas.height) px"
+    }
+
     // MARK: What is not there
 
     /// A product that does not exist: what it waits for, or why it failed in the core's words. The Masked Inverse waits by
     /// the menu's two causes: no spot measured, or measured spots none of which is In Mask.
     static func missing(_ view: FFTAnalysis.SourceView, isWorking: Bool, failure: String?, hasMeasuredSpot: Bool,
-                        hasMaskSpot: Bool) -> (title: String, detail: String) {
+                        hasMaskSpot: Bool, hasTwoMeasuredSpots: Bool = false) -> (title: String, detail: String) {
         switch view {
         case .original:
             return ("No image", "")
@@ -166,6 +195,11 @@ nonisolated enum FFTPaneFormat {
             if isWorking { return ("Filtering…", "") }
             if let failure { return ("No filtered image", failure) }
             return ("No filtered image yet", "Press Filter in the HRTEM Filters section.")
+        case .strainXX, .strainYY, .strainXY, .rotation:
+            if isWorking { return ("Mapping strain…", "") }
+            if let failure { return ("No strain map", failure) }
+            return ("No strain map yet", hasTwoMeasuredSpots ? "Press Map Strain in the Strain section."
+                        : "Measure two reflections at an angle to each other, then press Map Strain.")
         }
     }
 

@@ -379,48 +379,64 @@ extension MacTEMAgentDoor {
         let mapBefore = session.mapChoice, mixBefore = session.mixTiles
         let overlay = simulationSettings(session, a)
         if case .refused(let message) = overlay { return .refusal(status: 409, message: message) }
+        // Every check first, against the grid the call asks for, so a refused call changes nothing (#927).
+        var grid = session.virtualGrid
         if let n = a["grid"].flatMap(Int.init) {
             guard n <= min(dataset.patternRows, dataset.patternColumns) else {
                 return .refusal(status: 409, message: "A \(n) × \(n) grid does not fit \(dataset.patternColumns) × \(dataset.patternRows) px patterns.")
             }
-            session.setVirtualGrid(VirtualBSEGrid(n))
+            grid = VirtualBSEGrid(n)
         }
-        let tile = { (label: String) -> VirtualBSETile? in session.virtualGrid.tiles.first { $0.label == label } }
-        let tiles = session.virtualGrid.tiles.map(\.label).joined(separator: ", ")
+        // A new grid starts a new pass over the scan and drops the colour mix, as `setVirtualGrid` does.
+        let newGrid = grid != session.virtualGrid
+        let landed = !newGrid && session.virtualImages != nil
+        let waiting = newGrid
+            ? "A new grid starts a new pass over the scan: set grid alone, then ask again when get_patterns says maps_landed."
+            : "Waiting for the pass over the scan; ask again when get_patterns says maps_landed."
+        let tile = { (label: String) -> VirtualBSETile? in grid.tiles.first { $0.label == label } }
+        let tiles = grid.tiles.map(\.label).joined(separator: ", ")
+        var picks: [(tile: VirtualBSETile?, channel: Int)] = []
+        var mixTiles: [VirtualBSETile?] = newGrid ? [nil, nil, nil] : session.mixTiles
+        var hasMix = !newGrid && session.hasMix
         for (channel, key) in ["mix_red", "mix_green", "mix_blue"].enumerated() {
             guard let label = a[key] else { continue }
-            if label == "none" { session.setMixTile(nil, channel: channel); continue }
-            guard session.virtualGrid.tileCount > 1, let picked = tile(label) else {
-                return .refusal(status: 400, message: "\(key): \(label) is not a tile of the \(session.virtualGrid.rows) × \(session.virtualGrid.rows) grid"
-                    + (session.virtualGrid.tileCount > 1 ? " (\(tiles))." : "; pick a grid of 3 or more first."))
+            if label != "none" {
+                guard grid.tileCount > 1, let picked = tile(label) else {
+                    return .refusal(status: 400, message: "\(key): \(label) is not a tile of the \(grid.rows) × \(grid.rows) grid"
+                        + (grid.tileCount > 1 ? " (\(tiles))." : "; pick a grid of 3 or more first."))
+                }
+                guard landed else { return .refusal(status: 409, message: waiting) }
+                mixTiles[channel] = picked
+            } else {
+                mixTiles[channel] = nil
             }
-            guard session.virtualImages != nil else {
-                return .refusal(status: 409, message: "Waiting for the pass over the scan; ask again when get_patterns says maps_landed.")
-            }
-            session.setMixTile(picked, channel: channel)
+            picks.append((mixTiles[channel], channel))
+            // As `setMixTile` leaves it: no mix while a channel has no tile; a full pick keeps the mix shown until the new one lands.
+            if mixTiles.contains(where: { $0 == nil }) || !landed { hasMix = false }
         }
+        var choice: EBSDSession.MapChoice?
         if let word = a["map"] {
-            let choice: EBSDSession.MapChoice
             switch word {
             case "mean": choice = .mean
             case "bse": choice = .bse
             case "image_quality": choice = .imageQuality
             case "dot_product": choice = .dotProduct
             case "mix":
-                guard session.hasMix else { return .refusal(status: 409, message: "No colour mix yet: pick mix_red, mix_green and mix_blue first.") }
+                guard hasMix else { return .refusal(status: 409, message: "No colour mix yet: pick mix_red, mix_green and mix_blue first.") }
                 choice = .mix
             default:
-                guard let label = a["tile"], session.virtualGrid.tileCount > 1, let picked = tile(label) else {
+                guard let label = a["tile"], grid.tileCount > 1, let picked = tile(label) else {
                     return .refusal(status: 400, message: "map tile needs tile, one of the grid's tiles"
-                        + (session.virtualGrid.tileCount > 1 ? ": \(tiles)." : "; pick a grid of 3 or more first."))
+                        + (grid.tileCount > 1 ? ": \(tiles)." : "; pick a grid of 3 or more first."))
                 }
                 choice = .tile(picked)
             }
-            guard session.virtualImages != nil || choice == .mean else {
-                return .refusal(status: 409, message: "Waiting for the pass over the scan; ask again when get_patterns says maps_landed.")
-            }
-            session.showMap(choice)
+            guard landed || choice == .mean else { return .refusal(status: 409, message: waiting) }
         }
+
+        if newGrid { session.setVirtualGrid(grid) }
+        for pick in picks { session.setMixTile(pick.tile, channel: pick.channel) }
+        if let choice { session.showMap(choice) }
         if let show = a["show_tiles"] { session.showsTiles = show == "true" }
         if let display = a["display"].flatMap(EBSDSession.PatternDisplay.init(rawValue:)) { session.setPatternDisplay(display) }
         if case .set(let on, let settings) = overlay {

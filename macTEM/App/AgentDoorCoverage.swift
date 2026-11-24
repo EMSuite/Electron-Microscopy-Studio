@@ -198,6 +198,8 @@ nonisolated enum AgentDoorCoverage {
         "fft.spots.find": .tool("set_fft_spots"),
         "fft.spots.measureAt": .tool("set_fft_spots"),
         "fft.spots.measureAt.measure": .tool("set_fft_spots"),
+        "fft.strain.reference": .tool("set_fft"),
+        "fft.strain.run": .tool("set_fft"),
         "fft.view": .tool("set_fft"),
         "fft.window": .tool("set_fft"),
         "image.mark": .tool("set_marks"),
