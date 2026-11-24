@@ -211,10 +211,11 @@ nonisolated final class PaneKeysTests: XCTestCase {
     }
 
     /// The Diffraction pattern's keys: a stack's frames, and the spot cursor's keys only in the Spot tool; ⌫, ⌘C and Escape are not
-    /// the pattern's. Red under: the cursor's keys in the Ring tool; Return adding a spot in the Ring tool; ⌫ taken from the table.
+    /// the pattern's. Red under: the cursor's keys in the Ring tool; Return adding a spot in the Ring tool; ⌫ taken from the table; the Tilt tool with
+    /// no keys (#787).
     func testTheDiffractionPatternRoutesTheFrameAndSpotKeys() {
-        func route(_ key: PaneKey, shift: Bool = false, stack: Bool = false, spots: Bool = false) -> PaneKeyAction? {
-            PaneKeyRouter.diffraction(key, shift: shift, state: DiffractionKeyState(stack: stack, addsSpots: spots))
+        func route(_ key: PaneKey, shift: Bool = false, stack: Bool = false, spots: Bool = false, tilts: Bool = false) -> PaneKeyAction? {
+            PaneKeyRouter.diffraction(key, shift: shift, state: DiffractionKeyState(stack: stack, addsSpots: spots, tilts: tilts))
         }
         XCTAssertEqual(route(.arrow(.left), stack: true), .stepFrame(by: -1))
         XCTAssertEqual(route(.end, stack: true), .lastFrame)
@@ -227,6 +228,10 @@ nonisolated final class PaneKeysTests: XCTestCase {
         for key in [PaneKey.delete, .copy, .escape] {
             XCTAssertNil(route(key, stack: true, spots: true), "\(key) is not the pattern's")
         }
+        // The Tilt tool's keyboard twin (#787): ⌥ and an arrow tilt, ⌥⇧ the coarse step; Return adds nothing there.
+        XCTAssertEqual(route(.cursorArrow(.up), tilts: true), .tilt(.up, coarse: false))
+        XCTAssertEqual(route(.cursorArrow(.left), shift: true, tilts: true), .tilt(.left, coarse: true))
+        XCTAssertNil(route(.enter, tilts: true))
     }
 
     // MARK: The FFT room's keys on a real owner
