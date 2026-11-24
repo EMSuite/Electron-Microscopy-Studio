@@ -57,7 +57,7 @@ Behind "Let agents run analyses". Each goes through the entry point its control 
 |---|---|
 | `select_room` | moves the window to a room, as the room bar does; a room the files do not fill is refused with the room bar's reason |
 | `open_demo` | opens a demo document in its room, as Help > Open Demo Data does |
-| `open_file` | opens a file of the Agent folder (Settings > Agents) as File > Open does, in the room that fits it; paths outside the folder are refused |
+| `open_file` | opens a file of the Agent folder (Settings > Agents) as File > Open does, in the room that fits it; paths outside the folder are refused; `room` (eds or eels) answers the question File > Open asks for TIA spectra no `.emi` places, and such spectra are refused without it |
 | `set_eds` | picks and removes elements, sets an element's role (quantify or fit only), chooses the region (whole, rectangle, ellipse, a kept region) |
 | `run_eds` | Auto ID, Quantify or Stop; answers at once, `get_eds` says busy until done |
 | `run_room` | presses the shown room's toolbar verb, as ⌘R does (Quantify, Run, Process, Index, Segment); refused with the button's own words while it cannot run |

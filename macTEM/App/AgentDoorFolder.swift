@@ -54,7 +54,10 @@ extension MacTEMAgentDoor {
                       + "It starts the open and answers at once; get_window shows the file once it is in, and get_log says if it failed.",
                   input: .window,
                   parameters: [AgentParameter("path", .text, summary: "The file, relative to the Agent folder, as list_agent_folder "
-                                                  + "names it.", required: true)],
+                                                  + "names it.", required: true),
+                               AgentParameter("room", .choice(TIASpectra.Room.allCases.map { $0.rawValue.lowercased() }),
+                                              summary: "eds or eels: the room of TIA spectra (.ser) whose .emi does not say which, the "
+                                                  + "question File > Open asks. Refused without it for such spectra; ignored for any other file.")],
                   acts: true) { call in
             guard let appState = call.window?.state as? AppState else { return notAWindowRefusal }
             guard appState.opensInFlight == 0 else {
@@ -68,6 +71,15 @@ extension MacTEMAgentDoor {
             var isFolder: ObjCBool = false
             guard FileManager.default.fileExists(atPath: file.path, isDirectory: &isFolder), !isFolder.boolValue else {
                 return .refusal(status: 404, message: noFileMessage(file))
+            }
+            let series = TIASpectra.seriesFiles(of: file)
+            let unsure = (series.isEmpty ? [file] : series).filter { TIASpectra.isSpectra($0) && TIASpectra.room(of: $0) == nil }
+            if !unsure.isEmpty {
+                guard let room = TIASpectra.Room.allCases.first(where: { $0.rawValue.lowercased() == call.arguments["room"] }) else {
+                    return .refusal(status: 422, message: "No .emi says whether the TIA spectra of \(file.lastPathComponent) are EDS or "
+                                    + "EELS: give room eds or eels.")
+                }
+                for url in unsure { TIASpectraRooms.remember(room, for: url) }
             }
             appState.statusText = "An agent opened \(file.lastPathComponent)."
             appState.open(urls: [file])
