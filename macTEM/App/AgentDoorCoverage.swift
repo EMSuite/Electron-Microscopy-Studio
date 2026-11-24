@@ -64,6 +64,8 @@ nonisolated enum AgentDoorCoverage {
         "diffraction.holder.betaLimit": .gap(816),
         "diffraction.holder.calibrate": .gap(816),
         "diffraction.holder.forget": .gap(816),
+        "diffraction.holder.map": .gap(816),
+        "diffraction.holder.partner": .gap(816),
         "diffraction.holder.zoneAxis": .gap(816),
         "diffraction.holder.export": .personOnly(exportReason),
         "diffraction.powder.compare": .gap(816),

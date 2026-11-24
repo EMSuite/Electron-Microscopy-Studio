@@ -4,7 +4,7 @@
 //        (from the file's stage tilts when it has both, else typed), the limits, the tilt axis (typed, or calibrated from another
 //        open indexed pattern of the same crystal), a zone axis near the beam and the sentence for it, and the Tilt List CSV.
 //        Presentation only: the numbers are `TiltPlanning`'s over DiffractoKit's holder and zone-axis map. Uncalibrated it says so
-//        and shows no α or β for a zone axis. The Map tab (#814) picks the same `selected` zone axis on the crystal pane.
+//        and shows no α or β for a zone axis. The zone-axis map (#814) above the picker picks the same `selected` zone axis.
 //
 
 import ShellInspector
@@ -18,10 +18,19 @@ struct DiffractionHolderSection: View {
     @Environment(AppState.self) private var appState
     @State private var exporting = false
     @State private var document = RoomExportFile(text: "")
+    /// The other pattern the tilt axis is calibrated from.
+    @State private var partner: UUID?
 
     private static let degrees = FloatingPointFormatStyle<Double>.number.precision(.fractionLength(0...2))
     /// The zone axes the picker offers: the nearest ones to the beam.
-    private static let offered = 16
+    private static let offeredCount = 16
+
+    /// The nearest zone axes the picker offers, and the picked one when the map picked one further out: a selection always has its tag.
+    static func offered(_ plan: TiltPlan, selected: SIMD3<Int>?) -> [TiltListRow] {
+        var rows = Array(plan.rows.prefix(offeredCount))
+        if let uvw = selected, !rows.contains(where: { $0.uvw == uvw }), let row = plan.row(uvw) { rows.append(row) }
+        return rows
+    }
 
     var body: some View {
         let analysis = item.diffraction
@@ -29,7 +38,8 @@ struct DiffractionHolderSection: View {
         let image = item.session.imageOrBlank
         let settings = holder.settings
         let plan = holder.plan(analysis: analysis, image: image)
-        InspectorSection("Holder") {
+        let partners = partners(of: analysis)
+        InspectorSection("Holder", startsExpanded: false) {
             InspectorRow("α now") {
                 OptionalNumericField(title: "Alpha tilt now", value: settings.alphaDeg, format: Self.degrees, unit: "°") {
                     holder.setTilts(alphaDeg: $0, betaDeg: settings.betaDeg)
@@ -65,22 +75,41 @@ struct DiffractionHolderSection: View {
                     .help("The α axis in the pattern, degrees from down the rows toward along the columns; calibrate it from a second pattern")
                     .accessibilityIdentifier("diffraction.holder.axis")
             }
+            InspectorRow("Calibrate from") {
+                Picker("Calibrate from", selection: $partner) {
+                    Text("None").tag(UUID?.none)
+                    ForEach(partners, id: \.id) { other in Text(other.session.imageOrBlank.fileName).tag(Optional(other.id)) }
+                }
+                .labelsHidden().fixedSize()
+                .disabled(partners.isEmpty)
+                .help("Another open pattern of this crystal, indexed, at other stage tilts (10° or more apart is best)")
+                .accessibilityIdentifier("diffraction.holder.partner")
+            }
             InspectorActionRow {
-                calibrateMenu(analysis: analysis, holder: holder)
-                Button("Forget") { holder.forgetAxis() }
+                Button("Calibrate") {
+                    guard let other = partners.first(where: { $0.id == partner }) else { return }
+                    holder.calibrate(analysis: analysis, other: other.diffraction, otherHolder: other.diffractionHolder,
+                                     otherName: other.session.imageOrBlank.fileName)
+                }
+                .disabled(analysis.indexOutcome?.orientation == nil || !partners.contains { $0.id == partner })
+                .help("Finds the tilt axis from this pattern and the one chosen above")
+                .accessibilityIdentifier("diffraction.holder.calibrate")
+                Button("Clear") { holder.forgetAxis() }
                     .disabled(settings.axisAngleDeg == nil)
-                    .help("Forgets the tilt axis; α and β are then not said")
+                    .help("Clears the tilt axis; α and β are then not said")
                     .accessibilityIdentifier("diffraction.holder.forget")
             }
             if let refusal = holder.calibrationRefusal { InspectorWarning(refusal) }
             if let plan {
                 InspectorNote(plan.calibrationSentence)
+                DiffractionZoneAxisMap(plan: plan, selected: Binding(get: { holder.selected }, set: { holder.selected = $0 }))
+                    .frame(maxWidth: .infinity)
                 InspectorRow("Zone axis") {
                     Picker("Zone axis", selection: Binding(get: { holder.selected.map(TiltPlanning.zoneText) ?? "" },
                                                            set: { id in holder.selected = plan.rows.first { $0.id == id }?.uvw })) {
                         Text("None").tag("")
-                        ForEach(plan.rows.prefix(Self.offered)) { row in
-                            Text("\(row.id)  \(String(format: "%.1f°", row.angleFromBeamDeg))").tag(row.id)
+                        ForEach(Self.offered(plan, selected: holder.selected)) { row in
+                            Text("\(row.id)  \(Num.fixed(row.angleFromBeamDeg, 1))°").tag(row.id)
                         }
                     }
                     .labelsHidden().fixedSize()
@@ -103,23 +132,11 @@ struct DiffractionHolderSection: View {
     }
 
     /// The other open patterns indexed on the same crystal, each a calibration partner.
-    private func calibrateMenu(analysis: DiffractionAnalysis, holder: DiffractionHolder) -> some View {
-        let partners = appState.openItems.items.filter { other in
-            other.id != item.id && other.diffraction.indexOutcome?.orientation != nil
-                && other.diffraction.crystal.name == analysis.crystal.name
+    /// The other open patterns of this crystal that Index found an orientation for.
+    private func partners(of analysis: DiffractionAnalysis) -> [OpenItem] {
+        appState.openItems.items.filter { other in
+            other.id != item.id && other.diffraction.indexOutcome?.orientation != nil && other.diffraction.crystal.name == analysis.crystal.name
         }
-        return Menu("Calibrate from Another Pattern…") {
-            ForEach(partners, id: \.id) { other in
-                Button(other.session.imageOrBlank.fileName) {
-                    holder.calibrate(analysis: analysis, other: other.diffraction, otherHolder: other.diffractionHolder,
-                                     otherName: other.session.imageOrBlank.fileName)
-                }
-            }
-        }
-        .fixedSize()
-        .disabled(partners.isEmpty || analysis.indexOutcome?.orientation == nil)
-        .help("Finds the tilt axis from another open pattern of this crystal, indexed, at other stage tilts (10° or more apart is best)")
-        .accessibilityIdentifier("diffraction.holder.calibrate")
     }
 
     private func export(_ plan: TiltPlan, image: CalibratedImage) {
