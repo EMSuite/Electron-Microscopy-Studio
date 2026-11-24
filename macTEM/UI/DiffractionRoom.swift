@@ -52,9 +52,12 @@ struct DiffractionRoom: View {
             // Index's spots beside the readout once it has an answer (#785): hkl, expected d and misfit per spot.
             Group {
                 if analysis.indexOutcome != nil {
-                    HSplitView {
+                    // Side by side, the spots a fixed share: split views are banned by the UI contract (docs/architecture.md).
+                    HStack(spacing: 0) {
                         DiffractionReadoutTable(analysis: analysis, view: view, rows: rows)
+                        Divider()
                         DiffractionSpotTable(view: view, rows: analysis.indexSpotRows)
+                            .frame(minWidth: 300, idealWidth: 380, maxWidth: 460)
                     }
                 } else {
                     DiffractionReadoutTable(analysis: analysis, view: view, rows: rows)
