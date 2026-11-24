@@ -546,7 +546,7 @@ struct EELSExportSection: View {
 
     var body: some View {
         let hasMap = session.map != nil, hasFit = !session.resultRows.isEmpty
-        InspectorSection("Export") {
+        InspectorSection("Export", startsExpanded: false) {
             // The EDS room's rows (control placement §4): Results and Method, Spectrum CSV and MSA, Regions and Maps; the per-pixel thickness alone, full width.
             InspectorActionRow {
                 exportButton(.results, "Results CSV…", "tablecells", enabled: hasFit, help: "The results table: each edge's I and its 1σ, the areal density, at%, wt% and r, with the thickness line and the methods' references")

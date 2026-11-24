@@ -102,6 +102,15 @@ nonisolated class Journey: XCTestCase {
         return e
     }
 
+    /// Opens the inspector section titled `title` when `id`, a control inside it, is not shown: a section such as Export starts
+    /// closed (control placement §2) and opens by its whole title row. Returns the control once it is there.
+    @discardableResult
+    @MainActor
+    func openSection(_ title: String, showing id: String, timeout: TimeInterval = 30, file: StaticString = #filePath, line: UInt = #line) -> XCUIElement {
+        if !element(id).waitForExistence(timeout: 3) { app.buttons[title].firstMatch.click() }
+        return waitFor(id, timeout: timeout, file: file, line: line)
+    }
+
     /// Waits until the element's accessibility value satisfies `check`, and returns it.
     @discardableResult
     @MainActor
