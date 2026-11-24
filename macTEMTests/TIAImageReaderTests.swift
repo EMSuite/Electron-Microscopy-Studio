@@ -82,6 +82,11 @@ nonisolated final class TIAImageReaderTests: XCTestCase {
         return dir
     }
 
+    /// The planted diffraction pattern's `.emi` (200 kV) and its `_1.ser`, for a test elsewhere that needs a TIA acquisition.
+    static var plantedPattern: (emi: Data, ser: Data) {
+        (emi(mode: "TEM Diffraction"), ser(rows: 3, columns: 4, values: ramp, delta: 1.0e8, offset: -2.0e8))
+    }
+
     private func patternFolder() throws -> URL {
         try folder(["pattern.emi": Self.emi(mode: "TEM Diffraction"),
                     "pattern_1.ser": Self.ser(rows: 3, columns: 4, values: Self.ramp, delta: 1.0e8, offset: -2.0e8)])
