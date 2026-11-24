@@ -216,7 +216,25 @@ private struct DiffractionPatternPane: View {
                                      },
                                      set: { addSpotAtCursor() })
         }
+        if view.tool == .tilt, analysis.drawnOrientation != nil {
+            keys.tilt = { direction, coarse in tilt(direction, degrees: coarse ? Self.coarseTiltDegrees : Self.fineTiltDegrees) }
+        }
         return keys
+    }
+
+    /// The Tilt tool's key steps (#787): ⌥ and an arrow tilt 0.1°, ⌥⇧ 1°; VoiceOver's Tilt actions take the coarse step.
+    private static let fineTiltDegrees = 0.1
+    private static let coarseTiltDegrees = 1.0
+
+    /// Tilts the simulated spots as a drag that way would: ↑ and ↓ up and down the rows, ← and → along the columns.
+    private func tilt(_ direction: MoveCommandDirection, degrees: Double) {
+        switch direction {
+        case .up: analysis.tilt(down: -degrees, across: 0)
+        case .down: analysis.tilt(down: degrees, across: 0)
+        case .left: analysis.tilt(down: 0, across: -degrees)
+        case .right: analysis.tilt(down: 0, across: degrees)
+        @unknown default: break
+        }
     }
 
     private func moveSpotCursor(_ step: MarkCursor.Move, fine: Bool) {
@@ -334,6 +352,15 @@ private struct DiffractionPatternPane: View {
             .accessibilityAction(named: "Zoom out") { view.zoom(by: 0.5, image: image) }
             .accessibilityAction(named: "Reset zoom") { view.fitView() }
             .accessibilityAction(named: "Copy Figure") { ExportPanels.copyDiffractionFigure(appState: appState) }
+            // The Tilt tool's drag for VoiceOver (#787): one coarse step each way, as ⌥⇧ and an arrow.
+            .accessibilityActions {
+                if view.tool == .tilt, analysis.drawnOrientation != nil {
+                    Button("Tilt up") { tilt(.up, degrees: Self.coarseTiltDegrees) }
+                    Button("Tilt down") { tilt(.down, degrees: Self.coarseTiltDegrees) }
+                    Button("Tilt left") { tilt(.left, degrees: Self.coarseTiltDegrees) }
+                    Button("Tilt right") { tilt(.right, degrees: Self.coarseTiltDegrees) }
+                }
+            }
             .contextMenu {
                 Button("Copy Figure") { ExportPanels.copyDiffractionFigure(appState: appState) }
             }

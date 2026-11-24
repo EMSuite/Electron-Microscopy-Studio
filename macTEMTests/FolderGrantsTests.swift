@@ -107,6 +107,26 @@ nonisolated final class FolderGrantsTests: XCTestCase {
         XCTAssertNil(FolderGrants.bookmark(forFolder: folder, defaults: defaults), "the unresolved grant is dropped")
     }
 
+    /// A grant whose bookmark macOS calls stale is stored afresh while it is held; one that is not stale stays as it is (#930).
+    /// Red under: `hold` ignoring the renewed bookmark (the stale one stays until it stops resolving and the app asks again).
+    func testAStaleGrantIsStoredAfreshWhileItIsHeld() throws {
+        let (_, folder, scan) = try acquisition()
+        let defaults = try defaults()
+        FolderGrants.store(Data("stale".utf8), forFolder: folder, defaults: defaults)
+        let kept = try XCTUnwrap(FolderGrants.hold(forFolderOf: scan, defaults: defaults, resolve: { _ in folder }, renewed: { _, _ in nil }))
+        XCTAssertEqual(FolderGrants.bookmark(forFolder: folder, defaults: defaults), Data("stale".utf8), "not stale: kept")
+        kept.release()
+
+        let held = try XCTUnwrap(FolderGrants.hold(forFolderOf: scan, defaults: defaults, resolve: { _ in folder }, renewed: { data, url in
+            XCTAssertEqual(data, Data("stale".utf8))
+            XCTAssertEqual(FolderGrants.path(of: url), FolderGrants.path(of: folder))
+            return Data("fresh".utf8)
+        }))
+        XCTAssertEqual(FolderGrants.bookmark(forFolder: folder, defaults: defaults), Data("fresh".utf8))
+        held.release()
+        XCTAssertNil(FolderGrants.renewedBookmark(Data("not a bookmark".utf8), folder: folder), "what does not resolve is not renewed")
+    }
+
     /// The store records, finds and drops a folder's bookmark by the folder's path, as `SessionGrants` does an image's. Red under:
     /// `store(nil, …)` keeping the old grant; a key that is not the folder's path (another folder finds it, or the same folder
     /// written another way does not).

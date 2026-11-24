@@ -10,6 +10,7 @@
 
 import XCTest
 import AppKit
+import ImageIO
 import SwiftUI
 import ShellSpectroscopy
 import SpectroCore
@@ -157,10 +158,30 @@ nonisolated final class EELSWtMapsFilterTests: XCTestCase {
         XCTAssertEqual(on.results, off.results)
         XCTAssertEqual(on.diagnostics, off.diagnostics)
         XCTAssertNotNil(on.figure)
-        XCTAssertEqual(on.figure, off.figure)
+        // Pixel for pixel, not byte for byte: two encodes of one picture can differ in their compressed bytes (79153 against 79133
+        // on the Mac runner, #963) while every pixel is the same.
+        XCTAssertEqual(try Self.pixels(on.figure), try Self.pixels(off.figure), "the filter changed the exported figure's pixels")
         // The drawn wt% values do change: the filter is not a no-op on this map.
         let wt = try XCTUnwrap(session.modelTiles.first { $0.id == "wt-C" })
         XCTAssertTrue(EELSMapDisplay.isFiltered(tileID: wt.id, filter: state.mapFilter))
+    }
+
+    /// A PNG's pixels as 8-bit RGBA rows, with its size, so two encodes of one picture compare equal.
+    private static func pixels(_ png: Data?) throws -> [UInt8] {
+        let data = try XCTUnwrap(png)
+        let source = try XCTUnwrap(CGImageSourceCreateWithData(data as CFData, nil))
+        let image = try XCTUnwrap(CGImageSourceCreateImageAtIndex(source, 0, nil))
+        var bytes = [UInt8](repeating: 0, count: image.width * image.height * 4)
+        let drawn = bytes.withUnsafeMutableBytes { buffer -> Bool in
+            guard let context = CGContext(data: buffer.baseAddress, width: image.width, height: image.height, bitsPerComponent: 8,
+                                          bytesPerRow: image.width * 4, space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                          bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return false }
+            context.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
+            return true
+        }
+        XCTAssertTrue(drawn, "the figure decodes into an RGBA context")
+        let size = [image.width, image.height].flatMap { value in (0..<4).map { UInt8(truncatingIfNeeded: value >> ($0 * 8)) } }
+        return size + bytes
     }
 
     // MARK: The picture

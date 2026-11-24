@@ -25,8 +25,8 @@ carry over either way.
 Open a file and work through the sidebar. It lists five workspaces, Imaging, Spectroscopy, Diffraction, EBSD and Results,
 and under the one in front its rooms. What the file holds decides the room it opens in. Electron Microscopy Studio reads:
 
-- **TEM**: DigitalMicrograph (.dm3, .dm4), Velox (.emd), TIFF and MRC images; EDS spectrum images from Velox and GMS,
-  EELS spectrum images from GMS, and single .msa spectra.
+- **TEM**: DigitalMicrograph (.dm3, .dm4), Velox (.emd), TIA (.ser with its .emi), TIFF and MRC images; EDS spectrum images from Velox and GMS,
+  EELS spectrum images from GMS, TIA spectra and spectrum images in the EDS or EELS room, and single .msa spectra.
 - **HyperSpy**: a .hspy file's images, EELS and EDS spectrum images and spectra, each in its room (several in one file
   open together, as a Velox file's do), read with FormatoKit's reader.
 - **Pictures**: a pattern or image saved as PNG or JPEG (from a paper or a camera export) opens as a picture, not counts;
@@ -55,7 +55,8 @@ The rooms:
   Your marks are saved in a session file next to the image. An SEM TIFF shows the microscope's settings, and a Thermo
   Fisher or Tescan databar can be hidden or shown under the picture (Settings > Images).
 - **FFT**: the transform of the image or a region, spots and their d-spacings, the radial profile, a masked inverse,
-  and ABSF and Wiener filters. The transform exports as a PNG, or as a PDF or SVG figure with its rings and labels as vectors.
+  ABSF and Wiener filters, and strain maps by geometric phase analysis (checked on planted fields only). The transform
+  exports as a PNG, or as a PDF or SVG figure with its rings and labels as vectors.
 - **EDS**: Velox and GMS spectrum images, and SEM-EDS maps, line scans and spectra. Pick elements from the periodic
   table or let Auto ID suggest them, then get net, wt%, at% and thickness maps, regions, and the Cliff-Lorimer
   composition.
@@ -65,7 +66,8 @@ The rooms:
   see the crystal's simulated spots, with their hkl, over the pattern (with the spots double diffraction adds, and an excitation
   error to set), or press Index to find the spots and the crystal's full
   orientation (the found spots stay as marks to remove or add to; clicked spots give the zone axis); step through tied solutions,
-  flip 180°, fit the scale or hold it, and drag the simulated spots to tilt them (⌥ drag turns them).
+  flip 180°, fit the scale or hold it, and drag the simulated spots to tilt them (⌥ drag turns them; ⌥ and an arrow tilt by a step).
+  Phases come from your library: Add Phase… finds one on the Materials Project or opens a CIF, and a phase added once works offline.
   File > New Simulation (⇧⌘N) opens the simulated spots with no measured pattern under them.
 - **Patterns**: the EBSD or TKD scan beside the live pattern, with mean intensity, virtual BSE, image quality and
   average dot product maps. Remove the static and dynamic backgrounds, rescale or normalise, equalise, filter, bin,
@@ -92,6 +94,14 @@ The rooms:
 
 An AI agent on the same Mac (Claude, Codex, a script) can look at what a window shows, and with your leave work a room,
 through the agent door: Settings > Agents, off by default. What it can reach is in [`docs/agent-door.md`](docs/agent-door.md).
+
+## Privacy
+
+No telemetry, no account. The app connects to one other service on its own: the
+[Materials Project](https://materialsproject.org), and only when you search for a phase or add one. It sends the
+elements or formula you type, or the entry's id, and your own API key if you saved one in Settings > Materials Project
+(the key is optional and stays in your login keychain). A phase once added works offline. The website download also
+fetches its update feed. Details are in [`SECURITY.md`](SECURITY.md).
 
 ## Where the numbers come from
 

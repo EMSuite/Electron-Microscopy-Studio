@@ -6,14 +6,14 @@ import ShellEDXModel
 
 package enum EDXOpening {
     /// File extensions the Open panel offers (a Velox EMD or a GMS DM4; a single spectrum as `.msa` or HyperSpy's `.hspy`; the SEM-EDS
-    /// maps and spectra of Bruker, EDAX and JEOL, `SEMEDSOpening`).
-    package static let readableExtensions = ["emd", "dm4", "msa", "hspy"] + SEMEDSOpening.readableExtensions
+    /// maps and spectra of Bruker, EDAX and JEOL, `SEMEDSOpening`; a TIA series of EDS spectra, `TIASpectra`).
+    package static let readableExtensions = ["emd", "dm4", "msa", "hspy", "ser"] + SEMEDSOpening.readableExtensions
 
     /// Header-only for a DM4, one HDF5 open for an EMD. Run off the main actor.
     package static func isSpectrumImage(at url: URL) -> Bool {
         if HyperSpySpectrumFile.isHyperSpyFile(path: url.path) { return HyperSpyOpening.inventory(path: url.path).opensInEDS }
         return SEMEDSOpening.opensInEDS(path: url.path) || SpectrumImageOpener.kind(ofFileAt: url.path) != .other
-            || FileRouting.isSingleSpectrum(path: url.path)
+            || FileRouting.isSingleSpectrum(path: url.path) || TIASpectra.isSpectra(url)
     }
 
     /// Reads the whole spectrum image (a 1.7 GB Velox file is three passes over its event stream): off the main actor, cancellable
@@ -28,6 +28,12 @@ package enum EDXOpening {
         // A HyperSpy file's EDS spectrum image (#820); a file of spectra only opens its first as one pixel, below.
         if HyperSpySpectrumFile.isHyperSpyFile(path: url.path), HyperSpyOpening.inventory(path: url.path).edsSpectrumImage {
             let loaded = try HyperSpyOpening.edsSpectrumImage(path: url.path)
+            progress?(1)
+            return loaded
+        }
+        // A TIA series of spectra: a point, a line profile or a spectrum image (`TIASpectra`).
+        if TIASpectra.isSpectra(url) {
+            let loaded = try TIASpectra.edsSpectrumImage(url: url)
             progress?(1)
             return loaded
         }

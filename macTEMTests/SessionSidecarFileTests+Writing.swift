@@ -246,8 +246,9 @@ nonisolated extension SessionSidecarFileTests {
 
     /// A replace never takes the path away: the sidecar is renamed over, not removed and then put back, so a reader
     /// polling the path (a second window, Spotlight, a backup) never finds it missing. A thread stats the path as fast as
-    /// it can while the sidecar is rewritten 100 times (50 KB each). Red under: the old file removed before the rename (a
-    /// run of this mutant found it missing in thousands of polls).
+    /// it can while the sidecar is rewritten (50 KB each) at least 100 times and until the thread has polled 1000 times, so a
+    /// loaded machine that schedules the thread less often still gets enough polls in (990 in 100 writes on the Mac runner,
+    /// #960). Red under: the old file removed before the rename (a run of this mutant found it missing in thousands of polls).
     func testThePathIsNeverMissingWhileItIsReplaced() throws {
         let url = try scratchDirectory().appendingPathComponent("atomic.mactem.h5")
         let lineage = String(repeating: "y", count: 50_000)
@@ -255,7 +256,11 @@ nonisolated extension SessionSidecarFileTests {
         let watch = PathWatch(path: url.path)
         watch.start()
         defer { _ = watch.stop() }
-        for index in 0..<100 { try Sidecar.write(source: "s\(index)", lineage: lineage, to: url) }
+        var index = 0
+        while index < 100 || (watch.polls <= 1000 && index < 10_000) {
+            try Sidecar.write(source: "s\(index)", lineage: lineage, to: url)
+            index += 1
+        }
         let (polls, missing) = watch.stop()
         XCTAssertGreaterThan(polls, 1000, "the watching thread hardly ran")
         XCTAssertEqual(missing, 0, "the sidecar's path was missing in \(missing) of \(polls + missing) polls during a replace")
@@ -329,6 +334,13 @@ nonisolated extension SessionSidecarFileTests {
                 }
                 ended.signal()
             }.start()
+        }
+
+        /// The polls that found the path so far.
+        var polls: Int {
+            lock.lock()
+            defer { lock.unlock() }
+            return found
         }
 
         /// Stops the thread, waits for it, and returns what it counted. Safe to call twice.

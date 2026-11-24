@@ -63,7 +63,7 @@ nonisolated final class AppStoreReleaseTests: XCTestCase {
 
     /// The checks name what they check: each HDF5 framework, each shipped demo file (`DemoDocuments.Shipped`), and the store app's
     /// sandbox entitlements as exactly those of macTEM.entitlements, which the store build signs with. Mutation: a framework or a demo
-    /// file left out, a (N) glob, an entitlement added to one list and not the other (a network client among them) - red.
+    /// file left out, a (N) glob, an entitlement added to one list and not the other - red.
     func testTheReleaseChecksNameEachFrameworkDemoFileAndEntitlement() throws {
         let checks = try Self.codeLines(of: root.appendingPathComponent("tools/lib/release-checks.sh"))
         let code = checks.joined(separator: "\n")
@@ -81,8 +81,9 @@ nonisolated final class AppStoreReleaseTests: XCTestCase {
             as? [String: Any])
         let sandbox = entitlements.keys.filter { $0.hasPrefix("com.apple.security.") }.sorted()
         XCTAssertEqual(sandbox, ["com.apple.security.app-sandbox", "com.apple.security.files.bookmarks.app-scope",
-                                 "com.apple.security.files.user-selected.read-write", "com.apple.security.network.server"],
-                       "the store listing declares these: the files, and the agent door's loopback listener (no network client)")
+                                 "com.apple.security.files.user-selected.read-write", "com.apple.security.network.client",
+                                 "com.apple.security.network.server"],
+                       "the store listing declares these: the files, the Materials Project (#778), and the agent door's loopback listener")
         XCTAssertTrue(code.contains("local -a expected=(" + sandbox.joined(separator: " ") + ")"),
                       "the store check's list is not macTEM.entitlements's")
     }

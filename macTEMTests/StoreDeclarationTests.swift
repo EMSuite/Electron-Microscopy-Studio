@@ -1,8 +1,7 @@
 //
 //  StoreDeclarationTests.swift
 //  What the store is told against what the code does (#351). App Store Connect rejects an upload that calls a required-reason
-//  API its privacy manifest does not declare, and the store's privacy answer and SECURITY.md rest on the app having no network client
-//  entitlement. PrivacyManifestTests checks that the BUILT app's manifest holds today's reasons; these read the sources, the
+//  API its privacy manifest does not declare, and the store's privacy answer and SECURITY.md name each entitlement the app has. PrivacyManifestTests checks that the BUILT app's manifest holds today's reasons; these read the sources, the
 //  manifest and the entitlements beside this test file, so a new call or a new entitlement goes red here before an upload does.
 //  The kits' and MacEMUI's sources are other repositories and are not scanned.
 //
@@ -156,20 +155,19 @@ nonisolated final class StoreDeclarationTests: XCTestCase {
         XCTAssertTrue(names.contains("UserDefaults") && names.contains("UserDefaults("))
     }
 
-    /// The entitlements file holds the App Sandbox, user-selected read-write, app-scope bookmarks and the agent door's listener
+    /// The entitlements file holds the App Sandbox, user-selected read-write, app-scope bookmarks, the outgoing connection to the
+    /// Materials Project (`network.client`, #778: only when the person searches or adds a phase) and the agent door's listener
     /// (`network.server`, loopback only, off until Settings > Agents), each on, and no other key of any prefix; and every
-    /// configuration signs with that file. The store's privacy answer (Data Not Collected) and SECURITY.md say the app connects
-    /// to no other computer, which holds because no network client entitlement is there.
-    /// Mutation: com.apple.security.network.client or any other key added, a key turned off, or a configuration signed with
-    /// another entitlements file - red.
-    func testTheEntitlementsAreTheSandboxItsTwoFileKeysAndTheAgentDoorAndNothingElse() throws {
+    /// configuration signs with that file. The store's privacy answer, the review notes and SECURITY.md name these five.
+    /// Mutation: any other key added, a key turned off, or a configuration signed with another entitlements file - red.
+    func testTheEntitlementsAreTheSandboxItsTwoFileKeysTheMaterialsProjectAndTheAgentDoorAndNothingElse() throws {
         let url = root.appendingPathComponent("macTEM/macTEM.entitlements")
         let entitlements = try XCTUnwrap(PropertyListSerialization.propertyList(from: Data(contentsOf: url), format: nil)
             as? [String: Any])
         XCTAssertEqual(entitlements.keys.sorted(), ["com.apple.security.app-sandbox", "com.apple.security.files.bookmarks.app-scope",
                                                     "com.apple.security.files.user-selected.read-write",
-                                                    "com.apple.security.network.server"],
-                       "the store's privacy answer and SECURITY.md name these four and no network client")
+                                                    "com.apple.security.network.client", "com.apple.security.network.server"],
+                       "the store's privacy answer and SECURITY.md name these five")
         for (key, value) in entitlements {
             XCTAssertEqual(value as? Bool, true, "\(key) is not on")
         }
@@ -186,16 +184,16 @@ nonisolated final class StoreDeclarationTests: XCTestCase {
                       "the store build's suffix is empty, so it signs with macTEM/macTEM.entitlements")
     }
 
-    /// The website download's entitlements (#583) are the store's four plus exactly what Sparkle needs: the outgoing connection for the
-    /// update feed and the mach-lookup exception for its installer services. Mutation: any other key added - red.
-    func testTheDownloadsEntitlementsAddOnlySparklesTwo() throws {
+    /// The website download's entitlements (#583) are the store's five plus exactly what Sparkle's installer needs: the mach-lookup
+    /// exception for its installer services (the update feed uses the outgoing connection both builds have). Mutation: any other
+    /// key added - red.
+    func testTheDownloadsEntitlementsAddOnlySparklesInstallerException() throws {
         func keys(_ name: String) throws -> Set<String> {
             let data = try Data(contentsOf: root.appendingPathComponent("macTEM/\(name)"))
             return Set(try XCTUnwrap(PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any]).keys)
         }
         let store = try keys("macTEM.entitlements"), direct = try keys("macTEM-Direct.entitlements")
-        XCTAssertEqual(direct.subtracting(store), ["com.apple.security.network.client",
-                                                   "com.apple.security.temporary-exception.mach-lookup.global-name"])
+        XCTAssertEqual(direct.subtracting(store), ["com.apple.security.temporary-exception.mach-lookup.global-name"])
         XCTAssertTrue(store.isSubset(of: direct))
     }
 }

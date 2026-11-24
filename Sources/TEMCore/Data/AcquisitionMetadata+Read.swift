@@ -21,7 +21,8 @@
 //  `ImageList.N.ImageTags.`). A file with no such object (one the open refuses) reads empty.
 //  Velox (.emd): `velox(_:)` on the entry `VeloxImageReader.openedEntry(path:)` names — the open's own rule.
 //  TIFF (.tif, .tiff): the kit's `tiff(data:)` on the file mapped, as the image reader maps it (the Velox XML, the FEI SEM INI,
-//  or a DM-saved TIFF's tag 65027). MRC (.mrc): the kit's `mrc(data:)`, the FEI1/FEI2 extended header.
+//  or a DM-saved TIFF's tag 65027). MRC (.mrc): the kit's `mrc(data:)`, the FEI1/FEI2 extended header. TIA (.ser, .emi): the
+//  metadata FormatoTIA gives the series the open shows, from its .emi (`tia(_:)`); a .ser opened alone records nothing.
 //
 //  Not a field of `CalibratedImage`: that type has about twenty construction sites, and the pixel readers must not
 //  depend on the metadata readers. The result travels beside the image (`ImageSession.finishOpen`).
@@ -59,9 +60,40 @@ nonisolated extension AcquisitionMetadata {
             found.highTensionKV = image.metadata.beamEnergy.map { MetadataReading($0) }
             found.magnification = image.metadata.magnification.map { MetadataReading($0) }
             return found
+        case "ser", "emi":
+            // The series the open shows (`TIAImageReader.series`), with what its .emi records (HyperSpy 2.5.0's mapping, the kit's);
+            // a .ser opened alone records nothing.
+            guard let chosen = try? TIAImageReader.series(url: URL(fileURLWithPath: path)), chosen.withEMI else { return AcquisitionMetadata() }
+            return tia(chosen.signal.metadata)
         default:
             return AcquisitionMetadata()
         }
+    }
+
+    /// What a TIA series' metadata records, in the fields the panel shows: HyperSpy's `beam_energy` (kV), `magnification`,
+    /// `camera_length` (mm), `microscope`, `acquisition_mode`, the camera's name and exposure (s), and the date and time.
+    static func tia(_ metadata: FormatoMetadata) -> AcquisitionMetadata {
+        let tem = "Acquisition_instrument.TEM."
+        func number(_ key: String) -> Double? {
+            guard let entry = metadata[tem + key] else { return nil }
+            if let value = entry.value.number { return value.isFinite ? value : nil }
+            return entry.value.text.flatMap { Double($0.trimmingCharacters(in: .whitespaces)) }.flatMap { $0.isFinite ? $0 : nil }
+        }
+        func text(_ key: String) -> String? {
+            metadata[key]?.value.text.flatMap { $0.isEmpty ? nil : $0 }
+        }
+        var found = AcquisitionMetadata()
+        found.highTensionKV = number("beam_energy").map { MetadataReading($0) }
+        found.magnification = number("magnification").map { MetadataReading($0) }
+        found.cameraLengthMM = number("camera_length").map { MetadataReading($0) }
+        found.exposureS = number("Detector.Camera.exposure").map { MetadataReading($0) }
+        found.instrument = text(tem + "microscope").map { MetadataReading($0) }
+        found.mode = text(tem + "acquisition_mode").map { MetadataReading($0) }
+        found.detector = text(tem + "Detector.Camera.Name").map { MetadataReading($0) }
+        if let date = text("General.date") {
+            found.acquired = MetadataReading(text("General.time").map { date + " " + $0 } ?? date)
+        }
+        return found
     }
 
     /// The file's bytes, mapped as `TIFFImageReader.read(path:)` and `MRCImageReader.read(path:)` map them.

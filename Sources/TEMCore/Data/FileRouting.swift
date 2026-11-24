@@ -1,7 +1,8 @@
 // Open reads a file by what it holds, not by the room the user happens to be in: `FileInventory` lists the datasets of a file (an image to
 // draw, an EDS spectrum image, an EELS spectrum image, a single spectrum, an EBSD pattern dataset) from FormatoKit's sniff and group names, and the app opens the
 // file into every room that has data in it and lands in the room of the richest one (a spectrum cube before an image). The sniff of an HDF5
-// file takes the HDF5 lock, so it runs off the main actor. A multi-page TIFF keeps the stack path (`ImageStackSource`).
+// file takes the HDF5 lock, so it runs off the main actor. A multi-page TIFF keeps the stack path (`ImageStackSource`). A TIA image
+// or pattern (`.ser`, `.emi`) opens in the image rooms (`TIAImageReader`), a series of its spectra in the EDS or EELS room (`TIASpectra`, #906).
 import Foundation
 import Formato
 import FormatoCore
@@ -29,6 +30,9 @@ package nonisolated struct FileInventory: Equatable, Sendable {
     package var orientationMap = false
     /// Set instead of the above when the file is not opened here: the sentence says what it is and where it goes.
     package var refusal: String?
+    /// A TIA series of spectra whose `.emi` does not say EDS or EELS (`TIASpectra.room(of:)`): the Open asks once which room, and the
+    /// answer sets `edsSpectrumImage` or `eelsSpectrumImage`.
+    package var asksForSpectraRoom = false
     /// The scan of a DM4 spectrum image, from its header: the size the file's Open Files row shows. The image the Image room draws from the
     /// same file is the survey (2048 x 2048 beside a 432 x 172 scan), so its size is not the scan's. Nil for any other file (a Velox
     /// spectrum image's image is the scan image itself).
@@ -188,6 +192,26 @@ package nonisolated enum FileRouting {
             if held.spectra > 0, !found.image, !found.edsSpectrumImage, !found.eelsSpectrumImage { found.singleSpectrum = true }
             if !found.image, !found.edsSpectrumImage, !found.eelsSpectrumImage, !found.singleSpectrum { found.image = true }
             return found
+        case .tia:
+            // An .emi whose .ser files the sandbox refuses says so (the Open asks for the folder first: `FolderGrants`); an .emi that
+            // reads is opened as its series, each a file of its own (`AppState.inventories`). A series of spectra goes to the room
+            // its .emi says (`TIASpectra.room`), or asks which; an image or a pattern opens in the image rooms, and its reader words
+            // what it refuses.
+            if let why = TIAImageReader.unreadableSeriesRefusal(url) { return FileInventory(refusal: why) }
+            if TIASpectra.isSpectra(url) {
+                switch TIASpectra.room(of: url) {
+                case .eds: return FileInventory(edsSpectrumImage: true)
+                case .eels: return FileInventory(eelsSpectrumImage: true)
+                case nil:
+                    var asks = FileInventory()
+                    asks.asksForSpectraRoom = true
+                    return asks
+                }
+            }
+            if TIAImageReader.holdsSpectraOnly(path: path) {
+                return FileInventory(refusal: "\(name) is not read: " + TIAImageReader.Refusal.spectra.reason)
+            }
+            return FileInventory(image: true)
         case .hyperSpy:
             // Taken above (`HyperSpySpectrumFile.isHyperSpyFile` asks the same sniff); reached only if the file changed in between.
             return FileInventory(refusal: "\(name) is a HyperSpy file \(AppName.display) could not read again: open it once more.")
@@ -265,17 +289,31 @@ package nonisolated enum FileRouting {
     /// keV (eV unless the file says keV), the beam energy and instrument when the file states them.
     private static func onePixel(name: String, path: String, values: [Double], offset: Double, scale: Double, units: String,
                                  beamEnergyKeV: Double?, instrument: String?) throws -> LoadedSpectrumImage {
-        guard !values.isEmpty, values.allSatisfy({ $0.isFinite && $0 >= 0 }) else {
+        try countImage(name: name, path: path, values: values, rows: 1, columns: 1, offset: offset, scale: scale, units: units,
+                       beamEnergyKeV: beamEnergyKeV, instrument: instrument)
+    }
+
+    /// Spectra laid out rows, columns, channels as a spectrum image of whole counts on a keV axis (eV unless `units` says keV): each
+    /// value rounded, a negative or non-finite one refused, the beam energy and instrument when the file states them. A single spectrum
+    /// is 1 x 1; a TIA series is its scan (`TIASpectra`).
+    package static func countImage(name: String, path: String, values: [Double], rows: Int, columns: Int, offset: Double, scale: Double,
+                                   units: String, beamEnergyKeV: Double?, instrument: String?) throws -> LoadedSpectrumImage {
+        guard rows > 0, columns > 0, !values.isEmpty, values.count % (rows * columns) == 0 else {
+            throw SpectrumReadError(text: "The spectra do not fill a scan of \(columns) x \(rows) positions.")
+        }
+        guard values.allSatisfy({ $0.isFinite && $0 >= 0 }) else {
             throw SpectrumReadError(text: "The spectrum holds negative or non-finite values: it is not a count spectrum.")
         }
+        let channels = values.count / (rows * columns)
         let toKeV = units.lowercased() == "kev" ? 1.0 : 0.001
-        let energyAxis = EnergyAxis(offset: offset * toKeV, scale: scale * toKeV, size: values.count)
+        let energyAxis = EnergyAxis(offset: offset * toKeV, scale: scale * toKeV, size: channels)
         guard energyAxis.scale > 0 else { throw SpectrumReadError(text: "The spectrum's channel width is not positive.") }
-        var meta = SpectrumImageMetadata(fileName: name, filePath: path, scanWidth: 1, scanHeight: 1, channelCount: values.count,
+        var meta = SpectrumImageMetadata(fileName: name, filePath: path, scanWidth: columns, scanHeight: rows, channelCount: channels,
                                          energyOffsetEV: offset * toKeV * 1000, energyDispersionEV: scale * toKeV * 1000)
         meta.beamEnergyKeV = beamEnergyKeV
         meta.instrument = instrument
         let counts = values.map { UInt32(min($0.rounded(), Double(UInt32.max))) }
-        return LoadedSpectrumImage(image: DenseSpectrumImage(ny: 1, nx: 1, channels: values.count, counts: counts), metadata: meta, energyAxis: energyAxis)
+        return LoadedSpectrumImage(image: DenseSpectrumImage(ny: rows, nx: columns, channels: channels, counts: counts), metadata: meta,
+                                   energyAxis: energyAxis)
     }
 }
