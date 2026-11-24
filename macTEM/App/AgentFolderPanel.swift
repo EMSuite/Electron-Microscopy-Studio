@@ -16,7 +16,7 @@ enum AgentFolderPanel {
         panel.allowsMultipleSelection = false
         panel.canCreateDirectories = true
         panel.prompt = "Choose"
-        panel.message = "The one folder an agent may list, open and, with saving on, save into."
+        panel.message = "The one folder an agent may list and open files from. It never changes a file there."
         return panel
     }
 

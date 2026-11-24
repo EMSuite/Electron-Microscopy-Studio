@@ -4,15 +4,15 @@
 //        the source pane shows, the mask's radius and edge, the HRTEM filters' parameters and the spectrum's display
 //        window — small values, kept while the file is cold, as the marks are (`OpenItem.fft`, beside `measurements`) —
 //        and, while the room shows the file, the products: the spectrum ready to draw with its radial profile, the
-//        masked inverse, ABSF and Wiener. The numbers are ImagoKit's (`PowerSpectrum`, `RadialProfile`, `SpotMeasurement`,
+//        masked inverse, ABSF and Wiener, GPA's strain maps (`FFTStrain.swift`). The numbers are ImagoKit's (`PowerSpectrum`, `RadialProfile`, `SpotMeasurement`,
 //        `MaskedInverseFFT`, `HRTEMFilter`; the room's region, bin and unit rules are ImagoFFT's `FFTRegion`, `SpectrumBin`, `FFTUnits`; `FFTMask` is ImagoFFT's); this owner asks for them and
 //        publishes what it is answered, by the live-update rule R2.
 //
 //        NOT SAVED: the session sidecar is not built, so the room's state lives with its open file and goes when
 //        it closes, as the marks do.
 //
-//  R2, THE LANES: four kinds of work — the spectrum (with its profile and display), a spot, the masked inverse, the
-//  filters — each a lane that runs at most one job. A request while its job runs replaces the lane's pending key (the
+//  R2, THE LANES: five kinds of work — the spectrum (with its profile and display), a spot, the masked inverse, the
+//  filters, the strain maps — each a lane that runs at most one job. A request while its job runs replaces the lane's pending key (the
 //  newest wins); a job's answer is published only if its key still equals the lane's wanted key AND the room still shows
 //  the file (`release()` bumps the lane's generation), otherwise it is dropped; then the pending key, if it is still
 //  wanted and is not what just landed, runs. A newer key never interrupts a running job (its answer is dropped); `release()`
@@ -260,7 +260,7 @@ package nonisolated struct FFTCompute: Sendable {
 /// equal in value are still two uploads). It starts at 2⁶², far from the small integers a test or a reader might use,
 /// and `MetalImageView`'s FNV versions are uniform over all 64 bits, so a serial meets one only with a probability of
 /// 2⁻⁶⁴ per product.
-private nonisolated enum FFTProductVersion {
+nonisolated enum FFTProductVersion {
     private static let counter = Atomic<Int>(1 << 62)
 
     static func next() -> Int { counter.wrappingAdd(1, ordering: .relaxed).oldValue }
@@ -269,7 +269,7 @@ private nonisolated enum FFTProductVersion {
 /// TEMCore's cores for the room's four lanes. Each is `@concurrent`, so the main actor is never the one transforming;
 /// each returns `Sendable` products and keeps none of a core's intermediates (a `PowerSpectrum`'s magnitude and power,
 /// `HRTEMFilter.Result`'s ≈ 73 B/px).
-private nonisolated enum FFTWork {
+nonisolated enum FFTWork {
     /// The pixels `crop` transforms: its crop of `image`, or the image (nil), as the kit's image.
     static func transformed(_ image: CalibratedImage, _ crop: PixelCrop?) throws -> Micrograph {
         guard let crop else { return image.micrograph }
@@ -429,6 +429,19 @@ package final class FFTAnalysis {
     /// product of them.
     package enum SourceView: String, CaseIterable, Sendable {
         case original, region, maskedInverse, absf, wiener
+        /// GPA's maps (MA16): εxx, εyy, εxy and the rotation, after a strain run.
+        case strainXX, strainYY, strainXY, rotation
+
+        /// The strain map this view shows; nil for the others.
+        package var strainComponent: FFTStrainProduct.Component? {
+            switch self {
+            case .strainXX: .exx
+            case .strainYY: .eyy
+            case .strainXY: .exy
+            case .rotation: .rotation
+            case .original, .region, .maskedInverse, .absf, .wiener: nil
+            }
+        }
     }
 
     // Settings, kept while the file is cold.
@@ -441,6 +454,8 @@ package final class FFTAnalysis {
     package private(set) var maskEdge: Double = FFTMask.defaultEdge
     /// Mitchell's defaults until changed; out of range is refused by the filter, never clamped.
     package private(set) var filterParameters = HRTEMFilter.Parameters.defaults
+    /// GPA's reference window: the whole of the transformed pixels until changed.
+    package private(set) var strainReference = FFTStrainReference.whole
     /// Smoothing, band-pass and window applied to the transformed pixels before the transform.
     package private(set) var preprocess = FFTPreprocess()
     /// "Find spots": the settings of the finder and the number of spots it put on the spectrum last time.
@@ -463,6 +478,9 @@ package final class FFTAnalysis {
     package private(set) var spectrum: FFTSpectrumProduct?
     package private(set) var maskedInverse: FFTMaskedInverseProduct?
     package private(set) var filtered: FFTFilterProduct?
+    package private(set) var strain: FFTStrainProduct?
+    package private(set) var isComputingStrain = false
+    package private(set) var strainFailure: String?
     /// The spectrum asked for: the region now, on the file's pixels as last shown.
     package private(set) var wantedSpectrumKey: FFTSpectrumKey?
     package private(set) var isFiltering = false
@@ -491,6 +509,12 @@ package final class FFTAnalysis {
     /// A spot has been measured (a refused one, one with no peak and one still measuring have no centroid).
     package var hasMeasuredSpot: Bool { spots.contains { $0.measured != nil } }
 
+    /// The two reflections a strain run would take: the first two spots measured on the spectrum asked for that are at an angle.
+    package var strainReflections: (FFTStrainReflection, FFTStrainReflection)? {
+        guard let key = wantedSpectrumKey else { return nil }
+        return FFTStrainReflection.firstTwo(of: spots, on: key)
+    }
+
     /// A measured spot is in the mask: the masked inverse has something to pass.
     package var hasMaskSpot: Bool { spots.contains { $0.inMask && $0.measured != nil } }
 
@@ -506,10 +530,13 @@ package final class FFTAnalysis {
     @ObservationIgnored private var committedRegion: PixelCrop?
     @ObservationIgnored private var lastSpotNumber = 0
     @ObservationIgnored private var wantedFilterKey: FFTFilterKey?
+    @ObservationIgnored private let strainCompute: FFTStrainWork.Compute
+    @ObservationIgnored private var wantedStrainKey: FFTStrainKey?
 
     @ObservationIgnored private let spectrumLane = Lane<FFTSpectrumKey, FFTSpectrumProduct>()
     @ObservationIgnored private let maskLane = Lane<FFTMaskKey, FFTMaskedInverseProduct>()
     @ObservationIgnored private let filterLane = Lane<FFTFilterKey, FFTFilterProduct>()
+    @ObservationIgnored private let strainLane = Lane<FFTStrainKey, FFTStrainProduct>()
     /// The spot lane: the spots waiting for their turn, the one running, whether a job is out (it can outlive a
     /// `release`), and the generation `release` bumps so that job's answer is dropped.
     @ObservationIgnored private var spotQueue: [FFTSpot.ID] = []
@@ -519,8 +546,10 @@ package final class FFTAnalysis {
     @ObservationIgnored private var spotTask: Task<Void, Never>?
     @ObservationIgnored private var spotGeneration = 0
 
-    package init(compute: FFTCompute = .live) {
+    /// `strain` is GPA's run (MA16), apart from `compute` so its tests can finish runs in their own order too.
+    package init(compute: FFTCompute = .live, strain: @escaping FFTStrainWork.Compute = FFTStrainWork.live) {
         self.compute = compute
+        self.strainCompute = strain
 
         spectrumLane.wanted = { [weak self] in self?.wantedSpectrumKey }
         spectrumLane.makeJob = { [weak self] key in
@@ -583,6 +612,30 @@ package final class FFTAnalysis {
                 filterFailure = Self.words(error)
             }
         }
+
+        // As the filters' lane: a run is wanted only while it is of the spectrum asked for now.
+        strainLane.wanted = { [weak self] in
+            guard let self, let key = self.wantedStrainKey, key.spectrum == self.wantedSpectrumKey else { return nil }
+            return key
+        }
+        strainLane.makeJob = { [weak self] key in
+            guard let self, let image = self.image else { return nil }
+            let strain = self.strainCompute
+            return { await Self.attempt { try await strain(image, key) } }
+        }
+        strainLane.land = { [weak self] _, result in
+            guard let self else { return }
+            isComputingStrain = false
+            switch result {
+            case .success(let product):
+                self.strain = product
+                strainFailure = nil
+                sourceView = .strainXX
+            case .failure(let error):
+                self.strain = nil
+                strainFailure = Self.words(error)
+            }
+        }
     }
 
     // MARK: Intents
@@ -624,6 +677,10 @@ package final class FFTAnalysis {
         if let filtered { filterCrops.append(filtered.key.spectrum.crop) }
         if let wantedFilterKey { filterCrops.append(wantedFilterKey.spectrum.crop) }
         if filterCrops.contains(where: { $0 != crop }) { dropFilterResult() }
+        var strainCrops: [PixelCrop?] = []
+        if let strain { strainCrops.append(strain.key.spectrum.crop) }
+        if let wantedStrainKey { strainCrops.append(wantedStrainKey.spectrum.crop) }
+        if strainCrops.contains(where: { $0 != crop }) { dropStrainResult() }
         if committed, crop != committedRegion {
             committedRegion = crop
             dropSpots()
@@ -765,6 +822,7 @@ package final class FFTAnalysis {
     /// after a filter run: asking for one before it is ignored.
     package func setSourceView(_ view: SourceView) {
         if (view == .absf || view == .wiener) && filtered == nil { return }
+        if view.strainComponent != nil && strain == nil { return }
         sourceView = view
         reconcileMask()
     }
@@ -799,12 +857,44 @@ package final class FFTAnalysis {
         dropFilterResult()
     }
 
+    /// Map Strain: GPA of the transformed pixels with the first two measured spots as g₁ and g₂ (MA16); the source pane shows
+    /// εxx when it lands. The kit refuses collinear spots and a reflection at Nyquist, in its own words.
+    package func runStrain() {
+        guard let image, let spectrumKey = wantedSpectrumKey else { return }
+        let width = region?.width ?? image.width, height = region?.height ?? image.height
+        guard width * height <= FFTStrainWork.largestPixelCount else {
+            strainFailure = "Strain maps take at most 2048 × 2048 px; the pixels transformed are \(width) × \(height) px. Draw a region of at most that size in the Region section."
+            return
+        }
+        guard let reflections = strainReflections else {
+            strainFailure = "Map Strain needs two measured spots at an angle to each other on this transform: click two reflections, or Find Spots."
+            return
+        }
+        strainFailure = nil
+        let key = FFTStrainKey(spectrum: spectrumKey, g1: reflections.0, g2: reflections.1, reference: strainReference)
+        if strain?.key == key {                             // this very run is on screen: show it
+            sourceView = .strainXX
+            return
+        }
+        wantedStrainKey = key
+        isComputingStrain = true
+        strainLane.request(key)
+    }
+
+    /// A new reference window removes the last run's maps.
+    package func setStrainReference(_ reference: FFTStrainReference) {
+        guard reference != strainReference else { return }
+        strainReference = reference
+        dropStrainResult()
+    }
+
     /// The room stopped showing this file: every product and the image held for the lanes go; answers still running
     /// are dropped when they land. The settings and the spots' bins stay.
     package func release() {
         spectrumLane.invalidate()
         maskLane.invalidate()
         filterLane.invalidate()
+        strainLane.invalidate()
         spotTask?.cancel()
         spotGeneration += 1
         spotQueue = []
@@ -816,6 +906,7 @@ package final class FFTAnalysis {
         maskedInverse = nil
         maskFailure = nil
         dropFilterResult()
+        dropStrainResult()
     }
 
     // MARK: The lanes
@@ -909,6 +1000,7 @@ package final class FFTAnalysis {
         maskedInverse = nil
         maskFailure = nil
         dropFilterResult()
+        dropStrainResult()
         if sourceView == .maskedInverse { sourceView = .original }
     }
 
@@ -918,6 +1010,14 @@ package final class FFTAnalysis {
         wantedFilterKey = nil
         isFiltering = false
         if sourceView == .absf || sourceView == .wiener { sourceView = .original }
+    }
+
+    private func dropStrainResult() {
+        strain = nil
+        strainFailure = nil
+        wantedStrainKey = nil
+        isComputingStrain = false
+        if sourceView.strainComponent != nil { sourceView = .original }
     }
 
     // MARK: Words
@@ -942,8 +1042,29 @@ package final class FFTAnalysis {
                 return "The inverse transform of \(width) × \(height) px could not be set up."
             }
         }
+        if let failure = error as? GeometricPhaseAnalysisError { return strainWords(failure) }
         if let described = (error as? any LocalizedError)?.errorDescription { return described }
         return error.localizedDescription
+    }
+
+    /// Why Map Strain was refused, pointing at what to do; the kit's errors carry no text of their own.
+    private static func strainWords(_ failure: GeometricPhaseAnalysisError) -> String {
+        switch failure {
+        case .collinearReflections:
+            "The two spots lie on one line through the centre: pick two reflections at an angle to each other."
+        case .reflectionOutsideNyquist:
+            "A spot sits at the edge of the transform (Nyquist): pick a reflection nearer the centre."
+        case .nonFinitePixel:
+            "The region holds a pixel that is not a number, so its strain cannot be mapped."
+        case .invalidSize:
+            "The region is too small to map strain: it needs at least 8 × 8 px."
+        case .invalidReferenceWindow:
+            "The reference window holds no pixel with a phase (or does not lie inside the region): choose the other reference."
+        case .nonPositiveSigma, .reflectionsNotFound:
+            "Strain could not be mapped (\(failure))."
+        case .fftSetup:
+            "The Fourier transform for the strain maps could not be set up."
+        }
     }
 
     /// Why Filter was refused for pixels of this size, pointing at what to do (R5: never a hidden crop).

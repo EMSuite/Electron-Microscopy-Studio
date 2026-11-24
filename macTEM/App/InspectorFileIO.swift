@@ -59,4 +59,13 @@ enum DiffractionCIF {
         let data = try Data(contentsOf: url)
         return try CrystalLoading.load(bytes: data, fileName: url.lastPathComponent)
     }
+
+    /// The CIF with its bytes, for the phase library, which keeps the file as it came (#779).
+    @concurrent
+    nonisolated static func loadWithBytes(_ url: URL) async throws -> (crystal: LoadedCrystal, bytes: Data) {
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        let data = try Data(contentsOf: url)
+        return (try CrystalLoading.load(bytes: data, fileName: url.lastPathComponent), data)
+    }
 }

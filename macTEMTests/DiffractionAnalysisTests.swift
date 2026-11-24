@@ -136,7 +136,8 @@ nonisolated final class DiffractionAnalysisTests: XCTestCase {
         XCTAssertTrue(text.contains("# file: Demo Au pattern"))
         XCTAssertTrue(text.contains("# centre: row 256, column 256 (the image centre)"))
         XCTAssertTrue(text.contains("# calibration: fit Au {111}"))
-        XCTAssertTrue(text.contains("# crystal: Au; k_max"))
+        let a = String(format: "%.4f", analysis.crystal.structure.cell.a)
+        XCTAssertTrue(text.contains("# crystal: Au; lattice a \(a) A; k_max"), "the lattice the rows were indexed with (#780)")
         XCTAssertFalse(text.contains("validation"))
         XCTAssertTrue(text.contains(DiffractionExport.columns))
         let line = try XCTUnwrap(text.split(separator: "\n").first { $0.hasPrefix("ring,1,") })
@@ -151,6 +152,8 @@ nonisolated final class DiffractionAnalysisTests: XCTestCase {
         let calibration = try XCTUnwrap(rows.first { $0.group == .calibration })
         XCTAssertEqual(try XCTUnwrap(calibration.entry("delta_q")?.value), 0.0125, accuracy: 1.3e-4)
         XCTAssertEqual(rows.first { $0.group == .rings }?.entry("family")?.text, "{111}")
+        XCTAssertEqual(rows.first { $0.group == .rings }?.entry("crystal")?.text, "Au, \(analysis.crystal.lattice)",
+                       "each ring names the crystal and lattice it was indexed with (#780)")
     }
 
     /// The beta'' CIF opened as the room's crystal lists the kit's own families: the room's list IS `kinematicReflections` of the loaded structure.

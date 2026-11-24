@@ -12,13 +12,13 @@ let package = Package(
         .library(name: "TEMSession", targets: ["TEMSession"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/mac4DSTEM/FormatoKit", from: "0.19.0"),
+        .package(url: "https://github.com/mac4DSTEM/FormatoKit", from: "0.20.0"),
         .package(url: "https://github.com/mac4DSTEM/DiffractoKit", from: "0.21.0"),
         .package(url: "https://github.com/mac4DSTEM/ImagoKit", from: "0.11.0"),
         .package(url: "https://github.com/mac4DSTEM/SpectroKit", from: "0.16.0"),
         // The window shell, controls and Metal image view both apps share. TEMSession takes ShellMetal (MetalEngine, ColormapKind); TEMCore and
         // TEMSession take ShellEDXModel (the shared EDS room; the EELS room reuses its regions and pins).
-        .package(url: "https://github.com/mac4DSTEM/MacEMUI", from: "0.14.0"),
+        .package(url: "https://github.com/mac4DSTEM/MacEMUI", from: "0.15.0"),
     ],
     targets: [
         .target(
@@ -31,6 +31,7 @@ let package = Package(
                 .product(name: "FormatoHDF5", package: "FormatoKit"),
                 .product(name: "FormatoMRC", package: "FormatoKit"),
                 .product(name: "FormatoMSA", package: "FormatoKit"),
+                .product(name: "FormatoTIA", package: "FormatoKit"),
                 .product(name: "FormatoTIFF", package: "FormatoKit"),
                 .product(name: "DiffractoCore", package: "DiffractoKit"),
                 .product(name: "DiffractoScattering", package: "DiffractoKit"),

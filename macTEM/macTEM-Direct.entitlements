@@ -8,11 +8,11 @@
 	<true/>
 	<key>com.apple.security.files.user-selected.read-write</key>
 	<true/>
-	<key>com.apple.security.network.server</key>
-	<true/>
-	<!-- The website download only (#583): the update feed, fetched by the app itself. The App Store build (macTEM.entitlements)
-	     makes no outgoing connection. -->
+	<!-- Both builds (#778): the Materials Project, when the person searches or adds a phase. The website download also
+	     fetches its update feed with it (#583). -->
 	<key>com.apple.security.network.client</key>
+	<true/>
+	<key>com.apple.security.network.server</key>
 	<true/>
 	<!-- The website download only (#583): Sparkle's installer launcher and its status service, reached from the sandbox. -->
 	<key>com.apple.security.temporary-exception.mach-lookup.global-name</key>

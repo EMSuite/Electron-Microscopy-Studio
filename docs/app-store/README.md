@@ -15,7 +15,7 @@ One plain UTF-8 file per App Store Connect field. Counts are characters (`wc -m`
 - `category.txt`: primary Education, secondary Productivity (no limit)
 - `urls.txt`: support, marketing and privacy policy URLs on mac4dstem.com (no limit)
 - `age-rating.txt`: questionnaire answers, all None, rating 4+ (no limit)
-- `app-privacy.txt`: Data Not Collected; macEM has no network client entitlement; its one listener is the agent door on 127.0.0.1 (no limit)
+- `app-privacy.txt`: Data Not Collected; macEM's one outgoing connection is the person's own Materials Project search and download (#778); its one listener is the agent door on 127.0.0.1 (no limit)
 - `review-notes.txt`: 3984 / 4000; walks a reviewer through every room with Help > Open Demo Data
 
 Every claim comes from the README and the app's code as of 2026-11-10; nothing from the roadmap. Every signed build is
