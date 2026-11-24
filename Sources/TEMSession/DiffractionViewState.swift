@@ -19,6 +19,9 @@ package final class DiffractionViewState {
     package enum Tool: String, CaseIterable, Sendable { case ring, spot, tilt }
 
     package var tool: Tool = .ring
+    /// The table under the pattern once Index has an answer (#785): the readout, or Index's Spots table. Before, the readout.
+    package enum LowerTable: String, CaseIterable, Sendable { case readout, spots }
+    package var lowerTable: LowerTable = .spots
     package var useLog = true
     package private(set) var annulusInner = 28.0
     package private(set) var annulusOuter = 40.0

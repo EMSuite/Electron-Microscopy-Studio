@@ -208,12 +208,6 @@ private struct DiffractionIndexSection: View {
                     .help("The pattern's turn about the beam, counter-clockwise from down the rows toward along the columns")
                     .accessibilityIdentifier("diffraction.simulation.turn")
             }
-            InspectorRow("Spots") {
-                Button("Remove Spots") { DiffractionUndo.removeSpots(in: analysis, undoManager: undoManager) }
-                    .disabled(analysis.spots.isEmpty)
-                    .help("Removes every spot, found or clicked, and keeps the rings and their scale: Index then finds the spots again")
-                    .accessibilityIdentifier("diffraction.index.removeSpots")
-            }
             // Index's solutions, Flip and Fit scale (#787).
             let solutions = analysis.solutions.count
             InspectorRow("Solution") {
@@ -227,11 +221,16 @@ private struct DiffractionIndexSection: View {
                     .accessibilityValue(solutions > 0 ? "\(analysis.solutionIndex + 1) of \(solutions)" : "none")
                     .accessibilityIdentifier("diffraction.index.solution")
             }
-            InspectorRow("Flip") {
+            // The section's two actions in one row of buttons (control placement §3), not buttons in label rows.
+            InspectorActionRow {
                 Button("Flip 180°") { analysis.flip() }
                     .disabled(!settings.isShown || analysis.drawnOrientation == nil)
                     .help("Turns the simulated spots 180° about the beam: the look-alike a centrosymmetric pattern cannot tell apart")
                     .accessibilityIdentifier("diffraction.index.flip")
+                Button("Remove Spots") { DiffractionUndo.removeSpots(in: analysis, undoManager: undoManager) }
+                    .disabled(analysis.spots.isEmpty)
+                    .help("Removes every spot, found or clicked, and keeps the rings and their scale: Index then finds the spots again")
+                    .accessibilityIdentifier("diffraction.index.removeSpots")
             }
             InspectorRow("Fit scale") {
                 Toggle("Fit scale", isOn: Binding(get: { analysis.fitScale }, set: { analysis.fitScale = $0 }))

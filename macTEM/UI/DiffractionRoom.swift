@@ -50,16 +50,27 @@ struct DiffractionRoom: View {
             DiffractionPatternPane(item: item, analysis: analysis, view: view, rows: rows)
                 .modifier(DiffractionZoomCommands(item: item, view: view))
             Divider()
-            // Index's spots beside the readout once it has an answer (#785): hkl, expected d and misfit per spot. One readout table
-            // in both cases, so it keeps its selection and scroll when Index answers. Side by side, the spots a fixed share: split
-            // views are banned by the UI contract (docs/architecture.md).
-            HStack(spacing: 0) {
-                DiffractionReadoutTable(analysis: analysis, view: view, rows: rows)
+            // One table under the pattern: the readout, or once Index has an answer, its Spots table (#785: hkl, expected d and
+            // misfit per spot), picked in the strip's header. Never both side by side: they share R, q, d and Δd/d and do not fit a
+            // small window.
+            VStack(spacing: 0) {
                 if analysis.indexOutcome != nil {
+                    HStack {
+                        SegmentedPicker(label: "Table", items: [(DiffractionViewState.LowerTable.readout, .title("Readout")),
+                                                                (.spots, .title("Spots"))],
+                                        selection: Binding(get: { view.lowerTable }, set: { view.lowerTable = $0 }))
+                            .fixedSize()
+                            .accessibilityIdentifier("diffraction.lowerTable")
+                        Spacer()
+                    }
+                    .padding(.horizontal, LayoutPolicy.infobarHorizontalPadding)
+                    .frame(height: LayoutPolicy.paneHeaderHeight)
                     Divider()
+                }
+                if analysis.indexOutcome != nil && view.lowerTable == .spots {
                     DiffractionSpotTable(view: view, rows: analysis.indexSpotRows)
-                        .frame(minWidth: LayoutPolicy.diffractionSpotsMinWidth, idealWidth: LayoutPolicy.diffractionSpotsWidth,
-                               maxWidth: LayoutPolicy.diffractionSpotsMaxWidth)
+                } else {
+                    DiffractionReadoutTable(analysis: analysis, view: view, rows: rows)
                 }
             }
             .frame(height: LayoutPolicy.diffractionReadoutHeight)
