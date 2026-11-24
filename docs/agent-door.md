@@ -19,7 +19,7 @@ door this one follows (4DSTEM Studio `docs/agent-door.md`). This app hands the d
 |---|---|
 | `get_workflow_guide` | how a person works through a file here and how to judge each step (topics `overview`, `eds`, `patterns`, `indexing`, `maps`, `eels`, `image`, `fft`, `diffraction`); read first |
 | `list_windows` | the open windows (`w1`, `w2`, ...), each with its shown file, room and number of open files (the door's own tool) |
-| `get_window` | the room, the open files (size, calibration, voltage once read), the shown file's number of results, the status line, any error |
+| `get_window` | the room, the open files (size, calibration, voltage once read), the shown file's number of results, the status line, any error; whether an open runs, the rooms with work in flight, the one-document rooms' files, the app's memory footprint now and at its peak (the size table, #904) |
 | `get_image` | the shown image as Export Image… draws it (display window, colormap, scale bar, marks), longest side up to 1024 px per `scale` step |
 | `get_results` | the shown file's finished measurements as Export Results… writes them (CSV) |
 | `get_log` | the window's Output lines |

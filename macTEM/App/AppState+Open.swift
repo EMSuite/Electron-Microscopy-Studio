@@ -256,7 +256,7 @@ extension AppState {
 
     /// The files the one-document rooms hold now, each by the path its reader states (every reader states the one it was given): the
     /// Patterns room's dataset, the Maps room's maps, then the EDS and EELS rooms' spectrum images.
-    private var roomDocuments: [URL] {
+    var roomDocuments: [URL] {
         var urls: [URL] = []
         if let url = ebsd.document?.url { urls.append(url) }
         urls.append(contentsOf: maps.sources.compactMap(\.url))

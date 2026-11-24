@@ -65,7 +65,9 @@ enum MacTEMAgentDoor {
     static let tools: [AgentTool] = [
         AgentTool(name: "get_window", title: "Window state",
                   summary: "What one \(AppName.display) window shows: the room, the open files (the shown one first in its row), each file's size, "
-                      + "calibration and voltage once read, how many finished results the shown file has, and the status line.",
+                      + "calibration and voltage once read, how many finished results the shown file has, and the status line; whether an "
+                      + "open is running, the rooms with work in flight, the files the one-document rooms hold, and the app's memory "
+                      + "footprint now and at its peak since launch, in bytes.",
                   input: .window) { call in
             guard let appState = call.window?.state as? AppState else { return MacTEMAgentDoor.notAWindow }
             return .json(MacTEMAgentDoor.window(appState))
@@ -114,7 +116,17 @@ enum MacTEMAgentDoor {
             "results": selected.map { appState.resultRows(of: $0).count } ?? 0,
             "status": appState.statusText,
             "error": AgentJSON.orNull(appState.errorMessage),
+            "opening": appState.opensInFlight > 0,
+            "busy_rooms": BusyOperation.runningRooms.filter { BusyOperation.isBusy($0, appState: appState) }.map(\.title),
+            "room_files": appState.roomDocuments.map(\.lastPathComponent),
+            "memory": memory(),
         ]
+    }
+
+    /// The app's footprint now and its peak since launch, in bytes (`ProcessMemory`), for the size table (#904).
+    static func memory() -> Any {
+        guard let footprint = ProcessMemory.footprint() else { return NSNull() }
+        return ["footprint_bytes": footprint.now, "peak_footprint_bytes": footprint.peak]
     }
 
     static func file(_ item: OpenItem, shown: Bool) -> [String: Any] {
