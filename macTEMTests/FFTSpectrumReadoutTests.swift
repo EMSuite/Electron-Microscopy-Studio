@@ -4,7 +4,6 @@
 //  and its azimuth counter-clockwise from +x as drawn; nothing off the spectrum or when the axes cannot give one |q|.
 //
 
-import TEMCore
 import XCTest
 @testable import macTEM
 
