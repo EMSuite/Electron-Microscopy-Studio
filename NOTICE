@@ -238,8 +238,8 @@ its oracle and none of its code is copied. Its own third-party notices are in it
 SimulatoKit (a Swift package the app is built with)
 ================================================================================
 
-The app links SimulatoKit (https://github.com/EMSuite/SimulatoKit, tag 0.6.0, commit
-3a8cd3de6bf127d457603de08d4aee1f6961cfc4), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only, for the Simulation document's specimen (a crystal
+The app links SimulatoKit (https://github.com/EMSuite/SimulatoKit, tag 0.7.0, commit
+d18a9c18582a2ea4f96f1c71f398bd919aaf9c6c), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only, for the Simulation document's specimen (a crystal
 along a zone axis built into an orthogonal slab), the multislice and the HRTEM image. Its algorithms are ported from abTEM
 (GPL-3.0), its reference; its third-party notices, abTEM's among them, are in its NOTICE.
 

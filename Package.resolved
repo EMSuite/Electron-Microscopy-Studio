@@ -42,8 +42,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/EMSuite/SimulatoKit",
       "state" : {
-        "revision" : "3a8cd3de6bf127d457603de08d4aee1f6961cfc4",
-        "version" : "0.6.0"
+        "revision" : "d18a9c18582a2ea4f96f1c71f398bd919aaf9c6c",
+        "version" : "0.7.0"
       }
     },
     {
