@@ -102,13 +102,16 @@ package nonisolated enum PatternIndexing {
         package let misfitPercent: Double?
         /// The spots carried no intensities (a clicked one among them): the zone axis and the turn only, the tilt unmeasured.
         package let zoneAxisOnly: Bool
+        /// The kit's agreement of the best orientation with the spots (F_β of recall and precision, 0 to 1): its score.
+        package let agreement: Double?
 
         package init(phase: String, verdict: Verdict, spots: [Spot], explained: Int, indexed: Int, orientation: CrystalOrientation?,
                      alternatives: [CrystalOrientation], zoneAxis: SIMD3<Int>?, zoneAxisAngle: Double?, scale: Double?,
-                     misfitPercent: Double?, zoneAxisOnly: Bool = false) {
+                     misfitPercent: Double?, zoneAxisOnly: Bool = false, agreement: Double? = nil) {
             self.phase = phase; self.verdict = verdict; self.spots = spots; self.explained = explained; self.indexed = indexed
             self.orientation = orientation; self.alternatives = alternatives; self.zoneAxis = zoneAxis
             self.zoneAxisAngle = zoneAxisAngle; self.scale = scale; self.misfitPercent = misfitPercent; self.zoneAxisOnly = zoneAxisOnly
+            self.agreement = agreement
         }
     }
 
@@ -219,7 +222,8 @@ package nonisolated enum PatternIndexing {
         }
         return Outcome(phase: phase, verdict: verdict, spots: spots, explained: matched, indexed: measured.count,
                        orientation: orientation, alternatives: alternatives, zoneAxis: near.map { $0.uvw },
-                       zoneAxisAngle: near.map { $0.angle }, scale: scale, misfitPercent: misfit, zoneAxisOnly: clicked)
+                       zoneAxisAngle: near.map { $0.angle }, scale: scale, misfitPercent: misfit, zoneAxisOnly: clicked,
+                       agreement: agreement)
     }
 
     // MARK: The Spots table (#785)

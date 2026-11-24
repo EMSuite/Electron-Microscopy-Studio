@@ -710,14 +710,6 @@ private struct SimulatedSpotsOverlay: View {
     let showsLabels: Bool
     let layout: DiffractionLayout
 
-    static let labelledCount = 60
-    static let labelledFraction = 0.02
-
-    /// The spots that carry their hkl: the strongest first, as `spots` comes.
-    static func labelled(_ spots: [ZoneAxisOverlay.Spot]) -> [ZoneAxisOverlay.Spot] {
-        Array(spots.filter { $0.relative >= labelledFraction }.prefix(labelledCount)) + spots.filter(\.isDoubleDiffraction).prefix(labelledCount)
-    }
-
     var body: some View {
         Canvas { ctx, _ in
             for spot in spots {
@@ -727,7 +719,7 @@ private struct SimulatedSpotsOverlay: View {
                            style: StrokeStyle(lineWidth: 1.5, dash: spot.isDoubleDiffraction ? [2, 2] : []))
             }
             guard showsLabels else { return }
-            for spot in Self.labelled(spots) {
+            for spot in ZoneAxisOverlay.labelled(spots) {
                 let p = layout.point(column: spot.column, row: spot.row)
                 let r = 3 + 6 * CGFloat(spot.relative.squareRoot())
                 ctx.draw(Text(spot.label).font(.caption).foregroundStyle(.cyan), at: CGPoint(x: p.x + r + 2, y: p.y + r + 2), anchor: .topLeading)

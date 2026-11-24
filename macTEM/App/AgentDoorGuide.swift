@@ -309,6 +309,14 @@ extension MacTEMAgentDoor {
             d and the deviation in %.
             5. Index. crystal picks the crystal the rows are indexed against; k_max and tolerance (% of q) set the list and the \
             match. Rows are indexed again at once, with no refit. `get_diffraction` csv true gives Export Readout CSV…'s text.
+            6. Orientation (a spot pattern). `index_pattern` presses Index: with no spot marked it finds the spots (they become \
+            marks) and the crystal's full orientation; with spots marked it reads those, and a clicked spot among them gives the \
+            zone axis only. It answers at once: ask `get_spot_table` until indexing is false, then read the verdict, its line, the \
+            solutions and the rows (hkl, d expected, Δd/d). `set_diffraction_marks` remove "spot N" drops a spot before Index runs \
+            again; `index_pattern` remove_spots true starts afresh, fit_scale false holds the room's scale. `set_zone_axis` types a \
+            zone axis and turn, steps to Index's solution n of a tie, tilts (tilt_down, tilt_across, turn_by) and flips; \
+            `simulate_pattern` shows the simulated spots (double_diffraction adds the forbidden spots g₁ + g₂ gives, \
+            excitation_error sets σ), and `get_diffraction_picture` draws them over the pattern with the marked spots.
 
             What to check:
             - fit_versus_file_percent compares the ring's Δq with the file's axis: a few % says the file's camera length is off; \
@@ -316,6 +324,9 @@ extension MacTEMAgentDoor {
             - A ring with a refusal has no radius: move the annulus so it holds the whole ring and nothing else.
             - A verdict other than accepted is not an index: report it in the verdict's own words.
             - Calibrating on a ring indexes that ring by construction: it does not test the scale. A second ring or spot does.
+            - Index's verdict other than found is not an orientation: tied, found but poor, scale at its limit (check the \
+            calibration), zone axis only (no tilt) and spots or scale changed since (Index again) each say what to do next; act \
+            on it before reading the orientation, and look at `get_diffraction_picture` before reporting it.
             """
     }
 }

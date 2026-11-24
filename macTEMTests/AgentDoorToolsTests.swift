@@ -37,10 +37,11 @@ nonisolated final class AgentDoorToolsTests: XCTestCase {
     @MainActor func testTheToolsAreTheFourThatLook() {
         XCTAssertEqual(MacTEMAgentDoor.tools.map(\.name), ["get_window", "get_image", "get_results", "get_log"])
         XCTAssertEqual(MacTEMAgentDoor.allTools.filter(\.acts).map(\.name).sorted(), [
-            "add_phase", "open_demo", "open_file", "open_in_maps", "run_eds", "run_room", "select_grains", "select_room",
-            "select_scan_position", "set_diffraction", "set_diffraction_marks", "set_eds", "set_eels", "set_eels_edges",
-            "set_eels_region", "set_fft", "set_fft_spots", "set_image_room", "set_indexing", "set_indexing_phase",
-            "set_maps", "set_marks", "set_particles", "set_pattern_processing", "set_patterns", "set_phase_lattice", "stop_run",
+            "add_phase", "index_pattern", "open_demo", "open_file", "open_in_maps", "run_eds", "run_room",
+            "select_grains", "select_room", "select_scan_position", "set_diffraction", "set_diffraction_marks",
+            "set_eds", "set_eels", "set_eels_edges", "set_eels_region", "set_fft", "set_fft_spots", "set_image_room",
+            "set_indexing", "set_indexing_phase", "set_maps", "set_marks", "set_particles", "set_pattern_processing",
+            "set_patterns", "set_phase_lattice", "set_zone_axis", "simulate_pattern", "stop_run",
         ])
         XCTAssertEqual(MacTEMAgentDoor.shared.appName, "Electron Microscopy Studio")
     }
