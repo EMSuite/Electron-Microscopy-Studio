@@ -151,19 +151,29 @@ nonisolated final class FFTRoomWiringTests: XCTestCase {
     @MainActor func testTheViewMenusFaceIsThePlainNameOfTheViewShown() async throws {
         // The narrowest inspector less its content padding on both sides: the row the control lives in.
         let rowWidth = Double(LayoutPolicy.inspectorWidth.min) - 2 * 16
-        func face(_ analysis: FFTAnalysis) throws -> (title: String, width: Double) {
+        func hosted(_ analysis: FFTAnalysis) -> NSView {
             let host = NSHostingView(rootView: InspectorRow("View") { FFTSourceViewControl(analysis: analysis) }
                 .frame(width: rowWidth))
             let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: rowWidth, height: 60), styleMask: [.borderless],
                                   backing: .buffered, defer: true)
             window.contentView = host
             host.layoutSubtreeIfNeeded()
-            func popUp(in view: NSView) -> NSPopUpButton? {
-                (view as? NSPopUpButton) ?? view.subviews.lazy.compactMap { popUp(in: $0) }.first
-            }
+            return host
+        }
+        func popUp(in view: NSView) -> NSPopUpButton? {
+            (view as? NSPopUpButton) ?? view.subviews.lazy.compactMap { popUp(in: $0) }.first
+        }
+        func face(_ analysis: FFTAnalysis) throws -> (title: String, width: Double) {
+            let host = hosted(analysis)
             let button = try XCTUnwrap(popUp(in: host), "the control draws a pop-up button")
             // How far the pop-up reaches from the row's leading edge: inside the row, or the row overflows the inspector.
             return (button.title, Double(button.convert(button.bounds, to: host).maxX))
+        }
+        // macOS 27 draws SwiftUI's menu Picker itself, with no NSPopUpButton to read (the org's Mac runner on a pull request,
+        // tools/unit-skips.allow). macOS 26, where main and the nightly run, still backs it with one, and there a missing
+        // pop-up fails below.
+        if ProcessInfo.processInfo.operatingSystemVersion.majorVersion >= 27, popUp(in: hosted(owner())) == nil {
+            throw XCTSkip("macOS 27 draws the menu Picker without an NSPopUpButton; macos-26 reads the face (#959)")
         }
         let fresh = owner()
         fresh.setSourceView(.maskedInverse)
