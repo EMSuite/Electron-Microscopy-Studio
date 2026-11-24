@@ -102,12 +102,12 @@ nonisolated enum FolderGrants {
 
     /// The stored grant that reaches `file` (of its folder or one around it), resolved, with its scope held: nil for a file that is
     /// not read with its folder, when no grant is stored, or when none resolves to where it was granted (such a grant is dropped:
-    /// moved, renamed, trashed or gone). Release it once the read is done.
+    /// moved, renamed, trashed or gone). A grant whose bookmark is stale is stored afresh (`renewed`). Release it once the read is done.
     static func hold(forFolderOf file: URL, defaults: UserDefaults = .standard, resolve: (Data) -> URL? = { data in
         var stale = false
         return try? URL(resolvingBookmarkData: data, options: [.withSecurityScope, .withoutUI, .withoutMounting],
                         relativeTo: nil, bookmarkDataIsStale: &stale)
-    }) -> ScopeHold? {
+    }, renewed: (Data, URL) -> Data? = FolderGrants.renewedBookmark) -> ScopeHold? {
         guard readsItsFolder(file) else { return nil }
         for folderPath in folders(around: file) {
             guard let data = defaults.data(forKey: keyPrefix + folderPath) else { continue }
@@ -115,8 +115,21 @@ nonisolated enum FolderGrants {
                 defaults.removeObject(forKey: keyPrefix + folderPath)   // no grant
                 continue
             }
-            return ScopeHold(url: folder)
+            let hold = ScopeHold(url: folder)
+            // A stale bookmark still resolves now and stops in time; it is made again while the scope is held (#930).
+            if let fresh = renewed(data, folder) { defaults.set(fresh, forKey: keyPrefix + folderPath) }
+            return hold
         }
         return nil
+    }
+
+    /// A fresh bookmark for `folder` when macOS calls `data` stale (the folder's volume or inode record changed while the path
+    /// stayed), else nil. Called with the folder's scope held, as making a security-scoped bookmark needs.
+    static func renewedBookmark(_ data: Data, folder: URL) -> Data? {
+        var stale = false
+        guard (try? URL(resolvingBookmarkData: data, options: [.withSecurityScope, .withoutUI, .withoutMounting],
+                        relativeTo: nil, bookmarkDataIsStale: &stale)) != nil, stale else { return nil }
+        // try? OK: without a fresh bookmark the stale one stays, and the next Open tries again.
+        return try? folder.bookmarkData(options: [.withSecurityScope], includingResourceValuesForKeys: nil, relativeTo: nil)
     }
 }
