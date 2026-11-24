@@ -131,10 +131,12 @@ nonisolated final class DocumentMemoryBudgetTests: XCTestCase {
                                large: try GeneratedFiles.greyTIFF(.uint16, width: 4096, height: 4096, in: dir), stored: 4096 * 4096 * 2)
     }
 
-    /// A 32-bit float image: its pixels are already Float32.
+    /// A 32-bit float image: its pixels are already Float32. 3.5 rather than 3: the peak catches a transient copy partly freed or not
+    /// depending on how the machine schedules the release (268 MB against 252 MB on the loaded Mac runner, once, #963). A copy
+    /// held while open adds a whole 1× (67 MB) and still fails.
     @MainActor func testA32BitImageStaysInItsBudget() async throws {
         let dir = try scratchFolder()
-        try await assertBudget(Self.kind("32-bit image", factor: 3),
+        try await assertBudget(Self.kind("32-bit image", factor: 3.5),
                                small: try GeneratedFiles.greyTIFF(.float32, width: 256, height: 256, in: dir),
                                large: try GeneratedFiles.greyTIFF(.float32, width: 4096, height: 4096, in: dir), stored: 4096 * 4096 * 4)
     }
