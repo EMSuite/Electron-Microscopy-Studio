@@ -1,17 +1,21 @@
 //
 //  EDXRegionDragJourney.swift
-//  Why a UI journey cannot draw a region in the EDS room by dragging (#634). On the demo spectrum image, with the Rectangle tool,
-//  each way a journey can drag is tried in turn on the colour mix, and the Regions table says whether it drew: XCUITest's own drag
-//  at its default speed, the same drag slow with a hold at the end, the same drag after the pointer has hovered over the tile, and
-//  real mouse events posted from the runner (guarded: macEM frontmost, both points in its window). Each attempt attaches what it
-//  saw; a way that does not draw fails its own test, so one run names which of them reach the region's DragGesture. A diagnosis
-//  run by hand (ui.yml), not a gate.
+//  A UI journey draws a region in the EDS room with XCUITest's own drag (#634). On the demo spectrum image, with the Rectangle tool,
+//  a drag on the colour mix makes Region 1 in the Regions table: at XCUITest's default speed, slow with a hold at the end, and after a
+//  hover. Each way is its own test, so a run's failed names say which way stopped drawing.
+//
+//  THE CAUSE OF #634 (run by hand on GitHub's macos-26, ui.yml, 24 Nov 2026, runs 45346124492 and 45354261419): XCUITest's own drag
+//  does reach the region's DragGesture; all three ways above drew Region 1. What did not draw was the workaround: mouse events posted
+//  with CGEvent from the UI-test runner (the same 20-step drag EDXRealFileJourney posted) drew nothing. The runner may synthesize
+//  input through XCUITest, but a CGEvent it posts to the HID tap is not delivered to the app under test. The 31 Oct note that blamed
+//  the tile's tap gestures (MapTileView) no longer holds: the tile's clicks sit inside the viewport and the region layer's drag comes
+//  first. The journeys now drag with XCUITest and post no events of their own.
 //
 
 import XCTest
 
 nonisolated final class EDXRegionDragJourney: Journey {
-    private enum DragWay { case xcuiTest, xcuiTestSlow, xcuiTestAfterHover, realEvents }
+    private enum DragWay { case xcuiTest, xcuiTestSlow, xcuiTestAfterHover }
 
     @MainActor private func mixTile() -> XCUIElement { app.groups.matching(NSPredicate(format: "label BEGINSWITH 'Colour mix map'")).firstMatch }
     /// The Regions table's row of the n-th region, present once a region is drawn.
@@ -27,22 +31,6 @@ nonisolated final class EDXRegionDragJourney: Journey {
         let tab = picker.buttons["Settings"]
         if tab.exists, !tab.isSelected { tab.click() }
         waitFor("edx.tool", timeout: 20).radioButtons.element(boundBy: 1).click()
-    }
-
-    /// Real mouse events from the runner, as EDXRealFileJourney posts them; false when the guard refused.
-    @MainActor private func realDrag(from a: CGPoint, to b: CGPoint) -> Bool {
-        guard app.state == .runningForeground else { note("real events refused", "macEM is not frontmost"); return false }
-        let w = app.windows.firstMatch.frame
-        guard w.contains(a), w.contains(b) else { note("real events refused", "a point is outside the window \(w)"); return false }
-        func post(_ type: CGEventType, _ p: CGPoint) { CGEvent(mouseEventSource: nil, mouseType: type, mouseCursorPosition: p, mouseButton: .left)?.post(tap: .cghidEventTap) }
-        post(.mouseMoved, a); usleep(150_000)
-        post(.leftMouseDown, a); usleep(100_000)
-        for i in 1...20 {
-            let t = Double(i) / 20
-            post(.leftMouseDragged, CGPoint(x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t)); usleep(20_000)
-        }
-        post(.leftMouseUp, b)
-        return true
     }
 
     /// One way of dragging on a fresh launch: true when the Regions table gained Region 1.
@@ -61,24 +49,21 @@ nonisolated final class EDXRegionDragJourney: Journey {
         try step("drag \(way)") {
             let a = mix.coordinate(withNormalizedOffset: CGVector(dx: 0.2, dy: 0.2))
             let b = mix.coordinate(withNormalizedOffset: CGVector(dx: 0.7, dy: 0.7))
-            var sent = true
             switch way {
             case .xcuiTest: a.click(forDuration: 0.2, thenDragTo: b)
             case .xcuiTestSlow: a.click(forDuration: 0.3, thenDragTo: b, withVelocity: .slow, thenHoldForDuration: 0.5)
             case .xcuiTestAfterHover:
                 a.hover(); usleep(300_000)
                 a.click(forDuration: 0.3, thenDragTo: b, withVelocity: .slow, thenHoldForDuration: 0.5)
-            case .realEvents: sent = realDrag(from: a.screenPoint, to: b.screenPoint)
             }
-            drew = sent && regionRow(1).waitForExistence(timeout: 8)
-            note("result", "\(way): \(sent ? (drew ? "drew Region 1" : "drew nothing") : "not sent")")
+            drew = regionRow(1).waitForExistence(timeout: 8)
+            note("result", "\(way): \(drew ? "drew Region 1" : "drew nothing")")
         }
         return drew
     }
 
-    // One method per way, so the run's list of failed tests names the ways that do not draw (the runner prints failed names only).
+    // One method per way, so the run's list of failed tests names a way that stopped drawing (the runner prints failed names only).
     @MainActor func test1_XCUITestDragAtDefaultSpeedDrawsARegion() throws { XCTAssertTrue(try drags(.xcuiTest)) }
     @MainActor func test2_XCUITestSlowDragDrawsARegion() throws { XCTAssertTrue(try drags(.xcuiTestSlow)) }
     @MainActor func test3_XCUITestDragAfterAHoverDrawsARegion() throws { XCTAssertTrue(try drags(.xcuiTestAfterHover)) }
-    @MainActor func test4_RealMouseEventsDrawARegion() throws { XCTAssertTrue(try drags(.realEvents)) }
 }
