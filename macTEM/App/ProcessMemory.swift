@@ -1,7 +1,7 @@
 //
 //  ProcessMemory.swift
 //  Role: the app's own memory as the kernel counts it (`task_vm_info`): the physical footprint now and its peak since launch, which
-//        get_window reports so the size table (#904, tools/size-table) reads what opening a file cost from outside the app. The
+//        get_window reports so the size table (#904, tools/parity/size-table) reads what opening a file cost from outside the app. The
 //        footprint is what Activity Monitor's Memory column shows: resident and compressed anonymous pages and the graphics ledger.
 //
 

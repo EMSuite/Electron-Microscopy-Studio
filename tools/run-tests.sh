@@ -47,7 +47,7 @@ resolve_mactem_developer_dir
 # Every tools/ directory is in exactly one array; `inventory` fails on one that is not.
 scientific=(metadata-parity profile-parity export-parity fft-export-parity sidecar-parity diffraction-room-parity)   # gated: compares Core against a pinned reference
 diagnostic=()                    # never gated
-owner_only=()                    # the owner's own runs
+owner_only=(size-table)          # the owner's own runs
 retired=()                       # kept for history, not run
 support=(crystal-structures sem-readers picture-parity)     # not harnesses
 references=(sem)                 # emits committed reference bundles (Python, Linux CI: .github/workflows/sem-parity.yml); macTEMTests compares

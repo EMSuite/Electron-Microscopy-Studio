@@ -1,4 +1,4 @@
-# tools/size-table/size_table.py: the size table's harness (#904, plan row X12). For each generated file it launches the app fresh,
+# tools/parity/size-table/size_table.py: the size table's harness (#904, plan row X12). For each generated file it launches the app fresh,
 # opens the file through the agent door's open_file (the code path File > Open takes), waits until the open has landed and every room
 # is idle, then reads the app's own footprint from get_window: at rest, and the peak since launch. One launch per file, so the peak is
 # that open's alone. Standard library only.

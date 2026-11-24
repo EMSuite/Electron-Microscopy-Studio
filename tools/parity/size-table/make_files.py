@@ -1,4 +1,4 @@
-# tools/size-table/make_files.py: writes the size table's generated files (#904, plan row X12), one per room and kind, of a given
+# tools/parity/size-table/make_files.py: writes the size table's generated files (#904, plan row X12), one per room and kind, of a given
 # size in GB (2^30 bytes of stored data), a block at a time so the writer itself never holds more than one block.
 #
 #   python -I -B make_files.py <out dir> --gb 1 [--kinds image-tiff,stack-tiff,...] [--fixture <ebsd-kikuchipy-h5ebsd.h5>]
