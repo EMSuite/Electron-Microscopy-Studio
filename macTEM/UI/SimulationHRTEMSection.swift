@@ -5,7 +5,7 @@
 //        names every setting. The section's task runs the multislice when the specimen, the beam energy or the aperture changes, and
 //        each move puts a new image into the item. Presentation only; the state is `SimulationModel` and every number SimulatoKit's.
 //        MA3 (#895) adds the objective aperture, the field of view, the Potential readout and the Table… sheet, and puts the
-//        Microscope section and the transfer function strip under it.
+//        Microscope section and the transfer function strip under it. MA4 (#896) adds the Thermal Vibrations section under it.
 //
 
 import ShellControls
@@ -127,9 +127,10 @@ struct SimulationHRTEMSection: View {
         }
         .task(id: RunKey(crystal: crystal?.identity, zoneAxis: zoneAxis, thicknessNM: model.thicknessNM,
                          beamKV: analysis.typedBeamKV, apertureMrad: model.optics.apertureMrad,
-                         strain: crystal.map { model.maximumStrain(crystal: $0, zoneAxis: zoneAxis) })) {
+                         strain: crystal.map { model.maximumStrain(crystal: $0, zoneAxis: zoneAxis) }, thermal: model.thermal != nil)) {
             await appState.computeHRTEMImage(of: simulation)
         }
+        SimulationThermalSection(simulation: simulation)
         SimulationMicroscopeSection(model: model, analysis: analysis) { appState.refreshHRTEMImage(of: simulation) }
         switch Result(catching: { try HRTEMTransferCurve.of(model.optics, defocusNM: model.effectiveDefocusNM) }) {
         case .success(let curve):
@@ -154,6 +155,8 @@ struct SimulationHRTEMSection: View {
         let beamKV: Double?
         let apertureMrad: Double?
         let strain: Double?
+        /// Frozen phonons off again: the static lattice runs (on, Simulate runs).
+        let thermal: Bool
     }
 
     static let defocusRange = -100.0 ... 200.0

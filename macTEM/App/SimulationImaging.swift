@@ -69,6 +69,22 @@ extension AppState {
         await refreshHRTEMImage(of: simulation)?.value
     }
 
+    /// The Simulation document of this window whose frozen-phonon run is going (one at a time on this Mac): the Image room's busy
+    /// work, which ⌘. stops and quitting asks about.
+    var simulatingDocument: OpenItem? { openItems.items.first { $0.multislice.isSimulating } }
+
+    /// Simulate (and Continue, ⌘R in the Image room, and the door): runs the frozen-phonon configurations of `simulation` not yet
+    /// stored, redrawing its HRTEM image as each one lands. Returns when the run ends (#896).
+    func simulateHRTEM(of simulation: OpenItem) async {
+        let analysis = simulation.diffraction
+        simulation.multislice.adoptVoltage(kV: analysis.typedBeamKV)
+        await simulation.multislice.simulate(crystal: analysis.simulatedPhase, zoneAxis: analysis.simulation.zoneAxis,
+                                             current: { [weak analysis] in (analysis?.simulatedPhase, analysis?.simulation.zoneAxis ?? .zero) }) {
+            [weak self] in self?.refreshHRTEMImage(of: simulation)
+        }
+        await refreshHRTEMImage(of: simulation)?.value
+    }
+
     /// After an Open's items have landed: an HRTEM image among them is selected in the Image room and drawn from its document's
     /// stored exit waves when they exist. Nothing for an Open with no HRTEM image.
     @discardableResult

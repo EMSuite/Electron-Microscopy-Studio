@@ -920,6 +920,7 @@ package final class OpenItems {
     private func remove(_ item: OpenItem, selectionPreferred: OpenItem.ID?) {
         item.cancelRead()
         item.closeStack()
+        item.multislice.stop()   // a frozen-phonon run ends with its document (#896), freeing the one-run gate
         item.releasePixels()
         queue.removeAll { $0 === item }
         guard let index = items.firstIndex(where: { $0 === item }) else { return }

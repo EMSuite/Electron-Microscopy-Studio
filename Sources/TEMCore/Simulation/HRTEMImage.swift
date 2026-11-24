@@ -48,10 +48,12 @@ package nonisolated struct HRTEMOptics: Sendable, Equatable {
     }
 }
 
-/// The exit waves of one orthogonal unit of a slab at whole periods: the multislice result the image is made from.
+/// The exit waves of a slab at whole periods: the multislice result the image is made from. A static lattice has one configuration
+/// (one orthogonal unit across); a frozen-phonon run one per configuration done (a supercell across), and the image is the mean of
+/// their intensities.
 package nonisolated struct HRTEMExitWaves: Sendable, Equatable {
-    /// The exit wave after `planePeriods[i]` periods.
-    package let waves: [Waves]
+    /// `configurations[c][i]`: the exit wave of configuration c after `planePeriods[i]` periods.
+    package let configurations: [[Waves]]
     /// The number of periods each stored wave is at, ascending; the last is the slab's whole thickness. Every period while they fit
     /// in `HRTEMImage.storedWavesBudget`, else every n-th and the last (the design's tiered storage).
     package let planePeriods: [Int]
@@ -62,10 +64,32 @@ package nonisolated struct HRTEMExitWaves: Sendable, Equatable {
     package let apertureMrad: Double?
     /// What was simulated, for the method line: "Si [1 1 0]".
     package let specimen: String
+    /// The thermal vibrations of a frozen-phonon run; nil for a static lattice.
+    package let thermal: HRTEMThermal?
+
+    package init(configurations: [[Waves]], planePeriods: [Int], periodNM: Double, volts: Double, apertureMrad: Double?,
+                 specimen: String, thermal: HRTEMThermal? = nil) {
+        self.configurations = configurations
+        self.planePeriods = planePeriods
+        self.periodNM = periodNM
+        self.volts = volts
+        self.apertureMrad = apertureMrad
+        self.specimen = specimen
+        self.thermal = thermal
+    }
+
+    /// The first configuration's exit waves, one per stored plane (a static lattice's only ones).
+    package var waves: [Waves] { configurations.first ?? [] }
 
     /// The thickness of the stored wave `index` (kept in range), nm.
     package func thicknessNM(at index: Int) -> Double {
         Double(planePeriods[min(max(index, 0), planePeriods.count - 1)]) * periodNM
+    }
+
+    /// The same waves with configuration `waves` added (a frozen-phonon run's next one).
+    package func adding(_ waves: [Waves]) -> HRTEMExitWaves {
+        HRTEMExitWaves(configurations: configurations + [waves], planePeriods: planePeriods, periodNM: periodNM, volts: volts,
+                       apertureMrad: apertureMrad, specimen: specimen, thermal: thermal)
     }
 }
 
@@ -155,7 +179,7 @@ package nonisolated enum HRTEMImage {
         let periods = planePeriods(periods: slab.repeats.z, points: nx * ny)
         let waves = try Multislice.run(.planeWave(beam: beam, grid: potential.grid), through: potential,
                                        exitPlanes: .afterSlices(periods.map { $0 * perPeriod - 1 }), backend: .cpu)
-        return HRTEMExitWaves(waves: waves, planePeriods: periods, periodNM: box.z / 10, volts: optics.volts,
+        return HRTEMExitWaves(configurations: [waves], planePeriods: periods, periodNM: box.z / 10, volts: optics.volts,
                               apertureMrad: optics.apertureMrad, specimen: specimen)
     }
 
@@ -164,10 +188,24 @@ package nonisolated enum HRTEMImage {
     /// flip), calibrated in nm.
     package static func image(_ exit: HRTEMExitWaves, thicknessIndex: Int, defocusNM: Double, optics: HRTEMOptics,
                               name: String) throws -> CalibratedImage {
-        let wave = exit.waves[min(max(thicknessIndex, 0), exit.waves.count - 1)]
-        let grid = wave.grid
+        let plane = min(max(thicknessIndex, 0), exit.planePeriods.count - 1)
+        let grid = exit.waves[plane].grid
         let tile = (x: tiles(grid.extentX, optics.fieldOfViewNM), y: tiles(grid.extentY, optics.fieldOfViewNM))
-        let field = try optics.transferFunction(defocusNM: defocusNM).images(of: [wave], defocus: [defocusNM * 10], tile: tile)[0][0]
+        let ctf = try optics.transferFunction(defocusNM: defocusNM)
+        // A frozen-phonon image is the mean of the configurations' intensities (abTEM's ensemble mean), taken on one unit and tiled
+        // once (each configuration's image is periodic in the supercell, so the mean of the tiles is the tile of the mean).
+        var sum: [Double]?
+        var unit: RealField?
+        for configuration in exit.configurations {
+            let one = try ctf.images(of: [configuration[plane]], defocus: [defocusNM * 10], tile: (x: 1, y: 1))[0][0]
+            if sum == nil { sum = one.values } else { for i in one.values.indices { sum![i] += one.values[i] } }
+            unit = one
+        }
+        guard let unit, let sum else { throw SimulatoError.invalidFrozenPhonons("no configuration") }
+        let scale = 1 / Double(exit.configurations.count)
+        let mean = try exit.configurations.count == 1 ? unit
+            : RealField(nx: unit.nx, ny: unit.ny, values: sum.map { $0 * scale }, samplingX: unit.samplingX, samplingY: unit.samplingY)
+        let field = try mean.tiled(repetitionsX: tile.x, repetitionsY: tile.y)
         // The kit's storage order is the image: lab x down the rows, lab y along the columns, row 0 at x = 0, as the simulated
         // pattern and the crystal pane draw the lab frame (py4DSTEM's), so this image's FFT lines up with the pattern (#931).
         let width = field.ny, height = field.nx
@@ -189,8 +227,16 @@ package nonisolated enum HRTEMImage {
         return ["HRTEM", exit.specimen, "\(n(optics.volts / 1000, 4)) kV", "\(n(exit.thicknessNM(at: thicknessIndex))) nm",
                 "defocus \(n(defocusNM, 4)) nm", "Cs \(n(optics.csMM, 4)) mm", "focal spread \(n(optics.focalSpreadNM)) nm",
                 "angular spread \(n(optics.angularSpreadMrad)) mrad", aperture,
-                "Lobato, infinite projection, \(n(SimulationSpecimen.sliceThickness)) Å slices", "static lattice", "exact (float64)"]
+                "Lobato, infinite projection, \(n(SimulationSpecimen.sliceThickness)) Å slices", lattice(exit), "exact (float64)"]
             .joined(separator: " · ")
+    }
+
+    /// "static lattice", or the frozen phonons: "frozen phonons, 3 of 10 configurations, σ Si 0.1 Å".
+    package static func lattice(_ exit: HRTEMExitWaves) -> String {
+        guard let thermal = exit.thermal else { return "static lattice" }
+        let done = exit.configurations.count
+        let count = done == thermal.configurations ? "\(done) configurations" : "\(done) of \(thermal.configurations) configurations"
+        return "frozen phonons, \(count), σ \(thermal.sigmaText)"
     }
 
     /// How many units of `extent` Å reach `widthNM`.

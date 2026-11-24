@@ -170,7 +170,8 @@ extension AppState {
         case .patterns: ebsd.isBusy
         case .indexing: indexing.isBusy
         case .maps: maps.isBusy
-        case .image, .fft, .results: false
+        case .image: simulatingDocument != nil
+        case .fft, .results: false
         }
     }
 }
