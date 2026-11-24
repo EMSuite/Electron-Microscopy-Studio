@@ -55,6 +55,7 @@ nonisolated enum AgentDoorCoverage {
         "diffraction.phases.add": .gap(781),
         "diffraction.phases.lattice.\\(phase.id)": .gap(781),
         "diffraction.phases.show.\\(phase.id)": .gap(781),
+        "diffraction.phases.update.\\(phase.id)": .gap(781),
         "diffraction.readout": .tool("get_diffraction"),
         "diffraction.remove": .tool("set_diffraction_marks"),
         "diffraction.row.\\(row.kind.rawValue)\\(row.number).d": .tool("get_diffraction"),

@@ -235,6 +235,15 @@ private struct DiffractionPhaseRow: View {
                 .font(.caption).monospacedDigit().foregroundStyle(.secondary)
                 .accessibilityLabel("Lattice of \(phase.name): \(DiffractionPhases.latticeText(phase.structure().cell))")
                 .accessibilityIdentifier("diffraction.phases.lattice.\(phase.id)")
+            if DiffractionPhases.isOutdated(phase, in: analysis) {
+                // The room keeps its own copy of the phase it uses (#780): the library's change waits for this button.
+                HStack(spacing: 6) {
+                    Text("Changed in your library since it was shown here.").font(.caption).foregroundStyle(.secondary)
+                    Button("Update from Library") { DiffractionPhases.set(phase, shown: true, in: analysis) }
+                        .help("Use the library's copy of this phase; Index and the readout start again")
+                        .accessibilityIdentifier("diffraction.phases.update.\(phase.id)")
+                }
+            }
         }
         .padding(.vertical, 2)
     }

@@ -3,7 +3,8 @@
 //  Role: the Diffraction room's phases from the library (#779): each phase's marker shape and colour, by its place in the
 //        library, and the crystal the room indexes against when a phase is shown. In this first slice one phase is shown at a
 //        time: showing a phase makes it the crystal Index, the readout and the simulated spots use; hiding it returns the room to
-//        the calibration standard. The numbers stay DiffractoKit's; this file only names and chooses.
+//        the calibration standard. The room keeps its own copy of the phase it uses (#780), so a later change to the
+//        library changes no result until Update from Library. The numbers stay DiffractoKit's; this file only names and chooses.
 //
 
 import DiffractoCore
@@ -59,14 +60,14 @@ enum DiffractionPhases {
         }
     }
 
-    /// The lattice in one line, as the kit holds it: "a 4.0495 Å" for a cubic cell, all six otherwise.
-    nonisolated static func latticeText(_ cell: UnitCell) -> String {
-        func f(_ x: Double) -> String { String(format: "%.4f", x) }
-        func g(_ x: Double) -> String { String(format: "%.2f°", x) }
-        let cubic = abs(cell.a - cell.b) < 1e-6 && abs(cell.b - cell.c) < 1e-6
-            && [cell.alphaDeg, cell.betaDeg, cell.gammaDeg].allSatisfy { abs($0 - 90) < 1e-6 }
-        if cubic { return "a \(f(cell.a)) Å" }
-        return "a \(f(cell.a)), b \(f(cell.b)), c \(f(cell.c)) Å; \(g(cell.alphaDeg)), \(g(cell.betaDeg)), \(g(cell.gammaDeg))"
+    /// The lattice in one line (DiffractionCrystal's words, which the exports write too).
+    nonisolated static func latticeText(_ cell: UnitCell) -> String { DiffractionCrystal.latticeText(cell) }
+
+    /// The room keeps its own copy of a shown phase (#780): an edit of the library's phase reaches the room's results only
+    /// through Update from Library. True when `phase` is the one in use and the library's copy differs from it.
+    static func isOutdated(_ phase: Phase, in analysis: DiffractionAnalysis) -> Bool {
+        guard case .phase(let inUse) = analysis.crystal, inUse.id == phase.id else { return false }
+        return inUse.fingerprint != phase.structure().fingerprint || inUse.name != phase.name
     }
 
     /// A CIF the person chose in the Add Phase sheet's Open CIF…, added to the library with its bytes (it then works offline

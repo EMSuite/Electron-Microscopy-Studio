@@ -101,4 +101,47 @@ nonisolated final class DiffractionPhasesTests: XCTestCase {
         XCTAssertEqual(cell.a, loaded.structure.cell.a, accuracy: 1e-9)
         XCTAssertEqual(cell.c, loaded.structure.cell.c, accuracy: 1e-9)
     }
+
+    // MARK: #780, the room's own copy
+
+    /// A change to the library's phase changes nothing the room computes until Update from Library; then the room takes it.
+    /// Red before #780: no copy was kept apart from the library, and nothing said the library had moved on.
+    @MainActor func testResultsDoNotChangeWhenTheLibraryChanges() throws {
+        let library = PhaseLibrary(store: PhaseLibraryStore(folder: folder))
+        var phase = gold()
+        try library.add(phase, source: Data("{}".utf8), sourceExtension: "json")
+        let analysis = DiffractionAnalysis()
+        DiffractionPhases.set(phase, shown: true, in: analysis)
+        let before = analysis.crystal
+        XCTAssertFalse(DiffractionPhases.isOutdated(phase, in: analysis))
+
+        let cell = phase.structure().cell
+        // Another structure in the library's record, as a lattice edit would leave it (the edit itself is A4's).
+        let other = try XCTUnwrap(StandardCrystals.all.first { $0.structure.cell.a != cell.a }).structure
+        phase.replaceStructure(other)
+        try library.update(phase)
+        XCTAssertEqual(analysis.crystal, before, "the room keeps the copy it was shown")
+        XCTAssertEqual(analysis.crystal.structure.cell.a, cell.a, accuracy: 1e-12)
+        XCTAssertTrue(DiffractionPhases.isOutdated(phase, in: analysis))
+
+        DiffractionPhases.set(phase, shown: true, in: analysis)
+        XCTAssertEqual(analysis.crystal.structure.cell.a, other.cell.a, accuracy: 1e-9)
+        XCTAssertFalse(DiffractionPhases.isOutdated(phase, in: analysis))
+        XCTAssertNotEqual(analysis.crystal.identity, before.identity, "the caches see another crystal")
+    }
+
+    /// The readout CSV names the phase, its fingerprint and the lattice; the door says the same.
+    func testTheExportNamesThePhaseAndItsLattice() {
+        let structure = StandardCrystals.all[0].structure
+        let crystal = DiffractionCrystal.phase(PhaseCrystal(id: "mp-81", name: "Au", structure: structure))
+        XCTAssertEqual(crystal.phaseText, "phase mp-81, fingerprint \(structure.fingerprint)")
+        XCTAssertNil(DiffractionCrystal.preset(StandardCrystals.all[0]).phaseText)
+        var header = DiffractionExportHeader(fileName: "a.dm4", centreRow: 1, centreColumn: 1, centreSource: "typed", calibration: "none",
+                                             deltaQ: nil, wavelengthAngstroms: nil, lengthPixels: nil, lengthMM: nil, fitVersusFilePercent: nil,
+                                             crystal: "Au", crystalSHA256: nil, kMax: 2, tolerancePercent: 3)
+        header.crystalPhase = crystal.phaseText
+        header.crystalLattice = DiffractionCrystal.latticeText(structure.cell, ascii: true)
+        let line = DiffractionExport.text(rows: [], header: header).split(separator: "\n")[4]
+        XCTAssertEqual(line, "# crystal: Au (phase mp-81, fingerprint \(structure.fingerprint)); lattice a \(String(format: "%.4f", structure.cell.a)) A; k_max 2 per A; tolerance 3 % of q")
+    }
 }
