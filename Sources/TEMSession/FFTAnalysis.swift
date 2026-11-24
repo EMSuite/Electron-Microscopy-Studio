@@ -628,11 +628,11 @@ package final class FFTAnalysis {
             isComputingStrain = false
             switch result {
             case .success(let product):
-                strain = product
+                self.strain = product
                 strainFailure = nil
                 sourceView = .strainXX
             case .failure(let error):
-                strain = nil
+                self.strain = nil
                 strainFailure = Self.words(error)
             }
         }
