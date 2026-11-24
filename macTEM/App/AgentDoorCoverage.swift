@@ -40,6 +40,8 @@ nonisolated enum AgentDoorCoverage {
     static let displayTargetReason = "picks which picture the person's Display rows set; the agent's pictures are drawn as the panes show them"
     /// The crash report offer (#801): the person's own report of the app's crash, sent from their own mail app or browser.
     static let crashReportReason = "the person's report of a crash, which only they may send or dismiss"
+    /// Help > How to Cite (#828): the app's citation, copied to the person's clipboard.
+    static let citeReason = "copies the app's citation to the person's clipboard; CITATION.cff in the repository holds the same"
     static let resultsFilterReason = "filters what the person's results table shows; get_results gives every row whatever the filter"
 
     static let controls: [String: Reach] = [
@@ -412,6 +414,9 @@ nonisolated enum AgentDoorCoverage {
         "settings.images.cropDatabar": .personOnly(settingsReason),
         "settings.sidebar.\\(section.rawValue)": .personOnly(settingsReason),
         "toolbar.datasetMenu": .personOnly(openCloseReason),
+        "howToCite": .personOnly(citeReason),
+        "howToCite.copyBibTeX": .personOnly(citeReason),
+        "howToCite.copyText": .personOnly(citeReason),
         "welcome.crashReport": .personOnly(crashReportReason),
         "welcome.crashReport.dismiss": .personOnly(crashReportReason),
         "welcome.crashReport.report": .personOnly(crashReportReason),
@@ -484,6 +489,7 @@ nonisolated enum AgentDoorCoverage {
         "demo.title": .tool("open_demo"),
         // The app menu and Settings > Updates.
         "Check for Updates…": .personOnly(updateReason),
+        "How to Cite": .personOnly(citeReason),
         "Check for updates automatically": .personOnly(settingsReason),
     ]
 }

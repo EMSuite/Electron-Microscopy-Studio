@@ -311,6 +311,8 @@ private struct ImageCommands: Commands {
             .disabled(!MenuActionRelay.isEnabled(
                 hasFocusedWindow: appState != nil,
                 blocked: appState?.imageSession.isLoading == true))
+            // The app's citation and the room in front's references (#828).
+            Button("How to Cite") { openWindow(id: HowToCiteWindow.id) }
         }
     }
 
@@ -404,6 +406,8 @@ struct macTEMApp: App {
         // Report a Problem (EMSuiteUI's ShellHelp): the report and its diagnostics summary, sent from the person's own mail app or
         // browser; the welcome canvas opens it after a crash (#801). Never opened at launch.
         FeedbackWindow(Self.helpLinks)
+        // Help > How to Cite (#828); never opened at launch.
+        HowToCiteWindow(windows: windows)
         // The Particles view's object table, beside the image (ImageRoomParticles.swift); never opened at launch.
         Window("Objects", id: ParticleTableWindow.id) { ObjectsWindow(windows: windows) }
             .defaultLaunchBehavior(.suppressed)
