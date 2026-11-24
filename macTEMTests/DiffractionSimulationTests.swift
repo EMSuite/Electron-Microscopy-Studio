@@ -236,11 +236,11 @@ nonisolated final class DiffractionSimulationTests: XCTestCase {
     }
 
     /// Fit scale is on by default with a 3 % window, and off holds the scale; the Index section steps through at most five solutions.
-    func testFitScaleAndTheSolutionLimit() {
+    func testFitScaleAndTheSolutionLimit() throws {
         XCTAssertEqual(PatternIndexing.scaleWindow, 0.03)
         XCTAssertEqual(PatternIndexing.solverSettings(fitScale: true).scaleWindow, 0.03)
         XCTAssertEqual(PatternIndexing.solverSettings(fitScale: false).scaleWindow, 0)
-        let o = CrystalOrientation.identityForTests
+        let o = try CrystalOrientation(zoneAxis: SIMD3(0, 0, 1), cell: try XCTUnwrap(StandardCrystals.named("Al")).structure.cell)
         func outcome(_ alternatives: Int, found: Bool = true) -> PatternIndexing.Outcome {
             PatternIndexing.Outcome(phase: "Al", verdict: .tied(count: alternatives + 1), spots: [], explained: 0, indexed: 0,
                                     orientation: found ? o : nil, alternatives: Array(repeating: o.rotatedInPlane(by: 1), count: alternatives),
