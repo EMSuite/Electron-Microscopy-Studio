@@ -78,8 +78,8 @@ nonisolated final class TIASpectraTests: XCTestCase {
         return file.data
     }
 
-    private static let cube = Self.ser(dims: [(2, 2e-9), (3, 2e-9)], channels: 4,
-                                       values: (0 ..< 6).flatMap { k in (0 ..< 4).map { Float(10 * k + $0) } })
+    private static let cube = TIASpectraTests.ser(dims: [(2, 2e-9), (3, 2e-9)], channels: 4,
+                                                  values: (0 ..< 6).flatMap { k in (0 ..< 4).map { Float(10 * k + $0) } })
 
     /// A folder of its own with `files` in it.
     private func folder(_ files: [String: Data]) throws -> URL {
