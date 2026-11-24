@@ -183,6 +183,7 @@ private struct DiffractionCrystalSection: View {
 /// the drawn spots off Index's orientation.
 private struct DiffractionIndexSection: View {
     let analysis: DiffractionAnalysis
+    @Environment(\.undoManager) private var undoManager
     @State private var draft: String?
     @State private var refused: String?
     @FocusState private var editing: Bool
@@ -206,8 +207,13 @@ private struct DiffractionIndexSection: View {
                     .help("The pattern's turn about the beam, counter-clockwise from down the rows toward along the columns")
                     .accessibilityIdentifier("diffraction.simulation.turn")
             }
-            InspectorNote(settings.indexed != nil ? "Found by Index. Type a zone axis to set it by hand."
-                                                  : "Index (⌘R) finds the spots and the full orientation; or type a zone axis.")
+            InspectorRow("Spots") {
+                Button("Remove Spots") { DiffractionUndo.removeSpots(in: analysis, undoManager: undoManager) }
+                    .disabled(analysis.spots.isEmpty)
+                    .help("Removes every spot, found or clicked, and keeps the rings and their scale: Index then finds the spots again")
+                    .accessibilityIdentifier("diffraction.index.removeSpots")
+            }
+            InspectorNote(DiffractionIndexText.note(spots: analysis.spots, outcome: analysis.indexOutcome, indexed: settings.indexed != nil))
         }
     }
 
@@ -253,6 +259,20 @@ private struct DiffractionSimulationSection: View {
                 }
             }
         }
+    }
+}
+
+/// The Index section's note (#784): what Index will read, and what a clicked spot cannot give.
+nonisolated enum DiffractionIndexText {
+    static func note(spots: [MeasuredSpot], outcome: PatternIndexing.Outcome?, indexed: Bool) -> String {
+        if outcome?.zoneAxisOnly == true, outcome?.orientation != nil {
+            return "Clicked spots carry no intensities, so they give the zone axis and the turn only; the tilt needs Index on found spots: Remove Spots, then Index."
+        }
+        if spots.isEmpty {
+            return "Index (⌘R) finds the spots, marks them and finds the full orientation; or type a zone axis."
+        }
+        if indexed { return "Found by Index. Remove or click spots and Index again, or type a zone axis to set it by hand." }
+        return "Index (⌘R) reads the marked spots: found ones give the full orientation, a clicked one the zone axis only."
     }
 }
 

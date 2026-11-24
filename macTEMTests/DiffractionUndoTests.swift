@@ -70,6 +70,20 @@ nonisolated final class DiffractionUndoTests: XCTestCase {
         XCTAssertFalse(undo.canUndo, "one step")
     }
 
+    /// Remove Spots (#784) removes the spots only: the calibrating ring and its scale stay, and one undo puts the spots back.
+    @MainActor func testRemoveSpotsKeepsTheRingsAndIsOneUndo() async throws {
+        let (analysis, _) = try await marked()
+        let before = analysis.marks
+        let undo = manager()
+        step(undo) { DiffractionUndo.removeSpots(in: analysis, undoManager: undo) }
+        XCTAssertTrue(analysis.spots.isEmpty)
+        XCTAssertEqual(analysis.rings, before.rings)
+        XCTAssertNotNil(analysis.ringCalibration, "the ring's scale stays")
+        XCTAssertEqual(undo.undoActionName, "Remove Spots")
+        undo.undo()
+        XCTAssertEqual(analysis.marks, before)
+    }
+
     /// A spot added after the removal is not lost to the undo: it does nothing and offers no redo.
     @MainActor func testAnUndoAfterANewMarkDoesNothing() async throws {
         let (analysis, image) = try await marked()

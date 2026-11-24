@@ -89,8 +89,8 @@ package nonisolated struct MeasuredRing: Sendable, Equatable, Identifiable {
     package var ellipse: RingEllipse? { fit?.fit.map { RingOverlay.ellipse(of: $0) } }
 }
 
-/// A spot the user clicked: the click, the refined centre, and its radius from the pattern centre (ellipse-corrected when a
-/// calibrating ring gave an ellipse).
+/// A spot the user clicked or Index found (#784: found spots are ordinary marks): the click (a found spot's own centre), the refined
+/// centre, its radius from the pattern centre (ellipse-corrected when a calibrating ring gave an ellipse), and a found spot's intensity.
 package nonisolated struct MeasuredSpot: Sendable, Equatable, Identifiable {
     package let id: UUID
     package var clickRow: Double
@@ -99,9 +99,12 @@ package nonisolated struct MeasuredSpot: Sendable, Equatable, Identifiable {
     package var column: Double?
     package var radius: Double?
     package var refusal: String?
-    package init(id: UUID = UUID(), clickRow: Double, clickColumn: Double, row: Double?, column: Double?, radius: Double?, refusal: String?) {
+    /// The kit's intensity of a spot Index found (`FoundSpot.intensity`); nil for a clicked spot, which carries none (#784).
+    package var intensity: Double?
+    package init(id: UUID = UUID(), clickRow: Double, clickColumn: Double, row: Double?, column: Double?, radius: Double?, refusal: String?,
+                 intensity: Double? = nil) {
         self.id = id; self.clickRow = clickRow; self.clickColumn = clickColumn
-        self.row = row; self.column = column; self.radius = radius; self.refusal = refusal
+        self.row = row; self.column = column; self.radius = radius; self.refusal = refusal; self.intensity = intensity
     }
 }
 

@@ -3,6 +3,8 @@
 //  Index in the Diffraction room (#783, plan row R2): the toolbar verb finds the spots and the crystal's full orientation off the
 //  main actor (`DiffractionAnalysis.index`, `PatternIndexing`), Stop drops the answer, the verdict is said in words, and a found
 //  orientation becomes the simulated spots' at its fitted scale. Red before: the room had no Index.
+//  #784 (plan row R2b): the found spots are ordinary marks Index reads again, and clicked spots give the zone axis only. Red before:
+//  Index searched afresh every time and never read a mark.
 //
 //  The pattern is planted with the kit's own `SpotPatternSimulator`: aluminium at [0 1 1] turned 0.4 rad and tilted (0.8°, −0.5°),
 //  200 kV, each spot a Gaussian (σ 1.5 px) of its kinematical intensity on a 512 × 512 image, Δq 0.008 Å⁻¹/px, centre (256, 256).
@@ -90,6 +92,12 @@ nonisolated final class DiffractionIndexTests: XCTestCase {
             XCTAssertLessThan(abs(try XCTUnwrap(s.deltaPercent)), 1, "\(String(describing: s.hkl))")
         }
 
+        // The found spots are the room's spot marks now (#784), each with the kit's intensity.
+        XCTAssertEqual(a.spots.count, o.spots.count)
+        XCTAssertTrue(a.spots.allSatisfy { $0.intensity != nil })
+        XCTAssertFalse(o.zoneAxisOnly)
+        XCTAssertFalse(a.indexSpotsChanged)
+
         // The found orientation is the simulated spots' now, at its fitted scale, and the zone axis field shows its zone axis.
         XCTAssertEqual(a.simulation.indexed, best)
         XCTAssertEqual(a.simulation.scale, o.scale)
@@ -135,6 +143,74 @@ nonisolated final class DiffractionIndexTests: XCTestCase {
         a.setCrystal(.preset(try XCTUnwrap(StandardCrystals.named("Si"))))
         XCTAssertNil(a.indexOutcome, "the answer was the old crystal's")
         XCTAssertNil(a.simulation.indexed)
+    }
+
+    // MARK: Found spots are marks (#784)
+
+    /// A found spot removed is a spot Index no longer reads: the header says the spots changed, and Index again reads the marks
+    /// left (no new search). Remove Spots empties the marks, and Index finds them again.
+    @MainActor func testFoundSpotsAreMarksIndexReadsAgain() async throws {
+        let al = try XCTUnwrap(StandardCrystals.named("Al"))
+        let truth = try CrystalOrientation(zoneAxis: SIMD3(0, 0, 1), inPlaneAngle: 0.2, cell: al.structure.cell)
+        let image = try planted(truth, crystal: al)
+        let a = analysis(for: image, crystal: al)
+        await a.index(image: image)?.value
+        let found = a.spots
+        XCTAssertGreaterThanOrEqual(found.count, 8)
+        XCTAssertNotNil(a.indexOutcome?.orientation, a.indexLine ?? "")
+
+        // The weakest found spot removed.
+        let weakest = try XCTUnwrap(found.min { ($0.intensity ?? 0) < ($1.intensity ?? 0) })
+        a.remove(weakest.id)
+        XCTAssertTrue(a.indexSpotsChanged)
+        XCTAssertTrue(try XCTUnwrap(a.indexLine).hasSuffix(" · the spots changed since: Index again"))
+        await a.index(image: image)?.value
+        XCTAssertFalse(a.indexSpotsChanged)
+        XCTAssertEqual(a.spots, found.filter { $0.id != weakest.id }, "Index read the marks left and searched no new ones")
+        XCTAssertEqual(try XCTUnwrap(a.indexOutcome).spots.count, found.count - 1)
+        XCTAssertNotNil(a.indexOutcome?.orientation)
+
+        a.removeSpots()
+        XCTAssertTrue(a.spots.isEmpty)
+        await a.index(image: image)?.value
+        XCTAssertEqual(a.spots.count, found.count, "with no spot marked, Index finds them again")
+        XCTAssertEqual(a.spots.map(\.row), found.map(\.row))
+    }
+
+    /// Clicked spots carry no intensities: Index gives their zone axis and turn only, and the header and the Index section say the
+    /// tilt needs found spots.
+    @MainActor func testClickedSpotsGiveTheZoneAxisOnly() async throws {
+        let al = try XCTUnwrap(StandardCrystals.named("Al"))
+        let truth = try CrystalOrientation(zoneAxis: SIMD3(0, 0, 1), inPlaneAngle: 0.2, cell: al.structure.cell)
+        let image = try planted(truth, crystal: al)
+        let a = analysis(for: image, crystal: al)
+        let pattern = try SpotPatternSimulator(structure: al.structure, kMax: 2.5).pattern(orientation: truth, volts: 200_000)
+        let picked = [MillerIndex(2, 0, 0), MillerIndex(0, 2, 0), MillerIndex(2, 2, 0), MillerIndex(2, -2, 0), MillerIndex(-2, 0, 0)]
+        for hkl in picked {
+            let s = try XCTUnwrap(pattern.spots.first { $0.hkl == hkl }, "\(hkl)")
+            a.addSpot(image: image, row: 256 + s.position.x / Self.deltaQ + 0.6, column: 256 + s.position.y / Self.deltaQ - 0.4)
+        }
+        XCTAssertEqual(a.spots.count, picked.count)
+        XCTAssertTrue(a.spots.allSatisfy { $0.intensity == nil && $0.row != nil }, "clicked spots carry no intensity")
+
+        await a.index(image: image)?.value
+        XCTAssertEqual(a.spots.count, picked.count, "Index read the clicked spots and found none")
+        let o = try XCTUnwrap(a.indexOutcome)
+        XCTAssertTrue(o.zoneAxisOnly)
+        XCTAssertNotNil(o.orientation, PatternIndexing.header(o))
+        XCTAssertEqual(o.zoneAxis.map { [abs($0.x), abs($0.y), abs($0.z)].sorted() }, [0, 0, 1])
+        XCTAssertEqual(try XCTUnwrap(o.zoneAxisAngle), 0, accuracy: 1e-6, "on the zone axis: a click measures no tilt")
+        XCTAssertEqual(o.explained, picked.count)
+        XCTAssertTrue(PatternIndexing.header(o).hasSuffix(PatternIndexing.zoneAxisOnlyNote), PatternIndexing.header(o))
+        XCTAssertTrue(DiffractionIndexText.note(spots: a.spots, outcome: o, indexed: true).contains("the tilt needs Index on found spots"))
+        XCTAssertEqual(a.simulation.indexed, o.orientation)
+        XCTAssertTrue(a.simulation.isShown)
+    }
+
+    func testTheIndexSectionSaysWhatIndexWillRead() {
+        XCTAssertTrue(DiffractionIndexText.note(spots: [], outcome: nil, indexed: false).hasPrefix("Index (⌘R) finds the spots, marks them"))
+        let clicked = MeasuredSpot(clickRow: 1, clickColumn: 2, row: 1, column: 2, radius: nil, refusal: nil)
+        XCTAssertTrue(DiffractionIndexText.note(spots: [clicked], outcome: nil, indexed: false).hasPrefix("Index (⌘R) reads the marked spots"))
     }
 
     @MainActor func testIndexNamesWhatItNeeds() throws {
