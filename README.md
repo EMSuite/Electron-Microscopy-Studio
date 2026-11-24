@@ -66,7 +66,8 @@ The rooms:
   simulated spots to tilt them (⌥ drag turns them); the Spots table lists each spot's hkl, expected d and misfit, and exports
   as a Spots CSV. Phases come from your library: Add Phase… finds one on the Materials Project or opens a CIF, and a phase
   added once works offline.
-  File > New Simulation (⇧⌘N) opens the simulated spots with no measured pattern under them.
+  File > New Simulation (⇧⌘N) opens a pattern with no file: add a phase and type a zone axis to see its spots and their table;
+  its Specimen section builds the phase along that axis into the slab a simulation computes, with its box, atoms and strain.
 - **Patterns**: the EBSD or TKD scan beside the live pattern, with mean intensity, virtual BSE, image quality and
   average dot product maps. Remove the static and dynamic backgrounds, rescale or normalise, equalise, filter, bin,
   average neighbouring patterns and denoise with NLPAR. Draw the Kikuchi bands of the file's stored orientations over
@@ -99,8 +100,10 @@ fetches its update feed. Details are in [`SECURITY.md`](SECURITY.md).
 The TEM methods compute with the suite's Swift kits, each checked against the Python package it ports, within that
 package's own tolerance: [FormatoKit](https://github.com/EMSuite/FormatoKit) (file readers),
 [ImagoKit](https://github.com/EMSuite/ImagoKit) (FFT and image maths),
-[DiffractoKit](https://github.com/EMSuite/DiffractoKit) (crystallography) and
-[SpectroKit](https://github.com/EMSuite/SpectroKit) (EDS and EELS). The SEM methods are ported into the app itself and
+[DiffractoKit](https://github.com/EMSuite/DiffractoKit) (crystallography),
+[SpectroKit](https://github.com/EMSuite/SpectroKit) (EDS and EELS) and
+[SimulatoKit](https://github.com/EMSuite/SimulatoKit) (the simulation's slab, after abTEM). The SEM methods are ported into the app
+itself and
 checked the same way, against pinned versions of [kikuchipy](https://github.com/pyxem/kikuchipy) (pattern files,
 processing and dictionary indexing), [PyEBSDIndex](https://github.com/USNavalResearchLaboratory/PyEBSDIndex) (Hough
 indexing and NLPAR), [orix](https://github.com/pyxem/orix) (orientations, colour keys, texture, and .ang and .ctf

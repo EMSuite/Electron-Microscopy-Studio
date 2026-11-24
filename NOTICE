@@ -235,6 +235,14 @@ import, kinematic reflection lists, ring and ellipse calibration, the indexing o
 the orientation of a spot pattern. Its scattering table and lattice conventions are py4DSTEM's (GPL-3.0); pymatgen (MIT) was
 its oracle and none of its code is copied. Its own third-party notices are in its NOTICE.
 
+SimulatoKit (a Swift package the app is built with)
+================================================================================
+
+The app links SimulatoKit (https://github.com/EMSuite/SimulatoKit, tag 0.6.0, commit
+3a8cd3de6bf127d457603de08d4aee1f6961cfc4), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only, for the Simulation document's specimen (a crystal
+along a zone axis built into an orthogonal slab), the multislice and the HRTEM image. Its algorithms are ported from abTEM
+(GPL-3.0), its reference; its third-party notices, abTEM's among them, are in its NOTICE.
+
 ================================================================================
 ImagoKit (a Swift package the app is built with)
 ================================================================================
