@@ -233,12 +233,6 @@ enum ExportSnapshot {
         return (try? ExportMethods.embedding(record, inFileWithExtension: fileExtension, data: data)) ?? data
     }
 
-    /// The EELS room's record of `loaded` and its method JSON (Export Methods Record…, the door): the spectrum image as `eelsSource`
-    /// names it, off the main actor.
-    @concurrent nonisolated static func eelsMethods(exportKind: String, source loaded: LoadedEELS, methodJSON: String?) async -> MethodsRecord {
-        ExportMethods.eelsRecord(app: methodsApp(), exportKind: exportKind, source: await eelsSource(loaded), methodJSON: methodJSON)
-    }
-
     /// An SEM room's export with its methods record inside (#817), from the record the session keeps of it: the source file's
     /// fingerprint is read off the main actor (a pattern file is gigabytes). The bytes come back as they were when the source cannot be
     /// read again or the kind holds no record (a method JSON, a `.ctf`): an export never fails for its record.

@@ -51,15 +51,11 @@ enum MethodsRecordExport {
         guard isAvailable(in: appState) else { return nil }
         let app = ExportSnapshot.methodsApp()
         let area = appState.navigation.workspaceArea
-        if area == .eels {
-            return appState.eels.source.map {
-                ExportSnapshot.eelsMethods(exportKind: exportKind, source: $0, methodJSON: appState.eels.methodJSON)
-            }
-        }
         if let slow = slowSource(of: appState) {
-            guard let print = prints[slow.key] else { return nil }
-            let source = MethodsRecord.Source(fileName: slow.fileName, byteCount: print.byteCount, fingerprint: print.sha256,
-                                              kind: slow.kind, shape: slow.shape)
+            guard let source = read[slow.key] else { return nil }
+            if area == .eels {
+                return ExportMethods.eelsRecord(app: app, exportKind: exportKind, source: source, methodJSON: appState.eels.methodJSON)
+            }
             if area == .edx {
                 return ExportMethods.edsRecord(app: app, exportKind: exportKind, source: source, methodJSON: appState.edx.methodJSON)
             }
@@ -108,78 +104,114 @@ enum MethodsRecordExport {
 
     // MARK: Sources read once
 
-    /// A source's fingerprint and size.
-    nonisolated struct Print: Sendable, Equatable {
-        let sha256: String
-        let byteCount: Int
-    }
-
-    /// A source too large to read on the main actor: an SEM room's file (gigabytes of patterns) by its bytes, the EDS room's
-    /// spectrum image by its summed counts and shape (a lazy cube is read from its file). Read once per file (`prepare`).
+    /// A source too large to read on the main actor: an SEM room's file (gigabytes of patterns) and the EELS spectrum image by their
+    /// bytes, the EDS spectrum image by its summed spectrum and shape (a lazy cube is read from its file). Read once per file as it is
+    /// on disk now (`prepare`).
     struct SlowSource {
-        let key: String
-        let fileName: String
-        let kind: String
-        let shape: [Int]
-        let read: @Sendable () -> Print?
+        /// The file by its path, size and modification date, so a file replaced at the same path is read again.
+        let key: Key
+        let read: @Sendable () async -> MethodsRecord.Source?
     }
 
-    private static var prints: [String: Print] = [:]
-    private static var unreadable: Set<String> = []
+    nonisolated struct Key: Hashable, Sendable {
+        let path: String
+        let byteCount: Int
+        let modified: Date
 
-    /// The room's slow source, or nil for a room whose source is the image or the EELS counts already in memory.
+        /// The key of the file at `path` as it is on disk now. A source with no file to look at (a cube made in memory, a file
+        /// gone) is keyed by its name and shape alone.
+        static func of(_ path: String, room: String, name: String, shape: [Int]) -> Key {
+            guard !path.isEmpty, let attributes = try? FileManager.default.attributesOfItem(atPath: path),
+                  let size = attributes[.size] as? Int, let modified = attributes[.modificationDate] as? Date else {
+                return Key(path: "\(room):memory:\(name):\(shape)", byteCount: 0, modified: .distantPast)
+            }
+            return Key(path: room + ":" + path, byteCount: size, modified: modified)
+        }
+    }
+
+    /// The sources read, and the reads running: one read per file at a time. A failure is remembered only to say so; the next
+    /// `prepare` reads again (access may come back).
+    private static var read: [Key: MethodsRecord.Source] = [:]
+    private static var reading: [Key: Task<MethodsRecord.Source?, Never>] = [:]
+    private static var failed: Set<Key> = []
+
+    /// The room's slow source, or nil for a room whose source is the image in memory.
     static func slowSource(of appState: AppState) -> SlowSource? {
         switch appState.navigation.workspaceArea {
         case .patterns, .indexing:
             guard let document = appState.ebsd.document, let url = document.url else { return nil }
-            let dataset = document.dataset
-            return SlowSource(key: url.path, fileName: document.fileName, kind: "EBSD patterns",
-                              shape: [dataset.scanColumns, dataset.scanRows, dataset.patternColumns, dataset.patternRows]) {
-                (try? ExportMethods.fingerprint(ofFileAt: url)).map { Print(sha256: $0.sha256, byteCount: $0.byteCount) }
-            }
+            let dataset = document.dataset, fileName = document.fileName
+            let shape = [dataset.scanColumns, dataset.scanRows, dataset.patternColumns, dataset.patternRows]
+            return SlowSource(key: .of(url.path, room: "ebsd", name: fileName, shape: shape)) { fileSource(url, fileName: fileName, kind: "EBSD patterns", shape: shape) }
         case .maps:
             guard let document = appState.maps.document, let url = document.url else { return nil }
-            return SlowSource(key: url.path, fileName: document.fileName, kind: MapsRoomState.sourceKind(document.source),
-                              shape: [document.columns, document.rows]) {
-                (try? ExportMethods.fingerprint(ofFileAt: url)).map { Print(sha256: $0.sha256, byteCount: $0.byteCount) }
+            let fileName = document.fileName, kind = MapsRoomState.sourceKind(document.source), shape = [document.columns, document.rows]
+            return SlowSource(key: .of(url.path, room: "maps", name: fileName, shape: shape)) { fileSource(url, fileName: fileName, kind: kind, shape: shape) }
+        case .eels:
+            guard let loaded = appState.eels.source else { return nil }
+            let image = loaded.image
+            return SlowSource(key: .of(loaded.filePath, room: "eels", name: loaded.fileName, shape: [image.nx, image.ny, image.channels])) {
+                await ExportSnapshot.eelsSource(loaded)
             }
         case .edx:
             guard let source = appState.edx.source else { return nil }
             let metadata = source.metadata
             let shape = [source.nx, source.ny, source.channels]
-            return SlowSource(key: "eds:" + metadata.filePath, fileName: metadata.fileName, kind: "EDS spectrum image", shape: shape) {
-                guard let sum = try? source.sum(mask: nil, cancelled: { false }) else { return nil }
+            return SlowSource(key: .of(metadata.filePath, room: "eds", name: metadata.fileName, shape: shape)) {
+                guard let sum = try? source.sum(mask: nil, cancelled: { false }, progress: nil) else { return nil }
+                // The summed spectrum and the shape: a weaker identity than the file's bytes, and the kind says so.
+                let values = sum.map(Double.init) + shape.map(Double.init)
                 let size = (try? FileManager.default.attributesOfItem(atPath: metadata.filePath)[.size] as? Int) ?? 0
-                let counts = sum.map(Double.init) + shape.map(Double.init)
-                return Print(sha256: ExportMethods.fingerprint(ofCounts: counts), byteCount: size)
+                return MethodsRecord.Source(fileName: metadata.fileName, byteCount: size,
+                                            fingerprint: values.withUnsafeBytes { ExportMethods.fingerprint(ofBytes: $0) },
+                                            kind: "EDS spectrum image, by its summed spectrum and shape", shape: shape)
             }
-        case .image, .fft, .diffraction, .results, .eels:
+        case .image, .fft, .diffraction, .results:
             return nil
         }
+    }
+
+    /// The file at `url` by its bytes, streamed in blocks.
+    nonisolated private static func fileSource(_ url: URL, fileName: String, kind: String, shape: [Int]) -> MethodsRecord.Source? {
+        guard let found = try? ExportMethods.fingerprint(ofFileAt: url) else { return nil }
+        return MethodsRecord.Source(fileName: fileName, byteCount: found.byteCount, fingerprint: found.sha256, kind: kind, shape: shape)
     }
 
     /// Whether the room's record waits for its source to be read (`prepare`).
     static func isReading(_ appState: AppState) -> Bool {
         guard let slow = slowSource(of: appState) else { return false }
-        return prints[slow.key] == nil && !unreadable.contains(slow.key)
+        return read[slow.key] == nil
     }
 
-    /// Reads the room's slow source off the main actor when it is not read yet; false when it cannot be read (the file moved, or the
-    /// sandbox no longer grants it).
+    /// Whether the last read of the room's source failed and none runs now.
+    static func lastReadFailed(_ appState: AppState) -> Bool {
+        guard let slow = slowSource(of: appState) else { return false }
+        return failed.contains(slow.key) && reading[slow.key] == nil
+    }
+
+    /// Reads the room's slow source off the main actor when it is not read yet, joining a read already running for the same file;
+    /// false when it cannot be read (the file moved, or the sandbox no longer grants it).
     @discardableResult
     static func prepare(_ appState: AppState) async -> Bool {
         guard let slow = slowSource(of: appState) else { return true }
-        if prints[slow.key] != nil { return true }
-        if unreadable.contains(slow.key) { return false }
-        guard let print = await readOff(slow.read) else {
-            unreadable.insert(slow.key)
-            return false
+        let key = slow.key
+        if read[key] != nil { return true }
+        let task = reading[key] ?? Task { await readOff(slow.read) }
+        reading[key] = task
+        let found = await task.value
+        reading[key] = nil
+        if let found {
+            read[key] = found
+            failed.remove(key)
+        } else {
+            failed.insert(key)
         }
-        prints[slow.key] = print
-        return true
+        return found != nil
     }
 
-    @concurrent nonisolated private static func readOff(_ read: @Sendable () -> Print?) async -> Print? { read() }
+    @concurrent nonisolated private static func readOff(_ read: @Sendable () async -> MethodsRecord.Source?) async -> MethodsRecord.Source? {
+        await read()
+    }
 
     /// The words when the source cannot be read for its fingerprint.
     static let unreadableLine = "The source file could not be read for its fingerprint, so no methods record was made."

@@ -7,6 +7,7 @@
 
 import Foundation
 import ShellAgentDoor
+import ShellExport
 import TEMCore
 
 extension MacTEMAgentDoor {
@@ -25,8 +26,10 @@ extension MacTEMAgentDoor {
                 return .refusal(status: 404, message: "The \(appState.navigation.workspaceArea.title) room holds no result to record yet.")
             }
             guard let record = MethodsRecordExport.record(of: appState) else {
-                guard MethodsRecordExport.isReading(appState) else { return .refusal(status: 409, message: MethodsRecordExport.unreadableLine) }
+                // One read runs per file: this joins it, or reads again after a failure (access may have come back).
+                let failed = MethodsRecordExport.lastReadFailed(appState)
                 Task { await MethodsRecordExport.prepare(appState) }
+                if failed { return .refusal(status: 409, message: MethodsRecordExport.unreadableLine) }
                 return .refusal(status: 409, message: "The source is being read for its fingerprint (an SEM file can be gigabytes); ask again "
                                     + "in a moment.")
             }
