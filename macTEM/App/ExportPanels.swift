@@ -39,6 +39,7 @@
 import ImagoCore
 import SwiftUI
 import AppKit
+import ShellExport
 import UniformTypeIdentifiers
 import TEMCore
 import TEMSession
@@ -48,7 +49,7 @@ enum ExportPanels {
 
     // MARK: Entry points
 
-    /// File > Export Image… (⇧⌘E): the selected file's image as a PNG.
+    /// File > Export Figure… (⇧⌘E, was Export Image…): the selected file's image as a PNG, or as a vector PDF or SVG (#822).
     static func exportImage(appState: AppState) {
         guard ExportSnapshot.availability(of: appState).image else { return }
         // A side TEMCore would refuse is refused by name now, from the image's size, before the snapshot builds its full-size
@@ -222,8 +223,26 @@ enum ExportPanels {
         return panel
     }
 
+    /// Export Figure…'s panel (#822): PNG first, as Export Image… was; Format follows with the panel's file type. The strip is sized
+    /// once with Width shown, so the panel keeps its height when Width comes and goes.
     static func imagePanel(for snapshot: ExportImageSnapshot, choices: ExportImageChoices) -> NSSavePanel {
-        pngPanel(name: snapshot.defaultName, directory: snapshot.directory, message: snapshot.message, choices: choices)
+        let panel = savePanel(type: contentType(of: choices.format), name: snapshot.defaultName, directory: snapshot.directory,
+                              message: snapshot.message)
+        let chosen = choices.format
+        choices.format = .pdf
+        panel.accessoryView = accessory(for: choices)
+        choices.format = chosen
+        choices.formatChanged = { [weak panel] format in panel?.allowedContentTypes = [contentType(of: format)] }
+        return panel
+    }
+
+    /// The file type of an Export Figure… format.
+    static func contentType(of format: FigureExport.Format) -> UTType {
+        switch format {
+        case .png: .png
+        case .pdf: .pdf
+        case .svg: .svg
+        }
     }
 
     /// A PNG panel with the Scale bar and (Marks | Spots) accessory: the Image room's and the FFT transform's.
@@ -297,12 +316,16 @@ enum ExportPanels {
 
     private static func presentImagePanel(_ snapshot: ExportImageSnapshot, on window: NSWindow,
                                           appState: AppState) async {
-        let choices = ExportImageChoices(snapshot.defaults)
+        let choices = ExportImageChoices(snapshot.defaults, offersFigure: true)
         let fileNames = rememberedFileNameChoice()
         choices.fileNames = fileNames
         let panel = imagePanel(for: snapshot, choices: choices)
         guard await present(panel, on: window) == .OK, let url = panel.url else { return }
         remember(fileNames)
+        if choices.format.isVector {
+            await writeFigure(snapshot, to: url, choices: choices, leaveOutFileNames: fileNames.leaveOut, appState: appState)
+            return
+        }
 
         // Counted from the panel's OK to the infobar's last line, per window (`AppState.exportsWriting`): two exports of one window
         // never interleave its status lines or write one destination twice, and another window's export is not held up (#625).
@@ -316,6 +339,23 @@ enum ExportPanels {
             let rendered = try await snapshot.write(to: url, options: options, leaveOutFileNames: fileNames.leaveOut)
             report(ExportSnapshot.imageDoneLine(name: name, width: rendered.width, height: rendered.height,
                                                 barLeftOut: rendered.barLeftOut), in: appState)
+        } catch {
+            appState.present(error)
+        }
+    }
+
+    /// The vector figure after OK, counted and reported as the PNG is.
+    private static func writeFigure(_ snapshot: ExportImageSnapshot, to url: URL, choices: ExportImageChoices, leaveOutFileNames: Bool,
+                                    appState: AppState) async {
+        appState.exportsWriting += 1
+        defer { appState.exportsWriting -= 1 }
+        let name = url.lastPathComponent
+        let options = ExportSnapshot.options(scaleBar: choices.scaleBar, marks: choices.marks, offersMarks: choices.offersMarks)
+        appState.statusText = ExportSnapshot.exportingLine(name: name)
+        do {
+            let made = try await snapshot.writeFigure(to: url, options: options, width: choices.width, format: choices.format,
+                                                      leaveOutFileNames: leaveOutFileNames)
+            report(ExportSnapshot.figureDoneLine(name: name, widthMM: made.scene.widthMM, barLeftOut: made.barLeftOut), in: appState)
         } catch {
             appState.present(error)
         }

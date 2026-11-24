@@ -73,7 +73,7 @@ enum MacTEMAgentDoor {
             return .json(MacTEMAgentDoor.window(appState))
         },
         AgentTool(name: "get_image", title: "Image picture",
-                  summary: "The shown file's image as Export Image… draws it: its display window, gamma and colormap, the scale bar "
+                  summary: "The shown file's image as Export Figure… draws its PNG: its display window, gamma and colormap, the scale bar "
                       + "when shown and the marks (distances, angles, profiles). Longest side up to 1024 pixels per scale step.",
                   input: .windowPicture) { call in
             guard let appState = call.window?.state as? AppState else { return MacTEMAgentDoor.notAWindow }

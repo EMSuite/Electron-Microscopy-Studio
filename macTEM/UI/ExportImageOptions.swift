@@ -11,7 +11,9 @@
 //        `fittingSize`, so the panel never changes height after it is up.
 //
 
+import ShellExport
 import SwiftUI
+import TEMCore
 
 /// What the panel's checkboxes are now. Lives as long as the panel does (`ExportPanels` holds it across the await).
 @Observable
@@ -27,6 +29,12 @@ final class ExportImageChoices {
     var asShown = false
     /// "Leave out file names" (#817): offered by the Image room's panel, whose PNG carries a methods record; nil elsewhere.
     var fileNames: ExportFileNameChoice?
+    /// Export Figure…'s Format and Width (#822): offered by the Image room's panel only; PNG is the image's own pixels as before,
+    /// PDF and SVG a vector figure `width` wide. `formatChanged` lets the panel follow the format with its file type.
+    let offersFigure: Bool
+    var format: FigureExport.Format = .png
+    var width: FigureStyle.Width = .mm90
+    @ObservationIgnored var formatChanged: ((FigureExport.Format) -> Void)?
 
     enum Kind: Sendable {
         case marks, spots
@@ -39,17 +47,18 @@ final class ExportImageChoices {
         var identifier: String { self == .marks ? "export.marksToggle" : "export.spotsToggle" }
     }
 
-    init(scaleBar: Bool, marks: Bool, offersMarks: Bool, kind: Kind = .marks, offersAsShown: Bool = false) {
+    init(scaleBar: Bool, marks: Bool, offersMarks: Bool, kind: Kind = .marks, offersAsShown: Bool = false, offersFigure: Bool = false) {
         self.scaleBar = scaleBar
         self.marks = marks
         self.offersMarks = offersMarks
         self.kind = kind
         self.offersAsShown = offersAsShown
+        self.offersFigure = offersFigure
     }
 
-    convenience init(_ defaults: ExportImageDefaults, kind: Kind = .marks, offersAsShown: Bool = false) {
+    convenience init(_ defaults: ExportImageDefaults, kind: Kind = .marks, offersAsShown: Bool = false, offersFigure: Bool = false) {
         self.init(scaleBar: defaults.scaleBar, marks: defaults.marks, offersMarks: defaults.offersMarks, kind: kind,
-                  offersAsShown: offersAsShown)
+                  offersAsShown: offersAsShown, offersFigure: offersFigure)
     }
 }
 
@@ -64,6 +73,24 @@ struct ExportImageOptions: View {
 
     var body: some View {
         HStack(spacing: Self.spacing) {
+            if choices.offersFigure {
+                Picker("Format", selection: $choices.format) {
+                    ForEach(FigureExport.Format.allCases, id: \.self) { Text($0.title).tag($0) }
+                }
+                .fixedSize()
+                .onChange(of: choices.format) { _, format in choices.formatChanged?(format) }
+                .help("PDF and SVG keep the scale bar, the marks and their labels as lines and text; PNG is the image's own pixels")
+                .accessibilityIdentifier("export.formatPicker")
+                // Left out, never dimmed, for PNG: the PNG has the image's own pixels, not a width.
+                if choices.format.isVector {
+                    Picker("Width", selection: $choices.width) {
+                        ForEach(FigureStyle.Width.allCases, id: \.self) { Text("\(Int($0.rawValue)) mm").tag($0) }
+                    }
+                    .fixedSize()
+                    .help("The figure's width on the page: one column (90 mm), one and a half (140 mm) or two (190 mm)")
+                    .accessibilityIdentifier("export.widthPicker")
+                }
+            }
             Toggle("Scale bar", isOn: $choices.scaleBar)
                 .help(choices.kind == .marks ? "Draw the scale bar at the bottom left of the image"
                                              : "Draw the scale bar at the bottom left of the transform")

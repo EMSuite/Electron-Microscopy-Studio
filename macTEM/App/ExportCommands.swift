@@ -46,7 +46,7 @@ struct ExportCommands: Commands {
             // The Image room's two.
             if fixed.contains(.image) {
                 Divider()
-                Button("Export Image…") {
+                Button("Export Figure…") {
                     if let appState { ExportPanels.exportImage(appState: appState) }
                 }
                 .keyboardShortcut("e", modifiers: [.command, .shift])

@@ -59,7 +59,7 @@ extension MacTEMAgentDoor {
             an EBSD pattern scan in Patterns, an orientation map in Maps.
 
             1. Look. `list_windows` names the windows; `get_window` says the room, the open files with their size, calibration and \
-            voltage, the status line and any error. `get_image` draws the shown image as Export Image… draws it; `get_results` gives \
+            voltage, the status line and any error. `get_image` draws the shown image as Export Figure… draws its PNG; `get_results` gives \
             the finished numbers as Export Results… writes them; `get_session` gives the SEM session's rows as the Results room's \
             session table lists them; `get_methods_record` gives the room's methods record and paragraph as Export Methods Record… and \
             Copy Methods Paragraph give them; `get_log` gives the Output lines.

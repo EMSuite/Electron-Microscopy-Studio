@@ -63,6 +63,18 @@ extension ExportImageSnapshot {
         return try await ImageExport.export(source: named.source, display: display, marks: marks, options: options, methods: record,
                                             to: url)
     }
+
+    /// Export Figure… as PDF or SVG (#822): the same source, display, marks and record as the PNG, drawn as a vector figure
+    /// `width` wide.
+    nonisolated func writeFigure(to url: URL, options: ImageExport.Options, width: FigureStyle.Width, format: FigureExport.Format,
+                                 leaveOutFileNames: Bool = false) async throws -> (scene: FigureScene, barLeftOut: Bool) {
+        let named = ExportSnapshot.named(source: source, methods: methods, leaveOutFileNames: leaveOutFileNames)
+        var record = named.methods
+        record?.drawn = ExportSnapshot.drawn(options: options, hasMarks: !marks.isEmpty)
+        record?.exportKind = "image-figure-\(format.rawValue)"
+        return try await FigureExport.export(source: named.source, display: display, marks: marks, options: options, width: width,
+                                             format: format, methods: record, to: url)
+    }
 }
 
 /// Everything Export Profile… needs, taken when the panel opens.
@@ -296,6 +308,12 @@ enum ExportSnapshot {
         let size = "\(width) × \(height) px"
         return barLeftOut ? "Exported \(name) without the scale bar (the image is too small) — \(size)"
                           : "Exported \(name) — \(size)"
+    }
+
+    /// The infobar, and the VoiceOver announcement, when a vector figure is written (#822).
+    nonisolated static func figureDoneLine(name: String, widthMM: Double, barLeftOut: Bool) -> String {
+        let width = "\(Int(widthMM.rounded())) mm wide"
+        return barLeftOut ? "Exported \(name) without the scale bar (the image has no scale) — \(width)" : "Exported \(name) — \(width)"
     }
 
     /// The infobar, and the VoiceOver announcement, when the CSV is written.

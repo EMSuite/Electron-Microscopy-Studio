@@ -35,7 +35,7 @@ nonisolated final class ExportMenuRoomsTests: XCTestCase {
     func testEveryFixedItemIsDrawnBehindItsRoom() throws {
         let commands = squeezed(try source("macTEM/App/ExportCommands.swift"))
         XCTAssertTrue(commands.contains("let fixed = FixedExports.listed(in: appState?.navigation.workspaceArea)"))
-        XCTAssertTrue(commands.contains("if fixed.contains(.image) { Divider() Button(\"Export Image…\")"))
+        XCTAssertTrue(commands.contains("if fixed.contains(.image) { Divider() Button(\"Export Figure…\")"))
         XCTAssertTrue(commands.contains(".keyboardShortcut(\"e\", modifiers: [.command, .shift]) .disabled(availability?.image != true)"))
         XCTAssertTrue(commands.contains("if fixed.contains(.fft) { Divider() Button(\"Export Transform…\")"))
         XCTAssertTrue(commands.contains(".keyboardShortcut(\"e\", modifiers: [.command, .option]) .disabled(fft?.transform != true)"))
@@ -43,7 +43,7 @@ nonisolated final class ExportMenuRoomsTests: XCTestCase {
         XCTAssertTrue(commands.contains("if fixed.contains(.results) { Button(\"Export Results…\")"))
         XCTAssertTrue(commands.contains("if fixed.contains(.sessionReport) { Button(\"Export Session Report…\")"))
         XCTAssertTrue(commands.contains(".disabled(session != true) }"))
-        for title in ["Export Image…", "Export Profile…", "Export Transform…", "Export Radial Profile…", "Export Spots…",
+        for title in ["Export Figure…", "Export Profile…", "Export Transform…", "Export Radial Profile…", "Export Spots…",
                       "Export Results…", "Export Session Report…"] {
             XCTAssertEqual(commands.components(separatedBy: "Button(\"\(title)\")").count - 1, 1, "\(title) drawn once")
         }
