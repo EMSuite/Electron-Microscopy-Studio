@@ -26,7 +26,6 @@ package nonisolated enum FigureExport {
 
         /// "PDF", "SVG", "PNG": the panel's picker.
         package var title: String { rawValue.uppercased() }
-        package var fileExtension: String { rawValue }
         /// Whether the figure is drawn from a scene (PDF, SVG) rather than as the image's own pixels (PNG).
         package var isVector: Bool { self != .png }
     }
