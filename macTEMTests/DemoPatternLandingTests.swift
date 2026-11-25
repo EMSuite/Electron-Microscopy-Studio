@@ -36,4 +36,16 @@ nonisolated final class DemoPatternLandingTests: XCTestCase {
         let deltaQ = try XCTUnwrap(analysis.calibration(for: image)?.deltaQ)
         XCTAssertEqual(deltaQ, DemoDocuments.Truth.patternDeltaQ, accuracy: 0.005 * DemoDocuments.Truth.patternDeltaQ)
     }
+
+    /// #1086: the nanowire spot pattern opened in the Image room of a new tab. Opened from the Image room, it lands in Diffraction.
+    /// Red before: the Open had no landing for it and the room stayed Image.
+    @MainActor func testTheNanowireDemoLandsInTheDiffractionRoom() async throws {
+        let state = AppState(launch: LaunchOptions(arguments: []))
+        let url = try XCTUnwrap(DemoDocuments.Shipped.nanowirePattern.url)
+        state.navigation.workspaceArea = .image
+        await state.open(urls: [url])?.value
+        try await waitUntil("the spot pattern to open", seconds: 60) { state.openItems.selected?.session.image != nil }
+        XCTAssertEqual(state.openItems.selected?.url, url)
+        XCTAssertEqual(state.navigation.workspaceArea, .diffraction)
+    }
 }
