@@ -99,13 +99,13 @@ nonisolated final class EELSExportMenuTests: XCTestCase {
         let state = AppState(launch: LaunchOptions(arguments: ["--export-dir", folder.path]))
         await state.eels.bind(try DemoDocuments.eels()).value
         await state.eels.settled()
-        RoomExports.eels(.spectrumSVG, appState: state)
+        await RoomExports.eels(.spectrumSVG, appState: state).value
         XCTAssertEqual(state.statusText, "Exported Demo EELS spectrum.svg")
         let svg = try String(contentsOf: folder.appendingPathComponent("Demo EELS spectrum.svg"), encoding: .utf8)
         XCTAssertTrue(svg.contains("<path"), "the spectrum is a path")
         XCTAssertTrue(svg.contains("Energy loss (eV)"), "its titles are text")
         XCTAssertFalse(svg.contains("<image"), "no picture of the plot")
-        RoomExports.eels(.mapsPDF, appState: state)
+        await RoomExports.eels(.mapsPDF, appState: state).value
         XCTAssertEqual(state.statusText, "Exported Demo EELS maps.pdf")
         let pdf = try Data(contentsOf: folder.appendingPathComponent("Demo EELS maps.pdf"))
         XCTAssertEqual(Array(pdf.prefix(4)), Array("%PDF".utf8))
