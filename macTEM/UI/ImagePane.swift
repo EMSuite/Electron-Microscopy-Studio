@@ -100,6 +100,8 @@ struct ImagePane: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
+            // A Simulation document's HRTEM image: its transfer function in a strip under the picture (#921); nothing for another image.
+            HRTEMTransferStrip(item: item)
         }
         .padding(8)
         .clipped()

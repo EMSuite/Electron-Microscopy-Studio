@@ -62,19 +62,16 @@ struct DiffractionRoom: View {
         let strip = DiffractionPart.tableStrip(part)
         VStack(spacing: 0) {
             DiffractionHeader(item: item, analysis: analysis, view: view)
-            // The crystal beside the pattern (#790), down the same beam: one orientation drives both. It appears once simulated spots
-            // are drawn (before, the pattern has the room), unless View > Hide Crystal hid it (#789); the divider's place is the
-            // window's (the split's scene storage). The crystal takes a third and the pattern, the data, two thirds until the person
-            // drags it (#1046, `DiffractionCrystalSplit`); a place dragged in an earlier version is kept.
-            if DiffractionPart.showsCrystalPane(part) && view.showsCrystal && analysis.simulation.isShown {
+            // The pane beside the pattern, by the part (#921, #1044): the crystal down the same beam in Index and Simulate (#790; one
+            // orientation drives both; it appears once simulated spots are drawn and View > Hide Crystal hides it, #789), the zone-axis
+            // map in Tilt Plan (#814), the powder pattern in Powder (#810). The divider's place is the window's (the split's scene
+            // storage). The pane takes a third and the pattern, the data, two thirds until the person drags it (#1046,
+            // `DiffractionCrystalSplit`); a place dragged in an earlier version is kept.
+            if let pane = DiffractionSidePaneView.shown(part: part, view: view, analysis: analysis) {
                 HorizontalPaneSplit(storageKey: DiffractionCrystalSplit.storageKey, defaultFraction: DiffractionCrystalSplit.defaultCrystalFraction,
-                                    resizeLabel: "Resize the crystal and the pattern", leadingName: "Crystal",
+                                    resizeLabel: "Resize the side pane and the pattern", leadingName: DiffractionPaneWords.title(pane),
                                     minimumLeading: LayoutPolicy.imagePaneMinimum, minimumTrailing: LayoutPolicy.imagePaneMinimum) {
-                    // A Simulation document draws the slab its multislice runs on (#897).
-                    DiffractionCrystalPane(analysis: analysis, showsUnitCell: view.showsUnitCell,
-                                           slab: DemoDocuments.isSimulation(item.url)
-                                               ? item.multislice.drawnSlab(crystal: analysis.simulatedPhase, zoneAxis: analysis.simulation.zoneAxis)
-                                               : nil)
+                    DiffractionSidePaneView(item: item, analysis: analysis, view: view, pane: pane)
                 } trailing: {
                     patternPane(analysis: analysis, view: view, rows: rows)
                 }
@@ -84,8 +81,8 @@ struct DiffractionRoom: View {
             if strip != .none {
                 Divider()
                 // One table under the pattern: the readout, or once Index has an answer, its Spots table (#785: hkl, expected d and
-                // misfit per spot), picked in the strip's header. Never both side by side: they share R, q, d and Δd/d and do not fit a
-                // small window.
+                // misfit per spot), picked in the strip's header; in Powder the powder pattern's peaks. Never two side by side: they
+                // share columns and do not fit a small window.
                 // A Simulation document lists its simulated spots there (#907); a measured pattern lists Index's once it answers.
                 let isSimulation = DemoDocuments.isSimulation(item.url)
                 // Calibrate lists the readout alone; Index and Simulate their spots, with the readout picked beside them (#1044).
@@ -104,7 +101,10 @@ struct DiffractionRoom: View {
                         .frame(height: LayoutPolicy.paneHeaderHeight)
                         Divider()
                     }
-                    if hasSpots && view.lowerTable == .spots {
+                    if strip == .peaks {
+                        // The Powder part lists the powder pattern's peaks (#921), strongest first, with ⌘C.
+                        DiffractionPowderPeakTable(table: DiffractionPowderSection.table(of: item, openItems: appState.openItems))
+                    } else if hasSpots && view.lowerTable == .spots {
                         if isSimulation {
                             DiffractionSpotTable(view: view, rows: SimulationEmptyState.spotRows(of: item, image: image),
                                                  empty: "Add a phase and show the simulated spots to list them.", selectsMarks: false,

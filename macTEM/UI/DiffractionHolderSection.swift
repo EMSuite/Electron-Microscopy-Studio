@@ -4,7 +4,8 @@
 //        (from the file's stage tilts when it has both, else typed), the limits, the tilt axis (typed, or calibrated from another
 //        open indexed pattern of the same crystal), a zone axis near the beam and the sentence for it. The Tilt List CSV is the Export section's (#922).
 //        Presentation only: the numbers are `TiltPlanning`'s over DiffractoKit's holder and zone-axis map. Uncalibrated it says so
-//        and shows no α or β for a zone axis. The zone-axis map (#814) above the picker picks the same `selected` zone axis.
+//        and shows no α or β for a zone axis. The zone-axis map (#814), the calibration's sentence and the tilts to the picked zone
+//        axis are the Zone-axis Map pane beside the pattern (#921, `DiffractionZoneAxisPane`); its click picks the same `selected`.
 //
 
 import ShellInspector
@@ -98,9 +99,6 @@ struct DiffractionHolderSection: View {
             }
             if let refusal = holder.calibrationRefusal { InspectorWarning(refusal) }
             if let plan {
-                InspectorNote(plan.calibrationSentence)
-                DiffractionZoneAxisMap(plan: plan, selected: Binding(get: { holder.selected }, set: { holder.selected = $0 }))
-                    .frame(maxWidth: .infinity)
                 InspectorRow("Zone axis") {
                     Picker("Zone axis", selection: Binding(get: { holder.selected.map(TiltPlanning.zoneText) ?? "" },
                                                            set: { id in holder.selected = plan.rows.first { $0.id == id }?.uvw })) {
@@ -113,7 +111,8 @@ struct DiffractionHolderSection: View {
                     .help("A zone axis near the beam, nearest first: its angle from the beam and, with a calibrated axis, the tilts that bring it on")
                     .accessibilityIdentifier("diffraction.holder.zoneAxis")
                 }
-                if let uvw = holder.selected, let row = plan.row(uvw) { InspectorNote(plan.sentence(for: row)) }
+                // The tilts to the picked zone axis and the map to pick it on are results: the Zone-axis Map pane beside the pattern in
+                // Tilt Plan, the part this section is shown in (#921, #1044).
             } else {
                 InspectorNote("Index the pattern first: the zone axes and the tilts to them are placed from its orientation.")
             }

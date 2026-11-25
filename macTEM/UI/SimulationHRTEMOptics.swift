@@ -5,8 +5,8 @@
 //        the strip plots the kit's transfer function and envelope against spatial frequency and marks the point resolution, the
 //        aperture edge and the phase's strongest spacings. Presentation only; the numbers are SimulatoKit's.
 //
-//        Departure from the brief: the strip sits in the inspector, under the HRTEM section, not in a bottom-bar pane under the
-//        image; the Image room has no such pane, and the strip moves with Defocus in either place.
+//        The strip is a pane under the HRTEM image (#921, `ImagePane`), not an inspector section: a chart is a result (control
+//        placement §1). It moves with Defocus.
 //
 
 import Charts
@@ -77,14 +77,40 @@ struct SimulationMicroscopeSection: View {
     }
 }
 
-/// The transfer function strip under the HRTEM section: it moves with Defocus.
-struct SimulationTransferSection: View {
+/// The transfer function strip under a Simulation document's HRTEM image (#921): the curve of the document's optics at its defocus,
+/// with the phase's strongest spacings within reach; the kit's refusal in its words when it draws none. Nothing for another image, or
+/// once the document is closed.
+struct HRTEMTransferStrip: View {
+    let item: OpenItem
+    @Environment(AppState.self) private var appState
+
+    var body: some View {
+        if DemoDocuments.isHRTEM(item.url), let simulation = appState.simulationDocument(ofHRTEM: item) {
+            let model = simulation.multislice
+            VStack(alignment: .leading, spacing: 4) {
+                Divider()
+                switch Result(catching: { try HRTEMTransferCurve.of(model.optics, defocusNM: model.effectiveDefocusNM) }) {
+                case .success(let curve):
+                    let reach = curve.frequencies.last ?? 0
+                    SimulationTransferChart(curve: curve,
+                                            spacings: simulation.diffraction.strongestSpacings().filter { 10 / $0.d <= reach })
+                case .failure(let error):
+                    InspectorWarning("No transfer function: \(ErrorDetail.text(error))", font: .callout)
+                }
+            }
+        }
+    }
+}
+
+/// The transfer function chart: it moves with Defocus.
+struct SimulationTransferChart: View {
     let curve: HRTEMTransferCurve
     /// The phase's strongest spacings: hkl and d, Å.
     let spacings: [(label: String, d: Double)]
 
     var body: some View {
-        InspectorSection("Transfer Function") {
+        VStack(alignment: .leading, spacing: 2) {
+            Text("Transfer function").font(.callout.weight(.semibold)).foregroundStyle(.secondary)
             Chart {
                 ForEach(curve.frequencies.indices, id: \.self) { i in
                     LineMark(x: .value("Spatial frequency", curve.frequencies[i]), y: .value("Transfer", curve.transfer[i]),

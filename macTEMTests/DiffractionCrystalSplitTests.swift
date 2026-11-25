@@ -24,8 +24,8 @@ nonisolated final class DiffractionCrystalSplitTests: XCTestCase {
         XCTAssertEqual(DiffractionCrystalSplit.defaultCrystalFraction, 1.0 / 3, accuracy: 1e-12)
         XCTAssertEqual(DiffractionCrystalSplit.storageKey, "diffraction.crystalSplit", "the key PaneSplit stored the crystal's share under")
         let room = try squeezed("macTEM/UI/DiffractionRoom.swift")
-        XCTAssertTrue(room.contains("HorizontalPaneSplit(storageKey: DiffractionCrystalSplit.storageKey, defaultFraction: DiffractionCrystalSplit.defaultCrystalFraction, resizeLabel: \"Resize the crystal and the pattern\", leadingName: \"Crystal\""),
-                      "the crystal leads, as before, so the stored share keeps its meaning")
+        XCTAssertTrue(room.contains("HorizontalPaneSplit(storageKey: DiffractionCrystalSplit.storageKey, defaultFraction: DiffractionCrystalSplit.defaultCrystalFraction, resizeLabel: \"Resize the side pane and the pattern\", leadingName: DiffractionPaneWords.title(pane)"),
+                      "the side pane (the crystal in Index and Simulate) leads, as before, so the stored share keeps its meaning")
         XCTAssertFalse(room.contains("PaneSplit(storageKey: \"diffraction.crystalSplit\""))
     }
 
