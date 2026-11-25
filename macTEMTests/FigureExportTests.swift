@@ -76,14 +76,22 @@ nonisolated final class FigureExportTests: XCTestCase {
         XCTAssertTrue(texts.allSatisfy { ($0.size ?? scene.style.typeSize) >= 7 }, "no text under 7 pt")
     }
 
-    /// The options leave out what they say, and an image without a scale has no bar and says so.
-    /// Mutation: the marks drawn with Marks off, or a bar invented for an uncalibrated image - red.
+    /// The options leave out what they say, and an image without a scale gets the PNG's bar in pixels.
+    /// Mutation: the marks or the bar drawn with their option off, or the figure's bar not the PNG's for an uncalibrated image - red.
     func testTheOptionsAndAnUncalibratedImage() throws {
         let bare = try FigureExport.scene(source: source(calibrated: false), display: display(), marks: [distance],
-                                          options: ImageExport.Options(scaleBar: true, marks: false), width: .mm140)
-        XCTAssertTrue(bare.barLeftOut)
+                                          options: ImageExport.Options(scaleBar: false, marks: false), width: .mm140)
+        XCTAssertFalse(bare.barLeftOut)
         XCTAssertEqual(bare.scene.widthMM, 140)
         XCTAssertEqual(bare.scene.layers.count, 1, "the picture alone")
+
+        let pixels = try FigureExport.scene(source: source(calibrated: false), display: display(), marks: [],
+                                            options: ImageExport.Options(scaleBar: true, marks: false), width: .mm140)
+        let plan = try XCTUnwrap(ImageExport.scaleBarPlan(x: nil, y: nil, width: Self.w, height: Self.h))
+        XCTAssertEqual(plan.unit, "px")
+        XCTAssertFalse(pixels.barLeftOut)
+        let texts = pixels.scene.layers.compactMap { layer -> FigureText? in if case .text(let text) = layer { text } else { nil } }
+        XCTAssertEqual(texts.map(\.string), [plan.label], "the PNG's bar, in pixels")
     }
 
     /// A pattern's figure: the rings closed yellow paths, the measured spots red crosses, the simulated spots cyan rings with

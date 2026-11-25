@@ -54,6 +54,6 @@ nonisolated final class RunClockTests: XCTestCase {
     func testTheWindowMarksEachSpectrumRoomsBusyEdges() throws {
         let view = squeezed(try source("macTEM/UI/ContentView.swift"))
         XCTAssertTrue(view.contains(".onChange(of: appState.edx.isBusy, initial: true) { appState.markBusy(.edx, appState.edx.isBusy) }"))
-        XCTAssertTrue(view.contains(".onChange(of: appState.eels.isBusy, initial: true) { appState.markBusy(.eels, appState.eels.isBusy) }"))
+        XCTAssertTrue(view.contains(".onChange(of: appState.isEELSRoomBusy, initial: true) { appState.markBusy(.eels, appState.isEELSRoomBusy) }"))
     }
 }

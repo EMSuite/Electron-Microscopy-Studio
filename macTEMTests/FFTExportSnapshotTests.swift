@@ -240,7 +240,9 @@ nonisolated final class FFTExportSnapshotTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: url) }
         try await spots.write(to: url, leaveOutFileNames: true)
         let text = try String(contentsOf: url, encoding: .utf8)
-        XCTAssertFalse(text.contains((image.fileName as NSString).deletingPathExtension), text)
+        // The name as a word: the validation line's "planted spots" holds the test image's name "plant".
+        let name = NSRegularExpression.escapedPattern(for: (image.fileName as NSString).deletingPathExtension)
+        XCTAssertNil(text.range(of: "\\b\(name)\\b", options: .regularExpression), text)
         XCTAssertEqual(ExportMethods.record(inText: text)?.sources.first?.fileName, "source 1")
     }
 
