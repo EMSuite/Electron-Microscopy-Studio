@@ -66,7 +66,7 @@ struct SimulationCBEDRows: View {
                 OptionalNumericField(title: "Angular step", value: model.settings.angularStepMrad, format: mradFormat, unit: "mrad/px") { new in
                     model.changeSettings { $0.angularStepMrad = new }
                 }
-                .help("The pattern's angle per pixel; it sets the box across (λ over the step: 100 Å for 0.25 mrad at 200 kV)")
+                .help("The pattern's angle per pixel; it sets the box across (λ over the step: 50 Å for 0.5 mrad at 200 kV). Half the step is four times the grid and about seven times the time")
                 .accessibilityIdentifier("diffraction.simulation.cbed.angularStep")
             }
             InspectorRow("Pattern edge") {

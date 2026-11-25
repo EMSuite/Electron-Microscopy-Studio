@@ -26,9 +26,11 @@ import SimulatoCore
 import SimulatoMultislice
 import SimulatoProbe
 
-/// What a CBED run is asked for. The defaults are the design's: 100 nm in steps of 2 nm, 0.25 mrad per pixel, a 50 mrad edge. The
-/// sampling is the kit's rule, the smaller of 0.05 Å and λ / 3β, so at 200 kV it is 0.05 Å whatever the edge: Si [1 1 0]'s 130 Å box
-/// is a 2880 × 2720 grid, about 1.9 GB planned for one stretch between stored planes (#1021).
+/// What a CBED run is asked for. The defaults: 100 nm in steps of 2 nm, 0.5 mrad per pixel, a 50 mrad edge. The sampling is the
+/// kit's rule, the smaller of 0.05 Å and λ / 3β, so at 200 kV it is 0.05 Å whatever the edge, and the grid grows as the square of
+/// the box λ / step: Si [0 0 1] at 0.5 mrad is a 51 Å box on a 1200 × 1200 grid, 200 nm in about 15 s on an M-series Mac; at
+/// 0.25 mrad (the default before #1078) it is 2280 × 2280 and about 7 times slower. 0.5 mrad still puts 26 pixels across a 6.5
+/// mrad disc for the fringes of a two-beam thickness fit; a finer step is typed when a pattern needs it.
 package nonisolated struct CBEDSettings: Sendable, Equatable, Hashable {
     /// The probe's convergence semiangle, mrad; nil is the largest that keeps the discs apart (`CBEDPattern.separatedSemiangle`).
     package var semiangleMrad: Double?
@@ -37,7 +39,7 @@ package nonisolated struct CBEDSettings: Sendable, Equatable, Hashable {
     /// The thickness step between stored patterns, nm.
     package var thicknessStepNM = 2.0
     /// The angular step of the pattern, mrad per pixel: it sets the box across (λ / step).
-    package var angularStepMrad = 0.25
+    package var angularStepMrad = 0.5
     /// The pattern's edge, mrad: the largest angle it shows; the pattern is cropped to it. It enters the sampling (the kit's rule,
     /// the smaller of 0.05 Å and λ / 3β) only past 167 mrad at 200 kV, where λ / 3β falls under 0.05 Å.
     package var edgeMrad = 50.0
@@ -121,6 +123,11 @@ package nonisolated enum CBEDRun {
     package static let squareTolerance = 0.005
     /// Under this width across, a probe overlaps its own periodic copies (the design's chip).
     package static let smallBoxAngstrom = 20.0
+    /// The estimate's constants (`Plan.estimatedSeconds`), fitted to the measured runs (#1078).
+    package static let secondsPerSlicePoint = 3.9e-12
+    package static let setupSecondsPerPoint = 9e-7
+    /// A run estimated past this is refused before it starts (`Plan.longRunSentence`): 15 min.
+    package static let longestSeconds = 900.0
 
     /// The largest semiangle that keeps the discs apart, mrad, rounded down to 0.1: half the angle of the shortest reflection of the
     /// zero-order zone, λ |g| / 2 (Si [1 1 1] at 200 kV: 220, 6.5 mrad).
@@ -148,12 +155,37 @@ package nonisolated enum CBEDRun {
         package let periods: Int
         /// The angular step the box gives along rows and columns, mrad per pixel.
         package let stepMrad: SIMD2<Double>
+        /// The slices of one period along the beam.
+        package let slicesPerPeriod: Int
 
-        /// "Box 100 × 100 Å (18 × 13 units) for 0.25 mrad per pixel · 600 × 600 grid · 50 patterns to 100 nm"
+        /// The slices to the thickest pattern.
+        package var slices: Int { periods * slicesPerPeriod }
+
+        /// The run's time on an M-series Mac, s (#1078): the Metal multislice grows as the grid's points to the 1.5 (the FFTs and
+        /// the memory traffic of a grid past the caches), per slice, plus each stretch's potential built once on the CPU. Fitted to
+        /// the measured runs of Si [0 0 1] to 200 nm on a MacBook Pro (M-series): 107 s on 2280 × 2280, 15.5 s on 1200 × 1200;
+        /// `CBEDPatternTests` pins it to them. A slower Mac takes longer; the toolbar's clock gives the time left as it runs.
+        package var estimatedSeconds: Double {
+            let points = Double(grid.x) * Double(grid.y)
+            return CBEDRun.secondsPerSlicePoint * Double(slices) * points * points.squareRoot() + CBEDRun.setupSecondsPerPoint * points
+        }
+
+        /// "about 15 s", the plan line's time.
+        package var durationWords: String { "about " + HRTEMImage.duration(estimatedSeconds) }
+
+        /// "Box 51.6 × 51.6 Å (10 × 10 units) for 0.49 mrad per pixel · 1200 × 1200 grid · 50 patterns · about 8 s"
         package var sentence: String {
             func n(_ v: Double) -> String { UnitDisplay.number(v, digits: 3) }
             return "Box \(n(box.x)) × \(n(box.y)) Å (\(repeats.x) × \(repeats.y) units) for \(n(max(stepMrad.x, stepMrad.y))) mrad per pixel"
-                + " · \(grid.x) × \(grid.y) grid · \(planePeriods.count) patterns"
+                + " · \(grid.x) × \(grid.y) grid · \(planePeriods.count) patterns · \(durationWords)"
+        }
+
+        /// Why the run is refused before it starts: its estimate is past `CBEDRun.longestSeconds`, a run that would hold the Mac
+        /// for hours with no pattern to look at (#1078); nil otherwise.
+        package var longRunSentence: String? {
+            guard estimatedSeconds > CBEDRun.longestSeconds else { return nil }
+            return "This run would take \(durationWords) on the \(grid.x) × \(grid.y) grid: a coarser angular step or a smaller "
+                + "largest thickness runs faster."
         }
 
         /// "The box is 12 Å wide and repeats; the probe overlaps its own copies." under 20 Å across; nil otherwise.
@@ -186,7 +218,8 @@ package nonisolated enum CBEDRun {
         if planes.last != periods { planes.append(periods) }
         let box = SIMD2(Double(repeats.x) * unit.x, Double(repeats.y) * unit.y)
         return Plan(repeats: repeats, box: box, unitGrid: unitGrid, planePeriods: planes, periods: periods,
-                    stepMrad: SIMD2(lambda / box.x * 1000, lambda / box.y * 1000))
+                    stepMrad: SIMD2(lambda / box.x * 1000, lambda / box.y * 1000),
+                    slicesPerPeriod: max(1, built.slab.sliceThicknesses.count / max(1, built.slab.repeats.z)))
     }
 
     /// The units across (x, y), each side at least `reach` Å, whose two sides agree within `squareTolerance`, the smallest box of

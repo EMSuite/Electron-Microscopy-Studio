@@ -129,14 +129,17 @@ extension AppState {
         return simulation.diffraction.shortestZeroOrderG()
     }
 
-    /// Why the CBED pattern's Simulate cannot run for `simulation`: `cbedRun`'s refusal, an edge that cuts the discs off, another document's
-    /// run. The section and the door read this one.
+    /// Why the CBED pattern's Simulate cannot run for `simulation`: `cbedRun`'s refusal, an edge that cuts the discs off, a run estimated
+    /// past 15 min (`CBEDRun.Plan.longRunSentence`, #1078), another document's run. The section and the door read this one.
     func cbedBlocker(of simulation: OpenItem) -> String? {
         switch cbedRun(of: simulation) {
         case .failure(let refusal): return refusal.sentence
         case .success(let run):
             if let sentence = CBEDRun.edgeSentence(edgeMrad: simulation.cbed.settings.edgeMrad, semiangleMrad: run.key.semiangleMrad,
                                                    shortestG: run.shortestG, volts: run.key.volts) { return sentence }
+            if let sentence = (try? CBEDRun.plan(run.built, settings: simulation.cbed.settings, volts: run.key.volts))?.longRunSentence {
+                return sentence
+            }
             return simulation.cbed.blocker
         }
     }
