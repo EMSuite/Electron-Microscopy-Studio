@@ -49,7 +49,7 @@ scientific=(metadata-parity profile-parity export-parity fft-export-parity sidec
 diagnostic=()                    # never gated
 owner_only=(size-table)          # the owner's own runs
 retired=()                       # kept for history, not run
-support=(crystal-structures sem-readers picture-parity)     # not harnesses
+support=(crystal-structures sem-readers picture-parity cbed-tilt)     # not harnesses
 references=(sem)                 # emits committed reference bundles (Python, Linux CI: .github/workflows/sem-parity.yml); macTEMTests compares
 
 # A near-full disk fakes code regressions (mac4DSTEM, 2026-08-06: three runs, three different spurious failure
