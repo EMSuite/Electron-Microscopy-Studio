@@ -75,7 +75,7 @@ struct SimulationSTEMSection: View {
                 .help("The largest scattering angle the detector collects, in whole mrad; it sets the sampling (20 to 400 mrad)")
                 .accessibilityIdentifier("simulation.stem.collect")
             }
-            runRows(simulation, run: run, volts: volts)
+            runRows(simulation, run: run)
             detectorRows(model, simulation: simulation)
             resultRows(model)
         }
@@ -83,8 +83,8 @@ struct SimulationSTEMSection: View {
 
     /// The plan, Simulate / Stop, the progress and the failure.
     @ViewBuilder
-    private func runRows(_ simulation: OpenItem, run: Result<(key: STEMModel.RunKey, built: SimulationSpecimen.Built, specimen: String), STEMRefusal>,
-                         volts: Double?) -> some View {
+    private func runRows(_ simulation: OpenItem,
+                         run: Result<(key: STEMModel.RunKey, built: SimulationSpecimen.Built, specimen: String), STEMRefusal>) -> some View {
         let model = simulation.stem
         switch run {
         case .failure(let refusal):

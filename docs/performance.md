@@ -15,7 +15,7 @@ the range is under 3 % everywhere except the memory peak of the EDX action (240 
 | Stack: Next to frame 2 shown (24 frames of 128 x 128) | 3.76 s | frame read 0.4 ms | 195 MB | 1.15 s |
 
 Signposts are the median of five intervals inside the app (`Signposts` in `TEMCore`: `fft.spectrum`, `fft.spot`, `fft.find`, `edx.refresh`, `eels.map`,
-`particles.analyse`, `stack.frame`, `open.image`), read by `XCTOSSignpostMetric` beside the clock. The demo documents are small and planted; the
+`particles.analyse`, `stack.frame`, `open.image`, and `diffraction.spots` and `diffraction.index` below), read by `XCTOSSignpostMetric` beside the clock. The demo documents are small and planted; the
 real-data numbers (a 2048 x 2048 image, a full EDX cube) come with the owner's files.
 
 ## Launch and first-picture budgets (2.3)
@@ -34,6 +34,25 @@ unmeasured launch before the five measured ones, so the clock covers reading and
 The baseline comes from one Mac pass (`tools/run-tests.sh ui PerformanceJourney/testLaunchToTheWindow
 PerformanceJourney/testLaunchToTheFirstPictureOfA2048Image PerformanceJourney/testLaunchToTheFirstPictureOfA4096Image`); a later
 pass more than 25 % slower on the same Mac is a regression to explain before a release.
+
+## Diffraction simulation budgets (2.3, #797)
+
+Two budgets from quality bar 1, measured in the release walk on the reference Mac above (release build, the Instruments pass, #594),
+never on a CI runner:
+
+- **A crystal turn** redraws 500 reflections and the crystal view within one frame (16.7 ms). The app's part is the signpost
+  `diffraction.spots` (the simulated spots made again for the new orientation, `DiffractionAnalysis.simulatedSpots`); the crystal
+  view's frame is read from the same trace (Instruments' Hitches or Core Animation frame time while dragging the crystal pane).
+- **Index** answers for one 2048 x 2048 pattern within 2 s: the signpost `diffraction.index` (finding the spots, the indexer and
+  the orientation, off the main actor), with the clock from the click to the verdict in the header beside it.
+
+| Budget (on the reference Mac) | Target | In the app (signpost) | Frame or clock |
+|---|---|---|---|
+| Crystal turn, 500 reflections | 16.7 ms | to come (`diffraction.spots`) | to come |
+| Index, one 2048 x 2048 pattern | 2 s | to come (`diffraction.index`) | to come |
+
+In CI, `DiffractionBudgetSignpostTests` checks only that both signposts fire (once per turn, none for a cached redraw), because a
+shared runner's timing is no budget. A miss on the Mac becomes an issue in the release milestone; the budget is not loosened.
 
 ## How to read these
 
