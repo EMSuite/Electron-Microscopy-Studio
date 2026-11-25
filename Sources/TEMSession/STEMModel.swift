@@ -35,7 +35,7 @@ package final class STEMModel {
         let zoneAxis: SIMD3<Int>
         let thicknessNM: Double
         let maximumStrain: Double
-        let volts: Double
+        package let volts: Double
         let csMM: Double
         let thermal: HRTEMThermal?
         let settings: STEMSettings
