@@ -172,7 +172,7 @@ nonisolated final class FigureExportTests: XCTestCase {
         await state.openDemo(.diffraction)?.value
         let item = try XCTUnwrap(state.openItems.selected)
         let image = try XCTUnwrap(item.session.image)
-        await item.diffractionView.show(image: image, analysis: item.diffraction)
+        await item.diffractionView.show(image: image, generation: item.session.generation, analysis: item.diffraction)
         state.navigation.workspaceArea = .image
         XCTAssertNil(ExportSnapshot.diffractionFigureSnapshot(of: state), "the Image room has its own figure")
         state.navigation.workspaceArea = .diffraction

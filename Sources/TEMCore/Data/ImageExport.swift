@@ -86,6 +86,11 @@ package nonisolated enum ImageExport {
         case spot
         /// One point: a cyan ring at a simulated diffraction spot, its hkl as the label when it has one (the Diffraction room's picture).
         case simulatedSpot
+        /// A closed outline: a ring fitted on a diffraction pattern (its ellipse as a polyline), yellow, its d as the label at the first
+        /// point, as the Diffraction room draws it.
+        case ring
+        /// A closed outline: one edge of the Ring tool's annulus about the pattern's centre, dashed white, never labelled.
+        case annulus
     }
 
     /// One mark of the file, as the Image room draws it.

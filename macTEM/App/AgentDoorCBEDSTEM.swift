@@ -5,7 +5,8 @@
 //        image): dynamical spot intensities (MA8: `set_dynamical`, `read_dynamical`), the CBED pattern with its thickness series
 //        (MA9: `set_cbed`, `run_cbed`, `stop_cbed`, `read_cbed`), two-beam CBED thickness on the pattern shown (MA15:
 //        `measure_thickness`, `read_thickness`, `use_measured_thickness`) and the STEM image with its detector bands (MA10:
-//        `set_stem`, `run_stem`, `stop_stem`, `read_stem`).
+//        `set_stem`, `run_stem`, `stop_stem`, `read_stem`). The atom model as the specimen (MA14) and the abTEM script are
+//        AgentDoorAtomModel.swift's (`set_atom_model`, `read_atom_model`, `get_abtem_script`).
 //
 //        ONE SOURCE PER FACT: every change goes through the intent the section's control calls (`SimulationModel.setDynamical` and
 //        `setThicknessIndex`, `AppState.computeHRTEMImage` as the Simulation section's task, `CBEDModel`'s setters and
@@ -24,7 +25,7 @@ import TEMCore
 import TEMSession
 
 extension MacTEMAgentDoor {
-    static var cbedSTEMTools: [AgentTool] { dynamicalTools + cbedTools + thicknessTools + stemTools }
+    static var cbedSTEMTools: [AgentTool] { dynamicalTools + cbedTools + thicknessTools + stemTools + atomModelTools }
 
     private static func refused(_ words: String) -> AgentToolOutput { .refusal(status: 409, message: words) }
 

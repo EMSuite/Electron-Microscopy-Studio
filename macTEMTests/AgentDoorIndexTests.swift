@@ -12,6 +12,7 @@ import Foundation
 import ShellAgentDoor
 import ShellLayout
 import DiffractoCore
+import FormatoCore
 import TEMCore
 import TEMSession
 import XCTest
@@ -58,6 +59,24 @@ nonisolated final class AgentDoorIndexTests: XCTestCase {
         let result = try XCTUnwrap(answer["result"] as? [String: Any], String(decoding: data, as: UTF8.self))
         let content = (result["content"] as? [[String: Any]])?.first
         return (result["isError"] as? Bool ?? false, (content?["text"] as? String) ?? "", content?["type"] as? String == "image")
+    }
+
+    /// get_diffraction_picture's PNG; nil when it refused.
+    @MainActor private func picture() async throws -> Data? {
+        guard case .listening(let port) = door.status else { throw XCTSkip("door not open") }
+        var request = URLRequest(url: try XCTUnwrap(URL(string: "http://127.0.0.1:\(port)/mcp")))
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(door.token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: [
+            "jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": ["name": "get_diffraction_picture", "arguments": [String: Any]()],
+        ])
+        let (data, _) = try await session.data(for: request)
+        let answer = try XCTUnwrap(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let result = try XCTUnwrap(answer["result"] as? [String: Any], String(decoding: data, as: UTF8.self))
+        guard !(result["isError"] as? Bool ?? false), let content = (result["content"] as? [[String: Any]])?.first,
+              content["type"] as? String == "image", let base64 = content["data"] as? String else { return nil }
+        return Data(base64Encoded: base64)
     }
 
     @MainActor private func json(_ text: String) throws -> [String: Any] {
@@ -137,7 +156,7 @@ nonisolated final class AgentDoorIndexTests: XCTestCase {
         let simulation = try XCTUnwrap(try json(shown.text)["simulation"] as? [String: Any])
         XCTAssertFalse(try XCTUnwrap(simulation["spots"] as? [[String: Any]]).isEmpty, "\(simulation)")
 
-        await item.diffractionView.show(image: image, analysis: item.diffraction)
+        await item.diffractionView.show(image: image, generation: item.session.generation, analysis: item.diffraction)
         let picture = try await call("get_diffraction_picture")
         XCTAssertFalse(picture.refused, picture.text)
         XCTAssertTrue(picture.image)
@@ -196,6 +215,69 @@ nonisolated final class AgentDoorIndexTests: XCTestCase {
         let refused = try await call("simulate_pattern", ["excitation_error": 5])
         XCTAssertTrue(refused.refused, "outside 0.001 to 1")
         XCTAssertEqual(analysis.simulation.excitationError, 0.01)
+    }
+
+    /// #1003: the picture is the pattern shown now, with the room's display. A CBED item's pixels replaced at the same size (another
+    /// stored thickness) and the Log switch each give another picture, with the room never drawn on screen. Red before: the door
+    /// refused while the room had not drawn the pattern, and once it had, it drew that first canvas whatever pixels or Log followed.
+    @MainActor func testThePictureFollowsNewPixelsOfTheSameSizeAndTheLogSwitch() async throws {
+        let state = AppState(launch: LaunchOptions(arguments: []))
+        keep.append(state)
+        door.enroll(state) { [weak state] in state.map { MacTEMAgentDoor.summary(of: $0) } ?? [:] }
+        let url = DemoDocuments.cbedURL(of: URL(fileURLWithPath: "/macTEM-demo/Simulation 1"))
+        await state.open(urls: [url])?.value
+        try await waitUntil("the CBED item to open", seconds: 30) { state.openItems.selected?.session.image != nil }
+        let item = try XCTUnwrap(state.openItems.selected)
+        XCTAssertTrue(DemoDocuments.isCBED(item.url))
+        state.selectWorkspace(.diffraction)
+        let placeholder = try XCTUnwrap(item.session.image)
+
+        /// A disc of `radius` px at the centre over a faint floor: another thickness' pattern, the same size.
+        func pattern(radius: Double) -> CalibratedImage {
+            let w = placeholder.width, h = placeholder.height
+            let pixels = (0 ..< w * h).map { i -> Float in
+                let r = Double(i / w) - Double(h) / 2, c = Double(i % w) - Double(w) / 2
+                return (r * r + c * c).squareRoot() <= radius ? 100 : 1
+            }
+            return CalibratedImage(width: w, height: h, pixels: pixels, x: placeholder.x, y: placeholder.y, fileName: placeholder.fileName,
+                                   source: placeholder.source, voltage: placeholder.voltage)
+        }
+        func show(_ image: CalibratedImage) {
+            state.openItems.showComputed(item, OpenedImage(image: image, canvas: AppState.canvas(for: image), metadata: AcquisitionMetadata(),
+                                                           url: item.url, thumbnail: nil, bookmark: nil))
+        }
+
+        show(pattern(radius: 6))
+        let thin = try await picture()
+        XCTAssertNotNil(thin, "the door draws the pattern although the room never did")
+        show(pattern(radius: 20))
+        let thick = try await picture()
+        XCTAssertNotNil(thick)
+        XCTAssertNotEqual(thin, thick, "new pixels of the same size are another picture")
+        XCTAssertTrue(item.diffractionView.showsCanvas(generation: item.session.generation))
+
+        item.diffractionView.useLog.toggle()
+        XCTAssertFalse(item.diffractionView.showsCanvas(generation: item.session.generation), "a Log switch needs another canvas")
+        let linear = try await picture()
+        XCTAssertNotNil(linear)
+        XCTAssertNotEqual(linear, thick, "the Log switch is another picture")
+        XCTAssertEqual(item.diffractionView.presentation.canvas, CanvasPixels.pattern(image: pattern(radius: 20), log: item.diffractionView.useLog))
+    }
+
+    /// #1003: the fitted rings and the annulus are drawn as the room draws them, under the marked spots and over the simulated ones.
+    func testThePictureDrawsTheAnnulusAndTheFittedRings() {
+        let simulated = [ZoneAxisOverlay.Spot(hkl: MillerIndex(1, 1, 1), row: 3, column: 4, intensity: 1, relative: 1)]
+        let ring = DiffractionPicture.Ring(points: [ImagePoint(x: 10, y: 0), ImagePoint(x: 0, y: 10), ImagePoint(x: -10, y: 0)],
+                                           label: "d 2.355 Å · {111}")
+        let marked = [MeasuredSpot(clickRow: 5, clickColumn: 6, row: 5.2, column: 6.1, radius: nil, refusal: nil)]
+        let marks = DiffractionPicture.marks(annulus: DiffractionPicture.Annulus(centre: ImagePoint(x: 32, y: 30), inner: 28, outer: 40),
+                                             rings: [ring], spots: marked, simulated: simulated, labels: false)
+        XCTAssertEqual(marks.map(\.kind), [.simulatedSpot, .annulus, .annulus, .ring, .spot])
+        XCTAssertEqual(marks[1].points.count, DiffractionPicture.annulusPoints)
+        XCTAssertEqual(marks[1].points[0].x, 60, accuracy: 1e-12, "the inner edge 28 px right of the centre")
+        XCTAssertEqual(marks[2].points[0].x, 72, accuracy: 1e-12, "the outer edge 40 px right of the centre")
+        XCTAssertEqual(marks[3].points, ring.points)
+        XCTAssertEqual(marks[3].label, "d 2.355 Å · {111}")
     }
 
     func testThePictureDrawsTheSimulatedSpotsUnderTheMarkedOnes() {

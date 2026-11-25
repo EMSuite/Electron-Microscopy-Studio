@@ -24,7 +24,9 @@
 //  THE FOLDER: the sandbox grants the file the person picked. An `.emi` is read with its `.ser` files, whose names are not its own
 //  (`name_1.ser` beside `name.emi`), so they cannot be asked for as related items (`RelatedFileAccess`): the Open asks for the
 //  folder once (`FolderGrants`, as for a NORDIF scan), and without it the `.emi` is refused in a sentence that says so
-//  (`unreadableSeriesRefusal`). A `.ser` is never refused for its `.emi`: it opens alone.
+//  (`unreadableSeriesRefusal`). A `.ser` is never refused for its `.emi`: when the sandbox refuses the `.emi` beside it
+//  (`emiOpenError`), the Open asks for the folder once too and routes the `.ser` again inside the grant (#955); declined, it
+//  opens alone.
 //
 
 import Foundation
@@ -179,6 +181,20 @@ package nonisolated enum TIAImageReader {
             if code != 0 && code != ENOENT { return code }
         }
         return nil
+    }
+
+    /// Why the `.emi` of a `.ser`'s acquisition (`emiBeside`) cannot be opened: its `errno` when it is there and does not open
+    /// (EPERM is the sandbox's), nil when it opens, when none is there, for an `.emi`, and for a `.ser` whose name has no `.emi`
+    /// (#955). The `.emi` is opened, not asked after with `fileExists` (as `seriesOpenError`).
+    package static func emiOpenError(_ url: URL) -> Int32? {
+        guard url.pathExtension.lowercased() == "ser", let emi = emiBeside(ser: url) else { return nil }
+        let code: Int32 = emi.path.withCString { path in
+            let probe = Darwin.open(path, O_RDONLY | O_NONBLOCK)
+            guard probe >= 0 else { return errno }
+            _ = Darwin.close(probe)
+            return 0
+        }
+        return code != 0 && code != ENOENT ? code : nil
     }
 
     /// The sentence for an `.emi` whose `.ser` files macOS does not let the app open, or nil.
