@@ -24,6 +24,7 @@
 import ShellControls
 import ShellLayout
 import ShellMetal
+import ShellSpectroscopy
 import SwiftUI
 import ImagoCore
 import TEMCore
@@ -51,9 +52,12 @@ struct DiffractionRoom: View {
             DiffractionHeader(item: item, analysis: analysis, view: view)
             // The crystal beside the pattern (#790), down the same beam: one orientation drives both. It appears once simulated spots
             // are drawn (before, the pattern has the room), unless View > Hide Crystal hid it (#789); the divider's place is the
-            // window's (`PaneSplit`'s scene storage).
+            // window's (the split's scene storage). The crystal takes a third and the pattern, the data, two thirds until the person
+            // drags it (#1046, `DiffractionCrystalSplit`); a place dragged in an earlier version is kept.
             if view.showsCrystal && analysis.simulation.isShown {
-                PaneSplit(storageKey: "diffraction.crystalSplit", resizeLabel: "Resize the crystal and the pattern", leadingName: "Crystal") {
+                HorizontalPaneSplit(storageKey: DiffractionCrystalSplit.storageKey, defaultFraction: DiffractionCrystalSplit.defaultCrystalFraction,
+                                    resizeLabel: "Resize the crystal and the pattern", leadingName: "Crystal",
+                                    minimumLeading: LayoutPolicy.imagePaneMinimum, minimumTrailing: LayoutPolicy.imagePaneMinimum) {
                     // A Simulation document draws the slab its multislice runs on (#897).
                     DiffractionCrystalPane(analysis: analysis, showsUnitCell: view.showsUnitCell,
                                            slab: DemoDocuments.isSimulation(item.url)
@@ -460,7 +464,7 @@ private struct DiffractionPatternPane: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .padding(8)
+        // No margin: the pattern is fitted to the pane's whole width and height, centred (#1046).
         // The pattern's keyboard: a stack's frames, and the spot cursor's keys in the Spot tool.
         .modifier(DiffractionKeyedPane(keys: patternKeys))
         // The pane going (another file, another room) leaves the readout naming a point of a pattern that is not shown: it goes until the
@@ -980,5 +984,23 @@ nonisolated enum DiffractionValueFormat {
     /// A row's d to five decimals, "2,03910"; "" for a row that has none.
     static func spacing(_ d: Double?, locale: Locale = .autoupdatingCurrent) -> String {
         d.map { Num.fixed($0, 5, locale: locale) } ?? ""
+    }
+}
+
+/// The crystal pane's share of the centre beside the pattern (#1046): a third, so the pattern, the data, has two thirds. The split keeps
+/// the key it had under `PaneSplit`, whose stored value was the crystal's share too, so a place dragged in an earlier version is read
+/// back and only the default changes. Pure.
+nonisolated enum DiffractionCrystalSplit {
+    static let storageKey = "diffraction.crystalSplit"
+    static let defaultCrystalFraction = 1.0 / 3
+
+    /// The pattern's side, points, in a centre `width` × `height` (the header row, the dividers and the table strip already taken
+    /// off the height): the crystal pane takes `crystalFraction` of the width less the divider, held to `minimumPane` each side as
+    /// the split holds it, and the square pattern is the smaller of what is left across and the height. No margin.
+    static func patternSide(width: CGFloat, height: CGFloat, crystalFraction: Double, minimumPane: CGFloat) -> CGFloat {
+        let usable = max(width - 1, 1)
+        let limits = HorizontalPaneSplit<EmptyView, EmptyView>.bounds(usable: usable, minimumLeading: minimumPane, minimumTrailing: minimumPane)
+        let crystal = (usable * min(max(CGFloat(crystalFraction), limits.smallest), limits.largest)).rounded()
+        return max(min(usable - crystal, height), 0)
     }
 }
