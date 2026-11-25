@@ -82,8 +82,9 @@ struct DiffractionRoom: View {
                 }
                 if hasSpots && view.lowerTable == .spots {
                     if isSimulation {
-                        DiffractionSpotTable(view: view, rows: item.simulatedSpotRows(image: image), showsDynamical: item.dynamicalBeams != nil,
-                                             empty: "Add a phase and show the simulated spots to list them.", selectsMarks: false)
+                        DiffractionSpotTable(view: view, rows: item.simulatedSpotRows(image: image),
+                                             empty: "Add a phase and show the simulated spots to list them.", selectsMarks: false,
+                                             showsDynamical: item.dynamicalBeams != nil)
                     } else {
                         DiffractionSpotTable(view: view, rows: analysis.indexSpotRows)
                     }
