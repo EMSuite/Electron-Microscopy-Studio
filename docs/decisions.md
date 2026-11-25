@@ -620,3 +620,16 @@ header; a server that is not connected gets Locate… only (Connect, which mount
 
 **What would reverse it.** Two files that share their size and both ends taken for one (then the whole file is hashed, at the
 cost of a pass over a gigabyte scan).
+
+## 2026-11-25 — The toolbar's second button is Export (#1048)
+
+**What.** The slot beside the verb (`ShellToolbar(documentMenu:)`) holds Export, a menu with a primary action: a click runs the
+room's main export (⇧⌘E's Export Figure… in the Image and Diffraction rooms, else the first item the room's File menu lists), the
+chevron lists the room's exports through the File menu's own view (`RoomExportItems`), and it is off with its reason while the room
+holds no document. The Image menu that repeated File > Open Image… and Close Image is gone, and with it #629's departure.
+
+**Why.** Paul's pick in the design review of 25 Nov 2026: exporting the figure follows every result, and HIG Toolbars puts the
+commands people use most there, each also in the menu bar. In full screen with the menu bar hidden, #629's reason for the old
+menu, ⌘O and ⌘W still work and the welcome screen has Open.
+
+**Reverse it.** Put `ImageMenu` back in `ContentView` as the `documentMenu` and its row back in `AgentDoorCoverage`.

@@ -566,7 +566,7 @@ nonisolated enum AgentDoorCoverage {
         "simulation.thermal.sigma.\\(z)": .tool("set_simulation"),
         "simulation.thermal.simulate": .tool("run_simulation"),
         "simulation.thermal.stop": .tool("stop_run"),
-        "toolbar.datasetMenu": .personOnly(openCloseReason),
+        "toolbar.export": .personOnly(exportReason),
         "howToCite": .personOnly(citeReason),
         "howToCite.copyBibTeX": .personOnly(citeReason),
         "howToCite.copyText": .personOnly(citeReason),
