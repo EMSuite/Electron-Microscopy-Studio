@@ -83,6 +83,11 @@ extension MacTEMAgentDoor {
         var orientation: [[Double]]
         var showsUnitCell: Bool
         var pixels: Int
+
+        // Written out (not synthesized) so the unused-code scan sees each field read.
+        static func == (a: Key, b: Key) -> Bool {
+            a.scene == b.scene && a.orientation == b.orientation && a.showsUnitCell == b.showsUnitCell && a.pixels == b.pixels
+        }
     }
 
     private static var drawn: (key: Key, png: Data?)?
