@@ -12,7 +12,6 @@ import XCTest
 import DiffractoCore
 import SimulatoCore
 import TEMCore
-@testable import macTEM
 
 nonisolated final class AbTEMScriptTests: XCTestCase {
 

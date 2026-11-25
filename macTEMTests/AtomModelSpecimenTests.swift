@@ -11,7 +11,6 @@ import XCTest
 import SimulatoCore
 import TEMCore
 import TEMSession
-@testable import macTEM
 
 nonisolated final class AtomModelSpecimenTests: XCTestCase {
 

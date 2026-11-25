@@ -145,7 +145,9 @@ package final class SimulationModel {
 
     private struct ModelSlabKey: Hashable {
         let identity: String
+        // periphery:ignore - read by the synthesized == (and hash)
         let axis: AtomModelSpecimen.BeamAxis
+        // periphery:ignore - read by the synthesized == (and hash)
         let thermal: Bool
     }
 
