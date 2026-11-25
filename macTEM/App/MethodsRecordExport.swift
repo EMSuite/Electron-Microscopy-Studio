@@ -109,25 +109,22 @@ enum MethodsRecordExport {
     /// bytes, the EDS spectrum image by its summed spectrum and shape (a lazy cube is read from its file). Read once per file as it is
     /// on disk now (`prepare`).
     struct SlowSource {
-        /// The file by its path, size and modification date, so a file replaced at the same path is read again.
+        /// The file by its path, size and modification date (`key(_:room:name:shape:)`).
         let key: Key
         let read: @Sendable () async -> MethodsRecord.Source?
     }
 
-    nonisolated struct Key: Hashable, Sendable {
-        let path: String
-        let byteCount: Int
-        let modified: Date
+    /// A file's key: its room, path, size and modification date in one string, so a file replaced at the same path is read again.
+    typealias Key = String
 
-        /// The key of the file at `path` as it is on disk now. A source with no file to look at (a cube made in memory, a file
-        /// gone) is keyed by its name and shape alone.
-        static func of(_ path: String, room: String, name: String, shape: [Int]) -> Key {
-            guard !path.isEmpty, let attributes = try? FileManager.default.attributesOfItem(atPath: path),
-                  let size = attributes[.size] as? Int, let modified = attributes[.modificationDate] as? Date else {
-                return Key(path: "\(room):memory:\(name):\(shape)", byteCount: 0, modified: .distantPast)
-            }
-            return Key(path: room + ":" + path, byteCount: size, modified: modified)
+    /// The key of the file at `path` as it is on disk now. A source with no file to look at (a cube made in memory, a file gone) is
+    /// keyed by its name and shape alone.
+    nonisolated static func key(_ path: String, room: String, name: String, shape: [Int]) -> Key {
+        guard !path.isEmpty, let attributes = try? FileManager.default.attributesOfItem(atPath: path),
+              let size = attributes[.size] as? Int, let modified = attributes[.modificationDate] as? Date else {
+            return "\(room):memory:\(name):\(shape)"
         }
+        return "\(room):\(path):\(size):\(modified.timeIntervalSinceReferenceDate)"
     }
 
     /// The sources read, and the reads running: one read per file at a time. A failure is remembered only to say so; the next
@@ -143,22 +140,22 @@ enum MethodsRecordExport {
             guard let document = appState.ebsd.document, let url = document.url else { return nil }
             let dataset = document.dataset, fileName = document.fileName
             let shape = [dataset.scanColumns, dataset.scanRows, dataset.patternColumns, dataset.patternRows]
-            return SlowSource(key: .of(url.path, room: "ebsd", name: fileName, shape: shape)) { fileSource(url, fileName: fileName, kind: "EBSD patterns", shape: shape) }
+            return SlowSource(key: key(url.path, room: "ebsd", name: fileName, shape: shape)) { fileSource(url, fileName: fileName, kind: "EBSD patterns", shape: shape) }
         case .maps:
             guard let document = appState.maps.document, let url = document.url else { return nil }
             let fileName = document.fileName, kind = MapsRoomState.sourceKind(document.source), shape = [document.columns, document.rows]
-            return SlowSource(key: .of(url.path, room: "maps", name: fileName, shape: shape)) { fileSource(url, fileName: fileName, kind: kind, shape: shape) }
+            return SlowSource(key: key(url.path, room: "maps", name: fileName, shape: shape)) { fileSource(url, fileName: fileName, kind: kind, shape: shape) }
         case .eels:
             guard let loaded = appState.eels.source else { return nil }
             let image = loaded.image
-            return SlowSource(key: .of(loaded.filePath, room: "eels", name: loaded.fileName, shape: [image.nx, image.ny, image.channels])) {
+            return SlowSource(key: key(loaded.filePath, room: "eels", name: loaded.fileName, shape: [image.nx, image.ny, image.channels])) {
                 await ExportSnapshot.eelsSource(loaded)
             }
         case .edx:
             guard let source = appState.edx.source else { return nil }
             let metadata = source.metadata
             let shape = [source.nx, source.ny, source.channels]
-            return SlowSource(key: .of(metadata.filePath, room: "eds", name: metadata.fileName, shape: shape)) {
+            return SlowSource(key: key(metadata.filePath, room: "eds", name: metadata.fileName, shape: shape)) {
                 guard let sum = try? source.sum(mask: nil, cancelled: { false }, progress: nil) else { return nil }
                 // The summed spectrum and the shape: a weaker identity than the file's bytes, and the kind says so.
                 let values = sum.map(Double.init) + shape.map(Double.init)
