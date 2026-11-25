@@ -53,10 +53,6 @@ extension LayoutPolicy {
     static let mapsInsetSide: CGFloat = 120
     /// The kinematical master pattern's picture in the Simulation section: wide enough to read its zone axes (rule 4).
     static let overlayMasterPictureWidth: CGFloat = 180
-    /// One stereogram or ODF section in the Maps room's Pole figures and ODF tabs (its title and colour bar under it).
-    static let mapsTextureFigureSide: CGFloat = 150
-    /// An ODF φ₂ section's width: three times wider than tall (φ₁ over 0–360°, Φ over 0–90° for cubic), it read as a strip at 150 pt.
-    static let mapsODFSectionWidth: CGFloat = 240
     /// The colour bar under a texture figure, and the boundary and trace line widths on the map (points).
     static let mapsColourBarHeight: CGFloat = 8
     static let mapsBoundaryLineWidth: CGFloat = 1

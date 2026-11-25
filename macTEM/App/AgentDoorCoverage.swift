@@ -407,6 +407,7 @@ nonisolated enum AgentDoorCoverage {
         "maps.slip.traces": .tool("set_maps"),
         "maps.source": .tool("set_maps"),
         "maps.source.stale": .tool("get_maps"),
+        "maps.texture.caption": .tool("get_maps"),
         "maps.texture.compute": .tool("set_maps"),
         "maps.texture.empty": .tool("get_maps"),
         "maps.texture.phase": .tool("set_maps"),

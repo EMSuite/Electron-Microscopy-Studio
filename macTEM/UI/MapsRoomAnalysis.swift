@@ -143,23 +143,13 @@ struct MapsResultsPane: View {
             HStack {
                 // Full width, as every segmented control (control-placement §3, #629): MacEMUI's `SegmentedControl`, because a
                 // segmented `Picker` keeps its own width whatever frame it is given (the drive of 16 Nov saw it stay 480 pt and centred).
-                // Beside it only the tab's one choice.
+                // Alone in its row, so the tabs keep their width whichever is chosen (#1060): a tab's one choice (the histogram's
+                // kind, the texture's phase) is on that tab's own header line.
                 SegmentedControl(label: "Results", segments: MapsResultsTab.allCases.map { .title($0.rawValue) },
                                  selection: Binding(get: { MapsResultsTab.allCases.firstIndex(of: state.resultsTab) ?? 0 },
                                                     set: { if MapsResultsTab.allCases.indices.contains($0) { state.resultsTab = MapsResultsTab.allCases[$0] } }))
                     .frame(maxWidth: .infinity)
                     .accessibilityIdentifier("maps.results.tabs")
-                if state.resultsTab == .poleFigures || state.resultsTab == .odf {
-                    MapsTexturePhasePicker(session: session)
-                }
-                if state.resultsTab == .histogram {
-                    Picker("Histogram of", selection: $state.histogramKind) {
-                        ForEach(MapAnalysis.HistogramKind.allCases, id: \.self) { Text($0.rawValue).tag($0) }
-                    }
-                    .fixedSize()
-                    .help("KAM of every point, or GOS or the equivalent circle diameter of every grain")
-                    .accessibilityIdentifier("maps.histogram.kind")
-                }
             }
             .padding(.horizontal, 10)
             .padding(.top, 6)
@@ -172,11 +162,11 @@ struct MapsResultsPane: View {
                 case .histogram: MapsHistogramPane(session: session, state: state)
                 }
             }
-            .frame(maxWidth: .infinity, minHeight: 0, maxHeight: .infinity, alignment: .topLeading)   // science: the figures may be cut
+            .frame(maxWidth: .infinity, minHeight: 0, maxHeight: .infinity, alignment: .topLeading)   // science: the figures fit (#1060)
         }
         // The tabs stay at the top of the pane whatever its height: centred, they moved with each tab's content and, with the Output pane
         // open, a figure taller than the pane pushed them out of view (drive 2026-11-08). The minimum height of 0 keeps a tall figure from
-        // moving the split; it is cut at its foot instead.
+        // moving the split; the texture figures size themselves to the pane (`MapsTextureLayout`, #1060).
         .frame(maxWidth: .infinity, minHeight: 0, maxHeight: .infinity, alignment: .top)   // science: no minimum, never a size
         .clipped()
     }
@@ -332,20 +322,39 @@ struct MapsTextureFigures: View {
         Group {
             if let texture = session.texture {
                 let figures = odf ? texture.odfSections : texture.poleFigures + (texture.inversePoleFigure.map { [$0] } ?? [])
-                ScrollView(.horizontal) {
-                    HStack(alignment: .top, spacing: 16) {
-                        let selected = session.selectedRows.filter { $0.phaseID == texture.phaseID }.map(\.orientation)
-                        ForEach(Array(figures.enumerated()), id: \.offset) { index, figure in
-                            MapsTextureFigureCell(figure: figure, odf: odf, markers: MapTexture.poleMarkers(figure, orientations: selected))
-                                .accessibilityIdentifier("maps.\(odf ? "odf" : "pole").\(index)")
+                let selected = session.selectedRows.filter { $0.phaseID == texture.phaseID }.map(\.orientation)
+                let aspect = figures.map { CGFloat($0.raster.height) / CGFloat(max($0.raster.width, 1)) }.max() ?? 1
+                VStack(alignment: .leading, spacing: 0) {
+                    // The tab's own header line (#1060): the phase, when the map has more than one.
+                    MapsTexturePhasePicker(session: session)
+                        .padding(.horizontal, MapsTextureLayout.padding).padding(.top, 6)
+                    // The figures take the pane's size, aspect kept, in as many columns as make them largest; the caption wraps under
+                    // them (#1060: at a fixed 150 pt the strip cut their lower third and the caption mid-word).
+                    GeometryReader { proxy in
+                        let arrangement = MapsTextureLayout.arrangement(count: figures.count, aspect: aspect, in: proxy.size)
+                        ScrollView(.vertical) {
+                            VStack(alignment: .leading, spacing: MapsTextureLayout.spacing) {
+                                Grid(alignment: .topLeading, horizontalSpacing: MapsTextureLayout.spacing, verticalSpacing: MapsTextureLayout.spacing) {
+                                    ForEach(Array(stride(from: 0, to: figures.count, by: arrangement.columns)), id: \.self) { start in
+                                        GridRow {
+                                            ForEach(start..<min(start + arrangement.columns, figures.count), id: \.self) { index in
+                                                MapsTextureFigureCell(figure: figures[index], odf: odf, side: arrangement.side,
+                                                                      markers: MapTexture.poleMarkers(figures[index], orientations: selected))
+                                                    .accessibilityIdentifier("maps.\(odf ? "odf" : "pole").\(index)")
+                                            }
+                                        }
+                                    }
+                                }
+                                Text(verbatim: MapsRoomFormat.textureCaption(texture, odf: odf))
+                                    .font(.caption).foregroundStyle(.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .accessibilityIdentifier("maps.texture.caption")
+                            }
+                            .padding(MapsTextureLayout.padding)
                         }
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(verbatim: MapsRoomFormat.textureCaption(texture, odf: odf))
-                                .font(.caption).foregroundStyle(.secondary)
-                                .frame(width: LayoutPolicy.mapsTextureFigureSide, alignment: .leading)
-                        }
+                        .scrollBounceBehavior(.basedOnSize)
                     }
-                    .padding(10)
                 }
             } else if session.isTexturing {
                 ProgressView("Computing the texture…").controlSize(.small).frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -367,17 +376,68 @@ struct MapsTextureFigures: View {
     }
 }
 
+/// How the Pole figures and ODF tabs fit their figures to the pane (#1060): every figure the same width, aspect kept, in the number of
+/// columns that makes them largest while all of them, each with its title, colour bar and maximum, and the caption under them fit the
+/// pane. Below `minimumSide` they keep that width and the pane scrolls. Pure, so a test pins it.
+nonisolated enum MapsTextureLayout {
+    /// Between two figures, and around them.
+    static let spacing: CGFloat = 16
+    static let padding: CGFloat = 10
+    /// A figure's lines besides its picture: the title, the colour bar and the maximum, with the gaps between them.
+    static let cellChrome: CGFloat = 16 + 4 + 8 + 4 + 14
+    /// The caption under the figures: three lines of caption text.
+    static let captionReserve: CGFloat = 48
+    /// A figure narrower than this is not read; the pane scrolls instead.
+    static let minimumSide: CGFloat = 64
+    /// A figure wider than this gains nothing.
+    static let maximumSide: CGFloat = 360
+
+    struct Arrangement: Equatable {
+        let columns: Int
+        /// Each figure's width; its picture is `side × aspect` tall.
+        let side: CGFloat
+    }
+
+    /// The largest arrangement of `count` figures, each `aspect` times as tall as wide, that fits `size`.
+    static func arrangement(count: Int, aspect: CGFloat, in size: CGSize) -> Arrangement {
+        guard count > 0 else { return Arrangement(columns: 1, side: minimumSide) }
+        var best = Arrangement(columns: 1, side: 0)
+        for columns in 1...count {
+            let rows = rowCount(count, columns: columns)
+            let byWidth = (size.width - 2 * padding - CGFloat(columns - 1) * spacing) / CGFloat(columns)
+            let pictures = size.height - 2 * padding - captionReserve - spacing - CGFloat(rows - 1) * spacing - CGFloat(rows) * cellChrome
+            let byHeight = pictures / CGFloat(rows) / max(aspect, 0.01)
+            let side = min(byWidth, byHeight, maximumSide)
+            if side > best.side { best = Arrangement(columns: columns, side: side) }
+        }
+        return best.side >= minimumSide ? best : Arrangement(columns: best.columns, side: minimumSide)
+    }
+
+    /// The size the figures and the caption take in `arrangement`, padding included.
+    static func contentSize(count: Int, aspect: CGFloat, arrangement: Arrangement) -> CGSize {
+        let rows = rowCount(count, columns: arrangement.columns)
+        let columns = min(arrangement.columns, max(count, 1))
+        return CGSize(width: 2 * padding + CGFloat(columns) * arrangement.side + CGFloat(columns - 1) * spacing,
+                      height: 2 * padding + CGFloat(rows) * (arrangement.side * aspect + cellChrome) + CGFloat(rows - 1) * spacing
+                          + spacing + captionReserve)
+    }
+
+    private static func rowCount(_ count: Int, columns: Int) -> Int { (max(count, 1) + columns - 1) / columns }
+}
+
 struct MapsTextureFigureCell: View {
     let figure: MapTexture.Figure
     let odf: Bool
+    /// The figure's width, from `MapsTextureLayout` (#1060).
+    let side: CGFloat
     /// The selected grains' poles in the figure's unit square (macTEM#239), drawn as rings over the density.
     var markers: [SIMD2<Double>] = []
 
     var body: some View {
-        let side = odf ? LayoutPolicy.mapsODFSectionWidth : LayoutPolicy.mapsTextureFigureSide
         let aspect = CGFloat(figure.raster.height) / CGFloat(max(figure.raster.width, 1))
         VStack(alignment: .leading, spacing: 4) {
             Text(verbatim: figure.title).font(.caption).lineLimit(1)
+                .frame(width: side, alignment: .leading)
             if let image = MapsFigure.textureImage(figure.raster) {
                 Image(decorative: image, scale: 1)
                     .resizable()
@@ -405,6 +465,8 @@ struct MapsTextureFigureCell: View {
             MapsColourBar()
                 .frame(width: side, height: LayoutPolicy.mapsColourBarHeight)
             Text(verbatim: "0 to \(MapsRoomFormat.number(figure.maximum)) MRD").font(.caption2.monospacedDigit()).foregroundStyle(.secondary)
+                .lineLimit(1)
+                .frame(width: side, alignment: .leading)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(figure.title), maximum \(MapsRoomFormat.number(figure.maximum)) multiples of random"
@@ -418,7 +480,7 @@ struct MapsTextureFigureCell: View {
 /// with each selected grain's value ticked under the bars. Bars in the accent colour, counts on the left, the range under them.
 struct MapsHistogramPane: View {
     let session: OrientationMapSession
-    let state: MapsRoomState
+    @Bindable var state: MapsRoomState
 
     var body: some View {
         Group {
@@ -428,9 +490,19 @@ struct MapsHistogramPane: View {
                 let ticks = session.selectedRows.compactMap { analysis.histogramValue(kind, of: $0) }
                 let unit = kind == .grainSize ? EBSDBrowsing.unitLabel(analysis.scanUnit) : "°"
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(verbatim: MapsRoomFormat.histogramCaption(kind, histogram: histogram, unit: unit))
-                        .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
-                        .accessibilityIdentifier("maps.histogram.caption")
+                    // The tab's own header line (#1060): what the bars count, then their caption; in the tab row it changed the tabs' width.
+                    HStack(spacing: 8) {
+                        Picker("Histogram of", selection: $state.histogramKind) {
+                            ForEach(MapAnalysis.HistogramKind.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                        }
+                        .fixedSize()
+                        .help("KAM of every point, or GOS or the equivalent circle diameter of every grain")
+                        .accessibilityIdentifier("maps.histogram.kind")
+                        Text(verbatim: MapsRoomFormat.histogramCaption(kind, histogram: histogram, unit: unit))
+                            .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                            .lineLimit(1).truncationMode(.tail)
+                            .accessibilityIdentifier("maps.histogram.caption")
+                    }
                     Canvas { context, size in
                         let counts = histogram.counts
                         guard let top = counts.max(), top > 0, let low = histogram.edges.first, let high = histogram.edges.last, high > low else { return }
