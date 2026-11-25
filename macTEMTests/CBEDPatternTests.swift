@@ -33,11 +33,11 @@ nonisolated final class CBEDPatternTests: XCTestCase {
     func testThePlanNamesTheBoxForTheAngularStep() throws {
         let built = try SimulationSpecimen.build(CrystalPresets.silicon, zoneAxis: SIMD3(1, 1, 1), thicknessNM: 2).get()
         let plan = try CBEDRun.plan(built, settings: CBEDSettings(), volts: 200_000)
-        let reach = 0.025079 / 0.00025
+        let reach = 0.025079 / (CBEDSettings().angularStepMrad / 1000)
         XCTAssertGreaterThanOrEqual(plan.box.x, reach * 0.999)
         XCTAssertGreaterThanOrEqual(plan.box.y, reach * 0.999)
         XCTAssertLessThanOrEqual(abs(plan.box.x - plan.box.y) / max(plan.box.x, plan.box.y), CBEDRun.squareTolerance)
-        XCTAssertLessThanOrEqual(max(plan.stepMrad.x, plan.stepMrad.y), 0.25 + 1e-9)
+        XCTAssertLessThanOrEqual(max(plan.stepMrad.x, plan.stepMrad.y), CBEDSettings().angularStepMrad + 1e-9)
         XCTAssertEqual(plan.planePeriods, plan.planePeriods.sorted())
         XCTAssertEqual(Set(plan.planePeriods).count, plan.planePeriods.count)
         XCTAssertEqual(plan.planePeriods.last, plan.periods)
@@ -49,6 +49,36 @@ nonisolated final class CBEDPatternTests: XCTestCase {
         XCTAssertNil(plan.smallBoxSentence)
         XCTAssertNoThrow(try CBEDRun.checkPlan(plan, built: built, settings: CBEDSettings(), volts: 200_000,
                                                limits: SimulationLimits(memoryBudget: 8 << 30, largestBuffer: 8 << 30)))
+    }
+
+    /// The estimate before a run (#1078) against the runs measured on the Mac runner (an M-series MacBook Pro, the Metal path):
+    /// Si [0 0 1] to 200 nm, 2208 slices, 100 patterns, took 107 s on 2280 × 2280 (0.25 mrad) and 15.5 s on 1200 × 1200 (0.5
+    /// mrad, the default). The estimate is within a quarter of each, the plan line names it, the default run is a pattern in well
+    /// under a minute, and a run past 15 min is refused in a sentence before it starts. Red before: the plan named no time and the
+    /// default 0.25 mrad grid took 107 s, which a 0.1 mrad step turned into hours without a word. Mutation: the time linear in the
+    /// grid's points; the slices left out; the refusal never made.
+    func testTheEstimateMatchesTheMeasuredRunsAndALongRunIsRefused() throws {
+        let built = try SimulationSpecimen.build(CrystalPresets.silicon, zoneAxis: SIMD3(0, 0, 1), thicknessNM: 150).get()
+        func plan(step: Double, largest: Double = 200) throws -> CBEDRun.Plan {
+            var settings = CBEDSettings()
+            settings.angularStepMrad = step
+            settings.largestThicknessNM = largest
+            return try CBEDRun.plan(built, settings: settings, volts: 200_000)
+        }
+        let fine = try plan(step: 0.25), coarse = try plan(step: CBEDSettings().angularStepMrad)
+        XCTAssertEqual(fine.grid, SIMD2(2280, 2280))
+        XCTAssertEqual(coarse.grid, SIMD2(1200, 1200))
+        XCTAssertEqual(fine.slices, coarse.slices)
+        XCTAssertEqual(fine.estimatedSeconds, 106.76, accuracy: 106.76 / 4)
+        XCTAssertEqual(coarse.estimatedSeconds, 15.46, accuracy: 15.46 / 4)
+        XCTAssertTrue(coarse.sentence.hasSuffix(" · 1200 × 1200 grid · 100 patterns · about 16 s"), coarse.sentence)
+        XCTAssertNil(fine.longRunSentence)
+        XCTAssertNil(coarse.longRunSentence)
+        let long = try plan(step: 0.1, largest: 500)
+        XCTAssertGreaterThan(long.estimatedSeconds, CBEDRun.longestSeconds)
+        let sentence = try XCTUnwrap(long.longRunSentence)
+        XCTAssertTrue(sentence.hasPrefix("This run would take about "), sentence)
+        XCTAssertTrue(sentence.hasSuffix("grid: a coarser angular step or a smaller largest thickness runs faster."), sentence)
     }
 
     /// Of the pairs within 0.5 %, the smallest box: a 1 × √2 unit to at least 10 Å. Mutation: the first pair found kept; the
