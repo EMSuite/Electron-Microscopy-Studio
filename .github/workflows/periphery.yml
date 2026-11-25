@@ -3,7 +3,7 @@
 # No --retain-public: an app has no outside consumers.
 # Weekly: keeps one open issue, "Periphery weekly scan", up to date with the findings. Findings are for triage; nothing is
 # deleted here.
-# On a pull request that touches Swift: the same scan without the findings .periphery-baseline.json records (triaged and
+# On a pull request that touches Swift and carries the label `periphery`: the same scan without the findings .periphery-baseline.json records (triaged and
 # kept) and without Codable properties. A finding that is left is new: it is annotated on the PR and the job fails (since
 # macEM#332; a warning only before). GitHub keeps only 10 annotations per step and its log shows the warnings without
 # their files, so the job also lists every new finding with its file, line and column: as a table in the job summary
@@ -30,7 +30,10 @@ on:
         type: boolean
         required: false
         default: false
+  # On a pull request only with the label `periphery` (added, or present when the PR's Swift changes): the scan holds one of
+  # GitHub's five shared macOS runners for about 15 minutes, and on 25 Nov three of them kept ten `unit` jobs waiting (#1056).
   pull_request:
+    types: [opened, synchronize, reopened, labeled]
     paths: ["**.swift", ".periphery-baseline.json", ".github/workflows/periphery.yml"]
 
 permissions:
@@ -76,7 +79,7 @@ jobs:
 
   new-findings:
     name: New unused code
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'periphery')
     runs-on: macos-26
     timeout-minutes: 60
     permissions:
