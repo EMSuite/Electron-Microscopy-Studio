@@ -118,7 +118,7 @@ nonisolated final class InspectorFileIOTests: XCTestCase {
             }
         }
         let inspector = try FFTRoomWiringTests.squeezedUI("DiffractionRoomInspector.swift")
-        XCTAssertTrue(inspector.contains(": DiffractionReadoutExport.write(text, imageFileName: image.fileName, into: directory)"))
+        XCTAssertTrue(inspector.contains(": DiffractionReadoutExport.write(text, imageFileName: fileName, into: directory)"))
         XCTAssertTrue(inspector.contains("defaultFilename: exportName) { result in"))
     }
 
