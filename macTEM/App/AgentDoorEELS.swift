@@ -237,7 +237,7 @@ extension MacTEMAgentDoor {
         answer["alignment"] = AgentJSON.orNull(session.alignmentReadout)
         answer["thickness_line"] = EELSRoomFormat.thicknessLine(session.plot?.thickness, lambdaNM: session.map?.meanFreePathNM,
                                                                 lambdaSource: EELSRoomFormat.lambdaSource(session.meanFreePath),
-                                                                locale: Locale(identifier: "en_US_POSIX"))
+                                                                onlyCoreLoss: session.onlyCoreLoss, locale: Locale(identifier: "en_US_POSIX"))
         answer["methods"] = EELSLiterature.tooltip
         return .json(answer)
     }

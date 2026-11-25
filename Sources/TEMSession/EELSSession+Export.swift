@@ -25,7 +25,7 @@ extension EELSSession {
         guard !rows.isEmpty, let plot else { return nil }
         let posix = Locale(identifier: "en_US_POSIX")
         let thickness = EELSRoomFormat.thicknessLine(plot.thickness, lambdaNM: map?.meanFreePathNM, lambdaSource: EELSRoomFormat.lambdaSource(meanFreePath),
-                                                     locale: Locale(identifier: "en_US_POSIX"))
+                                                     onlyCoreLoss: onlyCoreLoss, locale: Locale(identifier: "en_US_POSIX"))
         return EELSExports.resultsCSV(rows, fileName: fileName, regionName: plot.regionName, thickness: thickness, method: recordedFitFooter,
                                       deconvolution: modelDeconvolution.map(Self.deconvolutionRecord),
                                       quality: resultQuality.map { EELSRoomFormat.fitQuality($0, locale: posix) })
