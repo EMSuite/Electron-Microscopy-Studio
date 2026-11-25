@@ -229,6 +229,8 @@ package final class SimulationModel {
             let key = ModelSlabKey(identity: atomModel.identity, axis: axis, thermal: lateral != nil)
             guard modelSlabs[key] == nil else { continue }
             let result = await offMainActor { atomModel.build(beamAlong: axis, lateralSize: lateral) }
+            // A cancelled build (the axis or model changed before this task ran) is no result: the next build makes the slab.
+            guard !Task.isCancelled else { return }
             modelSlabs[key] = result
             modelSlabsRevision += 1
         }
