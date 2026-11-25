@@ -57,6 +57,13 @@ package nonisolated enum CrystalPaneModel {
         try? CrystalOrientation(matrix: simd_double3x3(columns: (-v.columns.1, v.columns.0, v.columns.2)))
     }
 
+    /// The orientation matrix the simulated spots are drawn with (`CrystalOrientation.matrix`: columns lab x, y, z in the crystal
+    /// frame), row by row, as the agent door gives it.
+    package static func rows(_ orientation: CrystalOrientation) -> [[Double]] {
+        let m = orientation.matrix
+        return (0..<3).map { [m.columns.0[$0], m.columns.1[$0], m.columns.2[$0]] }
+    }
+
     /// VoiceOver's words for the pane: "Au, zone axis [001]", or "Au, zone axis [001], tilted 2.1°" past 0.05°.
     package static func label(phase: String, orientation: CrystalOrientation, cell: UnitCell) -> String {
         guard let near = orientation.nearestZoneAxis(cell: cell) else { return phase }
