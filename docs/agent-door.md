@@ -85,6 +85,10 @@ Behind "Let agents run analyses". Each goes through the entry point its control 
 | `set_phase_lattice` | sets a library phase's free lattice parameters (DiffractoKit's `editingLattice`: tied ones follow, a change of Laue class is refused); the Diffraction room takes the edit when it shows the phase |
 | `set_simulation` | the Simulation document's settings through its sections' controls: the library phase and zone axis, thickness and Build with Strain, defocus or Scherzer and the thickness shown, voltage, optics preset, Cs, spreads, aperture, field of view, frozen phonons with σ and configurations, Place Beside (the measured image, layout, rotation, inset size) |
 | `run_simulation` | Show HRTEM Image and its run: the static lattice's exit waves, or Simulate and Continue with frozen phonons; `stop_run` stops it and keeps the configurations done |
+| `set_relationship` | the Precipitate section: the precipitate, its two parallel pairs, which variants are shown, the overlay, double diffraction with the matrix; answers the variants, their groups and the sentences |
+| `powder_pattern` | the Powder section (rings or X-ray, the line, the range or reach, a phase to compare with, overlap marks); writes the peak table CSV or the .xy profile into the Agent folder |
+| `find_phases` | the Find Phases sheet: Fit scale, Rank (answers at once, `running` until it lands) and Use in Room; answers the ranked rows, their sentences and the ties |
+| `plan_tilt` | the Holder section: the tilts now, the limits, the tilt axis typed, forgotten or calibrated from another open pattern, a zone axis picked on the map; writes the Tilt List CSV into the Agent folder |
 | `select_grains` | selects grains as the grain table does, or none |
 
 The EDS tools are EMSuiteUI's `EDXAgentTools`, written once and registered by both apps.

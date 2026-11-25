@@ -1,7 +1,6 @@
 //
 //  DiffractionRoomInspector.swift
-//  Role: the Diffraction room's Settings (design section 3): Centre, Calibration, Display, Tools, Phases, Index, Simulation, a Simulation document's Specimen, Rings,
-//        Export (control placement §2:
+//  Role: the Diffraction room's Settings (design section 3): Centre, Calibration, Display, Tools, Phases, Index, Holder, Simulation, a Simulation document's Specimen, Crystal View, Precipitate, Powder, Rings, Export (control placement §2:
 //        what I am looking at, then the job; Centre stays above Calibration, which it feeds). Presentation only;
 //        the state is `DiffractionAnalysis` and every number DiffractoKit's. Every field commits on Return or blur
 //        (`OptionalNumericField`), every control has an accessibility identifier for the journey.
@@ -30,10 +29,14 @@ struct DiffractionRoomSettings: View {
             DiffractionCalibrationSection(session: item.session, analysis: analysis, view: view)
             DiffractionDisplaySection(view: view)
             DiffractionToolsSection(view: view)
-            DiffractionPhasesSection(analysis: analysis)
+            DiffractionPhasesSection(item: item, analysis: analysis)
             DiffractionIndexSection(analysis: analysis)
+            DiffractionHolderSection(item: item)
             DiffractionSimulationSection(session: item.session, analysis: analysis)
             if DemoDocuments.isSimulation(item.url) { SimulationSpecimenSection(item: item) }
+            DiffractionCrystalViewSection(view: view)
+            DiffractionPrecipitateSection(item: item)
+            DiffractionPowderSection(item: item)
             DiffractionRingsSection(session: item.session, analysis: analysis, view: view)
             DiffractionExportSection(session: item.session, analysis: analysis)
         }
@@ -149,9 +152,11 @@ private struct DiffractionCalibrationSection: View {
 /// one phase is shown at a time and is the crystal Index, the readout and the simulated spots use; with none shown the room uses
 /// its calibration standard. The library is on this Mac, so a phase added once works offline.
 private struct DiffractionPhasesSection: View {
+    let item: OpenItem
     let analysis: DiffractionAnalysis
     @State private var adding = false
     @State private var importing = false
+    @State private var findingPhases = false
     @State private var addModel = AddPhaseModel(library: PhaseServices.library, client: PhaseServices.client,
                                                 keyStore: PhaseServices.keyStore)
     private var library: PhaseLibrary { PhaseServices.library }
@@ -171,6 +176,9 @@ private struct DiffractionPhasesSection: View {
                 Button("Add Phase…") { adding = true }
                     .help("Find a phase on the Materials Project, or open a CIF. Until a phase is shown, the room indexes against \(analysis.standard.name), the calibration standard.")
                     .accessibilityIdentifier("diffraction.phases.add")
+                Button("Find Phases…") { findingPhases = true }
+                    .help("Ranks the room's standards and the open crystals by how many of the measured rings or marked spots each explains")
+                    .accessibilityIdentifier("diffraction.findPhases")
             }
             if let why = analysis.crystalFailure { InspectorWarning(why) }
             InspectorRow("k_max") {
@@ -181,6 +189,7 @@ private struct DiffractionPhasesSection: View {
             }
         }
         .task { await PhaseServices.loadLibrary() }
+        .sheet(isPresented: $findingPhases) { DiffractionFindPhasesSheet(item: item) }
         .sheet(isPresented: $adding) {
             AddPhaseSheet(model: addModel, onOpenCIF: { importing = true }) { phase in
                 DiffractionPhases.set(phase, shown: true, in: analysis)
@@ -324,6 +333,24 @@ private struct DiffractionIndexSection: View {
             draft = nil
         } else {
             refused = "\"\(text)\" is not a zone axis: type three whole numbers, not all 0, such as [1 1 0] or 1̄10."
+        }
+    }
+}
+
+/// The crystal pane beside the pattern (#789): the unit cell's edges. The pane is shown or hidden from View > Show Crystal, a
+/// layout choice, not a setting.
+private struct DiffractionCrystalViewSection: View {
+    let view: DiffractionViewState
+
+    var body: some View {
+        InspectorSection("Crystal View") {
+            InspectorRow("Unit cell") {
+                Toggle("Show unit cell", isOn: Binding(get: { view.showsUnitCell }, set: { view.showsUnitCell = $0 }))
+                    .toggleStyle(.switch).labelsHidden()
+                    .disabled(!view.showsCrystal)
+                    .help("Draw the unit cell's edges in the crystal pane")
+                    .accessibilityIdentifier("diffraction.crystal.unitCell")
+            }
         }
     }
 }

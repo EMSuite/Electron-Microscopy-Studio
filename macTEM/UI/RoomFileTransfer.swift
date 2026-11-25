@@ -18,7 +18,7 @@ struct RoomExportFile: FileDocument {
     static var readableContentTypes: [UTType] {
         var types: [UTType] = [.png, .json, .commaSeparatedText, .plainText]
         let kinds = PatternsExportKind.allCases.map(\.contentType) + IndexingExportKind.allCases.map(\.contentType)
-            + EELSExportKind.allCases.map(\.contentType)
+            + EELSExportKind.allCases.map(\.contentType) + [DiffractionPowderExport.xyType]
         for type in kinds where !types.contains(type) { types.append(type) }
         return types
     }
