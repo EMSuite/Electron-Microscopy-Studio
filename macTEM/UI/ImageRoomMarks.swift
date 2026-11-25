@@ -88,6 +88,8 @@ struct ImageMarksOverlay: View {
     @Environment(AppState.self) private var appState
     /// A press here gives the room's keyed container the keyboard (`ImageKeyedRoom`), for the mark cursor's keys and Escape.
     @Environment(\.imageRoomFocus) private var roomFocus
+    /// Increase Contrast thickens the marks (#799).
+    @Environment(\.colorSchemeContrast) private var contrast
 
     /// A press this close to a mark's end, in points, drags that end.
     static let handleRadius: CGFloat = 6
@@ -245,7 +247,7 @@ struct ImageMarksOverlay: View {
             // Selected: the accent colour AND a heavier stroke, so colour is never the only difference (an accent
             // colour can be yellow).
             let colour: Color = shown.isSelected ? .accentColor : .yellow
-            let line: CGFloat = shown.isSelected ? 2.25 : 1.5
+            let line = OverlaySignal.width(shown.isSelected ? 2.25 : 1.5, increasedContrast: contrast == .increased)
             let screen = shown.points.map(geometry.panePoint(of:))
             if shown.kind == .profile, shown.width > 1, screen.count == 2 {
                 band(context: &context, screen[0], screen[1], width: CGFloat(shown.width) * geometry.pointsPerPixel,

@@ -1,3 +1,4 @@
+import ShellHelp
 import ShellLayout
 import SwiftUI
 import TEMCore
@@ -195,10 +196,31 @@ nonisolated enum OpeningStatus {
 /// The canvas before any image: the app's name, its door, and the demo data beside it for someone with no file at hand.
 struct WelcomeWorkspace: View {
     @Environment(AppState.self) private var appState
+    @Environment(\.openWindow) private var openWindow
+    @Environment(\.appearsActive) private var appearsActive
+    private let crash = CrashReportOffer.shared
 
     var body: some View {
         ScrollView {
             VStack(spacing: 28) {
+                // After a crash or a hang: one line offering the report, until it is dismissed (#801).
+                if crash.isOffered {
+                    HStack(spacing: 10) {
+                        Label(CrashReportOffer.line, systemImage: "exclamationmark.bubble")
+                            .font(.callout)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Button("Report a Problem…") { openWindow(id: FeedbackWindow.id) }
+                            .accessibilityIdentifier("welcome.crashReport.report")
+                        Button("Dismiss") { crash.dismiss() }
+                            .accessibilityIdentifier("welcome.crashReport.dismiss")
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
+                    .frame(maxWidth: LayoutPolicy.readableWidth)
+                    .accessibilityElement(children: .contain)
+                    .accessibilityIdentifier("welcome.crashReport")
+                }
                 VStack(spacing: 12) {
                     Image(systemName: "circle.dotted")
                         .font(.system(size: 54, weight: .light))
@@ -230,10 +252,62 @@ struct WelcomeWorkspace: View {
                     .help("Open a demo document in its room")
                     .accessibilityIdentifier("welcome.tryDemo")
                 }
+                recentList
+                Text(WelcomeRecents.dropHint)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
             }
             .padding(.horizontal, 36)
             .padding(.vertical, 44)
             .frame(maxWidth: .infinity)
+        }
+        // macOS hands the report over a little after the launch: read the folder again whenever the window comes forward.
+        .onChange(of: appearsActive) { _, active in if active { crash.refresh() } }
+    }
+
+    /// The files File > Open Recent lists, each opened by a click (#802); nothing while there are none.
+    @ViewBuilder private var recentList: some View {
+        let entries = appState.recents.entries
+        let rows = WelcomeRecents.rows(paths: entries.map(\.path), titles: entries.map { appState.recents.title(of: $0) })
+        if !rows.isEmpty {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Recent")
+                    .font(.headline)
+                    .foregroundStyle(.secondary)
+                    .accessibilityAddTraits(.isHeader)
+                VStack(spacing: 0) {
+                    // The rows are made from `entries` in its order, so a row's offset is its entry's.
+                    ForEach(Array(rows.enumerated()), id: \.element.path) { index, row in
+                        let entry = entries[index]
+                        if index > 0 { Divider() }
+                        Button { appState.openRecent(entry) } label: {
+                            HStack(spacing: 10) {
+                                Image(systemName: "doc")
+                                    .foregroundStyle(.secondary)
+                                    .accessibilityHidden(true)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(row.title).lineLimit(1).truncationMode(.middle)
+                                    Text(row.folder).font(.callout).foregroundStyle(.secondary).lineLimit(1).truncationMode(.head)
+                                }
+                                Spacer(minLength: 0)
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .help(row.path)
+                        .accessibilityLabel("Open \(row.title)")
+                        .accessibilityHint("in \(row.folder)")
+                        .accessibilityIdentifier("welcome.recent.\(index)")
+                    }
+                }
+                .background(.quaternary.opacity(0.35), in: RoundedRectangle(cornerRadius: 8))
+                .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(.separator))
+            }
+            .frame(maxWidth: LayoutPolicy.readableWidth)
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("welcome.recent")
         }
     }
 }

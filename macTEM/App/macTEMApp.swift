@@ -1,4 +1,5 @@
 // Adapted from mac4DSTEM (mac4DSTEM/App/mac4DSTEMApp.swift).
+import ShellHelp
 import ShellLayout
 import TEMCore
 import ShellControls
@@ -323,6 +324,8 @@ private struct ImageCommands: Commands {
             .disabled(!MenuActionRelay.isEnabled(
                 hasFocusedWindow: appState != nil,
                 blocked: appState?.imageSession.isLoading == true))
+            // The app's citation and the room in front's references (#828).
+            Button("How to Cite") { openWindow(id: HowToCiteWindow.id) }
         }
     }
 
@@ -365,6 +368,20 @@ struct macTEMApp: App {
     #endif
     private static let isUITesting = LaunchOptions().isUITesting
 
+    /// What Report a Problem names: the support page, the project's address and repository, and which build this is.
+    static var helpLinks: HelpLinks {
+        #if SPARKLE
+        let channel = DistributionChannel.website
+        #elseif DEBUG
+        let channel = DistributionChannel.development
+        #else
+        let channel = DistributionChannel.appStore
+        #endif
+        return HelpLinks(appName: AppName.display, support: URL(string: "https://mac4dstem.com/support.html")!,
+                         destination: FeedbackDestination(address: "mail@mac4dstem.com", repository: "EMSuite/Electron-Microscopy-Studio"),
+                         channel: channel)
+    }
+
     var body: some Scene {
         WindowGroup(AppName.display, id: "image") {
             ImageWindow(menuRelay: menuRelay, windows: windows, recents: recents, lastSession: lastSession)
@@ -399,6 +416,11 @@ struct macTEMApp: App {
                 .environment(softwareUpdate)
                 #endif
         }
+        // Report a Problem (EMSuiteUI's ShellHelp): the report and its diagnostics summary, sent from the person's own mail app or
+        // browser; the welcome canvas opens it after a crash (#801). Never opened at launch.
+        FeedbackWindow(Self.helpLinks)
+        // Help > How to Cite (#828); never opened at launch.
+        HowToCiteWindow(windows: windows)
         // The Particles view's object table, beside the image (ImageRoomParticles.swift); never opened at launch.
         Window("Objects", id: ParticleTableWindow.id) { ObjectsWindow(windows: windows) }
             .defaultLaunchBehavior(.suppressed)

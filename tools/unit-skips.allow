@@ -39,3 +39,9 @@ SEMGrainParityTests.testFiguresF11AndF12GrainsKAMAndGOSOfTheTiMap	sem-data	figur
 SEMTextureParityTests.testFigureF13OnTheTiMap	sem-data	figure F13 on orix-data's whole Ti map, References/sem-data/orix/Ti_orientations.ctf (fetch-data.sh)
 VeloxAcquisitionReadTests.testAVeloxFileNowReadsMagnificationCameraLengthExposureAndMode	real-data	the Velox example files under References/mac4DSTEM/velox-parity, which no repository commits
 FFTRoomWiringTests.testTheViewMenusFaceIsThePlainNameOfTheViewShown	appkit	macOS 27 draws SwiftUI's menu Picker without an NSPopUpButton; macos-26 (main, the nightly) still reads the face (#959)
+RoomSnapshotTests.testEDSRoomEmpty	snapshots	compared only where SNAPSHOTS=1 is set (CI's unit job on the org's Mac runner); elsewhere they skip
+RoomSnapshotTests.testEELSRoomEmpty	snapshots	compared only where SNAPSHOTS=1 is set (CI's unit job on the org's Mac runner); elsewhere they skip
+RoomSnapshotTests.testImageRoomEmpty	snapshots	compared only where SNAPSHOTS=1 is set (CI's unit job on the org's Mac runner); elsewhere they skip
+RoomSnapshotTests.testIndexingRoomEmpty	snapshots	compared only where SNAPSHOTS=1 is set (CI's unit job on the org's Mac runner); elsewhere they skip
+RoomSnapshotTests.testMapsRoomEmpty	snapshots	compared only where SNAPSHOTS=1 is set (CI's unit job on the org's Mac runner); elsewhere they skip
+RoomSnapshotTests.testPatternsRoomEmpty	snapshots	compared only where SNAPSHOTS=1 is set (CI's unit job on the org's Mac runner); elsewhere they skip

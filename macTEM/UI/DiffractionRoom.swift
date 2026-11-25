@@ -675,9 +675,13 @@ private struct DiffractionOverlay: View {
     let rows: [DiffractionReadoutRow]
     let layout: DiffractionLayout
     let drag: (Double, Double)?
+    /// Increase Contrast thickens the overlay lines (#799).
+    @Environment(\.colorSchemeContrast) var contrast
 
     var body: some View {
         let centre = analysis.centre
+        let high = contrast == .increased
+        let line = OverlaySignal.width(1.5, increasedContrast: high)
         let rings = analysis.rings
         let spots = analysis.spots
         let labels = Dictionary(uniqueKeysWithValues: rows.map { ($0.id, label(for: $0)) })
@@ -689,7 +693,7 @@ private struct DiffractionOverlay: View {
                 var cross = Path()
                 cross.move(to: CGPoint(x: c.x - 8, y: c.y)); cross.addLine(to: CGPoint(x: c.x + 8, y: c.y))
                 cross.move(to: CGPoint(x: c.x, y: c.y - 8)); cross.addLine(to: CGPoint(x: c.x, y: c.y + 8))
-                ctx.stroke(cross, with: .color(.white), lineWidth: 1.5)
+                ctx.stroke(cross, with: .color(.white), lineWidth: line)
                 let (inner, outer) = drag ?? (view.annulusInner, view.annulusOuter)
                 for r in [inner, outer] {
                     let rect = CGRect(x: c.x - CGFloat(r) * ppp, y: c.y - CGFloat(r) * ppp, width: 2 * CGFloat(r) * ppp, height: 2 * CGFloat(r) * ppp)
@@ -705,7 +709,9 @@ private struct DiffractionOverlay: View {
                     if i == 0 { path.move(to: q) } else { path.addLine(to: q) }
                 }
                 path.closeSubpath()
-                ctx.stroke(path, with: .color(ring.isCalibrating ? .orange : .yellow), lineWidth: 1.5)
+                // The calibrating ring is dashed as well as orange (#799).
+                let signal = OverlaySignal.diffractionRing(calibrating: ring.isCalibrating)
+                ctx.stroke(path, with: .color(ring.isCalibrating ? .orange : .yellow), style: StrokeStyle(lineWidth: line, dash: signal.dash))
                 if let text = labels[ring.id], let first = points.first {
                     let at = point(column: first.x, row: first.y)
                     ctx.draw(Text(text).font(.caption).foregroundStyle(.white), at: CGPoint(x: at.x + 6, y: at.y - 8), anchor: .leading)
@@ -717,7 +723,7 @@ private struct DiffractionOverlay: View {
                 var cross = Path()
                 cross.move(to: CGPoint(x: p.x - 6, y: p.y - 6)); cross.addLine(to: CGPoint(x: p.x + 6, y: p.y + 6))
                 cross.move(to: CGPoint(x: p.x - 6, y: p.y + 6)); cross.addLine(to: CGPoint(x: p.x + 6, y: p.y - 6))
-                ctx.stroke(cross, with: .color(.red), lineWidth: 1.5)
+                ctx.stroke(cross, with: .color(.red), lineWidth: line)
                 if let text = labels[spot.id] { ctx.draw(Text(text).font(.caption).foregroundStyle(.white), at: CGPoint(x: p.x + 8, y: p.y - 6), anchor: .leading) }
             }
         }
