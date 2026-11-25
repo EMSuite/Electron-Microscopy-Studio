@@ -14,6 +14,7 @@
 import Foundation
 import DiffractoCore
 import DiffractoGeometry
+import DiffractoScattering
 
 package nonisolated enum ZoneAxisText {
     /// [u v w] from what a person types: three integers separated by spaces or commas, inside [ ] or not, or three digits run
@@ -102,12 +103,14 @@ package nonisolated enum ZoneAxisOverlay {
         package let hkl: MillerIndex
         package let row: Double
         package let column: Double
-        /// The kit's intensity (|F|² with the excitation envelope), Å⁻⁴.
+        /// The kit's intensity (|F|² with the excitation envelope), Å⁻⁴; for a dynamical pattern the beam's, a fraction of the
+        /// incident beam (#911).
         package let intensity: Double
         /// The intensity over the strongest drawn spot's, 0...1 (0 for a spot of double diffraction).
         package let relative: Double
         /// A spot double diffraction adds (#786): g₁ + g₂ where the kinematical pattern has none (a forbidden reflection). It has
-        /// no intensity (kinematical theory gives none) and is drawn as an open ring.
+        /// no intensity (kinematical theory gives none) and is drawn as an open ring. In a dynamical pattern (#911) it is a beam the
+        /// multislice gives where the kinematical pattern has none, with its intensity, drawn the same way.
         package let isDoubleDiffraction: Bool
         package var label: String { ZoneAxisText.label(hkl) }
         package init(hkl: MillerIndex, row: Double, column: Double, intensity: Double, relative: Double, isDoubleDiffraction: Bool = false) {
@@ -143,6 +146,17 @@ package nonisolated enum ZoneAxisOverlay {
             if let indexed { return indexed }
             return try CrystalOrientation(zoneAxis: zoneAxis, inPlaneAngle: inPlaneDegrees * .pi / 180, cell: cell)
         }
+    }
+
+    /// Whether `orientation`'s beam runs along `zoneAxis` (within 1e−9 of the cosine, about 0.003°): a turn about the beam and Flip
+    /// keep it along; a tilt or the antiparallel axis does not. What Dynamical's beams need, as they are those of the exact axis (#911).
+    package static func isAlong(_ orientation: CrystalOrientation, zoneAxis: SIMD3<Int>, cell: UnitCell) -> Bool {
+        let a = cell.realLattice, u = SIMD3<Double>(zoneAxis)
+        let direction = u.x * a[0] + u.y * a[1] + u.z * a[2]
+        let beam = orientation.beamDirection
+        let lengths = (direction * direction).sum().squareRoot() * (beam * beam).sum().squareRoot()
+        guard lengths > 0 else { return false }
+        return (direction * beam).sum() / lengths >= 1 - 1e-9
     }
 
     // MARK: Turning by hand (#787)
@@ -182,8 +196,12 @@ package nonisolated enum ZoneAxisOverlay {
 
     /// The spots of `simulator` at `settings`' zone axis and turn, at `volts`, that land on a `width` × `height` image about
     /// `centre`, strongest first. Throws the kit's refusal (a zone axis with no length in the cell, a voltage).
+    ///
+    /// With `dynamical` (#911) the spots are the multislice's zone-axis beams at its thickness instead, each at the place the
+    /// orientation puts its g: a beam the kinematical pattern also has is a spot, one it has not (a forbidden reflection made by
+    /// double diffraction) an open ring, and a beam below `DynamicalBeams.drawnFraction` of the strongest is left out.
     package static func spots(simulator: SpotPatternSimulator, settings: Settings, volts: Double, calibration: DiffractionCalibration,
-                              centre: DiffractionCentre, width: Int, height: Int) throws -> [Spot] {
+                              centre: DiffractionCentre, width: Int, height: Int, dynamical: DynamicalBeams? = nil) throws -> [Spot] {
         let orientation = try settings.orientation(cell: simulator.structure.cell)
         let scale = settings.scale.isFinite && settings.scale > 0 ? settings.scale : 1
         let pattern = try simulator.pattern(orientation: orientation, volts: volts, settings: settings.patternSettings)
@@ -196,6 +214,25 @@ package nonisolated enum ZoneAxisOverlay {
             guard row.isFinite, column.isFinite, row >= -0.5, row <= Double(height) - 0.5, column >= -0.5, column <= Double(width) - 0.5
             else { return nil }
             return (row, column)
+        }
+        if let dynamical {
+            let cell = simulator.structure.cell
+            // Forbidden is "|F| under the kit's cut within its k_max", not "outside the drawn pattern": the excitation envelope and
+            // the tilt also leave allowed beams out of `pattern.spots`, and those are no double diffraction.
+            let allowed = Set(simulator.reflections.map(\.structureFactor.hkl))
+            func forbidden(_ hkl: MillerIndex) -> Bool { !allowed.contains(hkl) && cell.gLength(hkl) <= simulator.kMax }
+            let floor = (dynamical.intensities.values.max() ?? 0) * DynamicalBeams.drawnFraction
+            var placed: [(hkl: MillerIndex, row: Double, column: Double, intensity: Double)] = []
+            for (hkl, intensity) in dynamical.intensities where intensity > floor {
+                let lab = orientation.labCoordinates(of: cell.gVector(hkl))
+                guard let p = pixel(SIMD2(lab.x, lab.y)) else { continue }
+                placed.append((hkl, p.row, p.column, intensity))
+            }
+            let strongest = placed.map(\.intensity).max() ?? 1
+            return placed.sorted { $0.intensity != $1.intensity ? $0.intensity > $1.intensity : $0.hkl < $1.hkl }.map {
+                Spot(hkl: $0.hkl, row: $0.row, column: $0.column, intensity: $0.intensity,
+                     relative: strongest > 0 ? $0.intensity / strongest : 0, isDoubleDiffraction: forbidden($0.hkl))
+            }
         }
         var placed: [(MillerIndex, Double, Double, Double)] = []
         for s in pattern.spots {

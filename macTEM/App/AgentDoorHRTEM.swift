@@ -85,11 +85,12 @@ extension MacTEMAgentDoor {
     private static let noSimulation = AgentToolOutput.refusal(
         status: 404, message: "The window shows no Simulation document or HRTEM image: File > New Simulation opens one.")
 
-    /// The Simulation document the window shows: the selected one, or the document of the selected HRTEM image.
+    /// The Simulation document the window shows: the selected one, or the document of the selected HRTEM image, CBED pattern or
+    /// STEM image.
     static func simulationItem(_ appState: AppState) -> OpenItem? {
         guard let item = appState.openItems.selected else { return nil }
         if DemoDocuments.isSimulation(item.url) { return item }
-        return appState.simulationDocument(ofHRTEM: item)
+        return appState.simulationDocument(ofHRTEM: item) ?? appState.simulationDocument(ofCBED: item) ?? appState.simulationDocument(ofSTEM: item)
     }
 
     /// How many of the marked columns `read_simulation` lists (the count is always whole).

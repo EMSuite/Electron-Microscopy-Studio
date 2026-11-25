@@ -86,8 +86,9 @@ struct DiffractionRoom: View {
                 }
                 if hasSpots && view.lowerTable == .spots {
                     if isSimulation {
-                        DiffractionSpotTable(view: view, rows: analysis.simulatedSpotRows(image: image),
-                                             empty: "Add a phase and show the simulated spots to list them.", selectsMarks: false)
+                        DiffractionSpotTable(view: view, rows: item.simulatedSpotRows(image: image),
+                                             empty: "Add a phase and show the simulated spots to list them.", selectsMarks: false,
+                                             showsDynamical: item.dynamicalBeams != nil)
                     } else {
                         DiffractionSpotTable(view: view, rows: analysis.indexSpotRows)
                     }
@@ -315,8 +316,9 @@ private struct DiffractionPatternPane: View {
                         .allowsHitTesting(false)
                 }
                 // The simulated spots of the typed zone axis (#782), under the measured marks; redrawn whenever the zone axis, its turn,
-                // the crystal, the centre or the scale changes (`DiffractionAnalysis.simulatedSpots`).
-                if let simulated = try? analysis.simulatedSpots(image: image)?.get() {
+                // the crystal, the centre or the scale changes (`DiffractionAnalysis.simulatedSpots`), and a Simulation document's Dynamical
+                // beams at its thickness (#911).
+                if let simulated = try? item.simulatedSpots(image: image)?.get() {
                     SimulatedSpotsOverlay(spots: simulated, showsLabels: analysis.simulation.showsLabels, layout: layout)
                         .allowsHitTesting(false)
                 }
@@ -407,7 +409,7 @@ private struct DiffractionPatternPane: View {
             .accessibilityLabel("Diffraction pattern")
             // q and d under the pointer, as the status line reads them; else the pattern's size, rings and spots. This pane is the readout's one writer.
             .modifier(ReadoutAccessibilityValue(readout: { appState.diffractionRoom.readout },
-                                                fallback: "\(image.width) by \(image.height) pixels, \(UnitDisplay.count(analysis.rings.count, "ring", "rings")), \(UnitDisplay.count(analysis.spots.count, "spot", "spots"))" + DiffractionSimulationText.spoken(analysis.simulatedSpots(image: image), zoneAxis: analysis.simulation.zoneAxis) + DiffractionIndexText.spoken(analysis.indexLine, rows: analysis.indexSpotRows.count)))
+                                                fallback: "\(image.width) by \(image.height) pixels, \(UnitDisplay.count(analysis.rings.count, "ring", "rings")), \(UnitDisplay.count(analysis.spots.count, "spot", "spots"))" + DiffractionSimulationText.spoken(item.simulatedSpots(image: image), zoneAxis: analysis.simulation.zoneAxis) + DiffractionIndexText.spoken(analysis.indexLine, rows: analysis.indexSpotRows.count)))
             .accessibilityAction(named: "Zoom in") { view.zoom(by: 2, image: image) }
             .accessibilityAction(named: "Zoom out") { view.zoom(by: 0.5, image: image) }
             .accessibilityAction(named: "Reset zoom") { view.fitView() }
@@ -872,7 +874,7 @@ private struct DiffractionReadoutTable: View {
 
 // MARK: - The Spots table
 
-/// Index's spots (#785), or a Simulation document's (#907): Spot, hkl, R px, R mm, q, d, d expected, Δd/d % and Phase, sortable by
+/// Index's spots (#785), or a Simulation document's (#907): Spot, hkl, R px, R mm, q, d, d expected, Δd/d % and Phase and, with Dynamical on (#911), I dyn %, sortable by
 /// any column (ties by the spot's number, so the rows keep their order). A row's selection is the mark's: selecting it selects the spot on the pattern and in the readout.
 /// The table is the pattern's text alternative: VoiceOver reads each row's cells, and the pane says the spots are listed here.
 private struct DiffractionSpotTable: View {
@@ -884,6 +886,8 @@ private struct DiffractionSpotTable: View {
     /// selection of their own and never reach the Rings section's Remove (#907).
     var selectsMarks = true
     @State private var ownSelection: UUID?
+    /// A Simulation document with Dynamical on (#911): the I dyn % column, each spot's beam at the shown thickness.
+    var showsDynamical = false
     @State private var sortOrder = [KeyPathComparator(\PatternIndexing.SpotRow.number)]
 
     private typealias Column = DiffractionSpotFormat.Column
@@ -914,6 +918,12 @@ private struct DiffractionSpotTable: View {
                     .accessibilityIdentifier("diffraction.spots.\(row.number).delta")
             }.width(min: 48, ideal: 54)
             TableColumn(header(.phase), value: \.phase) { row in Text(DiffractionSpotFormat.cell(.phase, row)) }.width(min: 44, ideal: 60)
+            if showsDynamical {
+                TableColumn(header(.dynamical), value: \.dynamicalKey) { row in
+                    Text(DiffractionSpotFormat.cell(.dynamical, row)).monospacedDigit()
+                        .accessibilityIdentifier("diffraction.spots.\(row.number).dynamical")
+                }.width(min: 52, ideal: 60)
+            }
         }
         .overlay {
             if rows.isEmpty {

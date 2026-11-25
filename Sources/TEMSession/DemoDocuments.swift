@@ -121,6 +121,33 @@ package nonisolated enum DemoDocuments {
         URL(fileURLWithPath: "/macTEM-demo/" + url.lastPathComponent.replacingOccurrences(of: "HRTEM of ", with: ""))
     }
 
+    /// A Simulation document's CBED pattern (#912): its own item of Open Files ("CBED of Simulation 1"), shown in the Diffraction room
+    /// with the document's phase and zone axis, so the kinematic labels and every tool of the room work on the discs. The app replaces
+    /// its pixels as the thickness moves; the read answers a placeholder only.
+    package static func cbedURL(of simulation: URL) -> URL { URL(fileURLWithPath: "/macTEM-demo/CBED of " + simulation.lastPathComponent) }
+    package static func isCBED(_ url: URL) -> Bool { url.path.hasPrefix("/macTEM-demo/CBED of ") }
+    /// The Simulation document a CBED pattern belongs to.
+    package static func simulationURL(ofCBED url: URL) -> URL {
+        URL(fileURLWithPath: "/macTEM-demo/" + url.lastPathComponent.replacingOccurrences(of: "CBED of ", with: ""))
+    }
+
+    /// A Simulation document's STEM image (#913): its own item of Open Files ("STEM of Simulation 1"), shown in the Image room as
+    /// the HRTEM image is; its pixels are computed, never read, and before the first slice lands it holds the HRTEM placeholder.
+    package static func stemURL(of simulation: URL) -> URL { URL(fileURLWithPath: "/macTEM-demo/STEM of " + simulation.lastPathComponent) }
+    package static func isSTEM(_ url: URL) -> Bool { url.path.hasPrefix("/macTEM-demo/STEM of ") }
+    /// The Simulation document a STEM image belongs to.
+    package static func simulationURL(ofSTEM url: URL) -> URL {
+        URL(fileURLWithPath: "/macTEM-demo/" + url.lastPathComponent.replacingOccurrences(of: "STEM of ", with: ""))
+    }
+
+    /// What a CBED item holds before its first pattern lands: 64 pixels of 0 a side at 0.1 1/nm, the centre in the middle.
+    package static func cbedPlaceholder(name: String) -> CalibratedImage {
+        let axis = AxisCalibration(scale: 0.1, unit: "1/nm", origin: 32)
+        return CalibratedImage(width: 64, height: 64, stored: .uint8([UInt8](repeating: 0, count: 64 * 64)), x: axis, y: axis,
+                               fileName: name, source: "simulation", voltage: nil,
+                               notes: ["simulated pattern, no measured data", "computing"])
+    }
+
     /// What an HRTEM item holds before its first image lands: 64 pixels of 0 a side at 0.05 nm, said in its note.
     package static func hrtemPlaceholder(name: String) -> CalibratedImage {
         let axis = AxisCalibration(scale: 0.05, unit: "nm")

@@ -138,7 +138,7 @@ nonisolated enum DiffractionReadoutFormat {
 /// The Diffraction room's Spots table (#785, R in mm #907): its columns in the table's order, each cell as the table shows it, and its sorting.
 nonisolated enum DiffractionSpotFormat {
     nonisolated enum Column: CaseIterable, Sendable {
-        case spot, hkl, radius, radiusMM, q, d, dExpected, delta, phase
+        case spot, hkl, radius, radiusMM, q, d, dExpected, delta, phase, dynamical
 
         var title: String {
             switch self {
@@ -151,6 +151,7 @@ nonisolated enum DiffractionSpotFormat {
             case .dExpected: "d expected"
             case .delta: "Δd/d %"
             case .phase: "Phase"
+            case .dynamical: "I dyn %"
             }
         }
 
@@ -166,12 +167,13 @@ nonisolated enum DiffractionSpotFormat {
             case .dExpected: "d expected, ångströms"
             case .delta: "delta d over d, percent"
             case .phase: "Phase"
+            case .dynamical: "dynamical intensity, percent of the incident beam"
             }
         }
     }
 
     /// One cell as the table shows it: the spot's number, the hkl with its bars, R to two decimals (mm to three), q to five, d and the expected d
-    /// to four, Δd/d with its sign, the phase; a dash where there is no value.
+    /// to four, Δd/d with its sign, the phase, the dynamical intensity to three (#911); a dash where there is no value.
     static func cell(_ column: Column, _ row: PatternIndexing.SpotRow, locale: Locale = .autoupdatingCurrent) -> String {
         switch column {
         case .spot: return "\(row.number)"
@@ -183,6 +185,7 @@ nonisolated enum DiffractionSpotFormat {
         case .dExpected: return row.dExpected.map { Num.fixed($0, 4, locale: locale) } ?? UnitDisplay.noValue
         case .delta: return row.deltaPercent.map { Num.signed($0, 2, locale: locale) } ?? UnitDisplay.noValue
         case .phase: return row.phase.isEmpty ? UnitDisplay.noValue : row.phase
+        case .dynamical: return row.dynamicalPercent.map { Num.fixed($0, 3, locale: locale) } ?? UnitDisplay.noValue
         }
     }
 

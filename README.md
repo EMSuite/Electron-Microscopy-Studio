@@ -77,6 +77,15 @@ The rooms:
   in mm (R = λ L |g|), q and d, and exports as a Spots CSV.
   Its Specimen section builds the phase along that axis into the slab a simulation computes, with its box, atoms and strain,
   and Show HRTEM Image opens the slab's HRTEM image in the Image room, with Defocus and Thickness that redraw it live, the Uncorrected and Cs Corrected optics, an objective aperture, the transfer function strip, a defocus by thickness table that exports as a PNG, and frozen phonons (σ per element, Simulate, Stop and Continue, with the run's plan, progress and convergence); the crystal pane shows the slab with its box and size, and Atom columns rings the slab's projected columns on the image, and Place Beside, which shows it beside an open measured image or inset in it at the measured image's nanometres per pixel, one picture that exports with one scale bar. Export abTEM Script… writes the image's run as a Python script for abTEM 1.0.10, to rerun or change it there. The Specimen section's Source also takes an atom model built elsewhere (CIF, XYZ or POSCAR, up to a million atoms, from atomsk, ASE or VASP), with the beam along its c, a or b.
+  Kinematic or Dynamical switches the spots to the multislice's beams at a thickness slider's thickness, with the reflections
+  the crystal forbids as open rings and each spot's dynamical intensity in the Spots table. Convergent turns the beam into a
+  probe: Show CBED Pattern opens its convergent-beam pattern in the Diffraction room, the semiangle set by Fit Discs to keep the
+  discs apart, a pattern stored about every 2 nm to the largest thickness for the thickness slider, and the box the angular step
+  needs named before the run. Measure Thickness reads a two-beam CBED pattern's diffracted disc and fits its fringes for the
+  specimen thickness (Kelly et al. 1975), with the profile, the fitted curve and Use in Simulation.
+  Show STEM Image opens the slab's STEM image in the Image room: Simulate scans the probe over one projected unit, the image
+  filling as it is computed, with or without frozen phonons, and Stop and Continue keep what is done; BF, ABF, ADF and HAADF are
+  bands on the scattered intensity against angle, moved after the run with no new run, and the scan step starts at Nyquist.
 - **Patterns**: the EBSD or TKD scan beside the live pattern, with mean intensity, virtual BSE, image quality and
   average dot product maps. Remove the static and dynamic backgrounds, rescale or normalise, equalise, filter, bin,
   average neighbouring patterns and denoise with NLPAR. Draw the Kikuchi bands of the file's stored orientations over
