@@ -87,6 +87,7 @@ package nonisolated enum MaterialsProjectSearch {
 
     /// What one system's search gave.
     package nonisolated struct SystemAnswer: Sendable, Equatable {
+        // periphery:ignore - read by the synthesized ==
         package let system: [String]
         /// The entries the service holds for the system, the most stable first (the kit's order); empty when none.
         package let rows: [MaterialsProjectOptimade.Row]
@@ -145,9 +146,6 @@ package nonisolated enum MaterialsProjectSearch {
             Summary(elements: elements, systems: systems, found: found, nearHull: nearHull, taken: taken, cappedPerSystem: cappedPerSystem,
                     unread: unread, failedSystems: failedSystems)
         }
-
-        /// The candidates the downloads gave.
-        package var candidates: Int { taken - unread.count }
 
         /// "Al, Mg: 3 chemical systems searched, 18 entries found, 9 within 0.1 eV/atom of the hull; the 3 most stable of each
         /// system, 20 at most: 7 taken, 1 could not be read." Says each limit, and only those that applied, so the person knows
