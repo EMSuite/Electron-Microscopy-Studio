@@ -470,7 +470,8 @@ extension AppState {
         if DemoDocuments.isDemo(request.url) {
             let name = request.url.lastPathComponent
             let image = DemoDocuments.isSimulation(request.url) ? DemoDocuments.simulationCanvas(name: name)
-                : DemoDocuments.isHRTEM(request.url) || DemoDocuments.isSTEM(request.url) ? DemoDocuments.hrtemPlaceholder(name: name)
+                : DemoDocuments.isHRTEM(request.url) ? DemoDocuments.hrtemPlaceholder(name: name)
+                : DemoDocuments.isSTEM(request.url) ? DemoDocuments.stemPlaceholder(name: name, computing: false)
                 : DemoDocuments.isCBED(request.url) ? DemoDocuments.cbedPlaceholder(name: name)
                 : request.url == DemoDocuments.patternURL ? DemoDocuments.diffractionPattern() : DemoDocuments.lattice()
             let canvas = canvas(for: image)

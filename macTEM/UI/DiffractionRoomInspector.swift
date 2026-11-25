@@ -24,35 +24,60 @@ struct DiffractionRoomSettings: View {
     var body: some View {
         let analysis = item.diffraction
         let view = item.diffractionView
-        // A Simulation document (#907) has no measured pattern: its Microscope section stands where the Centre and Calibration do,
-        // and its Orientation section where Index's.
-        let isSimulation = DemoDocuments.isSimulation(item.url)
+        // The sections per document (`DiffractionSections`, #1043): a Simulation document (#907) and the CBED pattern derived from it
+        // are computed, so one read-only Calibration stands where a measured pattern's Centre and Calibration do; a Simulation
+        // document's Microscope leads its job and its Orientation stands where Index's does.
+        let kind = DiffractionSections.kind(of: item.url)
+        let isSimulation = kind == .simulation
         Group {
-            if isSimulation {
-                DiffractionMicroscopeSection(analysis: analysis)
-            } else {
-                DiffractionCentreSection(analysis: analysis, view: view)
-                DiffractionCalibrationSection(session: item.session, analysis: analysis, view: view)
+            ForEach(DiffractionSections.order(kind), id: \.self) { section in
+                self.section(section, kind: kind, analysis: analysis, view: view)
             }
-            DiffractionDisplaySection(view: view)
-            DiffractionToolsSection(view: view)
-            DiffractionPhasesSection(item: item, analysis: analysis)
-            if isSimulation {
-                InspectorSection("Orientation") { DiffractionOrientationRows(analysis: analysis) }
-            } else {
-                DiffractionIndexSection(analysis: analysis)
-            }
-            DiffractionHolderSection(item: item)
-            DiffractionSimulationSection(item: item)
-            if isSimulation { SimulationSpecimenSection(item: item) }
-            DiffractionCrystalViewSection(view: view)
-            DiffractionPrecipitateSection(item: item)
-            DiffractionPowderSection(item: item)
-            DiffractionRingsSection(session: item.session, analysis: analysis, view: view)
-            DiffractionThicknessSection(item: item)
             DiffractionExportSection(session: item.session, analysis: analysis, isSimulation: isSimulation)
         }
         .onAppear { analysis.bind(image) }
+    }
+
+    /// One section of `DiffractionSections.order`.
+    @ViewBuilder
+    private func section(_ section: DiffractionSections.Section, kind: DiffractionSections.Kind, analysis: DiffractionAnalysis,
+                         view: DiffractionViewState) -> some View {
+        switch section {
+        case .centre: DiffractionCentreSection(analysis: analysis, view: view)
+        case .calibration: DiffractionCalibrationSection(session: item.session, analysis: analysis, view: view)
+        case .simulatedCalibration: DiffractionSimulatedCalibrationSection(session: item.session, analysis: analysis)
+        case .display: DiffractionDisplaySection(view: view)
+        case .tools: DiffractionToolsSection(view: view, tools: DiffractionSections.tools(kind))
+        case .microscope: DiffractionMicroscopeSection(analysis: analysis)
+        case .phases: DiffractionPhasesSection(item: item, analysis: analysis)
+        case .index: DiffractionIndexSection(analysis: analysis)
+        case .orientation: InspectorSection("Orientation") { DiffractionOrientationRows(analysis: analysis) }
+        case .holder: DiffractionHolderSection(item: item)
+        case .simulation: DiffractionSimulationSection(item: item)
+        case .specimen: SimulationSpecimenSection(item: item)
+        case .crystalView: DiffractionCrystalViewSection(view: view)
+        case .precipitate: DiffractionPrecipitateSection(item: item)
+        case .powder: DiffractionPowderSection(item: item)
+        case .rings: DiffractionRingsSection(session: item.session, analysis: analysis, view: view)
+        case .thickness: DiffractionThicknessSection(item: item)
+        }
+    }
+}
+
+/// A computed pattern's calibration (#1043): the scale and where it comes from, read only. The simulation made the pattern, so its
+/// scale and centre are exact and no camera recorded it: no standard, ring fit, camera or pixel pitch.
+private struct DiffractionSimulatedCalibrationSection: View {
+    /// The owner, never the image: a view holds no file's pixels (PixelOwnershipTests).
+    let session: ImageSession
+    private var image: CalibratedImage { session.imageOrBlank }
+    let analysis: DiffractionAnalysis
+
+    var body: some View {
+        InspectorSection("Calibration") {
+            InspectorValueRow("Scale", analysis.calibration(for: image).map { "\(Num.fixed($0.deltaQ, 5)) Å⁻¹/px" } ?? "none")
+            InspectorValueRow("Source", "From the simulation")
+            InspectorValueRow("Beam", analysis.volts(for: image).map { "\(Num.sig($0 / 1000, 4)) kV" } ?? "none")
+        }
     }
 }
 
@@ -280,9 +305,10 @@ private struct DiffractionPhaseRow: View {
                         .help(attribution)
                 }
             }
-            Text(DiffractionPhases.latticeText(phase.structure().cell) + (phase.isEdited ? " (edited)" : ""))
+            let lattice = DiffractionPhases.latticeText(phase.structure().cell, locale: .autoupdatingCurrent)
+            Text(lattice + (phase.isEdited ? " (edited)" : ""))
                 .font(.caption).monospacedDigit().foregroundStyle(.secondary)
-                .accessibilityLabel("Lattice of \(phase.name): \(DiffractionPhases.latticeText(phase.structure().cell))")
+                .accessibilityLabel("Lattice of \(phase.name): \(lattice)")
                 .accessibilityIdentifier("diffraction.phases.lattice.\(phase.id)")
             if DiffractionPhases.isOutdated(phase, in: analysis) {
                 // The room keeps its own copy of the phase it uses (#780): the library's change waits for this button.
@@ -396,7 +422,7 @@ private struct DiffractionCrystalViewSection: View {
     var body: some View {
         InspectorSection("Crystal View") {
             InspectorRow("Unit cell") {
-                Toggle("Show unit cell", isOn: Binding(get: { view.showsUnitCell }, set: { view.showsUnitCell = $0 }))
+                Toggle("Unit cell", isOn: Binding(get: { view.showsUnitCell }, set: { view.showsUnitCell = $0 }))
                     .toggleStyle(.switch).labelsHidden()
                     .disabled(!view.showsCrystal)
                     .help("Draw the unit cell's edges in the crystal pane")
@@ -433,20 +459,20 @@ private struct DiffractionSimulationSection: View {
                 // An atom model's pattern: no reflections to draw or label (#953).
                 InspectorNote(SimulationModel.modelLabelsSentence).accessibilityIdentifier("diffraction.simulation.modelLabels")
             } else {
-                InspectorRow("Overlay") {
-                    Toggle("Show simulated spots", isOn: Binding(get: { analysis.simulation.isShown }, set: { analysis.simulation.isShown = $0 }))
+                InspectorRow("Simulated spots") {
+                    Toggle("Simulated spots", isOn: Binding(get: { analysis.simulation.isShown }, set: { analysis.simulation.isShown = $0 }))
                         .toggleStyle(.switch).labelsHidden()
                         .help("The crystal's kinematical spot pattern at the Index section's orientation, drawn over the pattern with the scale and centre in use")
                         .accessibilityIdentifier("diffraction.simulation.show")
                 }
-                InspectorRow("Labels") {
-                    Toggle("Show hkl labels", isOn: Binding(get: { analysis.simulation.showsLabels }, set: { analysis.simulation.showsLabels = $0 }))
+                InspectorRow("hkl labels") {
+                    Toggle("hkl labels", isOn: Binding(get: { analysis.simulation.showsLabels }, set: { analysis.simulation.showsLabels = $0 }))
                         .toggleStyle(.switch).labelsHidden()
                         .help("Each simulated spot's hkl beside it (the 60 strongest)")
                         .accessibilityIdentifier("diffraction.simulation.labels")
                 }
                 InspectorRow("Double diffraction") {
-                    Toggle("Show double diffraction", isOn: Binding(get: { analysis.simulation.doubleDiffraction }, set: { analysis.simulation.doubleDiffraction = $0 }))
+                    Toggle("Double diffraction", isOn: Binding(get: { analysis.simulation.doubleDiffraction }, set: { analysis.simulation.doubleDiffraction = $0 }))
                         .toggleStyle(.switch).labelsHidden()
                         .help("Also draws, as dashed rings, the spots a twice-diffracted beam adds (g₁ + g₂) where the crystal forbids a reflection, such as 002 in silicon down [1 1 0]")
                         .accessibilityIdentifier("diffraction.simulation.doubleDiffraction")
@@ -598,13 +624,26 @@ private struct DiffractionRingsSection: View {
 /// Ring, Spot or Tilt: what a click or a drag on the pattern does. A full-width segmented control in its own section, no leading label.
 private struct DiffractionToolsSection: View {
     let view: DiffractionViewState
+    /// The tools this pattern offers (`DiffractionSections.tools`): a computed one has no Ring.
+    let tools: [DiffractionViewState.Tool]
+
+    private static func title(_ tool: DiffractionViewState.Tool) -> String {
+        switch tool {
+        case .ring: "Ring"
+        case .spot: "Spot"
+        case .tilt: "Tilt"
+        }
+    }
 
     var body: some View {
         InspectorSection("Tools") {
             SegmentedPicker(label: "Tool",
-                            items: [(DiffractionViewState.Tool.ring, .title("Ring")), (.spot, .title("Spot")), (.tilt, .title("Tilt"))],
-                            selection: Binding(get: { view.tool }, set: { view.tool = $0 }))
+                            items: tools.map { tool -> (DiffractionViewState.Tool, SegmentedControl.Segment) in (tool, .title(Self.title(tool))) },
+                            selection: Binding(get: { tools.contains(view.tool) ? view.tool : (tools.first ?? view.tool) },
+                                               set: { view.tool = $0 }))
                 .accessibilityIdentifier("diffraction.tool")
+                // A tool the pattern does not offer (the Ring on a computed one) gives way to its first.
+                .onAppear { if !tools.contains(view.tool), let first = tools.first { view.tool = first } }
             if view.tool == .tilt {
                 InspectorNote("Drag the pattern to tilt the simulated spots, 0.05° per point; ⌥ drag turns them about the beam. ⌥ and an arrow tilt 0.1°, ⌥⇧ 1°.")
             }

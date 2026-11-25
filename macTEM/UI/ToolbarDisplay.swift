@@ -66,6 +66,11 @@ enum ToolbarDisplay {
             guard let map = session.map else { return nil }
             return .idle(file: session.fileName, room: room.title, detail: MapsRoomFormat.capsuleDetail(map), help: "Map width × height in points, and its indexed phases")
         default:
+            // A CBED run of the shown pattern's document (#1021): its line, fraction and clock, as a simulation's in the Image room.
+            if room == .diffraction, let operation = BusyOperation.toolbarOperation(room: room, appState: appState) {
+                return .busy(operation: operation, progress: RoomProgress.fraction(room: room, appState: appState),
+                             metrics: { now in RunClock.reading(since: appState.busySince[room], progress: RoomProgress.fraction(room: room, appState: appState), now: now) })
+            }
             guard !appState.imageSession.isLoading, let image = appState.imageSession.image else { return nil }
             return .idle(file: image.fileName, room: room.title, detail: "\(image.width) × \(image.height) px", help: nil)
         }

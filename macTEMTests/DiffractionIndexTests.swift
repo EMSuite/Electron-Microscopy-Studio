@@ -329,7 +329,7 @@ nonisolated final class DiffractionIndexTests: XCTestCase {
         XCTAssertEqual(DiffractionSpotFormat.Column.allCases.map { DiffractionSpotFormat.cell($0, row, locale: en) },
                        ["3", "11\u{0304}1", "42.47", UnitDisplay.noValue, "0.42470", "2.3546", "2.3380", "+0.71", "Au", UnitDisplay.noValue])
         XCTAssertEqual(DiffractionSpotFormat.Column.allCases.map(\.title),
-                       ["Spot", "hkl", "R px", "R mm", "q Å⁻¹", "d Å", "d expected", "Δd/d %", "Phase", "I dyn %"])
+                       ["Spot", "hkl", "R (px)", "R (mm)", "q (Å⁻¹)", "d (Å)", "d Expected", "Δd/d (%)", "Phase", "I dyn (%)"])
         XCTAssertEqual(DiffractionSpotFormat.spokenHKL(row), "1, minus 1, 1")
         let unexplained = PatternIndexing.SpotRow(id: UUID(), number: 4, hkl: nil, radiusPx: 80, q: 0.8, d: 1.25, dExpected: nil,
                                                   deltaPercent: nil, phase: "")

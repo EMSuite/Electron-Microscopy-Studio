@@ -66,14 +66,20 @@ package nonisolated enum DiffractionCrystal: Sendable, Equatable {
     }
     /// The lattice in one line, as the kit holds it: "a 4.0782 Å" for a cubic cell, all six otherwise (#780: every result and
     /// export names the lattice it used). `ascii` writes "A" and "deg", as the CSV headers do.
-    package static func latticeText(_ cell: UnitCell, ascii: Bool = false) -> String {
+    /// `locale`: the point (the default) for the exports, the door and the `ascii` file text; the reader's for the Phases list, where
+    /// a decimal comma parts the lengths and the angles by semicolons, so "a 3,1355; b 3,1355" never reads as four numbers (#1039).
+    package static func latticeText(_ cell: UnitCell, ascii: Bool = false, locale: Locale = UnitDisplay.point) -> String {
         let angstrom = ascii ? "A" : "Å", degree = ascii ? " deg" : "°"
-        func f(_ x: Double) -> String { String(format: "%.4f", x) }
-        func g(_ x: Double) -> String { String(format: "%.2f", x) + degree }
+        let mark = ascii ? UnitDisplay.point : locale
+        func f(_ x: Double) -> String { UnitDisplay.fixed(x, places: 4, locale: mark) }
+        func g(_ x: Double) -> String { UnitDisplay.fixed(x, places: 2, locale: mark) + degree }
         let cubic = abs(cell.a - cell.b) < 1e-6 && abs(cell.b - cell.c) < 1e-6
             && [cell.alphaDeg, cell.betaDeg, cell.gammaDeg].allSatisfy { abs($0 - 90) < 1e-6 }
         if cubic { return "a \(f(cell.a)) \(angstrom)" }
-        return "a \(f(cell.a)), b \(f(cell.b)), c \(f(cell.c)) \(angstrom); \(g(cell.alphaDeg)), \(g(cell.betaDeg)), \(g(cell.gammaDeg))"
+        let comma = mark.decimalSeparator == ","
+        let item = comma ? "; " : ", ", group = comma ? " · " : "; "
+        return "a \(f(cell.a))\(item)b \(f(cell.b))\(item)c \(f(cell.c)) \(angstrom)\(group)"
+            + [cell.alphaDeg, cell.betaDeg, cell.gammaDeg].map(g).joined(separator: item)
     }
 
     /// The lattice this crystal computes with.
@@ -524,10 +530,14 @@ package final class DiffractionAnalysis {
         return PatternIndexing.csv(rows: simulatedSpotRows(image: image), fileName: image.fileName, line: line, lineName: "simulation")
     }
 
-    /// The header's line for Index's answer, with what changed since: a scale (a ring calibrated, Δq typed) or the spots.
-    package var indexLine: String? {
+    /// The header's line for Index's answer, with what changed since: a scale (a ring calibrated, Δq typed) or the spots. The CSV
+    /// and the door read it with a decimal point; the header row draws `indexHeaderLine(locale:)` in the reader's (#1039).
+    package var indexLine: String? { indexHeaderLine(locale: UnitDisplay.point) }
+
+    /// `indexLine` with its numbers in `locale`.
+    package func indexHeaderLine(locale: Locale) -> String? {
         guard let outcome = indexOutcome else { return nil }
-        var line = PatternIndexing.header(outcome)
+        var line = PatternIndexing.header(outcome, locale: locale)
         let n = solutions.count
         if n > 1 { line += " · solution \(solutionIndex + 1) of \(n)" }
         if indexIsStale { line += " · the scale changed since: Index again" }
@@ -588,10 +598,14 @@ package final class DiffractionAnalysis {
 
     /// The header's line for the drawn orientation once it was turned by hand, or while no Index answer is shown: "Al · 2.1° from
     /// [001]", "Al [001]" within 0.5°; nil while the overlay is off.
-    package var orientationLine: String? {
+    package var orientationLine: String? { orientationHeaderLine(locale: UnitDisplay.point) }
+
+    /// `orientationLine` with its angle in `locale`: the reader's in the header row, the point (the door's) by default (#1039).
+    package func orientationHeaderLine(locale: Locale) -> String? {
         guard simulation.isShown, isTurnedByHand || indexOutcome == nil, let o = drawnOrientation,
               let near = o.nearestZoneAxis(cell: crystal.structure.cell) else { return nil }
-        return PatternIndexing.place(phase: crystal.name, zoneAxis: near.uvw, angle: near.angle) + (isTurnedByHand ? " · set by hand" : "")
+        return PatternIndexing.place(phase: crystal.name, zoneAxis: near.uvw, angle: near.angle, locale: locale)
+            + (isTurnedByHand ? " · set by hand" : "")
     }
 
     /// The turn typed (degrees): as `setZoneAxis`, the typed zone axis turned by it.
