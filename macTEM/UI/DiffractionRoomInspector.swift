@@ -167,7 +167,7 @@ private struct DiffractionMicroscopeSection: View {
         InspectorSection("Microscope") {
             InspectorRow("Voltage") {
                 OptionalNumericField(title: "Voltage", value: analysis.typedBeamKV, format: pixelFormat, unit: "kV") { kV in
-                    if let kV, kV.isFinite, kV > 0 { analysis.typedBeamKV = kV }
+                    if kV.isFinite, kV > 0 { analysis.typedBeamKV = kV }
                 }
                 .help("The accelerating voltage: it sets the wavelength of the simulated pattern")
                 .accessibilityIdentifier("diffraction.microscope.voltage")
