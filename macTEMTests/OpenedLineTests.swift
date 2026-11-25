@@ -35,6 +35,25 @@ nonisolated final class OpenedLineTests: XCTestCase {
         XCTAssertEqual(AppState.openedLine(Self.image(x, x)), "Opened Au_rings.dm4 — 40 × 24 px, \(Self.n(0.005)) Å⁻¹/px")
     }
 
+    /// A simulated CBED or STEM document opens on a 64 × 64 placeholder, and the real image lands later (#1005): the open's line is
+    /// written again with the real size and scale, and only while it is still the open's line. Mutation: the line left as the
+    /// placeholder's, or a later message overwritten - red.
+    func testTheOpenedLineIsWrittenAgainForTheRealImageOfAComputedDocument() {
+        let placeholder = CalibratedImage(width: 64, height: 64, pixels: [Float](repeating: 0, count: 4096),
+                                          x: AxisCalibration(scale: 0.01, unit: "1/Å", origin: 0), y: nil,
+                                          fileName: "Simulation 1-CBED", source: "s", voltage: nil)
+        let real = CalibratedImage(width: 523, height: 521, pixels: [Float](repeating: 0, count: 523 * 521),
+                                   x: AxisCalibration(scale: 0.00766, unit: "1/Å", origin: 0), y: nil,
+                                   fileName: "Simulation 1-CBED", source: "s", voltage: nil)
+        let opened = AppState.openedLine(placeholder)
+        XCTAssertTrue(opened.contains("64 × 64 px"))
+        let again = AppState.openedLine(replacing: opened, with: real, suffix: " · x")
+        XCTAssertEqual(again, AppState.openedLine(real) + " · x")
+        XCTAssertTrue(try XCTUnwrap(again).contains("523 × 521 px"))
+        XCTAssertNil(AppState.openedLine(replacing: "Error: planted", with: real), "another event's line stays")
+        XCTAssertNil(AppState.openedLine(replacing: "Opened other.dm4 — 4 × 4 px, not calibrated", with: real), "another file's line stays")
+    }
+
     func testAnUncalibratedImageSaysSo() {
         XCTAssertEqual(AppState.openedLine(Self.image(nil, nil)), "Opened Au_rings.dm4 — 40 × 24 px, not calibrated")
         let unitless = AxisCalibration(scale: 0.5, unit: "", origin: 0)

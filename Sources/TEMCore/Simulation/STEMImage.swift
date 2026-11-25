@@ -113,6 +113,11 @@ package nonisolated struct STEMScan: Sendable {
     package var completedConfigurations: Int { run.completedConfigurations }
     /// Positions finished in the configuration under way.
     package var completedPositions: Int { run.completedPositions }
+    /// The positions of the scan.
+    package var positionCount: Int { run.positionCount }
+    /// Positions finished in the configuration under way, and every position once the run is complete: the kit's own count starts
+    /// again at 0 when a configuration ends, the last one included, so a finished run would read 0 (#1005).
+    package var positionsDone: Int { run.isComplete ? run.positionCount : run.completedPositions }
     package var configurations: Int { run.configurationCount }
     /// No position has any configuration yet.
     package var isEmpty: Bool { run.completedConfigurations == 0 && run.completedPositions == 0 }
