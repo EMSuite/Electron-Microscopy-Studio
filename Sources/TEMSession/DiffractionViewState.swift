@@ -23,6 +23,10 @@ package final class DiffractionViewState {
     package enum LowerTable: String, CaseIterable, Sendable { case readout, spots }
     package var lowerTable: LowerTable = .spots
     package var useLog = true
+    /// The crystal pane beside the pattern (#789): View > Show Crystal shows and hides it.
+    package var showsCrystal = true
+    /// The crystal pane draws the unit cell's edges.
+    package var showsUnitCell = true
     package private(set) var annulusInner = 28.0
     package private(set) var annulusOuter = 40.0
     /// The ring or spot the readout highlights (and the ⌫ key removes).

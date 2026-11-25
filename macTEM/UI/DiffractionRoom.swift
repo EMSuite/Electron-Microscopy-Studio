@@ -47,13 +47,17 @@ struct DiffractionRoom: View {
         let rows = analysis.readout(image: image)
         VStack(spacing: 0) {
             DiffractionHeader(item: item, analysis: analysis, view: view)
-            // The crystal beside the pattern (#790), down the same beam: one orientation drives both.
-            HStack(spacing: 0) {
-                DiffractionCrystalPane(analysis: analysis)
-                    .frame(width: LayoutPolicy.diffractionCrystalWidth)
-                Divider()
-                DiffractionPatternPane(item: item, analysis: analysis, view: view, rows: rows)
-                    .modifier(DiffractionZoomCommands(item: item, view: view))
+            // The crystal beside the pattern (#790), down the same beam: one orientation drives both. It appears once simulated spots
+            // are drawn (before, the pattern has the room), unless View > Hide Crystal hid it (#789); the divider's place is the
+            // window's (`PaneSplit`'s scene storage).
+            if view.showsCrystal && analysis.simulation.isShown {
+                PaneSplit(storageKey: "diffraction.crystalSplit", resizeLabel: "Resize the crystal and the pattern", leadingName: "Crystal") {
+                    DiffractionCrystalPane(analysis: analysis, showsUnitCell: view.showsUnitCell)
+                } trailing: {
+                    patternPane(analysis: analysis, view: view, rows: rows)
+                }
+            } else {
+                patternPane(analysis: analysis, view: view, rows: rows)
             }
             Divider()
             // One table under the pattern: the readout, or once Index has an answer, its Spots table (#785: hkl, expected d and
@@ -99,6 +103,13 @@ struct DiffractionRoom: View {
         // The room's display canvas (the pattern, log or linear, 4 B/px) goes when the room does; the task above builds it again on
         // return, keeping the window. 12 Nov: the room held 1.4 GB more than the Image room on the 187 MP alite image for as long as it was open.
         .onDisappear { view.presentation.releaseCanvas() }
+    }
+}
+
+extension DiffractionRoom {
+    private func patternPane(analysis: DiffractionAnalysis, view: DiffractionViewState, rows: [DiffractionReadoutRow]) -> some View {
+        DiffractionPatternPane(item: item, analysis: analysis, view: view, rows: rows)
+            .modifier(DiffractionZoomCommands(item: item, view: view))
     }
 }
 
@@ -736,14 +747,6 @@ private struct SimulatedSpotsOverlay: View {
     let showsLabels: Bool
     let layout: DiffractionLayout
 
-    static let labelledCount = 60
-    static let labelledFraction = 0.02
-
-    /// The spots that carry their hkl: the strongest first, as `spots` comes.
-    static func labelled(_ spots: [ZoneAxisOverlay.Spot]) -> [ZoneAxisOverlay.Spot] {
-        Array(spots.filter { $0.relative >= labelledFraction }.prefix(labelledCount)) + spots.filter(\.isDoubleDiffraction).prefix(labelledCount)
-    }
-
     var body: some View {
         Canvas { ctx, _ in
             for spot in spots {
@@ -753,7 +756,7 @@ private struct SimulatedSpotsOverlay: View {
                            style: StrokeStyle(lineWidth: 1.5, dash: spot.isDoubleDiffraction ? [2, 2] : []))
             }
             guard showsLabels else { return }
-            for spot in Self.labelled(spots) {
+            for spot in ZoneAxisOverlay.labelled(spots) {
                 let p = layout.point(column: spot.column, row: spot.row)
                 let r = 3 + 6 * CGFloat(spot.relative.squareRoot())
                 ctx.draw(Text(spot.label).font(.caption).foregroundStyle(.cyan), at: CGPoint(x: p.x + r + 2, y: p.y + r + 2), anchor: .topLeading)

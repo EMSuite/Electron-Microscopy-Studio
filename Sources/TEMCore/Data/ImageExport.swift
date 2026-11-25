@@ -84,6 +84,8 @@ package nonisolated enum ImageExport {
         case distance, angle, profile
         /// One point: a ring at a measured FFT spot, its number as the label (the FFT room's export).
         case spot
+        /// One point: a cyan ring at a simulated diffraction spot, its hkl as the label when it has one (the Diffraction room's picture).
+        case simulatedSpot
     }
 
     /// One mark of the file, as the Image room draws it.

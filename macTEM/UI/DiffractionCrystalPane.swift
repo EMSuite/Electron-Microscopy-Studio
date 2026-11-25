@@ -16,11 +16,14 @@ import TEMSession
 
 struct DiffractionCrystalPane: View {
     let analysis: DiffractionAnalysis
+    /// The Crystal section's Unit cell toggle (#789).
+    var showsUnitCell = true
 
     var body: some View {
         Group {
             if let orientation = DiffractionCrystalScenes.shown(analysis) {
                 CrystalView(DiffractionCrystalScenes.scene(for: analysis.crystal), orientation: CrystalPaneModel.view(orientation),
+                            showsUnitCell: showsUnitCell,
                             accessibilityLabel: CrystalPaneModel.label(phase: analysis.crystal.name, orientation: orientation,
                                                                        cell: analysis.crystal.structure.cell),
                             onOrientationChange: { change in
