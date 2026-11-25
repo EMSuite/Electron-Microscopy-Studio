@@ -39,9 +39,16 @@ nonisolated final class DiffractionPartTests: XCTestCase {
         XCTAssertFalse(DiffractionPart.startsClosed(.display, in: .calibrate))
         for part in [DiffractionPart.index, .simulate, .thickness] { XCTAssertTrue(DiffractionPart.startsClosed(.display, in: part)) }
 
-        XCTAssertEqual(DiffractionPart.tableStrip(.calibrate), .readout)
-        XCTAssertEqual(DiffractionPart.tableStrip(.index), .spots)
-        XCTAssertEqual(DiffractionPart.tableStrip(.thickness), DiffractionPart.TableStrip.none)
+        // The tables are panes of the bottom area (#1094); the one the strip under the pattern showed opens on its own.
+        XCTAssertEqual(DiffractionPart.tables(.calibrate), [.readout])
+        XCTAssertEqual(DiffractionPart.tables(.index), [.readout, .spots])
+        XCTAssertEqual(DiffractionPart.tables(.simulate), [.readout, .spots])
+        XCTAssertEqual(DiffractionPart.tables(.thickness), [])
+        XCTAssertEqual(DiffractionPart.openingTable(.calibrate, hasSpots: true), .readout)
+        XCTAssertEqual(DiffractionPart.openingTable(.index, hasSpots: false), .readout, "the readout until Index answers")
+        XCTAssertEqual(DiffractionPart.openingTable(.index, hasSpots: true), .spots)
+        XCTAssertEqual(DiffractionPart.openingTable(.simulate, hasSpots: true), .spots)
+        XCTAssertNil(DiffractionPart.openingTable(.thickness, hasSpots: true))
         XCTAssertEqual(DiffractionPart.allCases.filter(DiffractionPart.showsCrystalPane), [.index, .simulate])
     }
 

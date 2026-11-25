@@ -29,7 +29,8 @@ nonisolated final class MapsJourney: Journey {
             launch(["--demo-ang"])
             waitFor("maps.room", timeout: 30)
             waitFor("maps.map", timeout: 30)
-            // The map pane's heading is the map picker and names the map (#1065); the colour key is on the map's footer.
+            // The map panel's heading holds the map picker, which names the map (#1065); the colour key is under the picked point on
+            // the Detail panel's Point tab, the tab the panel opens on (#1089).
             XCTAssertTrue(label("maps.layer").contains("IPF-Z"), label("maps.layer"))
             waitFor("maps.map.key", timeout: 30)
             waitFor("maps.key.1", timeout: 30)
@@ -91,9 +92,9 @@ nonisolated final class MapsJourney: Journey {
             verb.click()
             waitStatus(containing: ["Segmented"], timeout: 120)
         }
-        try step("the Grains tab lists the grains; a click on the map outlines its grain") {
+        try step("the Grains table opens in the bottom area once Segment has grains; a click on the map outlines its grain") {
             try requireFrontmost()
-            app.radioButtons["Grains"].firstMatch.click()
+            // A pane of the shell's bottom area, shown by the window on its own the first time there are grains (#1095).
             waitFor("maps.grains.table", timeout: 30)
             XCTAssertTrue(label("maps.grains.summary").contains("grains"), label("maps.grains.summary"))
             // The mean ECD at the grain table's decimals, two or more ("mean ECD 3.14 µm"), as the ECD column writes each grain.

@@ -1,8 +1,9 @@
 //
 //  MapsRoomLayoutTests.swift
-//  The Maps room's layout (#1064, approved 25 Nov 2026): the map leads, the results take the trailing pane at full height, no strip
-//  under them, and the picked point is an inset on the map opposite the scale bar that Display hides. Red before: a vertical split put
-//  the map beside the live pattern pane over a strip of tabs, and there was no `MapsRoomLayout`, no inset and no switch.
+//  The Maps room's layout (#1064, approved 25 Nov 2026; on the frame since #1089 and #1095): the map leads, the Detail panel trails, no
+//  strip of the room's own under them, and the picked point is the Detail panel's (its pattern or unit cell), never an inset on the map.
+//  Red before #1064: a vertical split put the map beside the live pattern pane over a strip of tabs. Red before #1095: the results
+//  pane trailed and the picked point sat on the map behind Display › Pattern inset.
 //
 
 import ShellAgentDoor
@@ -13,42 +14,45 @@ import XCTest
 nonisolated final class MapsRoomLayoutTests: XCTestCase {
     private func ui(_ name: String) throws -> String { try FFTRoomWiringTests.squeezedUI(name) }
 
-    @MainActor func testTheResultsTakeTheTrailingPaneAndTheStripIsEmpty() throws {
+    @MainActor func testTheDetailTakesTheTrailingPanelAndTheRoomHasNoStrip() throws {
         XCTAssertEqual(MapsRoomLayout.leading, .map)
-        XCTAssertEqual(MapsRoomLayout.trailing, .results)
-        XCTAssertNil(MapsRoomLayout.bottom, "no strip under the panes")
+        XCTAssertEqual(MapsRoomLayout.trailing, .detail)
         let room = try ui("MapsRoom.swift")
         XCTAssertFalse(room.contains("VerticalPaneSplit("), "no strip")
         XCTAssertFalse(room.contains("LivePatternPane("), "the pattern is no pane of its own")
-        XCTAssertTrue(room.contains("PaneSplit(storageKey: MapsRoomLayout.splitKey, resizeLabel: \"Resize the map and the results\", leadingName: \"Map\") { upper(document)"))
-        XCTAssertTrue(room.contains("} trailing: { MapsResultsPane(session: session, state: state) }"))
-        XCTAssertNotEqual(MapsRoomLayout.splitKey, "maps.split", "the old map | pattern fraction does not size the results")
+        XCTAssertTrue(room.contains("} trailing: { CentrePanel(title: \"Detail\") { MapsDetailPane(session: session, state: state, patterns: patternsDataset.map { _ in appState.ebsd }) } }"))
+        XCTAssertNotEqual(MapsRoomLayout.centreKey, "maps.split", "the old map | pattern fraction does not size the Detail panel")
+        XCTAssertNotEqual(MapsRoomLayout.centreKey, "maps.resultsSplit", "nor the results pane's half")
+        XCTAssertEqual(MapsRoomLayout.centreKey, "workspace.centre.maps.fraction")
+        XCTAssertGreaterThan(MapsRoomLayout.defaultFraction, 0.5, "the map, the data, takes more than half until the person drags")
     }
 
-    /// The inset sits opposite the scale bar (the footer's leading corner), takes no clicks, follows Display's switch and leaves a small
-    /// map alone.
-    @MainActor func testThePickedPointIsAnInsetOppositeTheScaleBar() throws {
-        XCTAssertEqual(MapsRoomLayout.insetAlignment, .topTrailing)
-        XCTAssertTrue(MapsRoomLayout.fitsInset(in: CGSize(width: 500, height: 400)))
-        XCTAssertFalse(MapsRoomLayout.fitsInset(in: CGSize(width: 200, height: 400)), "a narrow map keeps its pixels")
-        XCTAssertTrue(MapsRoomState().showsPointInset, "on by default")
+    /// The picked point is the Detail panel's Point tab, with the colour key under it; nothing of it is placed over the map, and its
+    /// switch is gone from Display.
+    @MainActor func testThePickedPointIsTheDetailPanelsNotAnInset() throws {
+        XCTAssertEqual(MapsRoomState().detailTab, .point, "the panel opens on the point, as the map showed it")
         let room = try ui("MapsRoom.swift")
-        XCTAssertTrue(room.contains("if state.showsPointInset, MapsRoomLayout.fitsInset(in: box) { MapsPointInset(session: session, patterns: patterns)"))
-        XCTAssertTrue(room.contains(".frame(width: box.width, height: box.height, alignment: MapsRoomLayout.insetAlignment) .allowsHitTesting(false)"))
+        XCTAssertTrue(room.contains("MapsPointDetail(session: session, patterns: patterns) Divider() MapsColourKey(session: session)"))
+        XCTAssertFalse(room.contains("MapsPointInset("))
+        XCTAssertFalse(room.contains("fitsInset("))
+        XCTAssertFalse(room.contains("insetAlignment"))
+        XCTAssertFalse(room.contains(".background(.regularMaterial"), "no plate over the map")
         let inspector = try ui("MapsRoomInspector.swift")
-        XCTAssertTrue(inspector.contains("InspectorSection(\"Display\") {"))
-        XCTAssertTrue(inspector.contains("Toggle(\"Pattern inset\", isOn: $state.showsPointInset) .toggleStyle(.switch).labelsHidden()"))
+        XCTAssertFalse(inspector.contains("Pattern inset"), "the inset's switch went with the inset")
+        XCTAssertFalse(inspector.contains("maps.showInset"))
+        XCTAssertTrue(inspector.contains("ImageRoomDisplayRows(presentation: session.propertyPresentation, colormapID: \"maps.colormap\")"),
+                      "Display keeps a value layer's rows")
     }
 
-    /// The door reads and sets the inset through the room's own state, and the coverage names its switch.
-    @MainActor func testTheDoorReachesTheInset() {
-        XCTAssertTrue(MacTEMAgentDoor.mapsParameters.contains { $0.name == "show_inset" })
-        XCTAssertEqual(AgentDoorCoverage.controls["maps.showInset"], .tool("set_maps"))
+    /// The door reads and sets the Detail panel's tab through the room's own state; the inset's parameter and its coverage row went.
+    @MainActor func testTheDoorReachesTheDetailPanel() {
+        XCTAssertFalse(MacTEMAgentDoor.mapsParameters.contains { $0.name == "show_inset" })
+        XCTAssertNil(AgentDoorCoverage.controls["maps.showInset"])
         XCTAssertEqual(AgentDoorCoverage.controls["maps.results.tabs"], .tool("set_maps"))
         let appState = AppState(launch: LaunchOptions(arguments: []))
-        XCTAssertNil(MacTEMAgentDoor.applyMaps(["show_inset": "false"], to: appState))
-        XCTAssertFalse(appState.mapsRoom.showsPointInset)
-        XCTAssertNil(MacTEMAgentDoor.applyMaps(["show_inset": "true"], to: appState))
-        XCTAssertTrue(appState.mapsRoom.showsPointInset)
+        XCTAssertNil(MacTEMAgentDoor.applyMaps(["tab": "odf"], to: appState))
+        XCTAssertEqual(appState.mapsRoom.detailTab, .odf)
+        XCTAssertNil(MacTEMAgentDoor.applyMaps(["tab": "point"], to: appState))
+        XCTAssertEqual(appState.mapsRoom.detailTab, .point)
     }
 }

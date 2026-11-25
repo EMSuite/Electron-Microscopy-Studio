@@ -693,3 +693,21 @@ DNA). The statistics were half repeated in the tab's line already.
 
 **What would reverse it.** A grain table too short at the opening size to show its slip rows; then they move to a detail line.
 
+## 2026-11-25 — The Maps room sits on the frame: Map and Detail panels, Grains and Slip in the bottom area (#1089, #1095)
+
+**What.** The room's centre is the shell's `WorkspaceCentre` with two `CentrePanel`s: Map (its heading's control is the map picker of
+#1065, with the map's facts; the point under the pointer in the readout slot) and Detail (Point, Pole figures, ODF, Histogram behind
+one segmented control; Point shows the picked point's pattern or unit cell with its Euler angles, then the colour key). The divider
+starts at 60 % for the map under its own key (`workspace.centre.maps.fraction`). The map is fitted to its panel; nothing is drawn
+over it but the boundaries, the picked grain's outline and slip traces (lines, no label plates), the marker, the scale bar and the
+zoom badge. The Grains table and the picked grain's slip planes (a sortable table: plane with its trace's colour swatch, Schmid
+factor, trace angle, colour, inclination) are panes of the shell's bottom area beside Output, each shown once per window when it
+first has rows, as the Diffraction tables are (#1094). Display › Pattern inset and `set_maps show_inset` go (Display is listed only
+for a value layer, the one with rows left); `set_maps tab` takes point, pole_figures, odf or histogram. This replaces the inset
+of #1064 and the key on the map's footer of #1065.
+
+**Why.** Paul's frame review of 25 Nov 2026 on sdss_ferrite_austenite.ang (117 × 100): in a half-width pane at full height the map
+was a band across the middle, the inset, the two IPF keys and thirty slip-label chips covered most of it, and the slip rows pushed
+the grain table to three rows. One frame for every room.
+
+**What would reverse it.** A drive that needs the key or the picked point beside the map while another Detail tab is shown.

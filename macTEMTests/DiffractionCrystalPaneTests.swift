@@ -80,7 +80,8 @@ nonisolated final class DiffractionCrystalPaneTests: XCTestCase {
         view.showsCrystal = false
         XCTAssertFalse(view.showsCrystal)
         let room = try FFTRoomWiringTests.squeezedUI("DiffractionRoom.swift")
-        XCTAssertTrue(room.contains("if let pane = DiffractionSidePaneView.shown(part: part, view: view, analysis: analysis) { HorizontalPaneSplit(storageKey: DiffractionCrystalSplit.storageKey,"), "the split is stored")
+        XCTAssertTrue(room.contains("if let pane = DiffractionSidePaneView.shown(part: part, view: view, analysis: analysis) { WorkspaceCentre(storageKey: DiffractionCrystalSplit.storageKey,"), "the split is stored")
+        XCTAssertTrue(room.contains("} else { WorkspaceCentre { patternPanel(analysis: analysis, view: view, rows: rows) } }"), "hidden, the pattern takes the room")
         XCTAssertEqual(DiffractionCrystalSplit.storageKey, "diffraction.crystalSplit")
         XCTAssertTrue(try FFTRoomWiringTests.squeezedUI("DiffractionSidePane.swift").contains("DiffractionCrystalPane(analysis: analysis, showsUnitCell: view.showsUnitCell,"))
         let a = DiffractionAnalysis()

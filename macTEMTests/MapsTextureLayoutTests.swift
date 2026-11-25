@@ -69,13 +69,14 @@ nonisolated final class MapsTextureLayoutTests: XCTestCase {
     /// histogram's kind and the texture's phase are on their tabs' own header lines.
     func testTheTabRowKeepsItsWidth() throws {
         let analysis = try FFTRoomWiringTests.squeezedUI("MapsRoomAnalysis.swift")
-        let pane = try XCTUnwrap(analysis.components(separatedBy: "struct MapsResultsPane: View {").dropFirst().first?
+        // The Detail panel's tab row (#1095; the results pane's before).
+        let pane = try XCTUnwrap(analysis.components(separatedBy: "struct MapsDetailPane: View {").dropFirst().first?
             .components(separatedBy: "struct MapsTexturePhasePicker: View {").first)
-        let row = try XCTUnwrap(pane.components(separatedBy: "HStack {").dropFirst().first?.components(separatedBy: ".padding(.horizontal, 10)").first)
-        XCTAssertTrue(row.contains("SegmentedControl(label: \"Results\""))
+        let row = try XCTUnwrap(pane.components(separatedBy: "HStack {").dropFirst().first?.components(separatedBy: ".fixedSize(horizontal: false, vertical: true)").first)
+        XCTAssertTrue(row.contains("SegmentedControl(label: \"Detail\""))
         XCTAssertFalse(row.contains("Picker("), "no pop-up in the tab row")
         XCTAssertFalse(row.contains("MapsTexturePhasePicker("))
-        XCTAssertFalse(row.contains("state.resultsTab =="), "nothing in the row depends on the tab")
+        XCTAssertFalse(row.contains("state.detailTab =="), "nothing in the row depends on the tab")
         let histogram = try XCTUnwrap(analysis.components(separatedBy: "struct MapsHistogramPane: View {").dropFirst().first)
         XCTAssertTrue(histogram.contains("Picker(\"Histogram of\", selection: $state.histogramKind)"))
         let figures = try XCTUnwrap(analysis.components(separatedBy: "struct MapsTextureFigures: View {").dropFirst().first)

@@ -3,9 +3,10 @@
 //  Role: the pane beside the Diffraction room's pattern (#921): the crystal down the beam (#790) in Index and Simulate, the zone-axis
 //        map (#814) in Tilt Plan, the powder pattern (#810) in Powder. The part in the sidebar picks it (#1044, `DiffractionPart.sidePane`).
 //        They are results of the room, so they sit beside the data and never in an inspector section (control placement §1; design DNA:
-//        a live or interactive view is a pane). Its width is the room's `HorizontalPaneSplit`. The sentences that describe a result (the
+//        a live or interactive view is a pane). It is the leading panel of the room's centre (`WorkspaceCentre`, #1094), a `CentrePanel`
+//        whose header names it; its width is the centre's divider. The sentences that describe a result (the
 //        tilt to the picked zone axis, the powder headlines) are the pane's words above it; the inspector keeps the settings. The powder
-//        peaks are a table under the pattern (`DiffractionPowderPeakTable`) in the Powder part. Presentation only: the numbers are
+//        peaks are a table in the shell's bottom area (`DiffractionPowderPeakTable`, `DiffractionTablePane`) in the Powder part. Presentation only: the numbers are
 //        `TiltPlanning`'s and `PowderTable`'s over DiffractoKit.
 //
 
@@ -32,7 +33,7 @@ enum DiffractionPaneWords {
     static let powderDisclaimer = "A line pattern for planning and comparison: no instrument profile, no texture, no absorption, no thermal motion."
 }
 
-/// The side pane: its header (the pane's name) and the pane.
+/// The side pane: the frame's panel (`CentrePanel`), its header the pane's name, and the pane.
 struct DiffractionSidePaneView: View {
     let item: OpenItem
     let analysis: DiffractionAnalysis
@@ -48,17 +49,8 @@ struct DiffractionSidePaneView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            // The pane's name in a strip header, as the table strip under the pattern has one.
-            HStack {
-                Text(DiffractionPaneWords.title(pane)).font(.headline)
-                Spacer(minLength: 0)
-            }
-            .padding(.horizontal, LayoutPolicy.infobarHorizontalPadding)
-            .frame(height: LayoutPolicy.paneHeaderHeight)
-            .accessibilityElement(children: .combine)
-            .accessibilityIdentifier("diffraction.sidePane")
-            Divider()
+        // The pane's name in the frame's panel header, as the pattern's panel beside it has one (#1094).
+        CentrePanel(title: DiffractionPaneWords.title(pane)) {
             switch pane {
             case .crystal:
                 // A Simulation document draws the slab its multislice runs on (#897).
@@ -72,6 +64,8 @@ struct DiffractionSidePaneView: View {
                 DiffractionPowderPane(item: item)
             }
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("diffraction.sidePane")
     }
 }
 
