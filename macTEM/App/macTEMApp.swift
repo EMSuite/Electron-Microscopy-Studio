@@ -419,6 +419,8 @@ struct macTEMApp: App {
         // Report a Problem (EMSuiteUI's ShellHelp): the report and its diagnostics summary, sent from the person's own mail app or
         // browser; the welcome canvas opens it after a crash (#801). Never opened at launch.
         FeedbackWindow(Self.helpLinks)
+            // Not a Window-menu item: it sat there between Move & Resize and Objects (#1032). Help > Report a Problem… opens it (#753).
+            .commandsRemoved()
         // Help > How to Cite (#828); never opened at launch.
         HowToCiteWindow(windows: windows)
         // The Particles view's object table, beside the image (ImageRoomParticles.swift); never opened at launch.
