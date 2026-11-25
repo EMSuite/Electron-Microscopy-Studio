@@ -44,7 +44,7 @@ nonisolated final class SlabDrawingTests: XCTestCase {
 
     /// The marks are the columns of every whole unit the image tiles, each on its position over the image's own sampling: Si [1 1 0]
     /// on 216 × 150 pixels of a / 108 by a√2 / 150 is two units down and one across, sixteen marks. And on the kit's grid of one unit
-    /// (120 × 160, the HRTEM image's), each mark lies within one pixel of a maximum of the projected potential of the period the
+    /// (120 × 160, the HRTEM image's before #1006), each mark lies within one pixel of a maximum of the projected potential of the period the
     /// multislice runs. Mutation: rows and columns swapped (x along the columns), the sampling in nm read as Å, a column off by half
     /// a pixel's convention (centres at whole numbers), the tiles not added.
     func testTheColumnsSitOnTheImagesPixelsOfTheirPositions() throws {
