@@ -62,12 +62,22 @@ struct ContentView: View {
                 set: { if !$0 { appState.errorMessage = nil } }
             )
         ) {
-            // Through the app's one pasteboard writer (PaneKeys.swift), as a pane's ⌘C.
-            Button("Copy Details") { SystemPaneTextWriter().write(appState.errorMessage ?? "") }
-            Button("OK", role: .cancel) { appState.errorMessage = nil }
+            // Through the app's one pasteboard writer (PaneKeys.swift), as a pane's ⌘C. OK is the default and the cancel; Copy
+            // Details the plain button (`ErrorAlertAction`, #1038).
+            errorAlertButton(.copyDetails)
+            errorAlertButton(.ok)
         } message: {
             Text(appState.errorMessage ?? "")
         }
+    }
+
+    /// One of the error alert's buttons as `ErrorAlertAction` says: its role (Esc) and its shortcut (Return) (#1038).
+    private func errorAlertButton(_ action: ErrorAlertAction) -> some View {
+        Button(action.title, role: action.isCancel ? ButtonRole.cancel : nil) {
+            if action == .copyDetails { SystemPaneTextWriter().write(appState.errorMessage ?? "") }
+            appState.errorMessage = nil
+        }
+        .keyboardShortcut(action.isDefault ? KeyboardShortcut.defaultAction : nil)
     }
 
     /// The arrangement (alignment design M2): the file, the room and the size as a DISPLAY in the centre, never a button; at the
