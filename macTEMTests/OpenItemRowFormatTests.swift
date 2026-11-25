@@ -88,6 +88,24 @@ nonisolated final class OpenItemRowFormatTests: XCTestCase {
         }
     }
 
+    /// The welcome inspector's wrapped prompt keeps every extension one unbreakable run (#1024): a word joiner after the dot and
+    /// between every letter, so the only breaks are at the spaces between extensions; read without the joiners it is the prompt.
+    /// Red before: the empty state wrapped ".emi" as ".e / mi".
+    func testTheWrappedPromptNeverBreaksAnExtension() throws {
+        let joiner = OpenItemRowFormat.wordJoiner
+        XCTAssertEqual(joiner.unicodeScalars.map(\.value), [0x2060])
+        let wrapped = OpenItemRowFormat.wrappingOpenPrompt
+        XCTAssertEqual(wrapped.replacingOccurrences(of: joiner, with: ""), OpenItemRowFormat.openPrompt)
+        for ext in ImageOpening.readableExtensions {
+            let unbroken = "." + joiner + ext.map(String.init).joined(separator: joiner)
+            XCTAssertTrue(wrapped.contains(unbroken), "the wrapped prompt keeps .\(ext) whole")
+        }
+        XCTAssertTrue(wrapped.contains("e\(joiner)m\(joiner)i"), ".emi is one run")
+        let inspector = try String(contentsOf: URL(fileURLWithPath: #filePath).resolvingSymlinksInPath().deletingLastPathComponent()
+            .deletingLastPathComponent().appendingPathComponent("macTEM/UI/WorkspaceInspector.swift"), encoding: .utf8)
+        XCTAssertTrue(inspector.contains("OpenItemRowFormat.wrappingOpenPrompt"), "the welcome inspector shows the wrapped prompt")
+    }
+
     /// A thumbnail pixel takes the colormap's colour; the masked sentinel is transparent. Mutation: treat −1 as data
     /// (it clamps to the first colour, opaque); swap the colour channels.
     func testAThumbnailPixelTakesTheColormapAndAMaskedOneIsTransparent() throws {
