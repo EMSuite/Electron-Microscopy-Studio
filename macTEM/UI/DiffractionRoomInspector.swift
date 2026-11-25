@@ -465,10 +465,13 @@ private struct DiffractionSimulationSection: View {
                         .accessibilityIdentifier("diffraction.simulation.show")
                 }
                 InspectorRow("hkl labels") {
-                    Toggle("hkl labels", isOn: Binding(get: { analysis.simulation.showsLabels }, set: { analysis.simulation.showsLabels = $0 }))
-                        .toggleStyle(.switch).labelsHidden()
-                        .help("Each simulated spot's hkl beside it (the 60 strongest)")
-                        .accessibilityIdentifier("diffraction.simulation.labels")
+                    // Strongest · All · None (#1045): a label goes only where it meets no other and not the centre's mark.
+                    Picker("hkl labels", selection: Binding(get: { analysis.simulation.labelMode }, set: { analysis.simulation.labelMode = $0 })) {
+                        ForEach(HKLLabelMode.allCases, id: \.self) { Text($0.title).tag($0) }
+                    }
+                    .pickerStyle(.menu).labelsHidden().fixedSize()
+                    .help(DiffractionLabelWords.modeHelp)
+                    .accessibilityIdentifier("diffraction.simulation.labels")
                 }
                 InspectorRow("Double diffraction") {
                     Toggle("Double diffraction", isOn: Binding(get: { analysis.simulation.doubleDiffraction }, set: { analysis.simulation.doubleDiffraction = $0 }))

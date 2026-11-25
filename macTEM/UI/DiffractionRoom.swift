@@ -334,7 +334,8 @@ private struct DiffractionPatternPane: View {
                 // the crystal, the centre or the scale changes (`DiffractionAnalysis.simulatedSpots`), and a Simulation document's Dynamical
                 // beams at its thickness (#911).
                 if let simulated = try? item.simulatedSpots(image: image)?.get() {
-                    SimulatedSpotsOverlay(spots: simulated, showsLabels: analysis.simulation.showsLabels, layout: layout)
+                    SimulatedSpotsOverlay(spots: simulated, labelMode: analysis.simulation.labelMode,
+                                          beam: analysis.centre.map { layout.point(column: $0.column, row: $0.row) }, layout: layout)
                         .allowsHitTesting(false)
                 }
                 // The shown variants of a precipitate (#808), pink diamonds, under the measured marks; placed off the main actor, the last
@@ -355,8 +356,20 @@ private struct DiffractionPatternPane: View {
                         if let inputs = variants.inputs(analysis: analysis, image: image) { await variants.place(inputs) }
                     }
                 }
-                DiffractionOverlay(analysis: analysis, view: view, rows: rows, layout: layout, drag: drag.flatMap { radii(from: $0.start, to: $0.end, layout: layout) })
+                DiffractionOverlay(analysis: analysis, view: view, rows: rows, layout: layout, drag: drag.flatMap { radii(from: $0.start, to: $0.end, layout: layout) },
+                                   pointer: lastHover)
                     .allowsHitTesting(false)
+                // What the marks are (#1045): one chip in the top-leading corner while the simulated spots are drawn.
+                let legend = DiffractionLegend.entries(
+                    overlayShown: !((try? item.simulatedSpots(image: image)?.get()) ?? []).isEmpty, phase: analysis.crystal.name,
+                    hasFound: analysis.spots.contains { $0.row != nil && $0.column != nil },
+                    hasUnexplained: analysis.indexSpotRows.contains { $0.hkl == nil })
+                if !legend.isEmpty {
+                    DiffractionLegendChip(entries: legend)
+                        .padding(6)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                        .allowsHitTesting(false)
+                }
                 // The spot cursor, for the eyes, once a key or an action has moved it.
                 if spotCursorShown, SpotCursorActions.addsSpots(view) {
                     let pixel = spotActions.pixel(spotCursor)
@@ -708,6 +721,8 @@ private struct DiffractionOverlay: View {
     let rows: [DiffractionReadoutRow]
     let layout: DiffractionLayout
     let drag: (Double, Double)?
+    /// Where the pointer is over the pattern: the found spot under it carries its d label (#1045).
+    let pointer: CGPoint?
     /// Increase Contrast thickens the overlay lines (#799).
     @Environment(\.colorSchemeContrast) var contrast
 
@@ -718,6 +733,15 @@ private struct DiffractionOverlay: View {
         let rings = analysis.rings
         let spots = analysis.spots
         let labels = Dictionary(uniqueKeysWithValues: rows.map { ($0.id, label(for: $0)) })
+        // A found spot's d label only on the selected row and under the pointer (#1045); every ring keeps its own.
+        let shown = DiffractionMarkLabels.labelled(
+            rings: rings.map(\.id),
+            spots: spots.compactMap { spot in
+                guard let r = spot.row, let c = spot.column else { return nil }
+                let p = layout.point(column: c, row: r)
+                return (spot.id, SIMD2(Double(p.x), Double(p.y)))
+            },
+            selection: view.selection, pointer: pointer.map { SIMD2(Double($0.x), Double($0.y)) })
         Canvas { ctx, _ in
             func point(column: Double, row: Double) -> CGPoint { layout.point(column: column, row: row) }
             let ppp = layout.pointsPerPixel
@@ -745,9 +769,10 @@ private struct DiffractionOverlay: View {
                 // The calibrating ring is dashed as well as orange (#799).
                 let signal = OverlaySignal.diffractionRing(calibrating: ring.isCalibrating)
                 ctx.stroke(path, with: .color(ring.isCalibrating ? .orange : .yellow), style: StrokeStyle(lineWidth: line, dash: signal.dash))
-                if let text = labels[ring.id], let first = points.first {
+                if shown.contains(ring.id), let text = labels[ring.id], let first = points.first {
                     let at = point(column: first.x, row: first.y)
-                    ctx.draw(Text(text).font(.caption).foregroundStyle(.white), at: CGPoint(x: at.x + 6, y: at.y - 8), anchor: .leading)
+                    DiffractionHalo.draw(Text(text).font(.caption).foregroundStyle(.white), at: CGPoint(x: at.x + 6, y: at.y - 8),
+                                         anchor: .leading, in: ctx)
                 }
             }
             for spot in spots {
@@ -757,7 +782,10 @@ private struct DiffractionOverlay: View {
                 cross.move(to: CGPoint(x: p.x - 6, y: p.y - 6)); cross.addLine(to: CGPoint(x: p.x + 6, y: p.y + 6))
                 cross.move(to: CGPoint(x: p.x - 6, y: p.y + 6)); cross.addLine(to: CGPoint(x: p.x + 6, y: p.y - 6))
                 ctx.stroke(cross, with: .color(.red), lineWidth: line)
-                if let text = labels[spot.id] { ctx.draw(Text(text).font(.caption).foregroundStyle(.white), at: CGPoint(x: p.x + 8, y: p.y - 6), anchor: .leading) }
+                if shown.contains(spot.id), let text = labels[spot.id] {
+                    DiffractionHalo.draw(Text(text).font(.caption).foregroundStyle(.white), at: CGPoint(x: p.x + 8, y: p.y - 6),
+                                         anchor: .leading, in: ctx)
+                }
             }
         }
         .accessibilityHidden(true)
@@ -770,29 +798,82 @@ private struct DiffractionOverlay: View {
 }
 
 /// The simulated spots of a typed zone axis (#782): a ring per spot, its size growing with the square root of its intensity
-/// against the strongest, in cyan (the measured spots are red crosses, the rings yellow), and its hkl beside it when Labels is on.
-/// Labels go on the 60 strongest spots of at least 2 % of the strongest, so a dense pattern stays readable; the caption font is 10 pt.
-/// A spot double diffraction adds (#786) is a dashed ring of the smallest size, labelled (when Labels is on) after the others.
+/// against the strongest, in cyan (the measured spots are red crosses, the rings yellow), and the hkl of those the `hkl labels`
+/// pop-up asks for (#1045): Strongest up to 16 from the brightest down, All, or None, each label only where it meets no other and
+/// not the centre's mark (`HKLLabelPlacement`), on a dark halo. The caption font is 10 pt.
+/// A spot double diffraction adds (#786) is a dashed ring of the smallest size, labelled after the others.
 private struct SimulatedSpotsOverlay: View {
     let spots: [ZoneAxisOverlay.Spot]
-    let showsLabels: Bool
+    let labelMode: HKLLabelMode
+    /// The central beam's mark, in points: no label covers it.
+    let beam: CGPoint?
     let layout: DiffractionLayout
 
+    private nonisolated static func radius(_ spot: ZoneAxisOverlay.Spot) -> Double { 3 + 6 * spot.relative.squareRoot() }
+
     var body: some View {
+        let layout = layout
+        let placed = HKLLabelPlacement.place(
+            spots, mode: labelMode,
+            point: { spot in
+                let p = layout.point(column: spot.column, row: spot.row)
+                return SIMD2(Double(p.x), Double(p.y))
+            },
+            radius: { Self.radius($0) }, beam: beam.map { SIMD2(Double($0.x), Double($0.y)) })
         Canvas { ctx, _ in
             for spot in spots {
                 let p = layout.point(column: spot.column, row: spot.row)
-                let r = 3 + 6 * CGFloat(spot.relative.squareRoot())
+                let r = CGFloat(Self.radius(spot))
                 ctx.stroke(Path(ellipseIn: CGRect(x: p.x - r, y: p.y - r, width: 2 * r, height: 2 * r)), with: .color(.cyan),
                            style: StrokeStyle(lineWidth: 1.5, dash: spot.isDoubleDiffraction ? [2, 2] : []))
             }
-            guard showsLabels else { return }
-            for spot in ZoneAxisOverlay.labelled(spots) {
-                let p = layout.point(column: spot.column, row: spot.row)
-                let r = 3 + 6 * CGFloat(spot.relative.squareRoot())
-                ctx.draw(Text(spot.label).font(.caption).foregroundStyle(.cyan), at: CGPoint(x: p.x + r + 2, y: p.y + r + 2), anchor: .topLeading)
+            for label in placed {
+                DiffractionHalo.draw(Text(label.spot.label).font(.caption).foregroundStyle(.cyan),
+                                     at: CGPoint(x: label.low.x, y: label.low.y), anchor: .topLeading, in: ctx)
             }
         }
+        .accessibilityHidden(true)
+    }
+}
+
+/// A label on the pattern with a dark halo, so it reads over a bright spot in every colormap (#1045).
+private nonisolated enum DiffractionHalo {
+    static func draw(_ text: Text, at point: CGPoint, anchor: UnitPoint, in ctx: GraphicsContext) {
+        ctx.drawLayer { layer in
+            layer.addFilter(.shadow(color: .black.opacity(0.9), radius: 1.5))
+            layer.draw(text, at: point, anchor: anchor)
+        }
+    }
+}
+
+/// The pattern's legend (#1045): one row per kind of mark, the mark drawn by shape as well as colour (#923).
+private struct DiffractionLegendChip: View {
+    let entries: [DiffractionLegend.Entry]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            ForEach(Array(entries.enumerated()), id: \.offset) { _, entry in
+                HStack(spacing: 5) {
+                    Canvas { ctx, size in
+                        let c = CGPoint(x: size.width / 2, y: size.height / 2)
+                        switch entry.mark {
+                        case .simulated(let mark):
+                            ctx.stroke(Path(OverlaySignal.outline(mark, centre: c, radius: 4.5)), with: .color(.cyan), lineWidth: 1.5)
+                        case .found, .unexplained:
+                            var cross = Path()
+                            cross.move(to: CGPoint(x: c.x - 4, y: c.y - 4)); cross.addLine(to: CGPoint(x: c.x + 4, y: c.y + 4))
+                            cross.move(to: CGPoint(x: c.x - 4, y: c.y + 4)); cross.addLine(to: CGPoint(x: c.x + 4, y: c.y - 4))
+                            ctx.stroke(cross, with: .color(.red),
+                                       style: StrokeStyle(lineWidth: 1.5, dash: entry.mark == .unexplained ? [2, 1.5] : []))
+                        }
+                    }
+                    .frame(width: 12, height: 12)
+                    Text(entry.text).font(.caption).foregroundStyle(.white)
+                }
+            }
+        }
+        .padding(.horizontal, 6).padding(.vertical, 4)
+        .background(.black.opacity(0.6), in: RoundedRectangle(cornerRadius: 5))
         .accessibilityHidden(true)
     }
 }

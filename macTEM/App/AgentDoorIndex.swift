@@ -140,7 +140,9 @@ extension MacTEMAgentDoor {
                        input: .window,
                        parameters: [
                            AgentParameter("overlay", .boolean, summary: "Show the simulated spots."),
-                           AgentParameter("labels", .boolean, summary: "Show their hkl."),
+                           AgentParameter("labels", .boolean, summary: "Show their hkl (on: the label mode chosen, else strongest; off: none)."),
+                           AgentParameter("label_mode", .choice(HKLLabelMode.allCases.map(\.rawValue)),
+                                          summary: "The hkl labels pop-up: strongest (up to 16 that fit), all (every one that fits) or off."),
                            AgentParameter("double_diffraction", .boolean, summary: "Also the double-diffraction spots."),
                            AgentParameter("excitation_error", .number(0.001...1), summary: "σ of the excitation envelope, Å⁻¹."),
                        ], acts: true) { call in
@@ -150,6 +152,12 @@ extension MacTEMAgentDoor {
             case .item(let item):
                 if let overlay = call.arguments["overlay"] { item.diffraction.simulation.isShown = overlay == "true" }
                 if let labels = call.arguments["labels"] { item.diffraction.simulation.showsLabels = labels == "true" }
+                if let text = call.arguments["label_mode"] {
+                    guard let mode = HKLLabelMode(rawValue: text) else {
+                        return .refusal(status: 400, message: "label_mode is strongest, all or off.")
+                    }
+                    item.diffraction.simulation.labelMode = mode
+                }
                 if let double = call.arguments["double_diffraction"] { item.diffraction.simulation.doubleDiffraction = double == "true" }
                 if let sigma = call.arguments["excitation_error"].flatMap(Double.init), !item.diffraction.setExcitationError(sigma) {
                     return .refusal(status: 400, message: "The excitation error is a number from 0.001 to 1 Å⁻¹.")
@@ -224,7 +232,7 @@ extension MacTEMAgentDoor {
     static func simulation(_ item: OpenItem) -> [String: Any] {
         let analysis = item.diffraction, settings = analysis.simulation
         var out: [String: Any] = [
-            "overlay": settings.isShown, "labels": settings.showsLabels,
+            "overlay": settings.isShown, "labels": settings.showsLabels, "label_mode": settings.labelMode.rawValue,
             "zone_axis": [settings.zoneAxis.x, settings.zoneAxis.y, settings.zoneAxis.z],
             "turn_degrees": AgentJSON.number(settings.inPlaneDegrees), "from_index": settings.indexed != nil,
             "scale": AgentJSON.number(settings.scale), "crystal": analysis.crystal.name,

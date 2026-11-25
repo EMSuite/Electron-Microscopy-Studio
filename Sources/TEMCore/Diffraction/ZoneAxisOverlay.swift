@@ -117,13 +117,19 @@ package nonisolated enum ZoneAxisOverlay {
         }
     }
 
-    /// What the room asks for: the zone axis, its turn in the plane, and whether hkl labels are drawn.
+    /// What the room asks for: the zone axis, its turn in the plane, and which hkl labels are drawn.
     package struct Settings: Sendable, Equatable {
         package var isShown = false
         package var zoneAxis = SIMD3(0, 0, 1)
         /// Degrees, counter-clockwise from the kit's lab x (down the rows) toward lab y (along the columns).
         package var inPlaneDegrees = 0.0
-        package var showsLabels = true
+        /// Which simulated spots carry their hkl (#1045): the strongest that fit, all that fit, or none.
+        package var labelMode = HKLLabelMode.strongest
+        /// Whether any hkl is drawn: the session file's and the door's `labels`. Switching it on keeps a mode already chosen.
+        package var showsLabels: Bool {
+            get { labelMode != .off }
+            set { labelMode = newValue ? (labelMode == .off ? .strongest : labelMode) : .off }
+        }
         /// The full orientation Index found, drawn in place of the typed zone axis and turn until either is typed again.
         package var indexed: CrystalOrientation?
         /// Index's measured |q| over |g|: the simulated spots are drawn at |g| times this, onto the measured ones (1 when typed).
