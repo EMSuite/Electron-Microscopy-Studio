@@ -78,22 +78,24 @@ nonisolated final class DiffractionPatternCanvasTests: XCTestCase {
         XCTAssertNil(analysis.centre)
         XCTAssertNil(view.presentation.canvas)
 
-        await view.show(image: image, analysis: analysis)
+        await view.show(image: image, generation: 1, analysis: analysis)
         let centre = DiffractionCentre.imageCentre(width: image.width, height: image.height)
         XCTAssertEqual(analysis.centre, centre, "the results owner is bound to the image")
         let extent = DiffractionCompute.contentRadius(pixels: image.pixels, width: image.width, height: image.height, centre: centre)
         XCTAssertNotNil(extent, "the demo pattern has an extent of its own")
         XCTAssertEqual(view.autoHalfSide, extent, "the view opens on the pattern")
         XCTAssertEqual(view.presentation.canvas, CanvasPixels.pattern(image: image, log: true))
+        XCTAssertTrue(view.showsCanvas(generation: 1))
+        XCTAssertFalse(view.showsCanvas(generation: 2), "new pixels of the same size need another canvas (#1003)")
 
         view.presentation.windowLow = 0.25
         view.useLog = false
-        await view.show(image: image, analysis: analysis)
+        await view.show(image: image, generation: 1, analysis: analysis)
         XCTAssertEqual(view.presentation.canvas, CanvasPixels.pattern(image: image, log: false))
         XCTAssertNil(view.presentation.windowLow, "a window in log values means nothing in linear ones")
 
         view.presentation.windowLow = 0.25
-        await view.show(image: image, analysis: analysis)
+        await view.show(image: image, generation: 1, analysis: analysis)
         XCTAssertEqual(view.presentation.windowLow, 0.25, "the same picture again keeps its window")
     }
 
@@ -101,8 +103,8 @@ nonisolated final class DiffractionPatternCanvasTests: XCTestCase {
     /// Red under: the bind, the extent or the canvas back in the view's task.
     func testTheRoomAsksItsOwnerToShowThePattern() throws {
         let room = try FFTRoomWiringTests.squeezedUI("DiffractionRoom.swift")
-        XCTAssertTrue(room.contains(".task(id: DisplayKey(id: item.id, log: view.useLog, width: image.width, height: image.height)) { "
-            + "await view.show(image: image, analysis: analysis) }"))
+        XCTAssertTrue(room.contains(".task(id: DisplayKey(id: item.id, log: view.useLog, generation: item.session.generation)) { "
+            + "await view.show(image: image, generation: item.session.generation, analysis: analysis) }"))
         XCTAssertFalse(room.contains("@concurrent"), "nothing is computed in the view file")
         XCTAssertFalse(room.contains("analysis.bind("), "the bind is the owner's")
         XCTAssertFalse(room.contains("CanvasPixels("), "the canvas is TEMSession's")

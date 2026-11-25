@@ -222,7 +222,7 @@ nonisolated final class AgentDoorDiffractionTests: XCTestCase {
     @MainActor func testTheFigureToolDrawsThePattern() async throws {
         let (_, item) = try await diffractionWindow()
         let image = try XCTUnwrap(item.session.image)
-        await item.diffractionView.show(image: image, analysis: item.diffraction)
+        await item.diffractionView.show(image: image, generation: item.session.generation, analysis: item.diffraction)
         let figure = try await call("get_diffraction_figure")
         XCTAssertFalse(figure.refused, figure.text)
         XCTAssertTrue(figure.image, "the figure is a picture")

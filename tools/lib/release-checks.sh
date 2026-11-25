@@ -70,7 +70,7 @@ assert_mactem_bundle_arm64_only() {  # <app>
 # The demo files Help > Open Demo Data opens, each named and not empty.
 assert_mactem_demo_data() {  # <app>
   local app="$1" file demo_failures=0
-  for file in nickel_ebsd_large/patterns_v2.h5 EDS_SEM_TM002.hspy ni_mc_mp_20kv_uint8_gzip_opts9.h5 sdss_ferrite_austenite.ang; do
+  for file in nickel_ebsd_large/patterns_v2.h5 EDS_SEM_TM002.hspy ni_mc_mp_20kv_uint8_gzip_opts9.h5 sdss_ferrite_austenite.ang twinned_nanowire_frame.hspy silicon_Fd-3m.cif; do
     if [[ ! -s "$app/Contents/Resources/DemoData/$file" ]]; then
       echo "The app is missing its demo file DemoData/$file." >&2
       demo_failures=1

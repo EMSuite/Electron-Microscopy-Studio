@@ -11,8 +11,11 @@ Every public dataset the SEM program reads, with its source, licence and DOI. Tw
   (destination, hash, URL, licence, DOI; suite ADR 0006). The `Public data` workflow (`.github/workflows/public-data.yml`,
   run by hand) fetches them on GitHub's Linux runner, which reaches Zenodo, checks each hash with
   `tools/lib/fetch-public-data.sh`, and keeps them as the run's `public-data` artifact and in the Actions cache; unpack
-  the artifact into `References/public-data/` (gitignored). The first entry is pyxem's twinned GaAs nanowire scan
-  (CC BY 4.0, DOI 10.5281/zenodo.15490547), the source of the 2.3 demo pattern (#804).
+  the artifact into `References/public-data/` (gitignored). The first entry is pyxem's twinned nanowire scan
+  (CC BY 4.0, DOI 10.5281/zenodo.15490547), the source of the 2.3 demo pattern (#804), pinned by its sha256. Run by hand
+  with `extract_demo_frame`, the workflow also writes the demo frame (`tools/lib/extract-spot-pattern.py`) and prints it
+  to the run's log as base64 with its sha256, which is how a cloud session takes it. The record names neither the
+  nanowire's phase nor the zone axis: the demo states the source and the scan position only.
 
 The licence rule (program spec, 2026-11-06): GPL-compatible only. macEM is GPL-3.0-only; CC BY 4.0 data and GPL-3
 test files are compatible, and each entry below says which it is. Demo data shipped with the app is listed in the
@@ -78,8 +81,8 @@ Closed since: **Tescan** (2026-11-07). RosettaSciIO has no Tescan test file, but
 
 ## Shipped with the app
 
-Shipped since macTEM#127 (2026-11-06). The first three are items of Help > Open Demo Data and of "Try Demo Data" on the
-start screen. The master pattern is not an item: the Indexing room loads it by itself when it first gets a scan, so
+Shipped since macTEM#127 (2026-11-06); the spot pattern and the silicon CIF since #804 (2.3). Every file but the master
+pattern is an item of Help > Open Demo Data and of "Try Demo Data" on the start screen (the CIF as Silicon Simulation). The master pattern is not an item: the Indexing room loads it by itself when it first gets a scan, so
 Dictionary indexing works on the demo scan.
 
 | Bundle path | Dataset | Size | Licence |
@@ -87,4 +90,6 @@ Dictionary indexing works on the demo scan.
 | `DemoData/nickel_ebsd_large/patterns_v2.h5` | kikuchipy `nickel_ebsd_large`, the EBSD north star | 15.4 MB | CC BY 4.0 |
 | `DemoData/EDS_SEM_TM002.hspy` | exspy `EDS_SEM_TM002`, the SEM-EDS north star | 31 KB | GPL-3.0 |
 | `DemoData/sdss_ferrite_austenite.ang` | orix-data `sdss_ferrite_austenite`, the Maps room's demo map (macTEM P3-04) | 0.65 MB | CC BY 4.0 |
+| `DemoData/twinned_nanowire_frame.hspy` | One recorded spot pattern (#804): the frame at scan position (y 84, x 26) of pyxem's twinned nanowire 4D-STEM scan (`pyxem.data.twinned_nanowire`, pyxem data 0.9.0; precession electron diffraction at 300 kV, 144 x 144 px, 8 bit, axes in pixels as in the scan), one of the frames with the most spot pixels, written as a HyperSpy file of one 2D signal by `tools/lib/extract-spot-pattern.py` on GitHub's runner (Public data run 45572788710); the file's title names the source. Carter Francis, *Pyxem 4D STEM Demo Data*, Zenodo (2025), doi:10.5281/zenodo.15490547 | 40 KB | CC BY 4.0 (adapted: one frame taken) |
+| `DemoData/silicon_Fd-3m.cif` | Silicon, Fd-3m, a = 5.4309 Å, the crystal of Help > Open Demo Data > Silicon Simulation (#804): written by DiffractoKit's `CIFExport` (EMSuite/DiffractoKit 0.22.0, its pin corpus's `cif-export/written/silicon_Fd-3m.cif`) | 4 KB | GPL-3.0-only |
 | `DemoData/ni_mc_mp_20kv_uint8_gzip_opts9.h5` | kikuchipy `nickel_ebsd_master_pattern_small`, the EMsoft Ni 20 kV master pattern; the Indexing room opens it with the demo scan, so Dictionary runs without a file to find (macTEM#160, D-SEM-91) | 0.9 MB | CC BY 4.0 (the pattern), GPL-3.0 (kikuchipy's file) |
