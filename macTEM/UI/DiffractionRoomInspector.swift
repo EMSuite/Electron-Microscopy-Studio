@@ -45,7 +45,7 @@ struct DiffractionRoomSettings: View {
         switch section {
         case .centre: DiffractionCentreSection(analysis: analysis, view: view)
         case .calibration: DiffractionCalibrationSection(session: item.session, analysis: analysis, view: view)
-        case .simulatedCalibration: DiffractionSimulatedCalibrationSection(analysis: analysis, image: image)
+        case .simulatedCalibration: DiffractionSimulatedCalibrationSection(session: item.session, analysis: analysis)
         case .display: DiffractionDisplaySection(view: view)
         case .tools: DiffractionToolsSection(view: view, tools: DiffractionSections.tools(kind))
         case .microscope: DiffractionMicroscopeSection(analysis: analysis)
@@ -67,8 +67,10 @@ struct DiffractionRoomSettings: View {
 /// A computed pattern's calibration (#1043): the scale and where it comes from, read only. The simulation made the pattern, so its
 /// scale and centre are exact and no camera recorded it: no standard, ring fit, camera or pixel pitch.
 private struct DiffractionSimulatedCalibrationSection: View {
+    /// The owner, never the image: a view holds no file's pixels (PixelOwnershipTests).
+    let session: ImageSession
+    private var image: CalibratedImage { session.imageOrBlank }
     let analysis: DiffractionAnalysis
-    let image: CalibratedImage
 
     var body: some View {
         InspectorSection("Calibration") {
