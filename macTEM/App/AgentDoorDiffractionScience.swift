@@ -196,13 +196,18 @@ extension MacTEMAgentDoor {
     }
 
     /// Writes `text` into the Agent folder as `file` (or `fallback`), answering the name written.
-    private static func writeAgentFile(_ text: String, file: String?, fallback: String) -> Written {
+    static func writeAgentFile(_ text: String, file: String?, fallback: String) -> Written {
+        writeAgentFile(Data(text.utf8), file: file, fallback: fallback)
+    }
+
+    /// Writes `data` into the Agent folder as `file` (or `fallback`), answering the name written.
+    static func writeAgentFile(_ data: Data, file: String?, fallback: String) -> Written {
         let name = file.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.flatMap { $0.isEmpty ? nil : $0 } ?? fallback
         switch folder.resolve(name) {
         case .failure(let refusal): return .refused(.refusal(status: 403, message: refusal.message))
         case .success(let url):
             do {
-                let written = try ExportDirectoryFile.write(text, named: url.lastPathComponent, into: url.deletingLastPathComponent())
+                let written = try ExportDirectoryFile.write(data, named: url.lastPathComponent, into: url.deletingLastPathComponent())
                 return .written(folder.relativePath(of: written))
             } catch {
                 return .refused(.refusal(status: 500, message: "Could not write \(name): \(error.localizedDescription)"))
