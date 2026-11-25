@@ -7,8 +7,8 @@
 //
 
 import CoreGraphics
-import ShellLayout
 import Foundation
+import ShellLayout
 import SwiftUI
 import TEMCore
 import XCTest
