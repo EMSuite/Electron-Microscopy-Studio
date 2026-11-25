@@ -7,6 +7,7 @@
 //
 
 import CoreGraphics
+import ShellLayout
 import Foundation
 import SwiftUI
 import TEMCore
