@@ -322,4 +322,52 @@ nonisolated final class EELSControlsTests: XCTestCase {
         XCTAssertTrue(lines[4].hasSuffix(",\"\(why)\""), "the C K row names why it has no at%: \(lines[4])")
         XCTAssertTrue(lines[5].hasSuffix(",false,") || lines[5].hasSuffix(",true,"), "an at% of 0 has no reason cell: \(lines[5])")
     }
+
+    // MARK: A file with only a core loss (#1073)
+
+    /// A file whose one cube is a core loss (the planted C, N and O core loss above, 200 to 899 eV, opened as the file's only cube, as `EELSOpening` puts
+    /// it in the low-loss slot): its edges are offered, the fit runs without a low loss (nothing to convolve, no Fourier ratio) and gives at% maps, and the
+    /// results say it has no t/λ instead of a number its core loss would give. Red under: "This file holds no core-loss spectrum image to fit." on it
+    /// (the 2026-11-25 YAlO₃ high-loss file); the core loss convolved with itself as a low loss; "t/λ 0.220" in the results.
+    @MainActor func testACoreLossOnlyFileFitsItsEdgesAndHasNoThickness() async throws {
+        let planted = try Self.core()
+        let image = try LowLossSpectrumImage(nx: planted.nx, ny: planted.ny, channels: planted.channels, storedCounts: planted.storedCounts,
+                                             energyOffsetEV: planted.energyOffsetEV, energyScaleEV: planted.energyScaleEV)
+        let session = EELSSession()
+        await session.bind(LoadedEELS(fileName: "high-loss.dm4", image: image, beamEnergyKeV: 200, convergenceMrad: 0, collectionMrad: 10,
+                                      origin: "planted")).value
+        await session.settled()
+        XCTAssertTrue(session.onlyCoreLoss); XCTAssertFalse(session.hasLowLoss)
+        XCTAssertNil(session.source?.coreLoss, "the file's one cube stays where the opening put it")
+
+        // Edges offered on the file's own axis.
+        let core = try XCTUnwrap(session.workingCoreLoss, "the core loss to fit is the file's one cube")
+        XCTAssertEqual(core.channels, planted.channels); XCTAssertEqual(core.energyOffsetEV, planted.energyOffsetEV)
+        XCTAssertEqual(core.storedCounts, planted.storedCounts)
+        let offered = Set(session.offeredEdges.map { EELSFitCompute.id($0) })
+        for (edge, _) in Self.amounts { XCTAssertTrue(offered.contains(EELSFitCompute.id(edge)), "\(EELSFitCompute.title(edge)) is offered") }
+
+        // The fit: no low loss to convolve with (Convolve is on by default and stays without effect), and at% from the edges alone.
+        for (edge, _) in Self.amounts { session.toggleEdge(edge) }
+        XCTAssertNil(session.fitBlocker)
+        XCTAssertFalse(session.effectiveConvolve, "a core loss is never convolved with itself")
+        await session.fit()?.value
+        await session.settled()
+        let model = try XCTUnwrap(session.model, session.failure ?? session.fitRefusal ?? "no fit")
+        XCTAssertEqual(model.nx * model.ny, planted.pixelCount)
+        let rows = session.regionRows
+        XCTAssertEqual(rows.map(\.title), ["C K", "N K", "O K"])
+        XCTAssertEqual(rows.compactMap(\.atomicPercent).count, 3, rows.compactMap(\.atomicUnavailable).joined(separator: "; "))
+        XCTAssertNil(session.mapsAvailability.disabledReason(.atomicPercent))
+        XCTAssertNotNil(session.modelTiles.first { $0.id == "at-C" }, "an at% map")
+
+        // No t/λ in the results: the header names no λ and the thickness line says why there is none.
+        let header = EELSRoomFormat.resultsHeader(region: session.selectedRegionName, lambdaNM: session.map?.meanFreePathNM,
+                                                  lambdaSource: EELSRoomFormat.lambdaSource(session.meanFreePath), onlyCoreLoss: session.onlyCoreLoss)
+        XCTAssertEqual(header, "Results · Whole map")
+        let line = EELSRoomFormat.thicknessLine(session.plot?.thickness, lambdaNM: session.map?.meanFreePathNM,
+                                                lambdaSource: EELSRoomFormat.lambdaSource(session.meanFreePath), onlyCoreLoss: session.onlyCoreLoss)
+        XCTAssertEqual(line, EELSRoomFormat.noLowLossLine)
+        XCTAssertFalse(try XCTUnwrap(session.resultsCSV).contains("t/λ 0"), "no t/λ number in the results CSV")
+    }
 }
