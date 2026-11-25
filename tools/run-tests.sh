@@ -163,6 +163,7 @@ unit_tests() (
       -configuration Debug -destination 'platform=macOS' \
       -derivedDataPath "${MACTEM_DERIVED_DATA:-$work/DerivedData}" -resultBundlePath "$work/unit.xcresult" \
       "${only[@]}" "${par[@]}" -testLanguage en -testRegion US \
+      -IDEBuildingContinueBuildingAfterErrors=YES \
       SWIFT_OPTIMIZATION_LEVEL=-O \
       CODE_SIGNING_ALLOWED=NO > "$work/unit.log" 2>&1 && rc=0 || rc=$?
   grep -E "error:|: error|\) failed |TEST (SUCCEEDED|FAILED)" "$work/unit.log" | tail -40 || true
