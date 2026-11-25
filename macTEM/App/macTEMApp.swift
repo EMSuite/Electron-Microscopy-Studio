@@ -264,24 +264,24 @@ private struct ImageCommands: Commands {
             // ⌘1…⌘5 go to the workspaces (`WorkspaceGroup`), as the sidebar lists them; a workspace's parts are its submenu, as they are
             // the section under it in the sidebar. The file decides: a workspace or a part with no data for what is open is disabled.
             ForEach(WorkspaceGroup.allCases) { group in
-                Button("Go to \(group.title)") { appState?.selectWorkspaceGroup(group) }
+                Button("Go to \(group.title)") { appState?.movingRoom { appState?.selectWorkspaceGroup(group) } }
                     .keyboardShortcut(KeyEquivalent(group.shortcutDigit), modifiers: .command)
                     .disabled(appState.map { $0.workspaceUnavailableReason(group) != nil } ?? true)
             }
             // The rooms of the workspace in front, one after the other, on the system's next and previous tab keys (Safari, Finder,
             // Xcode): disabled where the workspace has no other room with data, so the key is never dead.
             // In the Diffraction workspace they step through its parts (#1044), Calibrate to Thickness.
-            Button("Show Next Room") { appState?.showNeighbour(forward: true) }
+            Button("Show Next Room") { appState?.movingRoom { appState?.showNeighbour(forward: true) } }
                 .keyboardShortcut("]", modifiers: [.command, .shift])
                 .disabled(appState?.canShowNeighbour(forward: true) != true)
-            Button("Show Previous Room") { appState?.showNeighbour(forward: false) }
+            Button("Show Previous Room") { appState?.movingRoom { appState?.showNeighbour(forward: false) } }
                 .keyboardShortcut("[", modifiers: [.command, .shift])
                 .disabled(appState?.canShowNeighbour(forward: false) != true)
             Divider()
             ForEach(WorkspaceGroup.allCases.filter(\.hasParts)) { group in
                 Menu(group.title) {
                     ForEach(group.parts) { area in
-                        Button(area.title) { appState?.selectWorkspace(area) }
+                        Button(area.title) { appState?.movingRoom { appState?.selectWorkspace(area) } }
                             .disabled(appState.map { $0.roomUnavailableReason(area) != nil } ?? true)
                     }
                 }

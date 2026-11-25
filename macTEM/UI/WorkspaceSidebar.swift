@@ -126,11 +126,13 @@ extension AppState {
         Binding(
             get: { SidebarRoute.current(self.navigation.workspaceArea, diffractionPart: self.diffractionPart) },
             set: { route in
-                switch route {
-                case .workspace(let group): self.selectWorkspaceGroup(group)
-                case .room(let room): self.selectWorkspace(room)
-                case .diffractionPart(let part): self.selectDiffractionPart(part)
-                case nil: break
+                self.movingRoom {
+                    switch route {
+                    case .workspace(let group): self.selectWorkspaceGroup(group)
+                    case .room(let room): self.selectWorkspace(room)
+                    case .diffractionPart(let part): self.selectDiffractionPart(part)
+                    case nil: break
+                    }
                 }
             }
         )
