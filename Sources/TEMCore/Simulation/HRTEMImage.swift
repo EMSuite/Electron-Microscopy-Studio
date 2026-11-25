@@ -127,12 +127,72 @@ package nonisolated enum HRTEMImage {
     }
 
     /// The grid of `built`'s unit for `optics`: the sampling is the kit's rule for the aperture (the smaller of 0.05 Å and λ / 3β),
-    /// each length the next of factors 2, 3 and 5.
+    /// the lengths in proportion to the box's sides so the pixels are square (`squareGrid`, #1006).
     package static func grid(_ built: SimulationSpecimen.Built, optics: HRTEMOptics) throws -> (nx: Int, ny: Int) {
-        let box = built.box
         let sampling = try optics.apertureMrad.map { try SimulationPlan.sampling(largestAngle: $0, energy: optics.volts) } ?? finestSampling
-        return (SimulationPlan.fftFriendlyLength(atLeast: Int((box.x / sampling).rounded(.up))),
-                SimulationPlan.fftFriendlyLength(atLeast: Int((box.y / sampling).rounded(.up))))
+        return squareGrid(extent: SIMD2(built.box.x, built.box.y), sampling: sampling)
+    }
+
+    /// How far the two pixel sides of a grid may differ, relative: 0.5 % (CBED's square box takes the same).
+    package static let squarePixelTolerance = 0.005
+
+    /// The grid of `extent` (Å) at `sampling` (Å) whose pixels are square (#1006). abTEM takes each axis on its own,
+    /// gpts = ⌈extent / sampling⌉, so its pixels differ by under one point in a length; raising each length on its own to factors 2, 3
+    /// and 5 instead stretched them (Si [1 1 0]: 109 and 154 points to 120 and 160, 6 %). Each length is at least ⌈extent / sampling⌉
+    /// (no axis coarser than `sampling`, abTEM's per-axis rule), and the pair is the one of fewest points whose pixel sides agree within
+    /// `squarePixelTolerance`: lengths of factors 2, 3 and 5 when such a pair exists, else of factors up to 11 (the lengths SciPy's
+    /// `next_fast_len` takes; the kit's FFT takes every length). The search runs to twice the least length (at least 128 more); with no
+    /// pair within the tolerance there, the pair whose pixels are closest.
+    package static func squareGrid(extent: SIMD2<Double>, sampling: Double) -> (nx: Int, ny: Int) {
+        let leastX = max(1, Int((extent.x / sampling).rounded(.up)))
+        let leastY = max(1, Int((extent.y / sampling).rounded(.up)))
+        func isSmooth(_ n: Int, _ primes: [Int]) -> Bool {
+            guard n >= 1 else { return false }
+            var k = n
+            for p in primes { while k % p == 0 { k /= p } }
+            return k == 1
+        }
+        func next(_ n: Int, _ primes: [Int]) -> Int {
+            var m = max(1, n)
+            while !isSmooth(m, primes) { m += 1 }
+            return m
+        }
+        func previous(_ n: Int, _ primes: [Int]) -> Int {
+            var m = n
+            while m >= 1 && !isSmooth(m, primes) { m -= 1 }
+            return m
+        }
+        func mismatch(_ nx: Int, _ ny: Int) -> Double {
+            let px = extent.x / Double(nx), py = extent.y / Double(ny)
+            return abs(px - py) / max(px, py)
+        }
+        func search(_ primes: [Int]) -> (square: (nx: Int, ny: Int)?, closest: (nx: Int, ny: Int)) {
+            var square: (nx: Int, ny: Int, points: Int, mismatch: Double)?
+            var closest: (nx: Int, ny: Int, points: Int, mismatch: Double)?
+            let top = max(2 * leastX, leastX + 128)
+            var nx = next(leastX, primes)
+            while nx <= top {
+                let ideal = Double(nx) * extent.y / extent.x
+                let below = previous(Int(ideal), primes)
+                let above = next(max(Int(ideal.rounded(.up)), leastY), primes)
+                for ny in (below >= leastY ? [below, above] : [above]) {
+                    let m = mismatch(nx, ny), points = nx * ny
+                    if m <= squarePixelTolerance,
+                       square.map({ points < $0.points || (points == $0.points && m < $0.mismatch) }) ?? true {
+                        square = (nx, ny, points, m)
+                    }
+                    if closest.map({ m < $0.mismatch || (m == $0.mismatch && points < $0.points) }) ?? true {
+                        closest = (nx, ny, points, m)
+                    }
+                }
+                nx = next(nx + 1, primes)
+            }
+            let fallback = closest.map { (nx: $0.nx, ny: $0.ny) } ?? (nx: next(leastX, primes), ny: next(leastY, primes))
+            return (square.map { (nx: $0.nx, ny: $0.ny) }, fallback)
+        }
+        if let square = search([2, 3, 5]).square { return square }
+        let wide = search([2, 3, 5, 7, 11])
+        return wide.square ?? wide.closest
     }
 
     /// The periods to store a wave at: every one while `periods` waves of `points` grid points fit in `budget` bytes, else every

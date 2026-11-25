@@ -52,12 +52,12 @@ package nonisolated struct HRTEMThermal: Sendable, Equatable {
 }
 
 extension HRTEMImage {
-    /// The grid of a frozen-phonon run of `built` (a supercell across): the sampling rule for the aperture, lengths of factors 2, 3, 5.
+    /// The grid of a frozen-phonon run of `built` (a supercell across): the sampling rule for the aperture, square pixels
+    /// (`squareGrid`, #1006).
     package static func thermalGrid(_ built: SimulationSpecimen.Built, optics: HRTEMOptics) throws -> (nx: Int, ny: Int) {
         let box = built.slabBox
         let sampling = try optics.apertureMrad.map { try SimulationPlan.sampling(largestAngle: $0, energy: optics.volts) } ?? finestSampling
-        return (SimulationPlan.fftFriendlyLength(atLeast: Int((box.x / sampling).rounded(.up))),
-                SimulationPlan.fftFriendlyLength(atLeast: Int((box.y / sampling).rounded(.up))))
+        return squareGrid(extent: SIMD2(box.x, box.y), sampling: sampling)
     }
 
     /// What a frozen-phonon run of `built` needs (the kit's plan: grid, slices, steps, memory), checked against `limits`.
