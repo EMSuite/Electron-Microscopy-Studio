@@ -169,7 +169,7 @@ nonisolated final class HyperSpyExportTests: XCTestCase {
         _ = state.openDemo(.eels)
         state.navigation.workspaceArea = .eels
         XCTAssertTrue(HyperSpyExportPanel.isAvailable(in: state))
-        XCTAssertFalse(HyperSpyExportPanel.isAvailable(in: state, coreLoss: true), "the demo has no core loss")
+        XCTAssertTrue(HyperSpyExportPanel.isAvailable(in: state, coreLoss: true), "the demo has a core loss (#1088)")
         let snapshot = try XCTUnwrap(HyperSpyExportPanel.snapshot(of: state))
         XCTAssertEqual(snapshot.kind, .eels)
         let url = folder.appendingPathComponent("eels.hspy")
