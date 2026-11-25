@@ -192,7 +192,7 @@ extension ImageExport {
     /// Whether `drawMarks` draws a mark: at least two points, every coordinate finite. The metadata lists exactly the marks
     /// this lets through (a mark it refuses is counted in `marks_skipped`), so the Description says what the PNG shows.
     static func isDrawn(_ mark: Mark) -> Bool {
-        (mark.kind == .spot ? mark.points.count == 1 : mark.points.count >= 2)
+        (mark.kind == .spot || mark.kind == .simulatedSpot ? mark.points.count == 1 : mark.points.count >= 2)
             && mark.points.allSatisfy { $0.x.isFinite && $0.y.isFinite }
     }
 
@@ -203,6 +203,7 @@ extension ImageExport {
     static func drawMarks(_ marks: [Mark], in context: CGContext, width: Int, height: Int, overlayScale u: Int) {
         let scale = Double(u)
         let yellow = CGColor(srgbRed: 1.0, green: 0.8, blue: 0.0, alpha: 1)
+        let cyan = CGColor(srgbRed: 0.0, green: 0.85, blue: 1.0, alpha: 1)
         let underStroke = CGColor(srgbRed: 0, green: 0, blue: 0, alpha: 0.6)
         let font = markFont(overlayScale: u)
         context.saveGState()
@@ -238,11 +239,13 @@ extension ImageExport {
                 context.addLines(between: points)
                 context.strokePath()
             }
-            // A spot is one ring of the FFT pane's radius (7 points, `FFTSpotMarkers.ringRadius`); the others have a small ring per point.
-            let ringRadius = (mark.kind == .spot ? 7.0 : 3.0) * scale
+            // A spot is one ring of the FFT pane's radius (7 points, `FFTSpotMarkers.ringRadius`); a simulated spot a smaller cyan one,
+            // as the Diffraction room draws it; the others have a small ring per point.
+            let ringRadius = (mark.kind == .spot ? 7.0 : mark.kind == .simulatedSpot ? 5.0 : 3.0) * scale
+            let ringColour = mark.kind == .simulatedSpot ? cyan : yellow
             for point in points {
                 let ring = CGRect(x: point.x - ringRadius, y: point.y - ringRadius, width: 2 * ringRadius, height: 2 * ringRadius)
-                for (colour, lineWidth) in [(underStroke, 3 * scale), (yellow, 1.5 * scale)] {
+                for (colour, lineWidth) in [(underStroke, 3 * scale), (ringColour, 1.5 * scale)] {
                     context.setStrokeColor(colour)
                     context.setLineWidth(lineWidth)
                     context.strokeEllipse(in: ring)
@@ -255,7 +258,7 @@ extension ImageExport {
             switch mark.kind {
             case .angle:
                 anchor = points.count == 3 ? points[1] : nil
-            case .spot:
+            case .spot, .simulatedSpot:
                 anchor = points.count == 1 ? CGPoint(x: points[0].x + 4 * scale, y: points[0].y - 4 * scale) : nil
             case .distance, .profile:
                 anchor = points.count == 2 ? CGPoint(x: (points[0].x + points[1].x) / 2, y: (points[0].y + points[1].y) / 2) : nil
