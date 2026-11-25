@@ -39,16 +39,16 @@ extension LayoutPolicy {
     static let regionSwatchSize: CGFloat = 9
     /// The Indexing room's IPF colour key in the map pane's footer: legible beside the scale bar, small enough not to hide the map.
     static let indexingKeyHeight: CGFloat = 56
-    /// The Maps room's colour key in a figure: one phase's key image this wide (its own aspect sets the height); on the map (#1065)
-    /// `mapsKeyInsetWidth`, legible beside the scale bar, small enough not to hide the map.
+    /// The Maps room's colour key in a figure: one phase's key image this wide (its own aspect sets the height); in the Detail panel
+    /// (#1089) `mapsDetailKeyWidth`, so two phases' keys with their corner labels sit side by side in the panel at its default width.
     static let mapsKeyWidth: CGFloat = 150
-    static let mapsKeyInsetWidth: CGFloat = 84
+    static let mapsDetailKeyWidth: CGFloat = 120
     /// The margin either side of a colour key for its corner labels ("[001]" sits centred on the left corner and was cut off).
     static let mapsKeyLabelInset: CGFloat = 18
     /// A phase's colour square in the Maps room's legend and inspector, and the IPF colour swatch on the unit cell.
     static let mapsPhaseSwatchSize: CGFloat = 12
-    /// The picked point's inset on the Maps room's map (#1064): the pattern or the unit cell this wide, small enough to leave the map.
-    static let mapsInsetSide: CGFloat = 120
+    /// The picked point in the Maps room's Detail panel (#1089): the pattern or the unit cell this wide and tall.
+    static let mapsPointSide: CGFloat = 200
     /// The kinematical master pattern's picture in the Simulation section: wide enough to read its zone axes (rule 4).
     static let overlayMasterPictureWidth: CGFloat = 180
     /// The colour bar under a texture figure, and the boundary and trace line widths on the map (points).

@@ -6,6 +6,11 @@
 //        not saved; composed by `AppState` as `PatternsRoomState` is. P5-04 adds the results pane's tab, the grain table as CSV and the
 //        texture figures as one PNG.
 //
+//  The room's tables, Grains and Slip, are panes of the shell's bottom area beside Output (#1095; `ProcessTab`s supplied by
+//  `WorkspaceView`), as the Diffraction room's are (#1094, `DiffractionRoomState`): the bar above them drags, each has its toggle at
+//  the infobar's right end, and the window shows each on its own the first time it has something to list (`offer`), once; after
+//  that the person's toggles and the bar are theirs. Nothing of it is saved, so a new window starts as the first did.
+//
 
 import CoreGraphics
 import CoreText
@@ -13,6 +18,7 @@ import Foundation
 import ImagoCore
 import Observation
 import ShellExport
+import ShellLayout
 import ShellMetal
 import UniformTypeIdentifiers
 import TEMCore
@@ -30,10 +36,11 @@ final class MapsRoomState {
     private(set) var exportName = ""
     /// What the save panel writes: the map figure or the texture figure (PNG) or the grain table (CSV).
     private(set) var exportType = UTType.png
-    /// The results pane's tab (the trailing pane, #1064).
-    var resultsTab = MapsResultsTab.grains
-    /// Whether the map carries the picked point's inset (Display › Pattern inset, #1064).
-    var showsPointInset = true
+    /// The Detail panel's picture (the centre's trailing panel, #1089): the picked point with the colour key, the pole figures, the ODF
+    /// or the histogram.
+    var detailTab = MapsDetailTab.point
+    /// The tables this window has shown on its own in the bottom area (`offer`), each once.
+    private(set) var offeredTables: Set<MapsTable> = []
     /// What the Histogram tab counts.
     var histogramKind = MapAnalysis.HistogramKind.kam
     /// The export the save panel is writing, as the session record keeps it once the panel says where (`didWrite`).
@@ -54,6 +61,24 @@ final class MapsRoomState {
     }
 
     func requestImport() { importRequest &+= 1 }
+
+    /// Shows `table` in the bottom area the first time the window is asked to (`MapsTable.opening`): its pane joins the shown panes and
+    /// the area opens if it was shut (`toggleProcessPane`). A table asked for again, or one the person already shows, is left as it is,
+    /// so a toggle or a drag of theirs is never undone. As `DiffractionRoomState.offer`.
+    func offer(_ table: MapsTable?, in panels: PanelNavigation) {
+        guard let table, !offeredTables.contains(table) else { return }
+        offeredTables.insert(table)
+        guard !panels.shownProcessPanes.contains(table.paneID) else { return }
+        panels.toggleProcessPane(table.paneID)
+    }
+
+    /// The bottom area never stands open and empty (the shell's rule): when the tables on offer change (another room, the map closed)
+    /// and no pane shown is still among them or Output, Output is shown. As `DiffractionRoomState.keepAPaneShown`.
+    static func keepAPaneShown(supplied: [MapsTable], in panels: PanelNavigation) {
+        let offered = Set(supplied.map(\.paneID)).union([ProcessPaneID.output])
+        guard panels.shownProcessPanes.isDisjoint(with: offered) else { return }
+        panels.shownProcessPanes.insert(.output)
+    }
 
     /// Makes the map figure of the shown layer and opens the save panel, or, with `directory` (the UI journeys' export folder), writes it
     /// there; says why when there is nothing to write. The figure is drawn off the main actor (#251) from what the session shows when the
@@ -262,7 +287,10 @@ nonisolated enum MapsRoomFormat {
     }
 
     /// "Map · IPF-Z", "Map · Phase", "Map · iq"; "Map · IPF-Z · stale" for an Indexing run the room has moved on from (D-SEM-99).
-    static func mapTitle(_ layer: OrientationMapLayer, stale: Bool = false) -> String { "Map · " + layer.title + (stale ? " · stale" : "") }
+    static func mapTitle(_ layer: OrientationMapLayer, stale: Bool = false) -> String { "Map · " + layerTitle(layer, stale: stale) }
+
+    /// "IPF-Z", "Phase", "iq"; "IPF-Z · stale": the map panel's picker label, beside the panel's title "Map" (#1095).
+    static func layerTitle(_ layer: OrientationMapLayer, stale: Bool = false) -> String { layer.title + (stale ? " · stale" : "") }
 
     /// A value layer's colour bar title: the property's name, or a derived layer's with its unit, "KAM (°)".
     static func keyUnit(_ layer: OrientationMapLayer) -> String {
@@ -978,3 +1006,47 @@ nonisolated enum MapsFigure {
         ctx.restoreGState()
     }
 }
+
+/// One of the Maps room's tables (#1095): a pane of the shell's bottom area beside Output, shown and hidden by its own toggle at the
+/// infobar's right end, as Output is. Grains lists every grain of the last Segment; Slip the picked grain's slip planes.
+nonisolated enum MapsTable: String, CaseIterable, Sendable {
+    case grains, slip
+
+    /// The pane's name: the infobar toggle's help ("Grains pane") and VoiceOver label.
+    var title: String {
+        switch self {
+        case .grains: "Grains"
+        case .slip: "Slip"
+        }
+    }
+
+    /// The infobar toggle's symbol.
+    var systemImage: String {
+        switch self {
+        case .grains: "tablecells"
+        case .slip: "line.diagonal"
+        }
+    }
+
+    /// The table's pane in the shell's bottom area: "maps.table.grains", "maps.table.slip".
+    var paneID: ProcessPaneID { ProcessPaneID("maps.table.\(rawValue)") }
+
+    /// The tables the window shows on its own once (`MapsRoomState.offer`): Grains once Segment has found grains (the results pane showed
+    /// them then), Slip once a picked grain has slip planes to list (they sat under the grain table).
+    static func opening(hasGrains: Bool, hasSlip: Bool) -> [MapsTable] {
+        guard hasGrains else { return [] }
+        return hasSlip ? [.grains, .slip] : [.grains]
+    }
+}
+
+/// The Detail panel's pictures (#1089, #1095): what sat on the map as insets (the picked point's pattern or unit cell, the colour key)
+/// and the results pane's pictures (pole figures, ODF, histogram). The Grains table and the slip planes are bottom-area tables
+/// (`MapsTable`).
+enum MapsDetailTab: String, CaseIterable, Identifiable {
+    case point = "Point"
+    case poleFigures = "Pole figures"
+    case odf = "ODF"
+    case histogram = "Histogram"
+    var id: String { rawValue }
+}
+

@@ -108,13 +108,14 @@ nonisolated final class AgentDoorMapsTests: XCTestCase {
         let source = try await call("set_maps", ["source": 5])
         XCTAssertTrue(source.refused, "the room holds one result")
 
-        // The picked point's inset on the map (#1064): set and read through the room's own switch.
-        XCTAssertEqual(room["show_inset"] as? Bool, true)
-        let inset = try await call("set_maps", ["show_inset": false, "tab": "grains"])
-        XCTAssertFalse(inset.refused, inset.text)
-        XCTAssertFalse(state.mapsRoom.showsPointInset)
-        XCTAssertEqual(state.mapsRoom.resultsTab, .grains)
-        XCTAssertEqual(try json(inset.text)["show_inset"] as? Bool, false)
+        // The Detail panel's tab (#1095; the picked point was an inset on the map with its own switch before): set and read through
+        // the room's own state.
+        XCTAssertEqual(room["tab"] as? String, "point")
+        XCTAssertNil(room["show_inset"], "the inset and its switch are gone")
+        let detail = try await call("set_maps", ["tab": "pole_figures"])
+        XCTAssertFalse(detail.refused, detail.text)
+        XCTAssertEqual(state.mapsRoom.detailTab, .poleFigures)
+        XCTAssertEqual(try json(detail.text)["tab"] as? String, "pole_figures")
     }
 
     /// Mutation: run_room not pressing Segment, get_grains' page or order wrong, select_grains going around the table's selection or

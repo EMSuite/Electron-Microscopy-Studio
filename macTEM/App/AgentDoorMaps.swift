@@ -4,7 +4,7 @@
 //        picked point's orientation and grain, the Misorientation and Grains settings with the segmentation's summary, Slip and Texture.
 //        `get_grains` gives the grain table and a histogram as the room's tables and Histogram tab hold them; `get_maps_picture` draws
 //        the map figure (with its key or legend) and the texture figure as the Export section does. `set_maps` sets the inspector's
-//        sections, the results pane's tab and the picked point's inset (#1064), `select_grains` selects as the grain table does. Segment itself is `run_room`, the toolbar
+//        sections and the Detail panel's tab (#1095), `select_grains` selects as the grain table does. Segment itself is `run_room`, the toolbar
 //        verb, and a point is picked with `select_scan_position`, which follows the room shown.
 //
 //        ONE SOURCE PER FACT: the pictures are `MapsFigure.png` and `MapsFigure.texturePNG`, the Export section's own figures, from the
@@ -53,14 +53,13 @@ extension MacTEMAgentDoor {
             return mapsPicture(appState, which: call.arguments["which"] ?? "", scale: call.scale)
         },
         said(AgentTool(name: "set_maps", title: "Maps room settings",
-                       summary: "The Maps room's inspector and bottom pane; only what is given changes. source: a held result by its index "
+                       summary: "The Maps room's inspector and Detail panel; only what is given changes. source: a held result by its index "
                            + "in get_maps' sources. layer: an id from get_maps' layers (ipf-x, ipf-y, ipf-z, phase, property-<name>, and "
                            + "after Segment derived-kam, derived-gos, derived-grains, derived-gnd, derived-schmid). boundary_angle, "
                            + "minimum_size and kam_max are the next Segment's (DefDAP's), so the analysis shown reads stale until "
                            + "run_room. load and slip_systems (with slip_phase) set the Schmid factors' load axis and a phase's DefDAP "
                            + "slip-system file. texture_phase computes that phase's texture (answers at once; get_maps says computing). "
-                           + "tab and histogram choose the results pane beside the map; show_inset shows or hides the picked point's "
-                           + "pattern (or unit cell) as an inset on the map.",
+                           + "tab and histogram choose the Detail panel beside the map (point: the picked point and the colour key).",
                        input: .window, parameters: mapsParameters, acts: true) { call in
             guard let appState = call.window?.state as? AppState else { return notAWindowRefusal }
             guard appState.maps.hasMap else { return noMap }
@@ -113,13 +112,12 @@ extension MacTEMAgentDoor {
         AgentParameter("slip_systems", .choice(["none"] + SlipSystemFile.allCases.map(\.rawValue)), summary: "DefDAP's slip-system file, or none."),
         AgentParameter("show_slip_traces", .boolean, summary: "The selected grain's slip traces over the map."),
         AgentParameter("texture_phase", .integer(-1...1_000), summary: "Compute this phase's texture (its id)."),
-        AgentParameter("tab", .choice(MapsResultsTab.allCases.map { agentWord($0) }), summary: "The results pane's tab."),
-        AgentParameter("show_inset", .boolean, summary: "The picked point's pattern, or unit cell, as an inset on the map."),
+        AgentParameter("tab", .choice(MapsDetailTab.allCases.map { agentWord($0) }), summary: "The Detail panel's tab."),
         AgentParameter("histogram", .choice(MapAnalysis.HistogramKind.allCases.map { agentWord($0) }), summary: "The Histogram tab's distribution."),
     ]
 
     /// "Pole figures" → "pole_figures", "Grain size" → "grain_size": a tab's or a histogram's title as the door spells it.
-    static func agentWord(_ tab: MapsResultsTab) -> String { tab.rawValue.lowercased().replacingOccurrences(of: " ", with: "_") }
+    static func agentWord(_ tab: MapsDetailTab) -> String { tab.rawValue.lowercased().replacingOccurrences(of: " ", with: "_") }
     static func agentWord(_ kind: MapAnalysis.HistogramKind) -> String { kind.rawValue.lowercased().replacingOccurrences(of: " ", with: "_") }
 
     // MARK: Answers
@@ -155,8 +153,7 @@ extension MacTEMAgentDoor {
             "show_boundaries": session.showsBoundaries,
             "slip": slipAnswer(session, map: map),
             "texture": textureAnswer(session),
-            "tab": agentWord(appState.mapsRoom.resultsTab),
-            "show_inset": appState.mapsRoom.showsPointInset,
+            "tab": agentWord(appState.mapsRoom.detailTab),
             "histogram": agentWord(appState.mapsRoom.histogramKind),
             "busy": session.isBusy,
             "running": ["opening": session.isOpening, "drawing": session.isDrawing, "segmenting": session.isSegmenting,
@@ -273,8 +270,8 @@ extension MacTEMAgentDoor {
 
     // MARK: Setting
 
-    /// `set_maps`: source first (it rebuilds what the room shows), then the layer, the analysis settings, slip, texture, the results pane
-    /// and the inset.
+    /// `set_maps`: source first (it rebuilds what the room shows), then the layer, the analysis settings, slip, texture and the Detail
+    /// panel.
     static func applyMaps(_ a: [String: String], to appState: AppState) -> AgentToolOutput? {
         let session = appState.maps
         let flag = { (key: String) -> Bool? in a[key].map { $0 == "true" } }
@@ -321,11 +318,10 @@ extension MacTEMAgentDoor {
             }
             session.showTexture(phaseID: id)
         }
-        if let word = a["tab"], let tab = MapsResultsTab.allCases.first(where: { agentWord($0) == word }) { appState.mapsRoom.resultsTab = tab }
+        if let word = a["tab"], let tab = MapsDetailTab.allCases.first(where: { agentWord($0) == word }) { appState.mapsRoom.detailTab = tab }
         if let word = a["histogram"], let kind = MapAnalysis.HistogramKind.allCases.first(where: { agentWord($0) == word }) {
             appState.mapsRoom.histogramKind = kind
         }
-        if let v = flag("show_inset") { appState.mapsRoom.showsPointInset = v }
         return nil
     }
 

@@ -113,9 +113,14 @@ nonisolated final class EBSDOverlayLabelsTests: XCTestCase {
         XCTAssertTrue(indexing.contains("EBSDOverlayLabels.bandSpots(from: point(band.start ?? .zero), to: point(band.end ?? .zero))"))
         XCTAssertTrue(indexing.contains("for placed in EBSDOverlayLabels.place(sizes: plates, spots: spots, in: CGRect(origin: .zero, size: size))"))
         XCTAssertFalse(indexing.contains(".position(point((start + end) / 2))"), "no label at a band's bare middle")
+        // The Maps room's slip traces carry no plates on the map since #1095 (a grain's thirty plates piled over its corner): the Slip
+        // table in the bottom area names each plane beside its trace's colour, angle and colour word.
         let maps = try FFTRoomWiringTests.squeezedUI("MapsRoomAnalysis.swift")
-        XCTAssertTrue(maps.contains("EBSDOverlayLabels.traceSpots(from: $0.0.0, to: $0.0.1, size: $0.1)"))
-        XCTAssertTrue(maps.contains("in: CGRect(origin: .zero, size: size), avoiding: [clear])"))
+        let overlay = try XCTUnwrap(maps.components(separatedBy: "struct MapsAnalysisOverlay: View {").dropFirst().first?
+            .components(separatedBy: "private var spokenLabel: String {").first)
+        XCTAssertFalse(overlay.contains("EBSDOverlayLabels."), "no plate on the map")
+        XCTAssertFalse(overlay.contains("context.draw("), "no word drawn on the map")
         XCTAssertFalse(maps.contains("x: end.x + 3"), "no label at a trace's bare end")
+        XCTAssertTrue(maps.contains("TableColumn(\"Plane\", value: \\.id)"), "the Slip table names the planes")
     }
 }

@@ -51,7 +51,8 @@ nonisolated final class DiffractionRoomFrameTests: XCTestCase {
     /// the tabs dropped, or supplied in every room.
     func testTheTablesAreTabsOfTheBottomArea() throws {
         let workspace = try ui("WorkspaceView.swift")
-        XCTAssertTrue(workspace.contains("tabs: [ProcessTab.output { OutputPane(log: appState.activityLog) }] + diffractionTabs,"))
+        // The Maps room's tables follow the Diffraction tables (#1095).
+        XCTAssertTrue(workspace.contains("tabs: [ProcessTab.output { OutputPane(log: appState.activityLog) }] + diffractionTabs + mapsTabs,"))
         XCTAssertTrue(workspace.contains("guard appState.navigation.workspaceArea == .diffraction, appState.openItems.selected != nil else { return [] } return DiffractionPart.tables(appState.diffractionPart)"))
         XCTAssertTrue(workspace.contains("ProcessTab(id: table.paneID, title: table.title, systemImage: table.systemImage) { DiffractionTablePane(table: table) }"))
         XCTAssertTrue(workspace.contains(".onChange(of: diffractionTables) { DiffractionRoomState.keepAPaneShown(supplied: diffractionTables, in: appState.navigation.panels) }"))

@@ -32,17 +32,23 @@ nonisolated final class MapsResultsInTheRoomTests: XCTestCase {
         XCTAssertTrue(grains.contains("InspectorWarning(\"The settings changed: Segment again to apply them.\")"), "the stale warning is about the settings")
     }
 
-    /// The Grains tab's heading carries the five statistics, the secondary line the settings; the picked grain's planes are under the table.
+    /// The Grains table's heading carries the five statistics, the secondary line the settings; the picked grain's planes are the Slip
+    /// table's (#1095: under the Grains table they pushed it to three rows), each in its trace's colour, in `planeText`'s formats.
     func testTheGrainsTabCarriesTheStatisticsAndTheSlip() throws {
         let analysis = try ui("MapsRoomAnalysis.swift")
         let table = try slice(analysis, from: "struct MapsGrainsTable: View {", to: "private func refresh()")
         XCTAssertTrue(table.contains("Text(verbatim: MapsRoomFormat.grainHeadline(analysis))"))
         XCTAssertTrue(table.contains("Text(verbatim: \"Made with \" + MapsRoomFormat.madeWith(analysis.settings))"))
-        XCTAssertTrue(table.contains(".accessibilityIdentifier(\"maps.grains.table\") MapsGrainSlipRows(session: session)"), "the planes sit under the table")
-        let rows = try slice(analysis, from: "struct MapsGrainSlipRows: View {", to: "extension GrainRow {")
+        XCTAssertFalse(table.contains("MapsGrainSlipRows("), "no planes under the Grains table")
+        XCTAssertFalse(analysis.contains("struct MapsGrainSlipRows"), "no slip rows as text")
+        let rows = try slice(analysis, from: "struct MapsSlipTable: View {", to: "extension GrainRow {")
         XCTAssertTrue(rows.contains(".fill(MapsAnalysisOverlay.traceColour(plane.colour))"), "each plane in its trace's colour")
-        XCTAssertTrue(rows.contains("Text(verbatim: MapsRoomFormat.planeText(plane))"))
+        XCTAssertTrue(rows.contains("Text(MapsRoomFormat.fraction($0.schmid))"), "the Schmid factor as planeText writes it")
+        XCTAssertTrue(rows.contains("Text(MapsRoomFormat.angle($0.inclinationDegrees, digits: 0))"), "the inclination as planeText writes it")
+        XCTAssertTrue(rows.contains("Text($0.traceText()).monospacedDigit()"))
+        XCTAssertTrue(rows.contains("Text(verbatim: \"Slip in grain \\(row.id) · \\(row.phaseName)\")"), "the grain it is for")
         XCTAssertEqual(AgentDoorCoverage.controls["maps.grains.slip"], .tool("get_maps"))
+        XCTAssertEqual(AgentDoorCoverage.controls["maps.slip.table"], .tool("get_maps"))
         XCTAssertEqual(AgentDoorCoverage.controls["maps.grains.madeWith"], .tool("get_maps"))
     }
 

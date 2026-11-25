@@ -2,8 +2,8 @@
 //  MapsRoomInspector.swift
 //  Role: the Maps room's inspector content, mounted by `WorkspaceInspector`'s Settings and Info switches, in the design's map-room order
 //        (orientation-maps-room.md §4): Maps (which result the map is, a Source pop-up when the room holds several, D-SEM-99, and what
-//        the layer the map pane's heading picks shows, #1065), Phases (the phases with their colours and point groups), Display (a scalar layer's colormap, window and gamma, and
-//        whether the map carries the picked point's inset),
+//        the layer the map pane's heading picks shows, #1065), Phases (the phases with their colours and point groups), Display (a scalar
+//        layer's colormap, window and gamma; the picked point is the Detail panel's since #1089, so its switch went),
 //        Misorientation, Grains, Slip and Texture (`MapsRoomAnalysis.swift`), and Export (the map with its key, the grain table, the
 //        texture figure). Info: what the map is and how its colours are made (§5). Presentation only: the rows are `MapsRoomFormat`'s,
 //        the state `OrientationMapSession`'s.
@@ -66,7 +66,7 @@ struct MapsRoomSettings: View {
                     InspectorNote("A phase without a known point group has no IPF colours: its points are black.")
                 }
             }
-            MapsDisplaySection(session: session, state: appState.mapsRoom)
+            MapsDisplaySection(session: session)
             MapsMisorientationSection(session: session)
             MapsGrainsSection(session: session)
             MapsSlipSection(session: session)
@@ -89,21 +89,16 @@ struct MapsRoomSettings: View {
     }
 }
 
-/// Display: a scalar layer's colormap, window and gamma (the Image room's rows), and the picked point's inset on the map (#1064).
+/// Display: a scalar layer's colormap, window and gamma (the Image room's rows). The picked point's inset and its switch went with
+/// #1089: the point is the Detail panel's Point tab, never over the map. A colour layer has nothing to set here, so the section is
+/// left out for it.
 struct MapsDisplaySection: View {
     let session: OrientationMapSession
-    @Bindable var state: MapsRoomState
 
     var body: some View {
-        InspectorSection("Display") {
-            if !session.layer.isColour {
+        if !session.layer.isColour {
+            InspectorSection("Display") {
                 ImageRoomDisplayRows(presentation: session.propertyPresentation, colormapID: "maps.colormap")
-            }
-            InspectorRow("Pattern inset") {
-                Toggle("Pattern inset", isOn: $state.showsPointInset)
-                    .toggleStyle(.switch).labelsHidden()
-                    .help("The picked point's pattern, or its unit cell for a map without patterns, in the map's top-right corner")
-                    .accessibilityIdentifier("maps.showInset")
             }
         }
     }
