@@ -32,9 +32,10 @@ extension MacTEMAgentDoor {
                       + "found but poor, tied, one row, not found, scale at its limit) and its line as the header writes it, the "
                       + "solutions (at most five, the best first, then those the pattern cannot tell from it: zone axis, degrees off it, orix "
                       + "quaternion), the score, the fitted scale (measured |q| over |g|), the misfit, spots explained, zone_axis_only "
-                      + "(clicked spots: no tilt), scale_changed and spots_changed (Index again), the rows (spot, hkl, R px, q, d, d "
-                      + "expected, Δd/d %, phase) and every spot marked, found (with its intensity) or clicked. With csv true, the "
-                      + "Spots CSV as Export Spots CSV… writes it.",
+                      + "(clicked spots: no tilt), scale_changed and spots_changed (Index again), the rows (spot, hkl, R px, R mm, "
+                      + "q, d, d expected, Δd/d %, phase, the dynamical intensity) and every spot marked, found (with its intensity) "
+                      + "or clicked. A Simulation document's rows are its simulated spots, strongest first, as its Spots table "
+                      + "lists them. With csv true, the Spots CSV as Export Spots CSV… writes it.",
                   input: .window,
                   parameters: [AgentParameter("csv", .boolean, summary: "The Spots CSV instead.")]) { call in
             guard let appState = call.window?.state as? AppState else { return notAWindowRefusal }
@@ -43,7 +44,9 @@ extension MacTEMAgentDoor {
             case .item(let item):
                 guard let image = item.session.image else { return noIndexPattern }
                 if call.arguments["csv"] == "true" {
-                    return .json(["csv": ExportSnapshot.diffractionSpotsCSV(item.diffraction, image: image, openItems: appState.openItems)])
+                    // A Simulation document's Export Spots CSV… writes its simulated spots (#907), as the section's button does.
+                    return .json(["csv": ExportSnapshot.diffractionSpotsCSV(item.diffraction, image: image, openItems: appState.openItems,
+                                                                            simulation: DemoDocuments.isSimulation(item.url))])
                 }
                 return .json(spotTable(item))
             }
@@ -171,7 +174,66 @@ extension MacTEMAgentDoor {
                 return diffractionPicture(item, image: image, side: pictureSide * call.scale)
             }
         },
+        said(AgentTool(name: "save_diffraction", title: "Save diffraction file",
+                       summary: "Writes into the Agent folder what the Diffraction room's Export section writes, the same text: which "
+                           + "spots_csv (Export Spots CSV…: Index's spots, or a Simulation document's simulated spots with R in px and "
+                           + "mm), readout_csv (Export Readout CSV…), or png (the pattern with its marked and simulated spots, at its "
+                           + "own size, as get_diffraction_picture draws it). file names it, relative to the Agent folder (the "
+                           + "section's name by default). Refused, writing nothing, while the section's button is off (nothing to "
+                           + "write) or when the name leads outside the folder. Changes nothing in the room.",
+                       input: .window,
+                       parameters: [
+                           AgentParameter("which", .choice(["spots_csv", "readout_csv", "png"]), summary: "The file to write.",
+                                          required: true),
+                           AgentParameter("file", .text, summary: "The file to write, relative to the Agent folder."),
+                       ], acts: true) { call in
+            guard let appState = call.window?.state as? AppState else { return notAWindowRefusal }
+            switch diffractionItem(appState) {
+            case .refused(let refusal): return refusal
+            case .item(let item):
+                guard let image = item.session.image else { return noIndexPattern }
+                switch saveDiffraction(call.arguments["which"] ?? "", file: call.arguments["file"], item: item, image: image,
+                                       openItems: appState.openItems) {
+                case .written(let name): return .json(["written": name])
+                case .refused(let refusal): return refusal
+                }
+            }
+        }),
     ]
+
+    /// `save_diffraction`: the Export section's file, written into the Agent folder; refused where the section's button is off.
+    static func saveDiffraction(_ which: String, file: String?, item: OpenItem, image: CalibratedImage, openItems: OpenItems) -> Written {
+        let analysis = item.diffraction
+        let simulation = DemoDocuments.isSimulation(item.url)
+        switch which {
+        case "spots_csv":
+            let empty = simulation ? analysis.simulatedSpotRows(image: image).isEmpty : analysis.indexSpotRows.isEmpty
+            guard !empty else {
+                return .refused(.refusal(status: 409, message: simulation
+                    ? "No simulated spots to write: show them (simulate_pattern overlay true)."
+                    : "No indexed spots to write: index_pattern first."))
+            }
+            return writeAgentFile(ExportSnapshot.diffractionSpotsCSV(analysis, image: image, openItems: openItems, simulation: simulation),
+                                  file: file, fallback: DiffractionReadoutExport.spotsBaseName(of: image.fileName) + ".csv")
+        case "readout_csv":
+            guard !(analysis.rings.isEmpty && analysis.spots.isEmpty) else {
+                return .refused(.refusal(status: 409, message: "No rings or spots to write: fit a ring or add a spot first."))
+            }
+            return writeAgentFile(ExportSnapshot.diffractionCSV(analysis, image: image, openItems: openItems),
+                                  file: file, fallback: DiffractionReadoutExport.baseName(of: image.fileName) + ".csv")
+        case "png":
+            switch diffractionPicture(item, image: image, side: max(image.width, image.height)) {
+            case .png(let data):
+                return writeAgentFile(data, file: file, fallback: (image.fileName as NSString).deletingPathExtension + " pattern.png")
+            case .refusal(let status, let message):
+                return .refused(.refusal(status: status, message: message))
+            default:
+                return .refused(.refusal(status: 500, message: "The picture could not be drawn."))
+            }
+        default:
+            return .refused(.refusal(status: 400, message: "which is spots_csv, readout_csv or png."))
+        }
+    }
 
     private static let noIndexPattern = AgentToolOutput.refusal(
         status: 404, message: "No pattern is shown; open one first (open_demo with demo diffraction opens the demo Au pattern).")
@@ -207,17 +269,27 @@ extension MacTEMAgentDoor {
         } else {
             out["answer"] = NSNull()
         }
-        out["rows"] = analysis.indexSpotRows.map { r -> [String: Any] in
-            ["spot": r.number, "hkl": AgentJSON.orNull(r.hkl.map { [$0.h, $0.k, $0.l] }), "r_px": AgentJSON.number(r.radiusPx),
-             "q_per_angstrom": AgentJSON.number(r.q), "d_angstroms": AgentJSON.number(r.d),
-             "d_expected_angstroms": AgentJSON.number(r.dExpected), "delta_percent": AgentJSON.number(r.deltaPercent),
-             "phase": r.phase]
+        // The rows the room's Spots table lists: a Simulation document's simulated spots (#907), else Index's.
+        if DemoDocuments.isSimulation(item.url) {
+            let rows: [[String: Any]] = item.session.image.map { item.simulatedSpotRows(image: $0).map(spotRow) } ?? []
+            out["rows"] = rows
+        } else {
+            let rows: [[String: Any]] = item.indexSpotRows.map(spotRow)
+            out["rows"] = rows
         }
         out["spots"] = analysis.spots.enumerated().map { i, s -> [String: Any] in
             ["number": i + 1, "row": AgentJSON.number(s.row), "column": AgentJSON.number(s.column),
              "found": s.intensity != nil, "intensity": AgentJSON.number(s.intensity), "refusal": AgentJSON.orNull(s.refusal)]
         }
         return out
+    }
+
+    /// A row of the Spots table, its columns as the table and the Spots CSV name them.
+    static func spotRow(_ r: PatternIndexing.SpotRow) -> [String: Any] {
+        ["spot": r.number, "hkl": AgentJSON.orNull(r.hkl.map { [$0.h, $0.k, $0.l] }), "r_px": AgentJSON.number(r.radiusPx),
+         "r_mm": AgentJSON.number(r.radiusMM), "q_per_angstrom": AgentJSON.number(r.q), "d_angstroms": AgentJSON.number(r.d),
+         "d_expected_angstroms": AgentJSON.number(r.dExpected), "delta_percent": AgentJSON.number(r.deltaPercent),
+         "phase": r.phase, "dynamical_percent": AgentJSON.number(r.dynamicalPercent)]
     }
 
     /// The Simulation section and its spots on the pattern.

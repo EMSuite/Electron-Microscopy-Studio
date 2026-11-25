@@ -96,6 +96,39 @@ package nonisolated enum ZoneAxisOverlay {
         Array(spots.filter { $0.relative >= labelledFraction }.prefix(labelledCount)) + spots.filter(\.isDoubleDiffraction).prefix(labelledCount)
     }
 
+    /// Of `labelled` (strongest first, `labelled(_:)`), the spots whose hkl can be read where the room draws it (#1030): a label is
+    /// kept when its box clears every label kept before it and every other drawn spot's ring, so near the direct beam, where the
+    /// spots crowd, the weaker ones go unlabelled until a zoom spreads them. `point` is a spot's place in points and `radius` its
+    /// ring's; a label sits right of and below its ring (`labelOffset` past it), `labelSize` across and down.
+    package static func readable(_ labelled: [Spot], among drawn: [Spot], point: (Spot) -> SIMD2<Double>, radius: (Spot) -> Double,
+                                 labelSize: (String) -> SIMD2<Double> = ZoneAxisOverlay.estimatedLabelSize) -> [Spot] {
+        var kept: [Spot] = []
+        var boxes: [(low: SIMD2<Double>, high: SIMD2<Double>)] = []
+        let rings = drawn.map { (spot: $0, centre: point($0), radius: radius($0)) }
+        for spot in labelled {
+            let p = point(spot), r = radius(spot)
+            let low = p + SIMD2(repeating: r + labelOffset)
+            let high = low + labelSize(spot.label)
+            let clearsLabels = boxes.allSatisfy { high.x <= $0.low.x || low.x >= $0.high.x || high.y <= $0.low.y || low.y >= $0.high.y }
+            let clearsRings = clearsLabels && rings.allSatisfy { ring in
+                guard ring.spot != spot else { return true }
+                let nearest = pointwiseMin(pointwiseMax(ring.centre, low), high)
+                let d = nearest - ring.centre
+                return (d * d).sum() >= ring.radius * ring.radius
+            }
+            guard clearsRings else { continue }
+            kept.append(spot)
+            boxes.append((low, high))
+        }
+        return kept
+    }
+
+    /// The gap between a spot's ring and its label, points.
+    package static let labelOffset = 2.0
+
+    /// A label's box in the room's caption font, points: about 6.5 a character (an index's bar rides on its digit) and one line.
+    package static func estimatedLabelSize(_ label: String) -> SIMD2<Double> { SIMD2(6.5 * Double(label.count) + 2, 14) }
+
     /// One simulated spot on the image.
     package struct Spot: Sendable, Equatable {
         package let hkl: MillerIndex

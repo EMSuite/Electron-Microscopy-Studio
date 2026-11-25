@@ -148,7 +148,7 @@ private struct DiffractionHeader: View {
                 .accessibilityValue(DiffractionValueFormat.scale(calibration?.deltaQ))
             Spacer(minLength: 8)
             // Index's verdict in words (#783): "Al · 2.1° from [001] · 22 of 24 spots explained · misfit 0.07 %".
-            if let outcome = analysis.indexOutcome, let line = analysis.indexLine {
+            if let outcome = analysis.indexOutcome, let line = analysis.indexHeaderLine(locale: .autoupdatingCurrent) {
                 Text(line)
                     .font(.callout.monospacedDigit()).lineLimit(1).truncationMode(.tail).layoutPriority(2)
                     .foregroundStyle(outcome.verdict == .found && !outcome.zoneAxisOnly && !analysis.indexIsStale && !analysis.indexSpotsChanged
@@ -160,7 +160,7 @@ private struct DiffractionHeader: View {
             }
             // The drawn orientation's nearest zone axis once it was tilted, turned or flipped by hand, or while no Index answer is
             // shown (#787): "Al · 2.1° from [001] · set by hand".
-            if let line = analysis.orientationLine {
+            if let line = analysis.orientationHeaderLine(locale: .autoupdatingCurrent) {
                 Text(line)
                     .font(.callout.monospacedDigit()).lineLimit(1).truncationMode(.tail).layoutPriority(2)
                     .help(line)
@@ -426,7 +426,7 @@ private struct DiffractionPatternPane: View {
             .accessibilityLabel("Diffraction pattern")
             // q and d under the pointer, as the status line reads them; else the pattern's size, rings and spots. This pane is the readout's one writer.
             .modifier(ReadoutAccessibilityValue(readout: { appState.diffractionRoom.readout },
-                                                fallback: "\(image.width) by \(image.height) pixels, \(UnitDisplay.count(analysis.rings.count, "ring", "rings")), \(UnitDisplay.count(analysis.spots.count, "spot", "spots"))" + DiffractionSimulationText.spoken(item.simulatedSpots(image: image), zoneAxis: analysis.simulation.zoneAxis) + DiffractionIndexText.spoken(analysis.indexLine, rows: analysis.indexSpotRows.count)))
+                                                fallback: "\(image.width) by \(image.height) pixels, \(UnitDisplay.count(analysis.rings.count, "ring", "rings")), \(UnitDisplay.count(analysis.spots.count, "spot", "spots"))" + DiffractionSimulationText.spoken(item.simulatedSpots(image: image), zoneAxis: analysis.simulation.zoneAxis) + DiffractionIndexText.spoken(analysis.indexHeaderLine(locale: .autoupdatingCurrent), rows: analysis.indexSpotRows.count)))
             .accessibilityAction(named: "Zoom in") { view.zoom(by: 2, image: image) }
             .accessibilityAction(named: "Zoom out") { view.zoom(by: 0.5, image: image) }
             .accessibilityAction(named: "Reset zoom") { view.fitView() }
@@ -773,7 +773,8 @@ private struct DiffractionOverlay: View {
 
 /// The simulated spots of a typed zone axis (#782): a ring per spot, its size growing with the square root of its intensity
 /// against the strongest, in cyan (the measured spots are red crosses, the rings yellow), and its hkl beside it when Labels is on.
-/// Labels go on the 60 strongest spots of at least 2 % of the strongest, so a dense pattern stays readable; the caption font is 10 pt.
+/// Labels go on the 60 strongest spots of at least 2 % of the strongest, so a dense pattern stays readable, and only where they clear
+/// a stronger spot's label and every other ring (#1030, `ZoneAxisOverlay.readable`); the caption font is 10 pt.
 /// A spot double diffraction adds (#786) is a dashed ring of the smallest size, labelled (when Labels is on) after the others.
 private struct SimulatedSpotsOverlay: View {
     let spots: [ZoneAxisOverlay.Spot]
@@ -789,10 +790,16 @@ private struct SimulatedSpotsOverlay: View {
                            style: StrokeStyle(lineWidth: 1.5, dash: spot.isDoubleDiffraction ? [2, 2] : []))
             }
             guard showsLabels else { return }
-            for spot in ZoneAxisOverlay.labelled(spots) {
+            let place: (ZoneAxisOverlay.Spot) -> SIMD2<Double> = { spot in
                 let p = layout.point(column: spot.column, row: spot.row)
-                let r = 3 + 6 * CGFloat(spot.relative.squareRoot())
-                ctx.draw(Text(spot.label).font(.caption).foregroundStyle(.cyan), at: CGPoint(x: p.x + r + 2, y: p.y + r + 2), anchor: .topLeading)
+                return SIMD2(Double(p.x), Double(p.y))
+            }
+            let ring: (ZoneAxisOverlay.Spot) -> Double = { 3 + 6 * $0.relative.squareRoot() }
+            let gap = CGFloat(ZoneAxisOverlay.labelOffset)
+            for spot in ZoneAxisOverlay.readable(ZoneAxisOverlay.labelled(spots), among: spots, point: place, radius: ring) {
+                let p = layout.point(column: spot.column, row: spot.row)
+                let r = CGFloat(ring(spot))
+                ctx.draw(Text(spot.label).font(.caption).foregroundStyle(.cyan), at: CGPoint(x: p.x + r + gap, y: p.y + r + gap), anchor: .topLeading)
             }
         }
         .accessibilityHidden(true)
@@ -881,6 +888,8 @@ private struct DiffractionReadoutTable: View {
                     .font(.callout).foregroundStyle(.secondary).padding(10).allowsHitTesting(false)
             }
         }
+        // Empty, the hint sits on the plain background under the header row, never across striped bars (#1041).
+        .alternatingRowBackgrounds(TableStripes.shown(rowCount: rows.count) ? .automatic : .disabled)
         .accessibilityIdentifier("diffraction.readout")
     }
 
@@ -956,6 +965,7 @@ private struct DiffractionSpotTable: View {
                     .font(.callout).foregroundStyle(.secondary).padding(10).allowsHitTesting(false)
             }
         }
+        .alternatingRowBackgrounds(TableStripes.shown(rowCount: rows.count) ? .automatic : .disabled)
         .accessibilityIdentifier("diffraction.spots")
         .accessibilityLabel("Spots")
     }

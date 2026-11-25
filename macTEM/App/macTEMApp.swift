@@ -150,6 +150,7 @@ private struct ImageCommands: Commands {
     @FocusedValue(\.closeImageWindow) private var closeImageWindow
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismissWindow) private var dismissWindow
+    @Environment(\.openURL) private var openURL
     let menuRelay: MenuActionRelay
     /// The app's windows: a menu action with no window focused goes to a minimised one before a new one opens (#762).
     let windows: AppWindows
@@ -316,6 +317,22 @@ private struct ImageCommands: Commands {
                     .disabled(appState.edx.selectedPin != nil)
             }
         }
+        // The Help menu (#753, `HelpMenuLinks`): the documentation on the website in place of the system's Help book item (which would
+        // only say help is unavailable), the tutorials, the example data and the release notes, then Support, Send Feedback… and
+        // Report a Problem… (EMSuiteUI's report window).
+        CommandGroup(replacing: .help) {
+            Button(HelpMenuLinks.help.title) { openURL(HelpMenuLinks.help.url) }
+                .keyboardShortcut("?", modifiers: .command)
+            ForEach(HelpMenuLinks.guides) { link in
+                Button(link.title) { openURL(link.url) }
+            }
+            Divider()
+            ForEach(HelpMenuLinks.contact) { link in
+                Button(link.title) { openURL(link.url) }
+            }
+            Button("Report a Problem…") { openWindow(id: FeedbackWindow.id) }
+            Divider()
+        }
         // Generated documents for someone with no microscope file at hand, App Review first (macTEM#105, DemoData.swift).
         CommandGroup(after: .help) {
             // As Open Image…: with no window focused it opens one and the document there (`MenuActionRelay`).
@@ -422,6 +439,8 @@ struct macTEMApp: App {
         // Report a Problem (EMSuiteUI's ShellHelp): the report and its diagnostics summary, sent from the person's own mail app or
         // browser; the welcome canvas opens it after a crash (#801). Never opened at launch.
         FeedbackWindow(Self.helpLinks)
+            // Not a Window-menu item: it sat there between Move & Resize and Objects (#1032). Help > Report a Problem… opens it (#753).
+            .commandsRemoved()
         // Help > How to Cite (#828); never opened at launch.
         HowToCiteWindow(windows: windows)
         // The Particles view's object table, beside the image (ImageRoomParticles.swift); never opened at launch.

@@ -13,6 +13,7 @@ import FormatoCore
 import FormatoHDF5
 import FormatoHSPY
 import SpectroCore
+import SpectroEDX
 import TEMCore
 import TEMSession
 @testable import macTEM
@@ -198,6 +199,32 @@ nonisolated final class ShippedDemoDataTests: XCTestCase {
         XCTAssertTrue(state.edx.canQuantify, state.edx.quantifyBlocker ?? "")
         await state.semEDS.pickFileElements(in: state.edx)
         XCTAssertEqual(state.edx.picks.count, 5)
+    }
+
+    /// The demo's first Quantify gives at% (#1027): Zr, whose Kα (15.78 keV) is past the 10 kV beam, is picked Fit only, so the computed
+    /// k quantifies Al, C, Mn and Cu on their Kα and Zr is fitted on Zr_La. Red before: Zr was picked at Quantify, the computed k
+    /// refused the composition ("covers K lines only") and the header said "Quantified ✓" over a column of "–".
+    @MainActor func testTheSEMSpectrumsFirstQuantifyGivesAtPercent() async throws {
+        let state = AppState(launch: LaunchOptions(arguments: []))
+        let url = try XCTUnwrap(DemoDocuments.Shipped.semEDSSpectrum.url)
+        await state.edx.open(url: url).value
+        await state.semEDS.load(path: state.edx.source?.metadata.filePath)
+        await state.semEDS.pickFileElements(in: state.edx)
+        let roles = Dictionary(uniqueKeysWithValues: state.edx.picks.map { ($0.symbol, $0.role) })
+        XCTAssertEqual(roles, ["C": .quantify, "Al": .quantify, "Mn": .quantify, "Cu": .quantify, "Zr": .fitOnly])
+        await state.edx.quantify()?.value
+        await state.edx.settled()
+        let fit = try XCTUnwrap(state.edx.fit, state.edx.fitFailure ?? "no fit")
+        XCTAssertTrue(fit.hasAbundance, fit.abundanceRefusal ?? "")
+    }
+
+    /// A file element is Fit only exactly where the spectrum holds no Kα under the beam, and only for the computed k.
+    func testAFileElementWithNoKAlphaUnderTheBeamIsFitOnly() {
+        let axis = EnergyAxis(offset: -0.1, scale: 0.01, size: 1024)   // TM002: 1024 channels of 10 eV from -0.1 keV
+        XCTAssertEqual(SEMEDSState.fileElementRole("Zr", axis: axis, beamEnergy: 10, computedK: true), .fitOnly)
+        XCTAssertEqual(SEMEDSState.fileElementRole("Cu", axis: axis, beamEnergy: 10, computedK: true), .quantify)
+        XCTAssertEqual(SEMEDSState.fileElementRole("C", axis: axis, beamEnergy: 10, computedK: true), .quantify)
+        XCTAssertEqual(SEMEDSState.fileElementRole("Zr", axis: axis, beamEnergy: 10, computedK: false), .quantify, "a typed k quantifies L lines")
     }
 
     @MainActor func testTheSpectrumOpensFromTheMenuAndTheLaunchArgument() async throws {

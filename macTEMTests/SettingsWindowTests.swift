@@ -48,6 +48,13 @@ nonisolated final class SettingsWindowTests: XCTestCase {
         XCTAssertTrue(window.contains("Toggle(\"Hide the SEM databar\", isOn: $cropsDatabar)"))
     }
 
+    /// VoiceOver reads the databar switch by its row's words (#1023; the agent switches are EMSuiteUI's, labelled there). Red before:
+    /// a bare switch in the accessibility tree.
+    func testTheDatabarSwitchIsLabelled() throws {
+        let window = squeezed(try source("macTEM/UI/SettingsWindow.swift"))
+        XCTAssertTrue(window.contains("Toggle(\"Hide the SEM databar\", isOn: $cropsDatabar) .accessibilityLabel(\"Hide the SEM databar\")"))
+    }
+
     /// Images holds the scroll wheel's Zoom · Pan, the shared row (control-placement §6), above the databar. Red before: no row.
     func testImagesHoldsTheScrollWheelChoice() throws {
         let window = squeezed(try source("macTEM/UI/SettingsWindow.swift"))

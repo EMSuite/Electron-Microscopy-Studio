@@ -47,4 +47,21 @@ nonisolated final class HowToCiteTests: XCTestCase {
         XCTAssertFalse(HowToCite.references(for: .indexing).isEmpty)
         XCTAssertTrue(HowToCite.references(for: .diffraction).isEmpty, "py4DSTEM is not in CITATION.cff")
     }
+
+    /// How to Cite and Report a Problem are Help items, not windows of the Window menu (#1032): both scenes drop their own Window-menu
+    /// item, so How to Cite is listed once (Help) and Report a Problem no longer sits between Move & Resize and Objects. Red before:
+    /// How to Cite in Help and Window, Report a Problem in Window.
+    func testHowToCiteAndReportAProblemLeaveTheWindowMenu() throws {
+        let root = URL(fileURLWithPath: #filePath).resolvingSymlinksInPath().deletingLastPathComponent().deletingLastPathComponent()
+        func squeezed(_ path: String) throws -> String {
+            try String(contentsOf: root.appendingPathComponent(path), encoding: .utf8).split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        }
+        let cite = try squeezed("macTEM/App/HowToCite.swift")
+        XCTAssertTrue(cite.contains("Window(\"How to Cite\", id: Self.id) { HowToCiteView(windows: windows) } // Help > How to Cite opens it;"), "the scene as read")
+        XCTAssertTrue(cite.contains("a second How to Cite there (#1032). .commandsRemoved()"), "How to Cite's scene drops its Window-menu item")
+        let app = try squeezed("macTEM/App/macTEMApp.swift")
+        XCTAssertTrue(app.contains("FeedbackWindow(Self.helpLinks) // Not a Window-menu item"))
+        XCTAssertTrue(app.contains("opens it (#753). .commandsRemoved()"), "Report a Problem's scene drops its Window-menu item")
+        XCTAssertEqual(app.components(separatedBy: "Button(\"How to Cite\")").count - 1, 1, "How to Cite once in the commands")
+    }
 }

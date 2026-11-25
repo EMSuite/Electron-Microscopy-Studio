@@ -43,6 +43,9 @@ nonisolated enum AgentDoorCoverage {
     static let crashReportReason = "the person's report of a crash, which only they may send or dismiss"
     /// Help > How to Cite (#828): the app's citation, copied to the person's clipboard.
     static let citeReason = "copies the app's citation to the person's clipboard; CITATION.cff in the repository holds the same"
+    /// Help's links and the welcome canvas's Tutorials (#753, #802): a web page in the person's browser, or their mail app.
+    static let browserReason = "opens a page of the website in the person's browser or a message in their mail app; the agent reads the same pages itself"
+    static let feedbackReason = "the person's own report to the author, sent from their own mail app or browser"
     /// Link Anyway (#824): names the file the person picked with Locate… although its contents differ, which only they can vouch for.
     static let linkAnywayReason = "links a file the person picked with Locate… whose contents differ; only the person can say it is the same data"
     static let resultsFilterReason = "filters what the person's results table shows; get_results gives every row whatever the filter"
@@ -58,9 +61,9 @@ nonisolated enum AgentDoorCoverage {
         "diffraction.holder.sentence": .tool("plan_tilt"),
         "diffraction.powder.pane": .tool("powder_pattern"),
         "diffraction.powder.peaks": .tool("powder_pattern"),
-        "diffraction.crystal.unitCell": .gap(846),
-        "diffraction.export": .personOnly(exportReason),
-        "diffraction.export.spots": .personOnly(exportReason),
+        "diffraction.crystal.unitCell": .tool("set_diffraction"),
+        "diffraction.export": .tool("save_diffraction"),
+        "diffraction.export.spots": .tool("save_diffraction"),
         "diffraction.family": .tool("set_diffraction"),
         "diffraction.figureDrag": .tool("get_diffraction_figure"),
         "diffraction.fitRing": .tool("set_diffraction"),
@@ -124,8 +127,8 @@ nonisolated enum AgentDoorCoverage {
         "diffraction.simulation.zone": .tool("set_zone_axis"),
         "diffraction.spotCursor": .personOnly(pointerReason),
         "diffraction.lowerTable": .personOnly(layoutReason),
-        "diffraction.microscope.cameraLength": .gap(846),
-        "diffraction.microscope.voltage": .gap(846),
+        "diffraction.microscope.cameraLength": .tool("set_simulation"),
+        "diffraction.microscope.voltage": .tool("set_simulation"),
         "diffraction.spots": .tool("get_spot_table"),
         "diffraction.spots.\\(row.number).delta": .tool("get_spot_table"),
         "diffraction.spots.\\(row.number).hkl": .tool("get_spot_table"),
@@ -541,6 +544,7 @@ nonisolated enum AgentDoorCoverage {
         "simulation.microscope.focalSpread": .tool("set_simulation"),
         "simulation.microscope.optics": .tool("set_simulation"),
         "simulation.microscope.voltage": .tool("set_simulation"),
+        "simulation.record.copyParagraph": .tool("get_methods_record"),
         "simulation.specimen.beamAxis": .tool("set_atom_model"),
         "simulation.specimen.box": .tool("read_simulation"),
         "simulation.specimen.hrtem": .tool("run_simulation"),
@@ -588,6 +592,8 @@ nonisolated enum AgentDoorCoverage {
         "welcome.openImage": .tool("open_file"),
         "welcome.stopOpening": .personOnly(openCloseReason),
         "welcome.tryDemo": .tool("open_demo"),
+        "welcome.newSimulation": .tool("new_simulation"),
+        "welcome.tutorials": .personOnly(browserReason),
         "welcome.unreadableStatus": .seen,
         "workspace.\\(room.id)": .tool("select_room"),
     ]
@@ -659,6 +665,9 @@ nonisolated enum AgentDoorCoverage {
         "Line Tool": .tool("set_eds"),
         "Pin Region": .tool("set_eds"),
         // Help
+        "HelpMenuLinks.help.title": .personOnly(browserReason),
+        "link.title": .personOnly(browserReason),
+        "Report a Problem…": .personOnly(feedbackReason),
         "demo.title": .tool("open_demo"),
         // The app menu and Settings > Updates.
         "Check for Updates…": .personOnly(updateReason),

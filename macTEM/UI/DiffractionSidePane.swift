@@ -142,11 +142,11 @@ struct DiffractionPowderPane: View {
             ForEach(table.phases.indices, id: \.self) { i in
                 // A phase the kit refused: its reason, in its words, with the glyph.
                 if table.patterns[i] == nil {
-                    InspectorWarning(table.headline(phase: i), font: .callout)
+                    InspectorWarning(table.headline(phase: i, locale: .autoupdatingCurrent), font: .callout)
                 } else {
-                    DiffractionPaneSentence(text: table.headline(phase: i))
+                    DiffractionPaneSentence(text: table.headline(phase: i, locale: .autoupdatingCurrent))
                 }
-                if let marks = table.marksSentence(phase: i) { DiffractionPaneSentence(text: marks) }
+                if let marks = table.marksSentence(phase: i, locale: .autoupdatingCurrent) { DiffractionPaneSentence(text: marks) }
                 if let lattice = table.calculatedLatticeSentence(phase: i) { DiffractionPaneSentence(text: lattice) }
             }
             DiffractionPowderChart(table: table)
