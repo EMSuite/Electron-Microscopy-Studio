@@ -495,6 +495,20 @@ nonisolated final class OpenItemsTests: XCTestCase {
         XCTAssertEqual(items.items.map(\.url), [Self.b])
     }
 
+    /// Closing a document ends its CBED run and frees this Mac's one simulation (#912): a leaked gate would refuse every later run
+    /// until a restart. Red under: `remove` stopping only the frozen-phonon run.
+    @MainActor func testClosingADocumentFreesTheSimulationGateItsCBEDRunHeld() async throws {
+        let fake = FakeReader()
+        let items = makeItems(fake)
+        items.open(urls: [Self.a])
+        await items.settled()
+        let a = try item(items, Self.a)
+        XCTAssertTrue(SimulationGate.shared.acquire(ObjectIdentifier(a.cbed)), "setup: the gate is free")
+        items.close(a.id)
+        await items.settled()
+        XCTAssertNil(SimulationGate.shared.owner)
+    }
+
     /// ⌘W. Red under: `closeSelected` closing the first item (`remove(items[0], …)`) instead of the selected one.
     @MainActor func testCloseSelectedClosesTheSelectedItemAndWithNoneOpenDoesNothing() async throws {
         let fake = FakeReader()

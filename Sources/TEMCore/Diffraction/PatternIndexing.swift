@@ -251,6 +251,9 @@ package nonisolated enum PatternIndexing {
         package let deltaPercent: Double?
         /// The phase the hkl is of; "" for a spot the orientation does not explain.
         package let phase: String
+        /// A Simulation document's dynamical intensity of the spot's hkl at the shown thickness, percent of the incident beam
+        /// (#911); nil with Dynamical off, for an unexplained spot or an hkl that is not a zone-axis beam.
+        package private(set) var dynamicalPercent: Double?
 
         package init(id: UUID, number: Int, hkl: MillerIndex?, radiusPx: Double, radiusMM: Double? = nil, q: Double, d: Double,
                      dExpected: Double?, deltaPercent: Double?, phase: String) {
@@ -262,6 +265,14 @@ package nonisolated enum PatternIndexing {
         package var dExpectedKey: Double { dExpected ?? .infinity }
         package var deltaKey: Double { deltaPercent ?? .infinity }
         package var radiusMMKey: Double { radiusMM ?? .infinity }
+        package var dynamicalKey: Double { dynamicalPercent ?? -1 }
+
+        /// This row with the dynamical intensity of its hkl among `beams` (#911); the row as it is without beams.
+        package func withDynamical(_ beams: DynamicalBeams?) -> SpotRow {
+            var row = self
+            row.dynamicalPercent = hkl.flatMap { beams?.intensities[$0] }.map { $0 * 100 }
+            return row
+        }
     }
 
     /// The rows of `outcome`'s spots that are still marked, numbered as the readout numbers them (`numbers`: a mark's id to its

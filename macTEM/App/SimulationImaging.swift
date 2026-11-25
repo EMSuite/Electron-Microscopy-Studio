@@ -25,7 +25,7 @@ import TEMSession
 
 extension AppState {
     /// The open item at `url` in this window or in another window on screen, with the window's state.
-    private func pairedItem(at url: URL) -> (state: AppState, item: OpenItem)? {
+    func pairedItem(at url: URL) -> (state: AppState, item: OpenItem)? {
         let states = [self] + (windows?.onScreen.filter { $0 !== self } ?? [])
         for state in states {
             if let item = state.openItems.items.first(where: { $0.url == url }) { return (state, item) }
@@ -153,7 +153,8 @@ extension AppState {
     func measuredImages() -> [OpenItem] {
         let states = [self] + (windows?.onScreen.filter { $0 !== self } ?? [])
         return states.flatMap(\.openItems.items).filter { item in
-            guard !DemoDocuments.isSimulation(item.url), !DemoDocuments.isHRTEM(item.url), let image = item.session.image else { return false }
+            guard !DemoDocuments.isSimulation(item.url), !DemoDocuments.isHRTEM(item.url), !DemoDocuments.isSTEM(item.url),
+                  !DemoDocuments.isCBED(item.url), let image = item.session.image else { return false }
             return UnitDisplay.reciprocalAngstromsPerPixel(image.x) == nil
         }
     }

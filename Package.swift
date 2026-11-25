@@ -51,6 +51,7 @@ let package = Package(
                 .product(name: "SimulatoCore", package: "SimulatoKit"),
                 .product(name: "SimulatoMultislice", package: "SimulatoKit"),
                 .product(name: "SimulatoProbe", package: "SimulatoKit"),
+                .product(name: "SimulatoDetector", package: "SimulatoKit"),
             ],
             swiftSettings: [
                 // Optimised in Debug too.
