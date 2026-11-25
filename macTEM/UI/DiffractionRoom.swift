@@ -86,7 +86,7 @@ struct DiffractionRoom: View {
                 }
                 if hasSpots && view.lowerTable == .spots {
                     if isSimulation {
-                        DiffractionSpotTable(view: view, rows: item.simulatedSpotRows(image: image),
+                        DiffractionSpotTable(view: view, rows: SimulationEmptyState.spotRows(of: item, image: image),
                                              empty: "Add a phase and show the simulated spots to list them.", selectsMarks: false,
                                              showsDynamical: item.dynamicalBeams != nil)
                     } else {
@@ -108,6 +108,8 @@ struct DiffractionRoom: View {
         // The room's display canvas (the pattern, log or linear, 4 B/px) goes when the room does; the task above builds it again on
         // return, keeping the window. 12 Nov: the room held 1.4 GB more than the Image room on the 187 MP alite image for as long as it was open.
         .onDisappear { view.presentation.releaseCanvas() }
+        // The Add Phase sheet is the room's (#788): Add Phase… in the Phases section or on the empty state, and New Simulation.
+        .modifier(DiffractionAddPhaseSheet(item: item))
     }
 }
 
@@ -455,6 +457,10 @@ private struct DiffractionPatternPane: View {
                         .accessibilityLabel(spoken)
                         .accessibilityIdentifier("diffraction.zoomBadge")
                 }
+            }
+            // A Simulation document with no phase shown (#907): the empty state covers the pattern, where Cancel in Add Phase leaves it.
+            .overlay {
+                if SimulationEmptyState.isShown(for: item) { SimulationEmptyStateView(view: view) }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }

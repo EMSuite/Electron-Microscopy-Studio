@@ -9,7 +9,6 @@
 import ShellControls
 import ShellInspector
 import ShellPhaseLibrary
-import ShellPhaseViews
 import SwiftUI
 import UniformTypeIdentifiers
 import TEMCore
@@ -186,17 +185,14 @@ private struct DiffractionMicroscopeSection: View {
 }
 
 /// The Phases section (#779), in place of Crystal: the phases of the person's library, each with its marker shape and colour, shown
-/// or hidden, and its lattice; Add Phase… opens EMSuiteUI's sheet (search the Materials Project, or Open CIF…). In this first slice
+/// or hidden, and its lattice; Add Phase… brings the room's sheet to the front (`DiffractionAddPhaseSheet`: search the Materials
+/// Project, or Open CIF…). In this first slice
 /// one phase is shown at a time and is the crystal Index, the readout and the simulated spots use; with none shown the room uses
 /// its calibration standard. The library is on this Mac, so a phase added once works offline.
 private struct DiffractionPhasesSection: View {
     let item: OpenItem
     let analysis: DiffractionAnalysis
-    @State private var adding = false
-    @State private var importing = false
     @State private var findingPhases = false
-    @State private var addModel = AddPhaseModel(library: PhaseServices.library, client: PhaseServices.client,
-                                                keyStore: PhaseServices.keyStore)
     private var library: PhaseLibrary { PhaseServices.library }
 
     var body: some View {
@@ -211,7 +207,7 @@ private struct DiffractionPhasesSection: View {
                 InspectorWarning("\(library.unreadable.count) phase record\(library.unreadable.count == 1 ? "" : "s") could not be read: \(library.unreadable.joined(separator: "; "))")
             }
             InspectorActionRow {
-                Button("Add Phase…") { adding = true }
+                Button("Add Phase…") { SimulationEmptyState.addPhase(item.diffractionView) }
                     .help("Find a phase on the Materials Project, or open a CIF. Until a phase is shown, the room indexes against \(analysis.standard.name), the calibration standard.")
                     .accessibilityIdentifier("diffraction.phases.add")
                 Button("Find Phases…") { findingPhases = true }
@@ -228,26 +224,6 @@ private struct DiffractionPhasesSection: View {
         }
         .task { await PhaseServices.loadLibrary() }
         .sheet(isPresented: $findingPhases) { DiffractionFindPhasesSheet(item: item) }
-        .sheet(isPresented: $adding) {
-            AddPhaseSheet(model: addModel, onOpenCIF: { importing = true }) { phase in
-                DiffractionPhases.set(phase, shown: true, in: analysis)
-            }
-        }
-        .fileImporter(isPresented: $importing, allowedContentTypes: [UTType(filenameExtension: "cif") ?? .plainText, .plainText]) { result in
-            switch result {
-            case .success(let url):
-                Task {
-                    do {
-                        let (loaded, bytes) = try await DiffractionCIF.loadWithBytes(url)
-                        let phase = try DiffractionPhases.addCIF(loaded, bytes: bytes, fileName: url.lastPathComponent, to: library)
-                        DiffractionPhases.set(phase, shown: true, in: analysis)
-                    } catch {
-                        analysis.crystalRefused(error.localizedDescription)
-                    }
-                }
-            case .failure(let error): analysis.crystalRefused(error.localizedDescription)
-            }
-        }
     }
 }
 
