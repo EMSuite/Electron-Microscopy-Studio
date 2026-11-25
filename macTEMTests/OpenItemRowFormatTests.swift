@@ -88,22 +88,18 @@ nonisolated final class OpenItemRowFormatTests: XCTestCase {
         }
     }
 
-    /// The welcome inspector's wrapped prompt keeps every extension one unbreakable run (#1024): a word joiner after the dot and
-    /// between every letter, so the only breaks are at the spaces between extensions; read without the joiners it is the prompt.
-    /// Red before: the empty state wrapped ".emi" as ".e / mi".
-    func testTheWrappedPromptNeverBreaksAnExtension() throws {
-        let joiner = OpenItemRowFormat.wordJoiner
-        XCTAssertEqual(joiner.unicodeScalars.map(\.value), [0x2060])
-        let wrapped = OpenItemRowFormat.wrappingOpenPrompt
-        XCTAssertEqual(wrapped.replacingOccurrences(of: joiner, with: ""), OpenItemRowFormat.openPrompt)
-        for ext in ImageOpening.readableExtensions {
-            let unbroken = "." + joiner + ext.map(String.init).joined(separator: joiner)
-            XCTAssertTrue(wrapped.contains(unbroken), "the wrapped prompt keeps .\(ext) whole")
-        }
-        XCTAssertTrue(wrapped.contains("e\(joiner)m\(joiner)i"), ".emi is one run")
+    /// The welcome inspector's empty state is one sentence without the extension list (#1062): the word joiners of #1024 still let
+    /// ".emi" break as ".e / mi" in the inspector's narrow column. Red before: the empty state showed the extension list.
+    func testTheWelcomeInspectorPromptNamesNoExtension() throws {
+        let prompt = OpenItemRowFormat.welcomeInspectorPrompt
+        XCTAssertFalse(prompt.contains("."+"emi"), "no extension list")
+        for ext in ImageOpening.readableExtensions { XCTAssertFalse(prompt.contains(".\(ext) "), "names no .\(ext)") }
+        XCTAssertFalse(prompt.contains("\u{2060}"), "no word joiners")
+        XCTAssertEqual(prompt.filter { $0 == "." }.count, 1, "one sentence")
         let inspector = try String(contentsOf: URL(fileURLWithPath: #filePath).resolvingSymlinksInPath().deletingLastPathComponent()
             .deletingLastPathComponent().appendingPathComponent("macTEM/UI/WorkspaceInspector.swift"), encoding: .utf8)
-        XCTAssertTrue(inspector.contains("OpenItemRowFormat.wrappingOpenPrompt"), "the welcome inspector shows the wrapped prompt")
+        XCTAssertTrue(inspector.contains("Text(verbatim: OpenItemRowFormat.welcomeInspectorPrompt)"), "the welcome inspector shows it")
+        XCTAssertFalse(inspector.contains("openPrompt"), "and not the extension list")
     }
 
     /// A thumbnail pixel takes the colormap's colour; the masked sentinel is transparent. Mutation: treat −1 as data

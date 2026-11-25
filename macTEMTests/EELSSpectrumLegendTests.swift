@@ -69,6 +69,18 @@ nonisolated final class EELSSpectrumLegendTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(frame.minX, 4 + title.width + 4, "clear of the counts axis title, with a gap")
     }
 
+    /// The counts axis title and the top tick label never meet (#1062): the title's foot is above the top of a label centred on the
+    /// plot's top edge. Red before: the band was 20 pt and the title centred 8 pt above the plot, on "1e7".
+    @MainActor func testTheCountsTitleClearsTheTopTickLabel() throws {
+        let title = fitting(Text("log counts").font(.caption2))
+        let tick = fitting(Text("1e7").font(.caption2))
+        XCTAssertLessThanOrEqual(EELSSpectrumLayout.axisTitleOrigin.y + title.height, EELSSpectrumLayout.top - tick.height / 2)
+        XCTAssertGreaterThanOrEqual(EELSSpectrumLayout.axisTitleOrigin.y, 0)
+        let root = URL(fileURLWithPath: #filePath).resolvingSymlinksInPath().deletingLastPathComponent().deletingLastPathComponent()
+        let room = try String(contentsOf: root.appendingPathComponent("macTEM/UI/EELSRoom.swift"), encoding: .utf8)
+        XCTAssertTrue(room.contains("at: EELSSpectrumLayout.axisTitleOrigin,"), "drawn where the layout says")
+    }
+
     /// The room draws them where the layout says: the legend in the top-left overlay, the names at the layout's centres.
     func testTheRoomUsesTheLayout() throws {
         let root = URL(fileURLWithPath: #filePath).resolvingSymlinksInPath().deletingLastPathComponent().deletingLastPathComponent()

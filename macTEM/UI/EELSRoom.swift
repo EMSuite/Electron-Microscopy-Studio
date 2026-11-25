@@ -846,7 +846,8 @@ private struct EELSSpectrumView: View {
             }
         }
         context.draw(Text("energy loss (eV)").font(.caption2).foregroundStyle(.secondary), at: CGPoint(x: area.midX, y: area.maxY + 25))
-        context.draw(Text(isLog ? "log counts" : "counts").font(.caption2).foregroundStyle(.secondary), at: CGPoint(x: 4, y: area.minY - 8), anchor: .leading)
+        context.draw(Text(isLog ? "log counts" : "counts").font(.caption2).foregroundStyle(.secondary), at: EELSSpectrumLayout.axisTitleOrigin,
+                     anchor: .topLeading)
 
         // One point per pixel column (the column's largest value), so a 2048-channel spectrum draws the same line at any width. On the log axis a value with no counts
         // breaks the line instead of dropping to the floor.
