@@ -104,6 +104,7 @@ nonisolated enum AgentDoorCoverage {
         "diffraction.index.solution": .tool("set_zone_axis"),
         "diffraction.index.verdict": .tool("get_spot_table"),
         "diffraction.pane": .tool("get_image"),
+        "diffraction.empty.addPhase": .tool("add_phase"),
         "diffraction.phases.add": .tool("add_phase"),
         "diffraction.phases.saveCIF.\\(phase.id)": .gap(821),
         "diffraction.phases.lattice.\\(phase.id)": .tool("list_phases"),
