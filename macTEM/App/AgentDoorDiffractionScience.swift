@@ -76,22 +76,57 @@ extension MacTEMAgentDoor {
             }
         }),
         said(AgentTool(name: "find_phases", title: "Find Phases",
-                       summary: "The Find Phases sheet: fit_scale, rank true ranks the room's standards and the open crystals against "
-                           + "the measured rings (or the marked spots) and answers at once (running true until it lands; ask again), "
-                           + "use a phase's name makes it the room's crystal as Use in Room does. Answers the rows in the kit's "
-                           + "order (explains, strong rings not seen, misfit, scale, tie), each row's sentence, the ties and the "
-                           + "notes, never a verdict the sheet does not show.",
+                       summary: "The Find Phases sheet: elements (typed, e.g. \"Al, Cu, Mg\") or elements_from_eds true (the EDS room's "
+                           + "quantified elements) fill the Elements field, search_materials_project true searches the Materials Project "
+                           + "(open data, no key) for the phases of every combination of them and answers at once (materials_project.state "
+                           + "searching until it lands; ask again), stop_search stops it. fit_scale; rank true ranks My Phases (the room's crystal, the library, "
+                           + "the standards, the open crystals) and the Materials Project's candidates against the measured rings (or the "
+                           + "marked spots) and answers at once (running true until it lands); use a phase's name makes it the room's "
+                           + "crystal as Use in Room does. Answers the rows in the kit's order (explains, strong rings not seen, misfit, "
+                           + "scale, tie, source), each row's sentence, the ties and the notes, how many candidates came from each source "
+                           + "and which search limits applied, never a verdict the sheet does not show.",
                        input: .window,
                        parameters: [
+                           AgentParameter("elements", .text, summary: "The elements to search the Materials Project for, at most four."),
+                           AgentParameter("elements_from_eds", .boolean, summary: "Take the elements from the EDS room's quantified elements."),
+                           AgentParameter("search_materials_project", .boolean, summary: "Search the Materials Project for the elements now."),
+                           AgentParameter("stop_search", .boolean, summary: "Stop the Materials Project search in flight, as its Stop does."),
                            AgentParameter("fit_scale", .boolean, summary: "Each phase takes its own scale (true) or the calibration holds."),
                            AgentParameter("rank", .boolean, summary: "Rank the candidates now."),
                            AgentParameter("use", .text, summary: "A ranked phase to make the room's crystal."),
                        ], acts: true) { call in
             withDiffraction(call) { item, image in
                 guard let appState = call.window?.state as? AppState else { return notAWindowRefusal }
-                let candidates = DiffractionPhaseCandidate.all(for: item, openItems: appState.openItems)
-                if let refusal = applyFindPhases(call.arguments, to: item, image: image, candidates: candidates) { return refusal }
-                return .json(phases(item, image: image))
+                let a = call.arguments, search = appState.phaseSearch
+                // Every check of the search before any change (the sheet's Search button is disabled in the same cases).
+                if a["elements"] != nil, a["elements_from_eds"] == "true" {
+                    return .refusal(status: 400, message: "Give elements or elements_from_eds, not both.")
+                }
+                var elementsText = a["elements"] ?? search.elementsText
+                if a["elements_from_eds"] == "true" {
+                    guard let eds = MaterialsProjectPhaseSearch.edsElements(appState.edx) else {
+                        return .refusal(status: 409, message: MaterialsProjectPhaseSearch.noEDSReason + ".")
+                    }
+                    elementsText = eds.joined(separator: ", ")
+                }
+                if a["search_materials_project"] == "true", a["stop_search"] == "true" {
+                    return .refusal(status: 400, message: "Give search_materials_project or stop_search, not both.")
+                }
+                if a["search_materials_project"] == "true" {
+                    do {
+                        _ = try MaterialsProjectSearch.elements(typed: elementsText)
+                    } catch {
+                        return .refusal(status: 400, message: String(describing: error))
+                    }
+                }
+                let candidates = DiffractionPhaseCandidate.all(for: item, appState: appState)
+                if let refusal = applyFindPhases(a, to: item, image: image, candidates: candidates) { return refusal }
+                search.elementsText = elementsText
+                if a["stop_search"] == "true" { search.stop() }
+                if a["search_materials_project"] == "true" { search.run() }
+                var out = phases(item, image: image)
+                out["materials_project"] = materialsProject(search, candidates: DiffractionPhaseCandidate.all(for: item, appState: appState))
+                return .json(out)
             }
         }),
         said(AgentTool(name: "plan_tilt", title: "Diffraction holder",
@@ -395,6 +430,36 @@ extension MacTEMAgentDoor {
         return nil
     }
 
+    /// The Materials Project search as the sheet shows it: the elements, the state, how many candidates came from each source and
+    /// the search's sentence with its limits.
+    static func materialsProject(_ search: MaterialsProjectPhaseSearch, candidates: [DiffractionPhaseCandidate]) -> [String: Any] {
+        let fromMP = candidates.filter { $0.source == .materialsProject }.count
+        var out: [String: Any] = [
+            "elements": search.elementsText,
+            "candidates_my_phases": candidates.count - fromMP,
+            "candidates_materials_project": fromMP,
+            "sources": MaterialsProjectSearch.sourcesSentence(myPhases: candidates.count - fromMP, materialsProject: fromMP),
+            "limits": ["maximum_elements": MaterialsProjectSearch.maximumElements, "per_system": MaterialsProjectSearch.perSystem,
+                       "hull_limit_ev_per_atom": MaterialsProjectSearch.hullLimit, "maximum_candidates": MaterialsProjectSearch.maximumCandidates],
+        ]
+        switch search.state {
+        case .idle: out["state"] = "idle"
+        case .searching(let elements): out["state"] = "searching"; out["searching"] = elements
+        case .done(let summary):
+            out["state"] = "done"
+            out["sentence"] = summary.sentence
+            out["systems"] = summary.systems
+            out["found"] = summary.found
+            out["near_hull"] = summary.nearHull
+            out["taken"] = summary.taken
+            out["unread"] = summary.unread
+            out["not_searched"] = summary.failedSystems
+        case .refused(let why): out["state"] = "refused"; out["refusal"] = why
+        case .failed(let why): out["state"] = "failed"; out["failure"] = why
+        }
+        return out
+    }
+
     static func phases(_ item: OpenItem, image: CalibratedImage) -> [String: Any] {
         let finder = item.diffractionPhases
         var out: [String: Any] = [
@@ -415,7 +480,7 @@ extension MacTEMAgentDoor {
              "misfit_percent": AgentJSON.number(r.misfitPercent), "rms_distance_per_angstrom": AgentJSON.number(r.rmsDistance),
              "scale": AgentJSON.number(r.scale), "tie": r.tie + 1, "tied": result.isTied(r),
              "zone_axis": AgentJSON.orNull(r.zoneAxis.map { "[\($0.u) \($0.v) \($0.w)]" }), "refusal": AgentJSON.orNull(r.refusal),
-             "sentence": result.sentence(for: r)]
+             "sentence": result.sentence(for: r), "source": r.source.name]
         }
         out["ties"] = Set(result.rows.map(\.tie)).sorted().compactMap { result.tieSentence($0) }
         out["weak"] = AgentJSON.orNull(result.weakSentence)

@@ -202,9 +202,7 @@ extension MacTEMAgentDoor {
                     let names = images.map(\.url.lastPathComponent)
                     return refused("No open image \"\(name)\": " + (names.isEmpty ? "open a measured image first" : names.joined(separator: ", ")) + ".")
                 }
-                var new = beside ?? HRTEMBeside(measured: item.url)
-                new.measured = item.url
-                beside = new
+                beside = appState.besideNaming(item, in: beside)
             }
         }
         if ["beside_layout", "beside_rotation_deg", "beside_inset_across", "beside_inset_down"].contains(where: { arguments[$0] != nil }) {

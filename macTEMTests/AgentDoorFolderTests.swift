@@ -8,6 +8,7 @@
 import Foundation
 import ShellAgentDoor
 import ShellLayout
+import TEMCore
 import TEMSession
 import XCTest
 @testable import macTEM
@@ -107,6 +108,40 @@ nonisolated final class AgentDoorFolderTests: XCTestCase {
         let capped = try XCTUnwrap(MacTEMAgentDoor.folder.listing(visitLimit: 2))
         XCTAssertTrue(capped.truncated, "the walk stopped early")
         XCTAssertLessThanOrEqual(capped.files.count, 2)
+    }
+
+    /// The walk runs from a background thread and lists what the door lists, so a folder on a share is not walked on the main
+    /// actor once the door can wait (#926). Mutation: the walk reading the object's state, or listing another way - red.
+    @MainActor func testTheWalkRunsOffTheMainActor() async throws {
+        for name in ["b.txt", "a.txt"] { try Data(name.utf8).write(to: root.appendingPathComponent(name)) }
+        let folder: URL = root
+        let walked = await offMainActor { () -> [String]? in
+            XCTAssertFalse(Thread.isMainThread)
+            return AgentFolder.listing(of: folder)?.files.compactMap { $0["path"] as? String }
+        }
+        XCTAssertEqual(walked, ["a.txt", "b.txt", "sub/map.ang"], "the link out is not listed")
+        MacTEMAgentDoor.folder.use(folder: root)
+        XCTAssertEqual(MacTEMAgentDoor.folder.listing()?.files.compactMap { $0["path"] as? String }, walked)
+    }
+
+    /// Settings > Agents shows the folder's path resolved off the main actor, once per bookmark, not in its view body (#926).
+    /// Mutation: resolving on the main thread, or a bookmark that does not resolve showing a path - red.
+    @MainActor func testTheShownPathResolvesOffTheMainThread() async throws {
+        let none = await AgentFolder.shownPath(bookmark: nil)
+        XCTAssertNil(none)
+        let junk = await AgentFolder.shownPath(bookmark: Data("not a bookmark".utf8))
+        XCTAssertNil(junk)
+        guard let bookmark = AgentFolder.bookmark(for: root) else {
+            throw XCTSkip("this build cannot make a security-scoped bookmark of a temporary folder")
+        }
+        let offMain = await offMainActor { () -> String? in
+            XCTAssertFalse(Thread.isMainThread)
+            return AgentFolder.displayPath(bookmark: bookmark)
+        }
+        let shown = await AgentFolder.shownPath(bookmark: bookmark)
+        XCTAssertEqual(shown, offMain)
+        XCTAssertEqual(shown.map { ($0 as NSString).expandingTildeInPath }.map { URL(fileURLWithPath: $0).resolvingSymlinksInPath().path },
+                       root.resolvingSymlinksInPath().path)
     }
 
     /// Mutation: open_file going around the folder check, or not through the app's Open, or leaving no Output line - red.

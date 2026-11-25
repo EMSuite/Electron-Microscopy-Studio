@@ -66,6 +66,17 @@ nonisolated final class SoftwareUpdateTests: XCTestCase {
         XCTAssertTrue(project.contains(#""Info-Direct.plist","#), "the download's plist is not copied as a resource")
     }
 
+    /// FormatoKit's HDF5 frameworks arrive signed by another Team ID, and a Release build's hardened runtime refuses them at launch
+    /// (#1001). The pbxproj cannot be built here, so this reads it: a phase of the app target re-signs the three frameworks with the
+    /// app's identity. Mutation: the phase, a framework or the identity left out - red.
+    func testTheProjectResignsTheEmbeddedHDF5FrameworksWithTheAppsIdentity() throws {
+        let project = try text("macTEM.xcodeproj/project.pbxproj")
+        XCTAssertEqual(project.components(separatedBy: "Sign the HDF5 frameworks with the app's identity").count - 1, 3,
+                       "the phase is defined once and listed once in the app target")
+        XCTAssertTrue(project.contains("for library in FormatoLibHDF5 FormatoLibSZ FormatoLibAEC; do"))
+        XCTAssertTrue(project.contains(#"codesign --force --sign \"${EXPANDED_CODE_SIGN_IDENTITY}\" --options runtime"#))
+    }
+
     /// Mutation: drop the helper signing, the key check or the feed step from the download; or the store's updater checks - red.
     func testTheReleaseScriptsSignTheDownloadsUpdaterAndRefuseItInTheStore() throws {
         let download = try text("tools/release.sh")

@@ -191,4 +191,45 @@ nonisolated final class TIAImageReaderTests: XCTestCase {
         XCTAssertFalse(FolderGrants.asksForFolder(of: emi, refused: true), "a file mode is not the sandbox's: no grant changes it")
         XCTAssertTrue(FolderGrants.askSentence(for: emi).contains("reads the TIA file pattern.emi with the .ser series beside it"))
     }
+
+    /// A `.ser` opened alone whose `.emi` the sandbox refuses asks for the folder, though the `.ser` routes alone; inside the grant
+    /// it reads the `.emi` (units and voltage), and declined it opens alone, as before (#955). A file mode (EACCES) stands in for
+    /// the sandbox: the probe sees the `.emi` refused, the decision on the sandbox's EPERM is checked on the probe's answer, and
+    /// the mode put back stands for the grant. Red before: a `.ser` asked by its own `.ser` files (none), so never for its `.emi`.
+    func testASerWhoseEMIIsRefusedAsksForTheFolderAndOpensAloneWithout() async throws {
+        XCTAssertNotEqual(geteuid(), 0, "root reads a mode-000 file; run this as a user")
+        let dir = try patternFolder()
+        let ser = dir.appendingPathComponent("pattern_1.ser"), emi = dir.appendingPathComponent("pattern.emi")
+        XCTAssertNil(TIAImageReader.emiOpenError(ser), "the .emi opens")
+        XCTAssertNil(TIAImageReader.emiOpenError(emi), "an .emi is not asked after by its own name")
+        XCTAssertFalse(FolderGrants.asksForFolder(of: ser, refused: false), "readable: nothing is asked")
+
+        XCTAssertEqual(chmod(emi.path, 0), 0)
+        defer { chmod(emi.path, 0o644) }
+        XCTAssertEqual(TIAImageReader.emiOpenError(ser), EACCES)
+        XCTAssertEqual(FolderGrants.openError(beside: ser), EACCES)
+        XCTAssertTrue(FolderGrants.asksForFolder(of: ser, refused: false, openError: EPERM),
+                      "the sandbox's refusal of the .emi: the folder is asked for, though the .ser routes alone")
+        XCTAssertFalse(FolderGrants.asksForFolder(of: ser, refused: false, openError: EACCES), "a file mode, which no grant changes")
+        XCTAssertFalse(FolderGrants.asksForFolder(of: ser, refused: false, openError: nil), "no .emi beside it: it opens alone")
+        XCTAssertFalse(FolderGrants.asksForFolder(of: ser, refused: false), "a file mode is not the sandbox's: no grant changes it")
+        XCTAssertFalse(FolderGrants.asksForFolder(of: emi, refused: false, openError: EPERM), "an .emi the routing opened")
+        XCTAssertTrue(FolderGrants.askSentence(for: ser).contains("reads the TIA file pattern_1.ser with the .emi beside it"))
+
+        // Declined: the .ser opens alone, its units assumed and no voltage, as before.
+        let routed = await AppState.inventories([ser], memory: ProcessInfo.processInfo.physicalMemory)
+        let alone = try XCTUnwrap(routed.first)
+        XCTAssertEqual(alone.inventory, FileInventory(image: true))
+        XCTAssertFalse(alone.asksForFolder)
+        let without = try ImageOpening.openNow(path: ser.path)
+        XCTAssertNil(without.voltage)
+        XCTAssertEqual(without.notes, [TIAImageReader.unitsAssumedNote])
+
+        // Inside the grant (the mode put back): routed again, the .ser reads its .emi.
+        XCTAssertEqual(chmod(emi.path, 0o644), 0)
+        XCTAssertNil(TIAImageReader.emiOpenError(ser))
+        let within = try ImageOpening.openNow(path: ser.path)
+        XCTAssertEqual(within.voltage, 200_000)
+        XCTAssertEqual(within.notes, [])
+    }
 }

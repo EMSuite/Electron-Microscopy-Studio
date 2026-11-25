@@ -48,7 +48,8 @@ extension MacTEMAgentDoor {
             guard let appState = call.window?.state as? AppState else { return notAWindowRefusal }
             switch diffractionItem(appState) {
             case .refused(let refusal): return refusal
-            case .item:
+            case .item(let item):
+                if let image = item.session.image, max(image.width, image.height) <= ImageExport.maximumSide { showPatternNow(item, image: image) }
                 guard let snapshot = ExportSnapshot.diffractionFigureSnapshot(of: appState) else {
                     return .refusal(status: 404, message: "The pattern's display is still being built; ask again in a moment.")
                 }
