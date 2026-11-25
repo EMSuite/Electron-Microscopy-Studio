@@ -40,7 +40,7 @@ nonisolated final class RoomReleaseTests: XCTestCase {
             let item = try XCTUnwrap(state.openItems.selected)
             let image = try XCTUnwrap(item.session.image)
             let view = item.diffractionView, particles = item.particles
-            await view.show(image: image, analysis: item.diffraction)
+            await view.show(image: image, generation: item.session.generation, analysis: item.diffraction)
             particles.setPreviewsMask(true)
             await particles.updatePreview(image: image)?.value
             return (view, particles, Weak(item))

@@ -6,8 +6,9 @@
 //        misfit, and the flags: tied, zone axis only, a scale or the spots changed since), the Spots table's rows and the spots marked
 //        (found or clicked), or the Spots CSV's text; `set_zone_axis` types the Index section's zone axis and turn, steps to a
 //        solution, tilts the drawn orientation as the Tilt tool does and flips it; `simulate_pattern` sets the Simulation section
-//        (overlay, labels, double diffraction, excitation error); `get_diffraction_picture` draws the pattern as the room shows it, with the
-//        marked spots (yellow, numbered as the table numbers them) and the simulated spots (cyan, the strongest labelled with hkl).
+//        (overlay, labels, double diffraction, excitation error); `get_diffraction_picture` draws the pattern shown as the room shows it, with
+//        the annulus, the fitted rings, the marked spots (yellow, numbered as the table numbers them) and the simulated spots (cyan,
+//        the strongest labelled with hkl), making the room's pass itself when the room has not drawn the pixels shown (#1003).
 //
 //        ONE SOURCE PER FACT: the answer is `DiffractionAnalysis.indexOutcome` and `indexLine`, the rows `indexSpotRows`, the CSV
 //        `ExportSnapshot.diffractionSpotsCSV` (Export Spots CSV…'s, its methods record inside), the simulated spots
@@ -17,6 +18,7 @@
 //
 
 import DiffractoCore
+import DiffractoGeometry
 import Foundation
 import ShellAgentDoor
 import ShellMetal
@@ -156,9 +158,10 @@ extension MacTEMAgentDoor {
             }
         }),
         AgentTool(name: "get_diffraction_picture", title: "Diffraction picture",
-                  summary: "The pattern as the Diffraction room shows it (its log or linear display, colormap, window and gamma), with "
-                      + "the spots marked as yellow rings numbered as the Spots table numbers them and, with the overlay on, the "
-                      + "simulated spots as cyan rings, the strongest labelled with their hkl.",
+                  summary: "The pattern shown now as the Diffraction room draws it (its log or linear display, colormap, window and "
+                      + "gamma; a CBED pattern at the stored thickness shown), with the Ring tool's annulus as two dashed white circles, "
+                      + "the fitted rings as yellow outlines with their d, the spots marked as yellow rings numbered as the Spots table "
+                      + "numbers them and, with the overlay on, the simulated spots as cyan rings, the strongest labelled with their hkl.",
                   input: .windowPicture) { call in
             guard let appState = call.window?.state as? AppState else { return notAWindowRefusal }
             switch diffractionItem(appState) {
@@ -244,17 +247,39 @@ extension MacTEMAgentDoor {
         return out
     }
 
-    /// The pattern as the room draws it, with the marked and simulated spots.
+    /// The room's pass for the pattern shown, at once, when the room has not drawn those pixels with Log as it is (it is off screen,
+    /// or its pass is still to land): the door's picture and figure are then the pattern shown, never an earlier canvas (#1003).
+    static func showPatternNow(_ item: OpenItem, image: CalibratedImage) {
+        let generation = item.session.generation
+        if !item.diffractionView.showsCanvas(generation: generation) {
+            item.diffractionView.showNow(image: image, generation: generation, analysis: item.diffraction)
+        }
+    }
+
+    /// The pattern as the room draws it now, with the marked and simulated spots, the fitted rings and the Ring tool's annulus. When
+    /// the room has not drawn the pixels shown (it is off screen, or its pass for a new pattern, a CBED pattern at another thickness or
+    /// a Log switch is still to land), the door makes the room's pass at once (`DiffractionViewState.showNow`), so the picture is the
+    /// pattern shown with the room's display, never an earlier canvas (#1003).
     static func diffractionPicture(_ item: OpenItem, image: CalibratedImage, side: Int) -> AgentToolOutput {
         let view = item.diffractionView, analysis = item.diffraction
         guard max(image.width, image.height) <= ImageExport.maximumSide else {
             return .refusal(status: 413, message: "The pattern is larger than \(ImageExport.maximumSide) px on a side; the picture is refused.")
         }
+        showPatternNow(item, image: image)
         guard let canvas = view.presentation.canvas, canvas.width == image.width, canvas.height == image.height else {
             return .refusal(status: 404, message: "The pattern is still being drawn; ask again in a moment.")
         }
-        let simulated = analysis.simulation.isShown ? ((try? analysis.simulatedSpots(image: image)?.get()) ?? []) : []
-        let marks = DiffractionPicture.marks(spots: analysis.spots, simulated: simulated, labels: analysis.simulation.showsLabels)
+        let simulated = analysis.simulation.isShown ? ((try? item.simulatedSpots(image: image)?.get()) ?? []) : []
+        let labels = Dictionary(uniqueKeysWithValues: analysis.readout(image: image).map { ($0.id, ExportSnapshot.figureLabel($0)) })
+        let rings = analysis.rings.compactMap { ring -> DiffractionPicture.Ring? in
+            guard let ellipse = ring.ellipse else { return nil }
+            return DiffractionPicture.Ring(points: RingOverlay.polyline(ellipse).map { ImagePoint(x: $0.x, y: $0.y) }, label: labels[ring.id] ?? "")
+        }
+        let annulus = analysis.centre.map {
+            DiffractionPicture.Annulus(centre: ImagePoint(x: $0.column, y: $0.row), inner: view.annulusInner, outer: view.annulusOuter)
+        }
+        let marks = DiffractionPicture.marks(annulus: annulus, rings: rings, spots: analysis.spots, simulated: simulated,
+                                             labels: analysis.simulation.showsLabels)
         do {
             let rendered = try ImageExport.render(source: ExportSource(image: image, software: ExportSnapshot.provenance()),
                                                   display: ExportSnapshot.display(canvas: canvas, presentation: view.presentation),
@@ -266,15 +291,46 @@ extension MacTEMAgentDoor {
     }
 }
 
-/// The Diffraction picture's marks: the simulated spots under the marked ones, so a measured spot reads on top. Pure.
+/// The Diffraction picture's marks, in the room's order: the simulated spots under the measured marks, then the annulus, the fitted
+/// rings and the marked spots, so a measured spot reads on top. Pure.
 nonisolated enum DiffractionPicture {
-    /// Simulated spots as cyan rings (hkl on the room's labelled ones when `labels`), then each marked spot with a centre as a yellow
-    /// ring numbered as the readout and the Spots table number it.
-    static func marks(spots: [MeasuredSpot], simulated: [ZoneAxisOverlay.Spot], labels: Bool) -> [ImageExport.Mark] {
+    /// A fitted ring as the room draws it: its ellipse as a polyline (image pixels, x the column) and its d label.
+    nonisolated struct Ring: Equatable, Sendable {
+        let points: [ImagePoint]
+        let label: String
+    }
+
+    /// The Ring tool's annulus about the pattern's centre, radii in pixels.
+    nonisolated struct Annulus: Equatable, Sendable {
+        let centre: ImagePoint
+        let inner: Double
+        let outer: Double
+    }
+
+    /// The points of each annulus edge.
+    static let annulusPoints = 128
+
+    /// Simulated spots as cyan rings (hkl on the room's labelled ones when `labels`); the annulus' two edges dashed white; each fitted
+    /// ring as a yellow outline with its d; then each marked spot with a centre as a yellow ring numbered as the readout and the Spots
+    /// table number it.
+    static func marks(annulus: Annulus? = nil, rings: [Ring] = [], spots: [MeasuredSpot], simulated: [ZoneAxisOverlay.Spot],
+                      labels: Bool) -> [ImageExport.Mark] {
         let labelled = labels ? Set(ZoneAxisOverlay.labelled(simulated).map(\.hkl)) : []
         var out = simulated.map { s in
             ImageExport.Mark(kind: .simulatedSpot, points: [ImagePoint(x: s.column, y: s.row)], width: 1,
                              label: labelled.contains(s.hkl) ? s.label : "")
+        }
+        if let annulus {
+            for radius in [annulus.inner, annulus.outer] {
+                let points = (0 ..< annulusPoints).map { i -> ImagePoint in
+                    let phi = 2 * Double.pi * Double(i) / Double(annulusPoints)
+                    return ImagePoint(x: annulus.centre.x + radius * cos(phi), y: annulus.centre.y + radius * sin(phi))
+                }
+                out.append(ImageExport.Mark(kind: .annulus, points: points, width: 1, label: ""))
+            }
+        }
+        for ring in rings {
+            out.append(ImageExport.Mark(kind: .ring, points: ring.points, width: 1, label: ring.label))
         }
         for (i, spot) in spots.enumerated() {
             guard let row = spot.row, let column = spot.column else { continue }
