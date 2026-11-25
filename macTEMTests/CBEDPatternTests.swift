@@ -145,6 +145,22 @@ nonisolated final class CBEDPatternTests: XCTestCase {
         for (a, b) in zip(fractions, fractions.dropFirst()) { XCTAssertGreaterThanOrEqual(b, a - 1e-12, "ascending: \(fractions)") }
     }
 
+    /// The depth chip gives the pattern's size as width × height, as the image's header does (#1033: "521 × 523 pattern" beside a
+    /// "523 × 521 px" header). Red before: rows × columns.
+    func testTheDepthChipGivesWidthByHeight() throws {
+        XCTAssertEqual(CBEDPattern.depthSentence(slices: 1040, rows: 521, columns: 523),
+                       "1040 slices on a 523 × 521 pattern: beyond the validated depth of the Metal path")
+        let built = try SimulationSpecimen.build(CrystalPresets.silicon, zoneAxis: SIMD3(1, 1, 0), thicknessNM: 2).get()
+        var settings = CBEDSettings()
+        settings.angularStepMrad = 1
+        settings.largestThicknessNM = 2
+        settings.edgeMrad = 40
+        let pattern = try CBEDRun.run(built, settings: settings, semiangleMrad: 2, volts: 200_000, specimen: "Si [1 1 0]", reference: true)
+        let image = pattern.image(at: 0, name: "CBED of Simulation 1")
+        XCTAssertTrue(CBEDPattern.depthSentence(slices: pattern.slices, rows: pattern.rows, columns: pattern.columns)
+                        .contains("on a \(image.width) × \(image.height) pattern"))
+    }
+
     /// Under 20 Å across, the plan carries the design's chip.
     func testASmallBoxSaysTheProbeOverlapsItsCopies() throws {
         let built = try SimulationSpecimen.build(CrystalPresets.silicon, zoneAxis: SIMD3(1, 1, 0), thicknessNM: 2).get()

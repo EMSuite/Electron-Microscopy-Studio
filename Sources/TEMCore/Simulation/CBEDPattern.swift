@@ -71,10 +71,15 @@ package nonisolated struct CBEDPattern: Sendable, Equatable {
     /// The Metal run lies beyond the depth and grid its tolerance is registered to (`MetalAccuracy.covers`).
     package let beyondRegisteredDepth: Bool
 
-    /// The chip past the registered depth: "400 slices on a 600 × 600 pattern: beyond the validated depth of the Metal path"; nil
-    /// within it.
+    /// The chip past the registered depth: "1040 slices on a 523 × 521 pattern: beyond the validated depth of the Metal path"; nil
+    /// within it. The size is width × height (columns × rows), as the image's header and the toolbar give it (#1033).
     package var depthChip: String? {
-        beyondRegisteredDepth ? "\(slices) slices on a \(rows) × \(columns) pattern: \(CBEDRun.beyondDepthChip) of the Metal path" : nil
+        beyondRegisteredDepth ? Self.depthSentence(slices: slices, rows: rows, columns: columns) : nil
+    }
+
+    /// The depth chip's sentence for a pattern `rows` high and `columns` wide.
+    package static func depthSentence(slices: Int, rows: Int, columns: Int) -> String {
+        "\(slices) slices on a \(columns) × \(rows) pattern: \(CBEDRun.beyondDepthChip) of the Metal path"
     }
 
     /// The pattern at stored thickness `index` (kept in range) as an image of the app: calibrated in 1/nm with the origin on the
