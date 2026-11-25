@@ -74,6 +74,8 @@ The rooms:
   flip 180°, fit the scale or hold it, and drag the simulated spots to tilt them (⌥ drag turns them; ⌥ and an arrow tilt by a step); the Spots table lists each
   spot's hkl, R (in mm with the camera's pixel pitch), expected d and misfit, and exports as a Spots CSV.
   Phases come from your library: Add Phase… finds one on the Materials Project or opens a CIF, and a phase added once works offline.
+  Find Phases ranks your phases against the measured rings or spots, and with the sample's elements (typed or taken from the
+  EDS room) also the Materials Project's most stable phases of every combination of them, saying how many came from each.
   The crystal pane beside the pattern appears with the simulated spots and shows the phase in 3D down the same beam; turning it
   turns the spots, and View > Hide Crystal hides it.
   File > New Simulation (⇧⌘N) opens the simulated spots with no measured pattern under them: its Microscope section sets the
@@ -120,7 +122,7 @@ through the agent door: Settings > Agents, off by default. What it can reach is 
 
 No telemetry, no account. The app connects to one other service on its own: the
 [Materials Project](https://materialsproject.org), and only when you search for a phase or add one. It sends the
-elements or formula you type, or the entry's id, and your own API key if you saved one in Settings > Materials Project
+elements or formula you type (or that Find Phases takes from the EDS room when you press Search), or the entry's id, and your own API key if you saved one in Settings > Materials Project
 (the key is optional and stays in your login keychain). A phase once added works offline. The website download also
 fetches its update feed. Details are in [`SECURITY.md`](SECURITY.md).
 

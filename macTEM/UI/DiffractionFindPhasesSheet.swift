@@ -4,31 +4,45 @@
 //        (or marked spots) each explains, the strong rings it predicts that were not seen, its misfit and the scale it took, and the
 //        kit's ties, with the selected row's sentence. Use in Room makes the selected phase the room's crystal, so its indexing is
 //        the room's. Presentation only: every number is `PhaseFindingResult`'s; the sheet says "explains", never "is".
-//        Candidates: the room's standards and the crystals of the open patterns, until My Phases (A2) lands.
+//        Candidates: My Phases (the room's crystal, your library, the standards and the crystals of the open patterns) and, once
+//        searched (R14, #813), the Materials Project's entries for the elements typed or taken from the EDS room
+//        (`MaterialsProjectPhaseSearch`); the sheet says how many came from each and which limits applied.
 //
 
 import ShellLayout
+import ShellPhaseLibrary
 import SwiftUI
 import DiffractoCore
 import TEMCore
 import TEMSession
 
-/// One candidate as the room holds it: the crystal Use in Room sets.
+/// One candidate as the room holds it: the crystal Use in Room sets, and where it came from.
 struct DiffractionPhaseCandidate: Identifiable {
     let crystal: DiffractionCrystal
+    var source: TEMCore.PhaseSource = .myPhases
+    /// The formula as the source states it (the Materials Project's reduced formula); nil: the cell content.
+    var formula: String? = nil
     var id: String { crystal.name }
 
-    var candidate: PhaseCandidate { PhaseCandidate(name: crystal.name, structure: crystal.structure, source: .myPhases) }
+    var candidate: PhaseCandidate { PhaseCandidate(name: crystal.name, structure: crystal.structure, source: source, formula: formula) }
 
-    /// The room's crystal, its standards, then the crystals of the other open patterns, each name once.
-    @MainActor static func all(for item: OpenItem, openItems: OpenItems) -> [DiffractionPhaseCandidate] {
+    /// My Phases: the room's crystal, the library's phases, the standards, then the crystals of the other open patterns, each name once.
+    @MainActor static func all(for item: OpenItem, openItems: OpenItems, library: [Phase] = PhaseServices.library.phases) -> [DiffractionPhaseCandidate] {
         var seen: Set<String> = []
         var out: [DiffractionPhaseCandidate] = []
         func add(_ c: DiffractionCrystal) { if seen.insert(c.name).inserted { out.append(DiffractionPhaseCandidate(crystal: c)) } }
         add(item.diffraction.crystal)
+        DiffractionPhases.ordered(library).forEach { add(DiffractionPhases.crystal(for: $0)) }
         StandardCrystals.all.forEach { add(.preset($0)) }
         openItems.items.filter { $0.id != item.id }.forEach { add($0.diffraction.crystal) }
         return out
+    }
+
+    /// My Phases, then the Materials Project's candidates of the window's last search (a name already there is not added twice).
+    @MainActor static func all(for item: OpenItem, appState: AppState) -> [DiffractionPhaseCandidate] {
+        let mine = all(for: item, openItems: appState.openItems)
+        let names = Set(mine.map(\.id))
+        return mine + appState.phaseSearch.candidates.filter { !names.contains($0.id) }
     }
 }
 
@@ -41,10 +55,12 @@ struct DiffractionFindPhasesSheet: View {
     var body: some View {
         let finder = item.diffractionPhases
         let image = item.session.imageOrBlank
-        let candidates = DiffractionPhaseCandidate.all(for: item, openItems: appState.openItems)
+        let candidates = DiffractionPhaseCandidate.all(for: item, appState: appState)
+        let mpCount = candidates.filter { $0.source == .materialsProject }.count
         let blocker = DiffractionPhaseFinder.blocker(analysis: item.diffraction, image: image)
         VStack(alignment: .leading, spacing: 12) {
             Text("Find Phases").font(.title3.weight(.semibold))
+            materialsProject(myPhases: candidates.count - mpCount, materialsProject: mpCount)
             HStack {
                 Toggle("Fit scale", isOn: Binding(get: { finder.fitScale }, set: { finder.fitScale = $0 }))
                     .help("On, each phase takes the scale that suits it, within 3 %. Off, the room's calibration holds, which tells two phases with nearly equal lattices apart.")
@@ -57,7 +73,7 @@ struct DiffractionFindPhasesSheet: View {
                 }
                 Button("Rank") { finder.run(analysis: item.diffraction, image: image, candidates: candidates.map(\.candidate)) }
                     .disabled(blocker != nil || finder.isRunning)
-                    .help(blocker ?? "Ranks \(candidates.count) phases, the room's standards and the crystals of the open patterns, by how many of the measured rings (or the marked spots) each explains")
+                    .help(blocker ?? "Ranks \(candidates.count) phases, My Phases and the Materials Project's candidates, by how many of the measured rings (or the marked spots) each explains")
                     .accessibilityIdentifier("diffraction.findPhases.rank")
             }
             if let blocker { Label(blocker, systemImage: "info.circle").font(.callout).foregroundStyle(.secondary) }
@@ -85,6 +101,49 @@ struct DiffractionFindPhasesSheet: View {
         .padding(20)
         .frame(minWidth: LayoutPolicy.findPhasesSheet.min.width, idealWidth: LayoutPolicy.findPhasesSheet.idealWidth,
                minHeight: LayoutPolicy.findPhasesSheet.min.height)
+    }
+
+    /// The Materials Project row: the elements (typed or from the EDS room), Search and Stop, and what the candidates are.
+    @ViewBuilder
+    private func materialsProject(myPhases: Int, materialsProject: Int) -> some View {
+        let search = appState.phaseSearch
+        let eds = MaterialsProjectPhaseSearch.edsElements(appState.edx)
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                TextField("Elements", text: Binding(get: { search.elementsText }, set: { search.elementsText = $0 }), prompt: Text("Al, Cu, Mg"))
+                    .onSubmit { search.run() }
+                    .help("The elements of the phases to look for on the Materials Project, at most \(MaterialsProjectSearch.maximumElements)")
+                    .accessibilityLabel("Elements to search the Materials Project for")
+                    .accessibilityIdentifier("diffraction.findPhases.elements")
+                Button("From EDS") { search.takeFromEDS(appState.edx) }
+                    .disabled(eds == nil || search.isRunning)
+                    .help(eds.map { "Takes the EDS room's quantified elements: \($0.joined(separator: ", "))" } ?? MaterialsProjectPhaseSearch.noEDSReason)
+                    .accessibilityLabel("Take the elements from the EDS room")
+                    .accessibilityIdentifier("diffraction.findPhases.fromEDS")
+                if search.isRunning {
+                    ProgressView().controlSize(.small)
+                    Button("Stop") { search.stop() }
+                        .accessibilityLabel("Stop the Materials Project search")
+                        .accessibilityIdentifier("diffraction.findPhases.searchStop")
+                } else {
+                    Button("Search Materials Project") { search.run() }
+                        .help("Searches the Materials Project (open data, no key) for the phases of every combination of these elements")
+                        .accessibilityIdentifier("diffraction.findPhases.search")
+                }
+            }
+            Text(MaterialsProjectSearch.sourcesSentence(myPhases: myPhases, materialsProject: materialsProject))
+                .foregroundStyle(.secondary)
+            switch search.state {
+            case .idle: EmptyView()
+            case .searching(let elements):
+                Text("Searching the Materials Project for \(elements.joined(separator: ", "))…").foregroundStyle(.secondary)
+            case .done(let summary): Text(summary.sentence).foregroundStyle(.secondary)
+            case .refused(let why), .failed(let why):
+                Label(why, systemImage: "exclamationmark.triangle.fill").symbolRenderingMode(.multicolor)
+            }
+        }
+        .font(.callout)
+        .fixedSize(horizontal: false, vertical: true)
     }
 
     @ViewBuilder
