@@ -16,7 +16,6 @@ import SimulatoMultislice
 import simd
 import TEMCore
 import TEMSession
-@testable import macTEM
 
 nonisolated final class SlabDrawingTests: XCTestCase {
     private let a = 5.4309
