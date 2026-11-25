@@ -63,7 +63,8 @@ PKG="$(print -l "$EXPORT"/*.pkg(N) | head -1)"
 echo "== Check the package"
 pkgutil --check-signature "$PKG" | grep -q "Installer Distribution\|3rd Party Mac Developer Installer" \
   || { echo "$PKG is not signed with an installer distribution certificate." >&2; exit 1; }
-# The executable and the three HDF5 frameworks, each by name, and the shipped demo files (tools/lib/release-checks.sh).
+# The executable, the three HDF5 frameworks and the two Quick Look extensions, each by name, and the shipped demo files
+# (tools/lib/release-checks.sh).
 assert_mactem_bundle_arm64_only "$APP"
 assert_mactem_store_names "$APP" "$ROOT" || exit 1
 assert_mactem_demo_data "$APP"
@@ -76,6 +77,10 @@ fi
 # The sandbox entitlements exactly: nothing the store listing does not declare.
 assert_mactem_store_entitlements "$OUT/store-entitlements.plist"
 [[ -f "$APP/Contents/Resources/PrivacyInfo.xcprivacy" ]] || { echo "The app has no privacy manifest." >&2; exit 1; }
+for extension in "${MACTEM_EXTENSIONS[@]}"; do
+  [[ -f "$APP/Contents/PlugIns/$extension.appex/Contents/Resources/PrivacyInfo.xcprivacy" ]] \
+    || { echo "$extension.appex has no privacy manifest." >&2; exit 1; }
+done
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :ITSAppUsesNonExemptEncryption' "$APP/Contents/Info.plist" 2>/dev/null)" == false ]] \
   || { echo "Info.plist does not answer the export-compliance question." >&2; exit 1; }
 [[ ! -d "$APP/Contents/Frameworks/Sparkle.framework" ]] || { echo "Sparkle is in the store build." >&2; exit 1; }

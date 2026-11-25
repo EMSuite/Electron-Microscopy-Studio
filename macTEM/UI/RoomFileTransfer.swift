@@ -17,9 +17,9 @@ struct RoomExportFile: FileDocument {
     /// format (MacEMUI#106), so the list is built from the rooms' own export kinds.
     static var readableContentTypes: [UTType] {
         // PDF and SVG: the Maps room's vector figures (#902); a type missing here makes the panel fall back to the first one's name.
-        var types: [UTType] = [.png, .pdf, .svg, .json, .commaSeparatedText, .plainText]
+        var types: [UTType] = [.png, .pdf, .svg, .json, .commaSeparatedText, .plainText, .pythonScript]
         let kinds = PatternsExportKind.allCases.map(\.contentType) + IndexingExportKind.allCases.map(\.contentType)
-            + EELSExportKind.allCases.map(\.contentType)
+            + EELSExportKind.allCases.map(\.contentType) + [DiffractionPowderExport.xyType]
         for type in kinds where !types.contains(type) { types.append(type) }
         return types
     }

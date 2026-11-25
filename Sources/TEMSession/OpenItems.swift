@@ -305,6 +305,16 @@ package final class OpenItem: Identifiable {
     /// The Diffraction room's tool, annulus, selection and zoom for this file: view state, apart from the results above. Its canvas (the
     /// pattern as drawn, full size) goes with the item's pixels (`releasePixels`); the room builds it again when it shows the file.
     package let diffractionView = DiffractionViewState()
+    /// A Simulation document's specimen and multislice settings (2.5); unused by a measured file. Never swapped: numbers, no pixels.
+    package let multislice = SimulationModel()
+    /// The Diffraction room's double-tilt holder for this file (#815): the stage tilts, limits and tilt axis. Numbers, no pixels.
+    package let diffractionHolder = DiffractionHolder()
+    /// The Diffraction room's powder pattern for this file (#810): rings or X-rays, the range, and a phase to compare with.
+    package let diffractionPowder = DiffractionPowder()
+    /// The Diffraction room's Find Phases for this file (#812): Fit scale and the last ranking.
+    package let diffractionPhases = DiffractionPhaseFinder()
+    /// The Diffraction room's precipitate for this file (#808): which, its relationship, the hidden variants.
+    package let diffractionVariants = DiffractionVariants()
     /// The committed zoom and pan; kept per item, through eviction and re-read. Not observed: the pane reads it once,
     /// when it is made, and writes it at the end of every gesture — observing it would re-evaluate the pane's parent
     /// on each write for nothing.
@@ -472,6 +482,7 @@ package final class OpenItem: Identifiable {
     fileprivate func publish(_ opened: OpenedImage, movedTo: FileIdentity?) {
         endOpening()
         guard session.finishOpen(sessionToken, image: opened.image, url: opened.url, metadata: opened.metadata, sem: opened.sem) else { return }
+        diffractionHolder.bindStage(opened.metadata)
         // Whether this is the file's first read, asked before `summary` is set below; a re-read of a cold item is not.
         let first = !hasBeenRead
         if let movedTo {
@@ -520,17 +531,31 @@ package final class OpenItem: Identifiable {
     /// Shows frame `n` of the stack: the image and its canvas are replaced, the marks stay and are refreshed on the new pixels. The
     /// answer of an older request is dropped.
     fileprivate func publishFrame(_ opened: OpenedImage, frame n: Int, generation: Int) {
-        guard generation == frameGeneration else { return }
-        sessionToken = session.beginOpen()
-        guard session.finishOpen(sessionToken, image: opened.image, url: opened.url, metadata: opened.metadata, sem: opened.sem) else { return }
-        presentation.show(opened.canvas)
+        guard generation == frameGeneration, replaceImage(with: opened) else { return }
         databar = opened.databar
-        measurements.refresh(on: opened.image)
-        summary = ImageSummary(opened.image, thumbnail: opened.thumbnail ?? summary?.thumbnail)
         frame = n
         frameFailure = nil
         failedFrame = nil
         frameTask = nil
+    }
+
+    /// Shows an image the app computed (a simulation's HRTEM image as its settings move): the image and its canvas are replaced, the
+    /// marks stay and are refreshed on the new pixels, as a frame of a stack. Only while the item holds its pixels.
+    fileprivate func publishComputed(_ opened: OpenedImage) {
+        guard residency == .resident else { return }
+        replaceImage(with: opened)
+    }
+
+    /// Replaces the image and its canvas with `opened`'s (a frame or a computed image): the session, the canvas, the marks and the
+    /// summary. False when the session refused it.
+    @discardableResult
+    private func replaceImage(with opened: OpenedImage) -> Bool {
+        sessionToken = session.beginOpen()
+        guard session.finishOpen(sessionToken, image: opened.image, url: opened.url, metadata: opened.metadata, sem: opened.sem) else { return false }
+        presentation.show(opened.canvas)
+        measurements.refresh(on: opened.image)
+        summary = ImageSummary(opened.image, thumbnail: opened.thumbnail ?? summary?.thumbnail)
+        return true
     }
 
     /// A frame that could not be read (a page cut short, a file changed on disk): the slider goes back to the frame shown, so the
@@ -670,6 +695,13 @@ package final class OpenItems {
     package func showFrame(_ item: OpenItem, to frame: Int) {
         guard let frameReader else { return }
         item.requestFrame(frame, reader: frameReader, owner: self)
+    }
+
+    /// Replaces the pixels of an item the app computes (an HRTEM image, `DemoDocuments.isHRTEM`) with `opened`; nothing for a file's
+    /// item, whose pixels are only ever the file's.
+    package func showComputed(_ item: OpenItem, _ opened: OpenedImage) {
+        guard DemoDocuments.isHRTEM(item.url) else { return }
+        item.publishComputed(opened)
     }
 
     /// The frame `delta` away from the one asked for last, kept inside the stack (the ends do nothing); the step of the arrow keys
@@ -897,6 +929,7 @@ package final class OpenItems {
     private func remove(_ item: OpenItem, selectionPreferred: OpenItem.ID?) {
         item.cancelRead()
         item.closeStack()
+        item.multislice.stop()   // a frozen-phonon run ends with its document (#896), freeing the one-run gate
         item.releasePixels()
         queue.removeAll { $0 === item }
         guard let index = items.firstIndex(where: { $0 === item }) else { return }

@@ -14,6 +14,114 @@
 		<key>MallocLargeCache</key>
 		<string>0</string>
 	</dict>
+	<!-- The types the Quick Look extensions answer for (#903, QuickLook/QuickLook*.plist): formats this app reads and does not own,
+	     so imported, never exported (Apple's rule). The HDF5 declaration is 4DSTEM Studio's, word for word; .emd conforms to it. -->
+	<key>UTImportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>org.hdfgroup.hdf5</string>
+			<key>UTTypeDescription</key>
+			<string>HDF5 file</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>h5</string>
+					<string>hdf5</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>com.gatan.dm3</string>
+			<key>UTTypeDescription</key>
+			<string>DigitalMicrograph 3 image</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>dm3</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>com.gatan.dm4</string>
+			<key>UTTypeDescription</key>
+			<string>DigitalMicrograph 4 image</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>dm4</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>org.ccpem.mrc</string>
+			<key>UTTypeDescription</key>
+			<string>MRC image</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>mrc</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>com.emdatasets.emd</string>
+			<key>UTTypeDescription</key>
+			<string>Electron microscopy dataset (EMD)</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>org.hdfgroup.hdf5</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>emd</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>com.fei.tia.ser</string>
+			<key>UTTypeDescription</key>
+			<string>TIA series</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>ser</string>
+				</array>
+			</dict>
+		</dict>
+	</array>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>

@@ -212,10 +212,13 @@ enum ExportSnapshot {
     }
 
     /// The Diffraction room's Spots CSV (#785) with the same methods record inside as its readout CSV.
-    static func diffractionSpotsCSV(_ analysis: DiffractionAnalysis, image: CalibratedImage, openItems: OpenItems) -> String {
+    static func diffractionSpotsCSV(_ analysis: DiffractionAnalysis, image: CalibratedImage, openItems: OpenItems,
+                                    simulation: Bool = false) -> String {
         let header = analysis.exportHeader(image: image), rows = analysis.readout(image: image)
-        return embeddingMethods(in: analysis.spotsExportText(image: image), of: image, openItems: openItems) {
-            ExportMethods.diffractionRecord(app: $0, source: $1, header: header, rows: rows, exportKind: "diffraction-spots-csv")
+        let text = simulation ? analysis.simulatedSpotsExportText(image: image) : analysis.spotsExportText(image: image)
+        return embeddingMethods(in: text, of: image, openItems: openItems) {
+            ExportMethods.diffractionRecord(app: $0, source: $1, header: header, rows: rows,
+                                            exportKind: simulation ? "diffraction-simulated-spots-csv" : "diffraction-spots-csv")
         }
     }
 

@@ -40,6 +40,10 @@ and under the one in front its rooms. What the file holds decides the room it op
 - **Orientation maps**: .ang, .ctf, Oxford .h5oina saved without patterns (AZtec's map export), and .h5 maps from orix, Bruker
   Esprit and EDAX OIM saved without patterns, and EMsoft's dictionary indexing.
 
+In Finder, a .dm3, .dm4, .mrc, .emd or .ser file shows its image as its icon, and the space bar shows a card with the image, its
+scale bar and what the file's header says (Quick Look), without opening the app. A .ser file shows its image without its .emi
+(no calibration then), and an .emd that is not a Velox file shows the header card without an image.
+
 TKD patterns are read and indexed as EBSD patterns are; no TKD dataset has been checked in the app yet.
 
 Some files are read together with a file of the same name beside them, so keep them in one folder: an EDAX .spd or
@@ -68,9 +72,15 @@ The rooms:
   error to set), or press Index to find the spots and the crystal's full
   orientation (the found spots stay as marks to remove or add to; clicked spots give the zone axis); step through tied solutions,
   flip 180°, fit the scale or hold it, and drag the simulated spots to tilt them (⌥ drag turns them; ⌥ and an arrow tilt by a step); the Spots table lists each
-  spot's hkl, expected d and misfit, and exports as a Spots CSV.
+  spot's hkl, R (in mm with the camera's pixel pitch), expected d and misfit, and exports as a Spots CSV.
   Phases come from your library: Add Phase… finds one on the Materials Project or opens a CIF, and a phase added once works offline.
-  File > New Simulation (⇧⌘N) opens the simulated spots with no measured pattern under them.
+  The crystal pane beside the pattern appears with the simulated spots and shows the phase in 3D down the same beam; turning it
+  turns the spots, and View > Hide Crystal hides it.
+  File > New Simulation (⇧⌘N) opens the simulated spots with no measured pattern under them: its Microscope section sets the
+  voltage and camera length, its Orientation section the zone axis and turn, and its Spots table lists each spot's hkl, R in px and
+  in mm (R = λ L |g|), q and d, and exports as a Spots CSV.
+  Its Specimen section builds the phase along that axis into the slab a simulation computes, with its box, atoms and strain,
+  and Show HRTEM Image opens the slab's HRTEM image in the Image room, with Defocus and Thickness that redraw it live, the Uncorrected and Cs Corrected optics, an objective aperture, the transfer function strip, a defocus by thickness table that exports as a PNG, and frozen phonons (σ per element, Simulate, Stop and Continue, with the run's plan, progress and convergence); the crystal pane shows the slab with its box and size, and Atom columns rings the slab's projected columns on the image, and Place Beside, which shows it beside an open measured image or inset in it at the measured image's nanometres per pixel, one picture that exports with one scale bar. Export abTEM Script… writes the image's run as a Python script for abTEM 1.0.10, to rerun or change it there. The Specimen section's Source also takes an atom model built elsewhere (CIF, XYZ or POSCAR, up to a million atoms, from atomsk, ASE or VASP), with the beam along its c, a or b.
 - **Patterns**: the EBSD or TKD scan beside the live pattern, with mean intensity, virtual BSE, image quality and
   average dot product maps. Remove the static and dynamic backgrounds, rescale or normalise, equalise, filter, bin,
   average neighbouring patterns and denoise with NLPAR. Draw the Kikuchi bands of the file's stored orientations over
@@ -110,8 +120,10 @@ fetches its update feed. Details are in [`SECURITY.md`](SECURITY.md).
 The TEM methods compute with the suite's Swift kits, each checked against the Python package it ports, within that
 package's own tolerance: [FormatoKit](https://github.com/EMSuite/FormatoKit) (file readers),
 [ImagoKit](https://github.com/EMSuite/ImagoKit) (FFT and image maths),
-[DiffractoKit](https://github.com/EMSuite/DiffractoKit) (crystallography) and
-[SpectroKit](https://github.com/EMSuite/SpectroKit) (EDS and EELS). The SEM methods are ported into the app itself and
+[DiffractoKit](https://github.com/EMSuite/DiffractoKit) (crystallography),
+[SpectroKit](https://github.com/EMSuite/SpectroKit) (EDS and EELS) and
+[SimulatoKit](https://github.com/EMSuite/SimulatoKit) (the simulation's slab, multislice and HRTEM image, after abTEM). The SEM
+methods are ported into the app itself and
 checked the same way, against pinned versions of [kikuchipy](https://github.com/pyxem/kikuchipy) (pattern files,
 processing and dictionary indexing), [PyEBSDIndex](https://github.com/USNavalResearchLaboratory/PyEBSDIndex) (Hough
 indexing and NLPAR), [orix](https://github.com/pyxem/orix) (orientations, colour keys, texture, and .ang and .ctf

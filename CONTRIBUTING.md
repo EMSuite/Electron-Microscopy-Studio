@@ -60,3 +60,14 @@ the kit's repository and reaches the app when `Package.swift` moves to the kit's
 
 By contributing you agree that your contribution is licensed under the GNU General Public License v3.0 only (GPL-3.0-only), as the
 project is. See `LICENSE` and `NOTICE`.
+
+## Snapshot tests
+
+`macTEMTests/RoomSnapshotTests` draws each room in light and in dark with EMSuiteUI's `ShellSnapshotTesting` and compares it
+with the PNG committed under `macTEMTests/__Snapshots__/RoomSnapshotTests/<name>.<light|dark>.png`. Pictures differ between
+macOS versions and Macs, so the references are the ones CI's unit job draws on the org's Mac runner, where pull requests run
+(`SNAPSHOTS=1`); GitHub's macos-26 (main, the nightly, a fork's PR) and a run on another Mac skip them. When that Mac's macOS is
+updated, every picture changes once: commit the new set in one `test:` PR. A picture that is new or differs fails the test; CI puts it on the `pr-pictures` branch under
+`<PR number>/snapshots/` and shows it in one comment on the pull request, which is the PR's picture. Review it there, then commit
+it beside the test (`git fetch origin pr-pictures` and `git checkout FETCH_HEAD -- <PR>/snapshots`, moved into `__Snapshots__/`).
+A deliberate change replaces the reference in the same PR.

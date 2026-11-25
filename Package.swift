@@ -13,12 +13,14 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/mac4DSTEM/FormatoKit", from: "0.20.0"),
-        .package(url: "https://github.com/mac4DSTEM/DiffractoKit", from: "0.21.0"),
+        .package(url: "https://github.com/mac4DSTEM/DiffractoKit", from: "0.22.0"),
         .package(url: "https://github.com/mac4DSTEM/ImagoKit", from: "0.11.0"),
         .package(url: "https://github.com/mac4DSTEM/SpectroKit", from: "0.16.0"),
         // The window shell, controls and Metal image view both apps share. TEMSession takes ShellMetal (MetalEngine, ColormapKind); TEMCore and
         // TEMSession take ShellEDXModel (the shared EDS room; the EELS room reuses its regions and pins).
         .package(url: "https://github.com/mac4DSTEM/MacEMUI", from: "0.17.0"),
+        // The Simulation document's specimen and HRTEM image (2.5): the slab builder, the multislice and the transfer function.
+        .package(url: "https://github.com/EMSuite/SimulatoKit", from: "0.7.0"),
     ],
     targets: [
         .target(
@@ -46,6 +48,9 @@ let package = Package(
                 .product(name: "SpectroEELS", package: "SpectroKit"),
                 .product(name: "ShellEDXModel", package: "MacEMUI"),
                 .product(name: "ShellExport", package: "MacEMUI"),
+                .product(name: "SimulatoCore", package: "SimulatoKit"),
+                .product(name: "SimulatoMultislice", package: "SimulatoKit"),
+                .product(name: "SimulatoProbe", package: "SimulatoKit"),
             ],
             swiftSettings: [
                 // Optimised in Debug too.

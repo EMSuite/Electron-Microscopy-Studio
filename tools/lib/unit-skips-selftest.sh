@@ -1,12 +1,12 @@
 #!/bin/zsh
 # Self-test of tools/lib/unit-skips.sh: on a planted result bundle's JSON (as `xcresulttool get test-results tests` prints it) with
 # two skipped cases, one listed and one not, the check fails and names the unlisted one; the listed sem-data case fails too while
-# MACTEM_REQUIRE_SEM_DATA=1; a run whose every skip is listed passes; a listed test that ran is named, not failed; a malformed line is
+# MACTEM_REQUIRE_SEM_DATA=1 and a listed snapshots case under TEST_RUNNER_SNAPSHOTS=1; a run whose every skip is listed passes; a listed test that ran is named, not failed; a malformed line is
 # refused; and the committed tools/unit-skips.allow reads cleanly. Needs no data and builds nothing; the inventory runs it on every push.
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 . "$here/unit-skips.sh"
-unset MACTEM_REQUIRE_SEM_DATA
+unset MACTEM_REQUIRE_SEM_DATA TEST_RUNNER_SNAPSHOTS
 work="$(mktemp -d "${TMPDIR:-/tmp}/unit-skips-selftest.XXXXXX")"
 trap 'rm -rf "$work"' EXIT
 out=""
@@ -41,13 +41,19 @@ out="$(export MACTEM_REQUIRE_SEM_DATA=1; print -r -- "$skips" | unlisted_skips "
 out="$(print -r -- "$skips" | listed_not_skipped "$work/one.allow")" || fail "the listed tests that ran could not be read"
 [[ "$out" == "PlantedTests.testRuns (real-data)" ]] || fail "a listed test that ran is not named with its condition"
 
+printf '%s\t%s\t%s\n' OtherTests.testLostItsFixture snapshots "compared only with SNAPSHOTS=1" > "$work/snap.allow"
+out="$(print -r -- "$skips" | grep -v PlantedTests | unlisted_skips "$work/snap.allow")" || fail "a listed snapshots skip must pass without SNAPSHOTS=1"
+out="$(export TEST_RUNNER_SNAPSHOTS=1; print -r -- "$skips" | grep -v PlantedTests | unlisted_skips "$work/snap.allow")" && rc=0 || rc=$?
+(( rc == 1 )) && [[ "$out" == "OtherTests.testLostItsFixture" ]] \
+  || fail "with TEST_RUNNER_SNAPSHOTS=1 the listed snapshots skip must fail (got exit $rc)"
+
 { cat "$work/one.allow"; printf '%s\t%s\t%s\n' OtherTests.testLostItsFixture real-data "listed now"; } > "$work/all.allow"
 out="$(print -r -- "$skips" | unlisted_skips "$work/all.allow")" || fail "a run whose every skip is listed must pass"
 [[ -z "$out" ]] || fail "a run whose every skip is listed names one"
 
 printf '%s\t%s\t%s\n' OtherTests.testLostItsFixture gpu "no such condition" > "$work/bad.allow"
 out="$(print -r -- "$skips" | unlisted_skips "$work/bad.allow" 2>&1)" && rc=0 || rc=$?
-(( rc == 2 )) || fail "a line whose condition is not one of the four must be refused (got exit $rc)"
+(( rc == 2 )) || fail "a line whose condition is not one of the five must be refused (got exit $rc)"
 
 out="$(unlisted_skips "$here/../unit-skips.allow" < /dev/null 2>&1)" \
   || fail "tools/unit-skips.allow is not Class.method<TAB>condition<TAB>reason on every line"

@@ -198,4 +198,13 @@ nonisolated final class AgentDoorCoverageTests: XCTestCase {
         XCTAssertEqual(acting.subtracting(listed).sorted(), [], "tools that act and are not in docs/agent-door.md's Tools that act")
         XCTAssertEqual(listed.subtracting(acting).sorted(), [], "rows in Tools that act for tools the door does not register as acting")
     }
+    /// The EDS room's Polygon Region Tool, Line Tool and Pin Region reach the door through set_eds (#885, EMSuiteUI 0.16.0).
+    /// Red before: set_eds took no vertices, keep or line, and the three menu rows were gaps.
+    @MainActor func testTheEDSRegionToolsReachTheDoor() throws {
+        let tool = try XCTUnwrap(MacTEMAgentDoor.allTools.first { $0.name == "set_eds" })
+        XCTAssertTrue(Set(tool.parameters.map(\.name)).isSuperset(of: ["vertices", "keep", "name", "line"]))
+        for item in ["Polygon Region Tool", "Line Tool", "Pin Region"] {
+            XCTAssertEqual(AgentDoorCoverage.menuItems[item], .tool("set_eds"), item)
+        }
+    }
 }

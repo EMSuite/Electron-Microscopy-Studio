@@ -110,6 +110,8 @@ package final class DiffractionAnalysis {
     package var typedDeltaQ: Double?
     package var typedBeamKV: Double?
     package var pitchMM: Double?
+    /// A Simulation document's camera length, mm (its Microscope section, #907): R in mm on the detector is λ L |g|.
+    package private(set) var cameraLengthMM = DiffractionAnalysis.defaultCameraLengthMM
     package private(set) var rings: [MeasuredRing] = []
     package private(set) var spots: [MeasuredSpot] = []
     /// The ring or spot added last (a click, or a ring fit that landed): the room selects it. Selection itself is view state.
@@ -155,6 +157,9 @@ package final class DiffractionAnalysis {
     @ObservationIgnored private var readoutCache: (key: ReadoutKey, rows: [DiffractionReadoutRow])?
     @ObservationIgnored private var simulatorCache: (key: String, simulator: SpotPatternSimulator?, failure: String?)?
     @ObservationIgnored private var simulationCache: (key: SimulationKey, result: SimulatedSpots)?
+    @ObservationIgnored private var addedCache: (key: String, spots: [PatternIndexing.AddedSpot])?
+    /// The beam energy Index's answer was found at (V).
+    private var indexVolts: Double?
     @ObservationIgnored private var boundSize: (Int, Int)?
 
     package init() {}
@@ -418,14 +423,14 @@ package final class DiffractionAnalysis {
                                                   misfitPercent: nil)
             }
             if Task.isCancelled { return }
-            await self?.landIndex(outcome, found: found, generation: gen, scale: started, spots: startedSpots)
+            await self?.landIndex(outcome, found: found, generation: gen, scale: started, spots: startedSpots, volts: volts)
         }
         indexTask = task
         return task
     }
 
     private func landIndex(_ outcome: PatternIndexing.Outcome, found: [PatternIndexing.Mark]?, generation gen: Int, scale started: IndexScaleKey,
-                           spots startedSpots: [MeasuredSpot]) {
+                           spots startedSpots: [MeasuredSpot], volts: Double) {
         guard gen == indexGeneration else { return }
         isIndexing = false
         indexTask = nil
@@ -438,6 +443,7 @@ package final class DiffractionAnalysis {
                                              refusal: nil, intensity: $0.intensity) }
         }
         indexOutcome = outcome
+        indexVolts = volts
         indexScaleKey = started
         indexedSpots = spots.map(\.id)
         solutionIndex = 0
@@ -457,16 +463,63 @@ package final class DiffractionAnalysis {
     /// the orientation until Index runs again.
     package var indexSpotsChanged: Bool { indexOutcome != nil && indexedSpots != spots.map(\.id) }
 
-    /// The Spots table's rows (#785): Index's spots still marked, numbered as the readout numbers them; [] before an answer.
+    /// The Spots table's rows (#785): Index's spots still marked, numbered as the readout numbers them, R in mm with the camera's
+    /// pixel pitch; [] before an answer.
     package var indexSpotRows: [PatternIndexing.SpotRow] {
         guard let outcome = indexOutcome else { return [] }
         let numbers = Dictionary(uniqueKeysWithValues: spots.enumerated().map { ($1.id, $0 + 1) })
-        return PatternIndexing.rows(outcome, numbers: numbers)
+        return PatternIndexing.rows(outcome, numbers: numbers, added: addedSpots(outcome), cell: crystal.structure.cell,
+                                    pitchMM: pitchMM)
+    }
+
+    /// The spots double diffraction adds at Index's best orientation, with Double diffraction on (#786): the Spots table names a
+    /// spot Index left unexplained that sits on one. Kept while the crystal, the beam, σ and the orientation stay.
+    private func addedSpots(_ outcome: PatternIndexing.Outcome) -> [PatternIndexing.AddedSpot] {
+        guard simulation.doubleDiffraction, let orientation = outcome.orientation, let volts = indexVolts else { return [] }
+        let key = "\(crystal.name)|\(crystal.sha256 ?? "")|\(volts)|\(simulation.excitationError)|\(orientation.orixQuaternion)"
+        if let addedCache, addedCache.key == key { return addedCache.spots }
+        let added = (try? PatternIndexing.addedSpots(structure: crystal.structure, orientation: orientation, volts: volts,
+                                                     sigma: simulation.excitationError)) ?? []
+        addedCache = (key, added)
+        return added
     }
 
     /// The Spots CSV (#785): the table's columns, its rows by number, under the file and Index's line.
     package func spotsExportText(image: CalibratedImage) -> String {
         PatternIndexing.csv(rows: indexSpotRows, fileName: image.fileName, line: indexLine ?? "")
+    }
+
+    // MARK: A Simulation document (#907)
+
+    /// The camera length a Simulation document starts at, mm: the middle of a TEM's selected-area range (about 100 to 2 000 mm).
+    package static let defaultCameraLengthMM = 500.0
+    /// The camera lengths the Microscope section takes, mm.
+    package static let cameraLengthRangeMM = 1.0 ... 100_000.0
+
+    /// Sets the camera length; a value that is not finite or outside `cameraLengthRangeMM` changes nothing. Returns whether it was kept.
+    @discardableResult
+    package func setCameraLength(mm: Double?) -> Bool {
+        guard let mm, mm.isFinite, Self.cameraLengthRangeMM.contains(mm) else { return false }
+        cameraLengthMM = mm
+        return true
+    }
+
+    /// A Simulation document's Spots table (#907): the simulated spots drawn, strongest first, with R in mm at the camera length;
+    /// [] while the spots are off or cannot be drawn.
+    package func simulatedSpotRows(image: CalibratedImage) -> [PatternIndexing.SpotRow] {
+        guard case .success(let drawn) = simulatedSpots(image: image), let centre, let calibration = calibration(for: image),
+              let volts = volts(for: image) else { return [] }
+        return PatternIndexing.simulatedRows(drawn, centreRow: centre.row, centreColumn: centre.column, deltaQ: calibration.deltaQ,
+                                             volts: volts, cameraLengthMM: cameraLengthMM, phase: crystal.name)
+    }
+
+    /// A Simulation document's Spots CSV: the table's columns and rows under the file and the settings they were simulated at.
+    package func simulatedSpotsExportText(image: CalibratedImage) -> String {
+        // A file's numbers are written locale-free (`%g`), whatever the reader's decimal mark.
+        func g(_ v: Double) -> String { String(format: "%.6g", v) }
+        let kV = volts(for: image).map { "\(g($0 / 1000)) kV" } ?? "no beam energy"
+        let line = "\(crystal.name) \(ZoneAxisText.text(simulation.zoneAxis)), turn \(g(simulation.inPlaneDegrees))°, \(kV), L \(g(cameraLengthMM)) mm"
+        return PatternIndexing.csv(rows: simulatedSpotRows(image: image), fileName: image.fileName, line: line, lineName: "simulation")
     }
 
     /// The header's line for Index's answer, with what changed since: a scale (a ring calibrated, Δq typed) or the spots.
@@ -743,7 +796,8 @@ package final class DiffractionAnalysis {
             return DiffractionReadoutRow(id: id, kind: kind, number: number, radiusPx: radius, q: q, d: 1 / q,
                                          family: indexing.family.map { DiffractionCompute.familyName($0) }, dListed: indexing.dListed,
                                          deltaPercent: indexing.deltaPercent, oddsText: indexing.assignment == nil ? nil : indexing.oddsText,
-                                         verdict: indexing.verdict, validation: indexing.validation, isCalibrating: calibrating)
+                                         verdict: indexing.verdict, validation: indexing.validation, isCalibrating: calibrating,
+                                         listedIntensity: indexing.family.flatMap { Self.relativeIntensity(of: $0, in: list) })
         }
         for (i, ring) in rings.enumerated() {
             out.append(row(id: ring.id, kind: .ring, number: i + 1, radius: ring.radius, calibrating: ring.isCalibrating,
@@ -756,6 +810,13 @@ package final class DiffractionAnalysis {
             }
         }
         return out
+    }
+
+    /// A family's kinematic intensity of 100 for the list's strongest family; nil when the list does not hold it.
+    package static func relativeIntensity(of family: ReflectionFamily, in list: KinematicReflectionList) -> Double? {
+        guard let strongest = list.families.map(\.intensity).max(), strongest > 0,
+              let listed = list.families.first(where: { $0.family == family }) else { return nil }
+        return 100 * listed.intensity / strongest
     }
 
     // MARK: Export and Results

@@ -10,7 +10,6 @@
 
 import XCTest
 import AppKit
-import ImageIO
 import SwiftUI
 import ShellSpectroscopy
 import SpectroCore
@@ -142,12 +141,13 @@ nonisolated final class EELSWtMapsFilterTests: XCTestCase {
         let session = try await fittedRoom()
         let state = EELSRoomState()
         state.maps = .weightPercent
-        func snapshot() -> (tiles: [[Double]], readout: String, results: String?, diagnostics: String?, figure: Data?) {
+        func snapshot() -> (tiles: [[Double]], readout: String, results: String?, diagnostics: String?, maps: [EELSMapTile],
+                            figure: EDXFigureContent?) {
             let maps = EELSMapsBlock.shownMaps(session, state)
-            let figure = session.figureContent(maps: maps, mix: [], appearance: state.appearance, scaleBar: false, regions: false).flatMap { EDXMapsFigure.png($0) }
+            let figure = session.figureContent(maps: maps, mix: [], appearance: state.appearance, scaleBar: false, regions: false)
             return (session.modelTiles.map(\.values) + session.tiles.map(\.values),
                     EELSRoomFormat.readout(x: 1, y: 1, tiles: session.tiles + session.modelTiles, refusal: nil),
-                    session.resultsCSV, session.diagnosticsCSV, figure)
+                    session.resultsCSV, session.diagnosticsCSV, maps, figure)
         }
         state.mapFilter = .off
         let off = snapshot()
@@ -157,31 +157,19 @@ nonisolated final class EELSWtMapsFilterTests: XCTestCase {
         XCTAssertEqual(on.readout, off.readout)
         XCTAssertEqual(on.results, off.results)
         XCTAssertEqual(on.diagnostics, off.diagnostics)
-        XCTAssertNotNil(on.figure)
-        // Pixel for pixel, not byte for byte: two encodes of one picture can differ in their compressed bytes (79153 against 79133
-        // on the Mac runner, #963) while every pixel is the same.
-        XCTAssertEqual(try Self.pixels(on.figure), try Self.pixels(off.figure), "the filter changed the exported figure's pixels")
+        // The exported figure: what it is built from, not the PNG ImageRenderer makes of it. Two renders of one SwiftUI view are not
+        // pixel-identical on macOS 27 (the Mac runner, #963: first the PNG bytes, then the decoded pixels differed), so the PNG compared
+        // the renderer, not the room. `figureContent` draws its cells from the maps it is handed and the appearance (which the filter
+        // leaves alone) and never reads `mapFilter`, so equal maps are an equal figure; its cells are EMSuiteUI's, not readable here.
+        XCTAssertFalse(on.maps.isEmpty, "the room shows maps")
+        XCTAssertEqual(on.maps, off.maps, "the filter changed the maps the exported figure is drawn from")
+        let onFigure = try XCTUnwrap(on.figure), offFigure = try XCTUnwrap(off.figure)
+        XCTAssertEqual([onFigure.title, "\(onFigure.nx)x\(onFigure.ny)", "\(onFigure.region)"],
+                       [offFigure.title, "\(offFigure.nx)x\(offFigure.ny)", "\(offFigure.region)"])
+        XCTAssertNotNil(EDXMapsFigure.png(onFigure), "the figure renders")
         // The drawn wt% values do change: the filter is not a no-op on this map.
         let wt = try XCTUnwrap(session.modelTiles.first { $0.id == "wt-C" })
         XCTAssertTrue(EELSMapDisplay.isFiltered(tileID: wt.id, filter: state.mapFilter))
-    }
-
-    /// A PNG's pixels as 8-bit RGBA rows, with its size, so two encodes of one picture compare equal.
-    private static func pixels(_ png: Data?) throws -> [UInt8] {
-        let data = try XCTUnwrap(png)
-        let source = try XCTUnwrap(CGImageSourceCreateWithData(data as CFData, nil))
-        let image = try XCTUnwrap(CGImageSourceCreateImageAtIndex(source, 0, nil))
-        var bytes = [UInt8](repeating: 0, count: image.width * image.height * 4)
-        let drawn = bytes.withUnsafeMutableBytes { buffer -> Bool in
-            guard let context = CGContext(data: buffer.baseAddress, width: image.width, height: image.height, bitsPerComponent: 8,
-                                          bytesPerRow: image.width * 4, space: CGColorSpace(name: CGColorSpace.sRGB)!,
-                                          bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return false }
-            context.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
-            return true
-        }
-        XCTAssertTrue(drawn, "the figure decodes into an RGBA context")
-        let size = [image.width, image.height].flatMap { value in (0..<4).map { UInt8(truncatingIfNeeded: value >> ($0 * 8)) } }
-        return size + bytes
     }
 
     // MARK: The picture

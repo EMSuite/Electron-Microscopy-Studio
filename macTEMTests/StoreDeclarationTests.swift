@@ -178,8 +178,15 @@ nonisolated final class StoreDeclarationTests: XCTestCase {
         let signed = project.components(separatedBy: "CODE_SIGN_ENTITLEMENTS = ").count - 1
         let flavoured = "CODE_SIGN_ENTITLEMENTS = \"macTEM/macTEM$(MACEM_FLAVOUR_SUFFIX_$(MACEM_STORE_BUILD)).entitlements\";"
         let withThisFile = project.components(separatedBy: flavoured).count - 1
+        // The two Quick Look extensions (#903) sign with their own file in every configuration: the sandbox alone.
+        let quickLook = "CODE_SIGN_ENTITLEMENTS = QuickLook/QuickLook.entitlements;"
+        let withQuickLook = project.components(separatedBy: quickLook).count - 1
         XCTAssertGreaterThan(signed, 0, "no configuration signs with an entitlements file")
-        XCTAssertEqual(signed, withThisFile, "a configuration signs with an entitlements file other than the flavour's")
+        XCTAssertEqual(withQuickLook, 6, "each Quick Look extension signs with QuickLook.entitlements in its three configurations")
+        XCTAssertEqual(signed, withThisFile + withQuickLook, "a configuration signs with an entitlements file other than the flavour's")
+        let extensionEntitlements = try XCTUnwrap(NSDictionary(contentsOf: root.appendingPathComponent("QuickLook/QuickLook.entitlements"))
+                                                  as? [String: Any])
+        XCTAssertEqual(Set(extensionEntitlements.keys), ["com.apple.security.app-sandbox"], "the extensions ask for the sandbox and nothing else")
         XCTAssertTrue(project.contains("MACEM_FLAVOUR_SUFFIX_YES = \"\";"),
                       "the store build's suffix is empty, so it signs with macTEM/macTEM.entitlements")
     }

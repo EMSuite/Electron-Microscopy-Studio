@@ -233,6 +233,30 @@ nonisolated final class DiffractionIndexTests: XCTestCase {
 
     // MARK: The Spots table and its CSV (#785)
 
+    /// A spot Index leaves unexplained that sits on a spot double diffraction adds is named in the Spots table (#786): silicon down
+    /// [1 1 0] forbids 002, 1̄11 + 11̄1 lands there; a measured spot at 1.01 times its q (Index's fitted scale 1.01) reads 002, d expected
+    /// a/2 = 2.71545 Å, phase "Si · double diffraction". Off the added spot, or with no added spots, it stays unexplained. Red before:
+    /// the table named no spot of double diffraction.
+    func testTheSpotsTableNamesASpotOfDoubleDiffraction() throws {
+        let si = try XCTUnwrap(StandardCrystals.named("Si"))
+        let o = try CrystalOrientation(zoneAxis: SIMD3(1, 1, 0), cell: si.structure.cell)
+        let added = try PatternIndexing.addedSpots(structure: si.structure, orientation: o, volts: 200_000, sigma: 0.02)
+        let s002 = try XCTUnwrap(added.first { $0.hkl == MillerIndex(0, 0, 2) }, "\(added.map(\.hkl))")
+        let on = PatternIndexing.Spot(id: UUID(), row: 0, column: 0, intensity: 1, radiusPx: 40, q: 1.01 * s002.q, hkl: nil, dListed: nil)
+        let off = PatternIndexing.Spot(id: UUID(), row: 0, column: 0, intensity: 1, radiusPx: 40, q: 1.2 * s002.q, hkl: nil, dListed: nil)
+        let outcome = PatternIndexing.Outcome(phase: "Si", verdict: .found, spots: [on, off], explained: 0, indexed: 2, orientation: o,
+                                              alternatives: [], zoneAxis: SIMD3(1, 1, 0), zoneAxisAngle: 0, scale: 1.01, misfitPercent: nil)
+        let numbers = [on.id: 1, off.id: 2]
+        let rows = PatternIndexing.rows(outcome, numbers: numbers, added: added, cell: si.structure.cell)
+        XCTAssertEqual(rows[0].hkl, MillerIndex(0, 0, 2))
+        XCTAssertEqual(rows[0].phase, "Si · double diffraction")
+        XCTAssertEqual(try XCTUnwrap(rows[0].dExpected), 5.4309 / 2, accuracy: 1e-9)
+        XCTAssertEqual(try XCTUnwrap(rows[0].deltaPercent), 100 * (on.d - 5.4309 / 2) / (5.4309 / 2), accuracy: 1e-9)
+        XCTAssertNil(rows[1].hkl, "20 % off: not the added spot")
+        XCTAssertEqual(rows[1].phase, "")
+        XCTAssertNil(PatternIndexing.rows(outcome, numbers: numbers).first?.hkl, "no added spots: unexplained")
+    }
+
     /// The Spots table lists Index's spots still marked, numbered as the readout numbers them, each with its hkl, R, q, d, the
     /// expected d of its hkl, Δd/d and its phase; a row's id is its mark's (selecting it selects the spot); the CSV has the same
     /// columns. Red before: the room had no Spots table and no Spots CSV.
@@ -274,16 +298,23 @@ nonisolated final class DiffractionIndexTests: XCTestCase {
         XCTAssertEqual(csv[0], "# \(AppName.writer) diffraction spots")
         XCTAssertEqual(csv[1], "# file: planted Al")
         XCTAssertEqual(csv[2], "# index: \(try XCTUnwrap(a.indexLine))")
-        XCTAssertEqual(csv[3], "spot,hkl,R_px,q_per_A,d_A,d_expected_A,delta_percent,phase")
+        XCTAssertEqual(csv[3], "spot,hkl,R_px,R_mm,q_per_A,d_A,d_expected_A,delta_percent,phase")
         XCTAssertEqual(csv.count, 4 + rows.count)
         let first = try XCTUnwrap(explained.first)
         let line = csv[3 + first.number].split(separator: ",", omittingEmptySubsequences: false).map(String.init)
-        XCTAssertEqual(line.count, 8)
+        XCTAssertEqual(line.count, 9)
         XCTAssertEqual(line[0], "\(first.number)")
         let hkl = try XCTUnwrap(first.hkl)
         XCTAssertEqual(line[1], "\(hkl.h) \(hkl.k) \(hkl.l)")
-        XCTAssertEqual(try XCTUnwrap(Double(line[4])), first.d, accuracy: 1e-8 * first.d)
-        XCTAssertEqual(line[7], "Al")
+        XCTAssertEqual(line[3], "", "no pixel pitch, no R in mm")
+        XCTAssertEqual(try XCTUnwrap(Double(line[5])), first.d, accuracy: 1e-8 * first.d)
+        XCTAssertEqual(line[8], "Al")
+
+        // With the camera's pixel pitch, R in mm is R px times it (#907); without, none.
+        XCTAssertTrue(rows.allSatisfy { $0.radiusMM == nil })
+        a.pitchMM = 0.015
+        for row in a.indexSpotRows { XCTAssertEqual(try XCTUnwrap(row.radiusMM), row.radiusPx * 0.015, accuracy: 1e-12) }
+        a.pitchMM = nil
 
         // A spot removed leaves the table; the rest are numbered again as the readout numbers them.
         a.remove(rows[0].id)
@@ -296,8 +327,8 @@ nonisolated final class DiffractionIndexTests: XCTestCase {
                                           dExpected: 2.338, deltaPercent: 0.7086, phase: "Au")
         let en = Locale(identifier: "en_US")
         XCTAssertEqual(DiffractionSpotFormat.Column.allCases.map { DiffractionSpotFormat.cell($0, row, locale: en) },
-                       ["3", "11\u{0304}1", "42.47", "0.42470", "2.3546", "2.3380", "+0.71", "Au"])
-        XCTAssertEqual(DiffractionSpotFormat.Column.allCases.map(\.title), ["Spot", "hkl", "R px", "q Å⁻¹", "d Å", "d expected", "Δd/d %", "Phase"])
+                       ["3", "11\u{0304}1", "42.47", UnitDisplay.noValue, "0.42470", "2.3546", "2.3380", "+0.71", "Au"])
+        XCTAssertEqual(DiffractionSpotFormat.Column.allCases.map(\.title), ["Spot", "hkl", "R px", "R mm", "q Å⁻¹", "d Å", "d expected", "Δd/d %", "Phase"])
         XCTAssertEqual(DiffractionSpotFormat.spokenHKL(row), "1, minus 1, 1")
         let unexplained = PatternIndexing.SpotRow(id: UUID(), number: 4, hkl: nil, radiusPx: 80, q: 0.8, d: 1.25, dExpected: nil,
                                                   deltaPercent: nil, phase: "")

@@ -41,7 +41,13 @@ test targets set `SWIFT_PACKAGE_NAME` to the package's identity, derived from th
 still builds. `inventory` also greps that nothing in `Sources/` imports SwiftUI, AppKit, Cocoa or MetalKit (which
 brings AppKit in).
 
-Swift 6 language mode everywhere. The app and its tests default to MainActor isolation; TEMCore is nonisolated by
+Two app extensions sit beside the app (#903), `QuickLook/Thumbnail` and `QuickLook/Preview`: Quick Look's thumbnail and
+data-based preview for the .dm3, .dm4, .mrc, .emd and .ser types the app imports (`UTImportedTypeDeclarations`). Each is one
+class over FormatoKit's `Peek` (one decimated frame, the header facts) and EMSuiteUI's `ShellQuickLook` (the pixels, the card
+and its scale bar); sandboxed, reading only the file it is handed. They keep Xcode's extension template settings (Swift 5
+language mode, MainActor by default), as 4DSTEM Studio's do.
+
+Swift 6 language mode in the app, its tests and its packages. The app and its tests default to MainActor isolation; TEMCore is nonisolated by
 default; TEMSession defaults to MainActor because it holds the `@Observable` owners views read. Heavy work runs in
 `@concurrent` functions (`AppState.read`, which calls TEMCore's synchronous readers), so the main actor only
 publishes results. TEMCore and TEMSession compile at `-O` in Debug too, as mac4DSTEM's do; a versioned kit dependency cannot be given `-O`, so the kits
@@ -90,6 +96,7 @@ EBSD patterns, orientation maps and SEM-EDS files take their own path into their
 | Opening an EDS spectrum image (the room itself is MacEMUI's); exspy's SEM-EDS line intensities (`SEMEDSLines`, `XrayLineDatabase`) | `Sources/TEMCore/EDX/` |
 | The EELS room's compute: SpectroKit called with the room's choices (stages, windows, fits, regions, exports) | `Sources/TEMCore/EELS/` |
 | The seam between the app's `ImagePoint` and ImagoKit's `PixelPoint` | `Sources/TEMCore/Analysis/` |
+| The Simulation document's specimen, HRTEM image, optics, frozen phonons and Place Beside, over SimulatoKit | `Sources/TEMCore/Simulation/` |
 | The SEM program's ports: EBSD and TKD readers, pattern processing, orientations, indexing, maps, grains, texture, Kikuchi simulation, the SEM-EDS map readers, the session report ("The SEM program") | `Sources/TEMCore/SEM/` and its subfolders |
 | Session owners (`@Observable`), no SwiftUI, the SEM rooms' `EBSDSession`, `IndexingSession` and `OrientationMapSession` among them | `Sources/TEMSession/` |
 | Unit tests; committed fixtures (≤ 1 MiB) in `Fixtures/` | `macTEMTests/` |

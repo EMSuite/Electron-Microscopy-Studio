@@ -21,10 +21,19 @@
 		B00000000000000000000193 /* ShellEDXAgent in Frameworks */ = {isa = PBXBuildFile; productRef = B00000000000000000000192 /* ShellEDXAgent */; };
 		B00000000000000000000162 /* ShellEDXModel in Frameworks */ = {isa = PBXBuildFile; productRef = B00000000000000000000161 /* ShellEDXModel */; };
 		B00000000000000000000202 /* ShellExport in Frameworks */ = {isa = PBXBuildFile; productRef = B00000000000000000000201 /* ShellExport */; };
+		B00000000000000000000802 /* ShellHelp in Frameworks */ = {isa = PBXBuildFile; productRef = B00000000000000000000801 /* ShellHelp */; };
+		C00000000000000000000806 /* ShellSnapshotTesting in Frameworks */ = {isa = PBXBuildFile; productRef = C00000000000000000000805 /* ShellSnapshotTesting */; };
 		B00000000000000000000212 /* ShellPhaseLibrary in Frameworks */ = {isa = PBXBuildFile; productRef = B00000000000000000000211 /* ShellPhaseLibrary */; };
 		B00000000000000000000222 /* ShellPhaseViews in Frameworks */ = {isa = PBXBuildFile; productRef = B00000000000000000000221 /* ShellPhaseViews */; };
 		B00000000000000000000172 /* ShellAgentDoor in Frameworks */ = {isa = PBXBuildFile; productRef = B00000000000000000000171 /* ShellAgentDoor */; };
+		B00000000000000000000232 /* ShellCrystal in Frameworks */ = {isa = PBXBuildFile; productRef = B00000000000000000000231 /* ShellCrystal */; };
 		B00000000000000000000181 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = B00000000000000000000180 /* Sparkle */; };
+		E0000000000000000000000D /* QuickLookThumbnail.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = E00000000000000000000002 /* QuickLookThumbnail.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		E00000000000000000000012 /* ShellQuickLook in Frameworks */ = {isa = PBXBuildFile; productRef = E00000000000000000000011 /* ShellQuickLook */; };
+		E00000000000000000000014 /* FormatoPeek in Frameworks */ = {isa = PBXBuildFile; productRef = E00000000000000000000013 /* FormatoPeek */; };
+		F0000000000000000000000D /* QuickLookPreview.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = F00000000000000000000002 /* QuickLookPreview.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		F00000000000000000000012 /* ShellQuickLook in Frameworks */ = {isa = PBXBuildFile; productRef = F00000000000000000000011 /* ShellQuickLook */; };
+		F00000000000000000000014 /* FormatoPeek in Frameworks */ = {isa = PBXBuildFile; productRef = F00000000000000000000013 /* FormatoPeek */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -42,7 +51,34 @@
 			remoteGlobalIDString = B00000000000000000000001;
 			remoteInfo = macTEM;
 		};
+		E0000000000000000000000B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A00000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E00000000000000000000001;
+			remoteInfo = QuickLookThumbnail;
+		};
+		F0000000000000000000000B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A00000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = F00000000000000000000001;
+			remoteInfo = QuickLookPreview;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		B00000000000000000000903 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			dstPath = "";
+			dstSubfolder = PlugIns;
+			files = (
+				E0000000000000000000000D /* QuickLookThumbnail.appex in Embed Foundation Extensions */,
+				F0000000000000000000000D /* QuickLookPreview.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		A00000000000000000000010 /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
@@ -53,6 +89,8 @@
 		B00000000000000000000002 /* Electron Microscopy Studio.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Electron Microscopy Studio.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		C00000000000000000000002 /* macTEMTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = macTEMTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		D00000000000000000000002 /* macTEMUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = macTEMUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		E00000000000000000000002 /* QuickLookThumbnail.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = QuickLookThumbnail.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		F00000000000000000000002 /* QuickLookPreview.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = QuickLookPreview.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -85,6 +123,16 @@
 			path = macTEMUITests;
 			sourceTree = "<group>";
 		};
+		E00000000000000000000003 /* QuickLook/Thumbnail */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = QuickLook/Thumbnail;
+			sourceTree = "<group>";
+		};
+		F00000000000000000000003 /* QuickLook/Preview */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = QuickLook/Preview;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -101,20 +149,37 @@
 				B00000000000000000000193 /* ShellEDXAgent in Frameworks */,
 				B00000000000000000000162 /* ShellEDXModel in Frameworks */,
 				B00000000000000000000202 /* ShellExport in Frameworks */,
+				B00000000000000000000802 /* ShellHelp in Frameworks */,
 				B00000000000000000000212 /* ShellPhaseLibrary in Frameworks */,
 				B00000000000000000000222 /* ShellPhaseViews in Frameworks */,
 				B00000000000000000000172 /* ShellAgentDoor in Frameworks */,
+				B00000000000000000000232 /* ShellCrystal in Frameworks */,
 				B00000000000000000000181 /* Sparkle in Frameworks */,
 			);
 		};
 		C00000000000000000000006 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
+				C00000000000000000000806 /* ShellSnapshotTesting in Frameworks */,
 			);
 		};
 		D00000000000000000000006 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
+			);
+		};
+		E00000000000000000000006 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+				E00000000000000000000012 /* ShellQuickLook in Frameworks */,
+				E00000000000000000000014 /* FormatoPeek in Frameworks */,
+			);
+		};
+		F00000000000000000000006 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+				F00000000000000000000012 /* ShellQuickLook in Frameworks */,
+				F00000000000000000000014 /* FormatoPeek in Frameworks */,
 			);
 		};
 /* End PBXFrameworksBuildPhase section */
@@ -126,6 +191,8 @@
 				B00000000000000000000003 /* macTEM */,
 				C00000000000000000000003 /* macTEMTests */,
 				D00000000000000000000003 /* macTEMUITests */,
+				E00000000000000000000003 /* QuickLook/Thumbnail */,
+				F00000000000000000000003 /* QuickLook/Preview */,
 				A00000000000000000000003 /* Products */,
 				A00000000000000000000010 /* LICENSE */,
 				A00000000000000000000012 /* NOTICE */,
@@ -141,6 +208,8 @@
 				B00000000000000000000002 /* Electron Microscopy Studio.app */,
 				C00000000000000000000002 /* macTEMTests.xctest */,
 				D00000000000000000000002 /* macTEMUITests.xctest */,
+				E00000000000000000000002 /* QuickLookThumbnail.appex */,
+				F00000000000000000000002 /* QuickLookPreview.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -155,9 +224,14 @@
 				B00000000000000000000005 /* Sources */,
 				B00000000000000000000006 /* Frameworks */,
 				B00000000000000000000007 /* Resources */,
+				B00000000000000000000903 /* Embed Foundation Extensions */,
 				B00000000000000000000190 /* Leave Sparkle out of the store build */,
 			);
 			buildRules = (
+			);
+			dependencies = (
+				E0000000000000000000000C /* PBXTargetDependency */,
+				F0000000000000000000000C /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				B00000000000000000000003 /* macTEM */,
@@ -174,9 +248,11 @@
 				B00000000000000000000192 /* ShellEDXAgent */,
 				B00000000000000000000161 /* ShellEDXModel */,
 				B00000000000000000000201 /* ShellExport */,
+				B00000000000000000000801 /* ShellHelp */,
 				B00000000000000000000211 /* ShellPhaseLibrary */,
 				B00000000000000000000221 /* ShellPhaseViews */,
 				B00000000000000000000171 /* ShellAgentDoor */,
+				B00000000000000000000231 /* ShellCrystal */,
 				B00000000000000000000180 /* Sparkle */,
 			);
 			productName = macTEM;
@@ -200,6 +276,9 @@
 				C00000000000000000000003 /* macTEMTests */,
 			);
 			name = macTEMTests;
+			packageProductDependencies = (
+				C00000000000000000000805 /* ShellSnapshotTesting */,
+			);
 			productName = macTEMTests;
 			productReference = C00000000000000000000002 /* macTEMTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -225,6 +304,50 @@
 			productReference = D00000000000000000000002 /* macTEMUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		E00000000000000000000001 /* QuickLookThumbnail */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E00000000000000000000008 /* Build configuration list for PBXNativeTarget "QuickLookThumbnail" */;
+			buildPhases = (
+				E00000000000000000000005 /* Sources */,
+				E00000000000000000000006 /* Frameworks */,
+				E00000000000000000000007 /* Resources */,
+			);
+			buildRules = (
+			);
+			fileSystemSynchronizedGroups = (
+				E00000000000000000000003 /* QuickLook/Thumbnail */,
+			);
+			name = QuickLookThumbnail;
+			packageProductDependencies = (
+				E00000000000000000000011 /* ShellQuickLook */,
+				E00000000000000000000013 /* FormatoPeek */,
+			);
+			productName = QuickLookThumbnail;
+			productReference = E00000000000000000000002 /* QuickLookThumbnail.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		F00000000000000000000001 /* QuickLookPreview */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F00000000000000000000008 /* Build configuration list for PBXNativeTarget "QuickLookPreview" */;
+			buildPhases = (
+				F00000000000000000000005 /* Sources */,
+				F00000000000000000000006 /* Frameworks */,
+				F00000000000000000000007 /* Resources */,
+			);
+			buildRules = (
+			);
+			fileSystemSynchronizedGroups = (
+				F00000000000000000000003 /* QuickLook/Preview */,
+			);
+			name = QuickLookPreview;
+			packageProductDependencies = (
+				F00000000000000000000011 /* ShellQuickLook */,
+				F00000000000000000000013 /* FormatoPeek */,
+			);
+			productName = QuickLookPreview;
+			productReference = F00000000000000000000002 /* QuickLookPreview.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -245,6 +368,12 @@
 					D00000000000000000000001 = {
 						CreatedOnToolsVersion = 27.0;
 						TestTargetID = B00000000000000000000001;
+					};
+					E00000000000000000000001 = {
+						CreatedOnToolsVersion = 27.0;
+					};
+					F00000000000000000000001 = {
+						CreatedOnToolsVersion = 27.0;
 					};
 				};
 			};
@@ -269,6 +398,8 @@
 				B00000000000000000000001 /* macTEM */,
 				C00000000000000000000001 /* macTEMTests */,
 				D00000000000000000000001 /* macTEMUITests */,
+				E00000000000000000000001 /* QuickLookThumbnail */,
+				F00000000000000000000001 /* QuickLookPreview */,
 			);
 		};
 /* End PBXProject section */
@@ -289,6 +420,16 @@
 			);
 		};
 		D00000000000000000000007 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+			);
+		};
+		E00000000000000000000007 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+			);
+		};
+		F00000000000000000000007 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			files = (
 			);
@@ -334,6 +475,16 @@
 			files = (
 			);
 		};
+		E00000000000000000000005 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+			);
+		};
+		F00000000000000000000005 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+			);
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -346,6 +497,16 @@
 			isa = PBXTargetDependency;
 			target = B00000000000000000000001 /* macTEM */;
 			targetProxy = D0000000000000000000000B /* PBXContainerItemProxy */;
+		};
+		E0000000000000000000000C /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = E00000000000000000000001 /* QuickLookThumbnail */;
+			targetProxy = E0000000000000000000000B /* PBXContainerItemProxy */;
+		};
+		F0000000000000000000000C /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = F00000000000000000000001 /* QuickLookPreview */;
+			targetProxy = F0000000000000000000000B /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -768,6 +929,186 @@
 			};
 			name = Develop;
 		};
+		E00000000000000000000009 /* Debug configuration for PBXNativeTarget "QuickLookThumbnail" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = QuickLook/QuickLook.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = QuickLook/QuickLookThumbnail.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = QuickLookThumbnail;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2026 Paul Lobpreis.";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.mac4dstem.macTEM.QuickLookThumbnail;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_PACKAGE_NAME = "$(SRCROOT:file:lower:c99extidentifier)";
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		E000000000000000000000F1 /* Develop configuration for PBXNativeTarget "QuickLookThumbnail" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = QuickLook/QuickLook.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = QuickLook/QuickLookThumbnail.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = QuickLookThumbnail;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2026 Paul Lobpreis.";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.mac4dstem.macTEM.QuickLookThumbnail;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_PACKAGE_NAME = "$(SRCROOT:file:lower:c99extidentifier)";
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Develop;
+		};
+		E0000000000000000000000A /* Release configuration for PBXNativeTarget "QuickLookThumbnail" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = QuickLook/QuickLook.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = QuickLook/QuickLookThumbnail.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = QuickLookThumbnail;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2026 Paul Lobpreis.";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.mac4dstem.macTEM.QuickLookThumbnail;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_PACKAGE_NAME = "$(SRCROOT:file:lower:c99extidentifier)";
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		F00000000000000000000009 /* Debug configuration for PBXNativeTarget "QuickLookPreview" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = QuickLook/QuickLook.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = QuickLook/QuickLookPreview.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = QuickLookPreview;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2026 Paul Lobpreis.";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.mac4dstem.macTEM.QuickLookPreview;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_PACKAGE_NAME = "$(SRCROOT:file:lower:c99extidentifier)";
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		F000000000000000000000F1 /* Develop configuration for PBXNativeTarget "QuickLookPreview" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = QuickLook/QuickLook.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = QuickLook/QuickLookPreview.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = QuickLookPreview;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2026 Paul Lobpreis.";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.mac4dstem.macTEM.QuickLookPreview;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_PACKAGE_NAME = "$(SRCROOT:file:lower:c99extidentifier)";
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Develop;
+		};
+		F0000000000000000000000A /* Release configuration for PBXNativeTarget "QuickLookPreview" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = QuickLook/QuickLook.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = QuickLook/QuickLookPreview.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = QuickLookPreview;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2026 Paul Lobpreis.";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.mac4dstem.macTEM.QuickLookPreview;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_PACKAGE_NAME = "$(SRCROOT:file:lower:c99extidentifier)";
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -804,6 +1145,24 @@
 				D00000000000000000000009 /* Debug configuration for PBXNativeTarget "macTEMUITests" */,
 				D000000000000000000000F1 /* Develop configuration for PBXNativeTarget "macTEMUITests" */,
 				D0000000000000000000000A /* Release configuration for PBXNativeTarget "macTEMUITests" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		E00000000000000000000008 /* Build configuration list for PBXNativeTarget "QuickLookThumbnail" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E00000000000000000000009 /* Debug configuration for PBXNativeTarget "QuickLookThumbnail" */,
+				E000000000000000000000F1 /* Develop configuration for PBXNativeTarget "QuickLookThumbnail" */,
+				E0000000000000000000000A /* Release configuration for PBXNativeTarget "QuickLookThumbnail" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		F00000000000000000000008 /* Build configuration list for PBXNativeTarget "QuickLookPreview" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F00000000000000000000009 /* Debug configuration for PBXNativeTarget "QuickLookPreview" */,
+				F000000000000000000000F1 /* Develop configuration for PBXNativeTarget "QuickLookPreview" */,
+				F0000000000000000000000A /* Release configuration for PBXNativeTarget "QuickLookPreview" */,
 			);
 			defaultConfigurationName = Release;
 		};
@@ -861,6 +1220,14 @@
 			isa = XCSwiftPackageProductDependency;
 			productName = ShellExport;
 		};
+		C00000000000000000000805 /* ShellSnapshotTesting */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ShellSnapshotTesting;
+		};
+		B00000000000000000000801 /* ShellHelp */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ShellHelp;
+		};
 		B00000000000000000000211 /* ShellPhaseLibrary */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = ShellPhaseLibrary;
@@ -873,10 +1240,30 @@
 			isa = XCSwiftPackageProductDependency;
 			productName = ShellAgentDoor;
 		};
+		B00000000000000000000231 /* ShellCrystal */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ShellCrystal;
+		};
 		B00000000000000000000180 /* Sparkle */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = B00000000000000000000182 /* XCLocalSwiftPackageReference "Vendor/Sparkle" */;
 			productName = Sparkle;
+		};
+		E00000000000000000000011 /* ShellQuickLook */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ShellQuickLook;
+		};
+		E00000000000000000000013 /* FormatoPeek */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = FormatoPeek;
+		};
+		F00000000000000000000011 /* ShellQuickLook */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ShellQuickLook;
+		};
+		F00000000000000000000013 /* FormatoPeek */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = FormatoPeek;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

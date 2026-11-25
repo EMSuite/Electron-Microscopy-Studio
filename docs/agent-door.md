@@ -44,8 +44,12 @@ door this one follows (4DSTEM Studio `docs/agent-door.md`). This app hands the d
 | `get_fft_data` | `which` radial_profile or spots, as Radial profile CSV… and Spots CSV… write them |
 | `get_fft_picture` | `which` transform (Transform PNG…: the spectrum in its Display window, reciprocal scale bar, a ring per measured spot) or source (what the source pane shows) |
 | `get_diffraction` | the Diffraction room for the shown pattern: the centre and its source, the scale in use (a ring fit on a standard, the file's axis or a typed Δq) with the wavelength and camera length a fit gives, the beam energy and camera, the standard and its families, the crystal with its lattice and library phase id, k_max and the tolerance, the annulus and tool, every ring and spot, and the readout (radius, q, d, family, listed d, deviation, verdict); with `csv`, Export Readout CSV…'s text |
+| `get_spot_table` | Index's answer for the shown pattern: indexing, the verdict and its line as the header writes it, the solutions (zone axis, degrees off it, orix quaternion), the score, the fitted scale, the misfit, the spots explained, zone axis only, scale or spots changed since; the Spots table's rows (spot, hkl, R px, q, d, d expected, Δd/d %, phase) and every spot marked, found or clicked; with `csv`, Export Spots CSV…'s text |
+| `get_diffraction_picture` | the pattern as the Diffraction room shows it, with the marked spots (yellow, numbered as the Spots table) and the simulated spots (cyan, the strongest labelled with hkl) |
 | `list_phases` | the phase library on this Mac: each phase's id, name, source and credit, marker, lattice and whether it was edited, its free lattice parameters, unreadable records, and an `add_phase` running or its outcome |
+| `read_simulation` | the shown Simulation document or its HRTEM image: phase, zone axis, the specimen's summary or refusal (with the strain Build with Strain would accept), the optics, defocus and stored thicknesses, the potential and transfer (point resolution, aperture cut-off, Scherzer defocus), the method line, frozen phonons (σ, configurations, the plan line or why it does not fit, the run's progress, the convergence and where it was read), the atom columns ringed on the image (their count and the first 50 in its pixels with their elements), Place Beside and its readout, whether a run is going or the waves are stale, and the sections' failure sentences |
 | `get_indexing_picture` | `which` map (the layer as Export's Map PNG… draws it), pattern (as indexed, without the band overlay) or best_match (a Dictionary run's) |
+| `get_crystal_view` | the Diffraction room's crystal pane: shown or hidden, the phase, the zone axis nearest the drawn orientation and the tilt off it, the orientation as the 3 by 3 matrix the simulated spots are drawn with, the unit cell switch and the scene (atoms and bonds by element, cell lengths); with `picture`, the pane's picture (the first ask starts the drawing and answers 409, ask again) |
 
 Every picture and number comes from the code that draws or exports it for the person, so the agent judges what the
 person sees. Numbers in JSON fields use a point; the status and Output lines are the window's own text, in the Mac's Region.
@@ -60,7 +64,7 @@ Behind "Let agents run analyses". Each goes through the entry point its control 
 | `select_room` | moves the window to a room, as the room bar does; a room the files do not fill is refused with the room bar's reason |
 | `open_demo` | opens a demo document in its room, as Help > Open Demo Data does |
 | `open_file` | opens a file of the Agent folder (Settings > Agents) as File > Open does, in the room that fits it; paths outside the folder are refused; `room` (eds or eels) answers the question File > Open asks for TIA spectra no `.emi` places, and such spectra are refused without it |
-| `set_eds` | picks and removes elements, sets an element's role (quantify or fit only), chooses the region (whole, rectangle, ellipse, a kept region) |
+| `set_eds` | picks and removes elements, sets an element's role (quantify or fit only), chooses the region (whole, rectangle, ellipse, polygon, a kept region), keeps the selected region as Pin Region does, and draws a line profile as the Line tool does |
 | `run_eds` | Auto ID, Quantify or Stop; answers at once, `get_eds` says busy until done |
 | `run_room` | presses the shown room's toolbar verb, as ⌘R does (Quantify, Run, Process, Index, Segment); refused with the button's own words while it cannot run |
 | `stop_run` | Stop, as ⌘. does: the shown room's run or open, or a run left going in another room |
@@ -81,8 +85,18 @@ Behind "Let agents run analyses". Each goes through the entry point its control 
 | `set_fft_spots` | Find Spots, Measure at… (whole bins from the centre), selects and removes spots, puts spots in or out of the mask |
 | `set_diffraction` | the Diffraction room's Centre (typed, or a fitted ring's), Calibration (standard, ring, Calibrate on Ring, Clear, typed Δq and kV for a file without them, camera and pixel pitch), Phases (a standard as the crystal, k_max, tolerance; a library phase through `add_phase`), the annulus, Fit Ring, the tool and the log display |
 | `set_diffraction_marks` | adds a spot as a click on the pattern does, selects a ring or spot, removes one or all |
+| `new_simulation` | File > New Simulation: a simulated pattern with no measured one, in the Diffraction room with the simulated spots on; a window that holds a file gives it a tab of its own |
+| `index_pattern` | presses Index (optionally Remove Spots first, and Fit scale on or off) and answers at once with `get_spot_table`'s answer; refused in the room's words without a centre, a scale, a beam energy or a crystal |
+| `set_zone_axis` | the Index section's zone axis (as typed) and turn, its Solution stepper and Flip 180°, and the Tilt tool's tilt and ⌥ turn; answers with the orientation's place once set by hand |
+| `simulate_pattern` | the Simulation section's overlay, labels, double diffraction and excitation error; answers with the simulated spots on the pattern (each flagged when double diffraction adds it) or why there are none |
 | `add_phase` | adds a Materials Project entry by its id to the library as Add Phase… does (the open service, or the person's own key from Settings; no tool takes or shows a key), and with `show` shows it in the Diffraction room; answers at once, `list_phases` says when it is in |
 | `set_phase_lattice` | sets a library phase's free lattice parameters (DiffractoKit's `editingLattice`: tied ones follow, a change of Laue class is refused); the Diffraction room takes the edit when it shows the phase |
+| `set_simulation` | the Simulation document's settings through its sections' controls: the library phase and zone axis, thickness and Build with Strain, defocus or Scherzer and the thickness shown, voltage, optics preset, Cs, spreads, aperture, field of view, the atom columns ringed on the image, frozen phonons with σ and configurations, Place Beside (the measured image, layout, rotation, inset size) |
+| `run_simulation` | Show HRTEM Image and its run: the static lattice's exit waves, or Simulate and Continue with frozen phonons; `stop_run` stops it and keeps the configurations done |
+| `set_relationship` | the Precipitate section: the precipitate, its two parallel pairs, which variants are shown, the overlay, double diffraction with the matrix; answers the variants, their groups and the sentences |
+| `powder_pattern` | the Powder section (rings or X-ray, the line, the range or reach, a phase to compare with, overlap marks); writes the peak table CSV or the .xy profile into the Agent folder |
+| `find_phases` | the Find Phases sheet: Fit scale, Rank (answers at once, `running` until it lands) and Use in Room; answers the ranked rows, their sentences and the ties |
+| `plan_tilt` | the Holder section: the tilts now, the limits, the tilt axis typed, forgotten or calibrated from another open pattern, a zone axis picked on the map; writes the Tilt List CSV into the Agent folder |
 | `select_grains` | selects grains as the grain table does, or none |
 
 The EDS tools are EMSuiteUI's `EDXAgentTools`, written once and registered by both apps.
@@ -92,13 +106,13 @@ The EDS tools are EMSuiteUI's `EDXAgentTools`, written once and registered by bo
 `macTEM/App/AgentDoorCoverage.swift` lists every control in the app, by its accessibility identifier, with how an agent
 reaches it: the tool that does it, already seen in a get tool's answer, left to the person on purpose (with the reason), or a
 gap with its open issue. `AgentDoorCoverageTests` fails when a control has no row, a row names a tool the door does not have,
-or a row outlives its control, so a new control cannot ship undecided. The menu bar has its own table beside it, `menuItems`: every item of the File, View, Image, Workspace and Help menus by its title as the source writes it, held by the same test. Every tool that acts is in the table above, and the test fails when one is not. A feature that adds a room action adds its row in the same PR, and the release walk reads the gaps. The gaps left are the Diffraction room's simulated spots (#791), File > New Simulation (#846) and the EDS room's polygon and line regions and Pin Region (#885). A room's open panel is the
+or a row outlives its control, so a new control cannot ship undecided. The menu bar has its own table beside it, `menuItems`: every item of the File, View, Image, Workspace and Help menus by its title as the source writes it, held by the same test. Every tool that acts is in the table above, and the test fails when one is not. A feature that adds a room action adds its row in the same PR, and the release walk reads the gaps. The gaps left are the crystal pane's Unit cell switch and the Simulation document's Microscope section (#846), and the EDS room's polygon and line regions and Pin Region (#885). A room's open panel is the
 person's; `open_file` opens a file of the Agent folder and `open_demo` the shipped demos. The EDS room's own controls are
 EMSuiteUI's and are reached through its tools.
 
 ## Code
 
 `macTEM/App/`: `AgentDoorTools.swift` (the door and the tools that look), `AgentDoorRooms.swift` (the tools that act),
-`AgentDoorPatterns.swift` (the toolbar verb and the Patterns room), `AgentDoorIndexing.swift` (the Indexing room), `AgentDoorMaps.swift` (the Maps room), `AgentDoorEELS.swift` (the EELS room), `AgentDoorImage.swift` (the Image room), `AgentDoorFFT.swift` (the FFT room), `AgentDoorDiffraction.swift` (the Diffraction room), `AgentDoorPhases.swift` (the phase library), `AgentDoorSession.swift` (the SEM session),
+`AgentDoorPatterns.swift` (the toolbar verb and the Patterns room), `AgentDoorIndexing.swift` (the Indexing room), `AgentDoorMaps.swift` (the Maps room), `AgentDoorEELS.swift` (the EELS room), `AgentDoorImage.swift` (the Image room), `AgentDoorFFT.swift` (the FFT room), `AgentDoorDiffraction.swift` (the Diffraction room), `AgentDoorIndex.swift` (Index, the Spots table and the simulated spots), `AgentDoorPhases.swift` (the phase library), `AgentDoorSession.swift` (the SEM session),
 `AgentDoorGuide.swift` (the workflow guide) and `AgentDoorCoverage.swift`. Settings > Agents is `AgentSettingsView` on
 EMSuiteUI's `AgentDoorSettingsSection`.
