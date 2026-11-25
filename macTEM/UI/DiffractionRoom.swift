@@ -767,7 +767,8 @@ private struct DiffractionOverlay: View {
 
 /// The simulated spots of a typed zone axis (#782): a ring per spot, its size growing with the square root of its intensity
 /// against the strongest, in cyan (the measured spots are red crosses, the rings yellow), and its hkl beside it when Labels is on.
-/// Labels go on the 60 strongest spots of at least 2 % of the strongest, so a dense pattern stays readable; the caption font is 10 pt.
+/// Labels go on the 60 strongest spots of at least 2 % of the strongest, so a dense pattern stays readable, and only where they clear
+/// a stronger spot's label and every other ring (#1030, `ZoneAxisOverlay.readable`); the caption font is 10 pt.
 /// A spot double diffraction adds (#786) is a dashed ring of the smallest size, labelled (when Labels is on) after the others.
 private struct SimulatedSpotsOverlay: View {
     let spots: [ZoneAxisOverlay.Spot]
@@ -783,10 +784,16 @@ private struct SimulatedSpotsOverlay: View {
                            style: StrokeStyle(lineWidth: 1.5, dash: spot.isDoubleDiffraction ? [2, 2] : []))
             }
             guard showsLabels else { return }
-            for spot in ZoneAxisOverlay.labelled(spots) {
+            let place: (ZoneAxisOverlay.Spot) -> SIMD2<Double> = { spot in
                 let p = layout.point(column: spot.column, row: spot.row)
-                let r = 3 + 6 * CGFloat(spot.relative.squareRoot())
-                ctx.draw(Text(spot.label).font(.caption).foregroundStyle(.cyan), at: CGPoint(x: p.x + r + 2, y: p.y + r + 2), anchor: .topLeading)
+                return SIMD2(Double(p.x), Double(p.y))
+            }
+            let ring: (ZoneAxisOverlay.Spot) -> Double = { 3 + 6 * $0.relative.squareRoot() }
+            let gap = CGFloat(ZoneAxisOverlay.labelOffset)
+            for spot in ZoneAxisOverlay.readable(ZoneAxisOverlay.labelled(spots), among: spots, point: place, radius: ring) {
+                let p = layout.point(column: spot.column, row: spot.row)
+                let r = CGFloat(ring(spot))
+                ctx.draw(Text(spot.label).font(.caption).foregroundStyle(.cyan), at: CGPoint(x: p.x + r + gap, y: p.y + r + gap), anchor: .topLeading)
             }
         }
         .accessibilityHidden(true)
