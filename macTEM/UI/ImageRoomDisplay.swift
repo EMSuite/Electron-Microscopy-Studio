@@ -50,6 +50,10 @@ struct ImageRoomDisplayRows: View {
     /// A render: the note under Show Scale Bar (`ImagePresentation.renderScaleBarNote`).
     var isRender = false
 
+    /// The picture's log switch is named for what it changes (#1042): the histogram's own log y-axis sits in the histogram's footer
+    /// (EMSuiteUI's `HistogramChart`), and two rows that both read "Log" did not say which was which.
+    nonisolated static let logTitle = "Log intensity"
+
     /// Gray first: the TEM convention.
     private static let colormaps: [ColormapKind] = [.gray, .inferno, .viridis, .rdbu]
 
@@ -75,8 +79,8 @@ struct ImageRoomDisplayRows: View {
             AdjustmentSlider("Gamma", value: $presentation.gamma, in: 0.2...5,
                              format: .number.precision(.fractionLength(2)), defaultValue: 1)
             if let log {
-                InspectorRow("Log") {
-                    Toggle("Log", isOn: log)
+                InspectorRow(Self.logTitle) {
+                    Toggle(Self.logTitle, isOn: log)
                         .labelsHidden()
                         .toggleStyle(.switch)
                         .accessibilityIdentifier(logID)
