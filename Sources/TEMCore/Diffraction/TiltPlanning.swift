@@ -179,7 +179,11 @@ package nonisolated enum TiltPlanning {
         -> Result<HolderSettings, DoubleTiltHolder.CalibrationError> {
         do throws(DoubleTiltHolder.CalibrationError) {
             let c = try DoubleTiltHolder.calibrateAxis(orientation, at: settings.tilts, other, at: otherTilts,
-                                                       symmetry: DoubleTiltHolder.properRotations(of: structure))
+                                                       symmetry: DoubleTiltHolder.properRotations(of: structure),
+                                                       // The app's holder reads β in the positive sense until the Holder section
+                                                       // takes the holder's β sense (#932); DiffractoKit 0.24.0 fits both senses
+                                                       // when none is given and refuses a pair that fits both.
+                                                       betaSense: .positive)
             var out = settings
             out.axisAngleDeg = c.axisAngleDeg
             out.calibration = .init(otherPattern: otherName, tiltChangeDeg: c.tiltChangeDeg, misfitDeg: c.misfitDeg)
