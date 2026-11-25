@@ -299,7 +299,7 @@ package nonisolated enum CBEDRun {
             try Task.checkCancellation()
             let k = plane - done, start = Double(done) / Double(plan.periods), share = Double(k) / Double(plan.periods)
             let report: SimulationProgressHandler? = progress.map { handler -> SimulationProgressHandler in
-                { (step: SimulationProgress) in handler(step.fraction.map { start + share * $0 }) }
+                { (step: SimulationProgress) in handler(start + share * (step.fraction ?? 0)) }
             }
             guard let out = try Multislice.run(wave, through: try potential(periods: k), exitPlanes: .last,
                                                backend: onMetal ? .metal : .cpu, progress: report).last else { break }
