@@ -15,6 +15,7 @@
 import DiffractoCore
 import DiffractoScattering
 import Foundation
+import ImagoCore
 import Observation
 import TEMCore
 
