@@ -27,7 +27,7 @@ struct MapsAnalysisOverlay: View {
     var body: some View {
         let high = contrast == .increased
         let boundary = OverlaySignal.width(LayoutPolicy.mapsBoundaryLineWidth, increasedContrast: high)
-        Canvas { context, _ in
+        Canvas { context, size in
             if session.showsBoundaries {
                 // A phase boundary is wider as well as black (#799).
                 context.stroke(path(session.grainBoundaryEdges), with: .color(.white.opacity(0.9)),
@@ -41,20 +41,34 @@ struct MapsAnalysisOverlay: View {
             }
             if session.showsSlipTraces, let row = session.selectedRow, let slip = session.selectedSlip {
                 let half = max(3, (Double(row.points)).squareRoot() / 2)
-                for plane in slip.planes where plane.traceAngle.isFinite {
+                let planes = slip.planes.filter { $0.traceAngle.isFinite }
+                var ends: [(CGPoint, CGPoint)] = []
+                for plane in planes {
                     let d = MapsRoomFormat.traceDirection(plane.traceAngle) * half
+                    let start = geometry.panePoint(of: ImagePoint(x: row.centroid.x - d.x, y: row.centroid.y - d.y))
                     let end = geometry.panePoint(of: ImagePoint(x: row.centroid.x + d.x, y: row.centroid.y + d.y))
+                    ends.append((start, end))
                     var p = Path()
-                    p.move(to: geometry.panePoint(of: ImagePoint(x: row.centroid.x - d.x, y: row.centroid.y - d.y)))
+                    p.move(to: start)
                     p.addLine(to: end)
                     context.stroke(p, with: .color(Self.traceColour(plane.colour)),
                                    lineWidth: OverlaySignal.width(LayoutPolicy.mapsTraceLineWidth, increasedContrast: high))
-                    // Each trace names its plane at its end, so the traces are told apart without their colours (#799).
-                    let word = context.resolve(Text(plane.label).font(.caption.monospacedDigit()).foregroundStyle(.white))
-                    let size = word.measure(in: CGSize(width: 200, height: 40))
-                    let plate = CGRect(x: end.x + 3, y: end.y - size.height / 2 - 1, width: size.width + 6, height: size.height + 2)
-                    context.fill(Path(roundedRect: plate, cornerRadius: 3), with: .color(.black.opacity(0.65)))
-                    context.draw(word, at: CGPoint(x: plate.midX, y: plate.midY))
+                }
+                // Each trace names its plane beside it, so the traces are told apart without their colours (#799); the plates are
+                // placed one by one inside the map, clear of each other and of the picked point's marker (#1059: a grain in the
+                // corner piled them on one point).
+                let words = planes.map { context.resolve(Text($0.label).font(.caption.monospacedDigit()).foregroundStyle(.white)) }
+                let plates = words.map { word -> CGSize in
+                    let measured = word.measure(in: CGSize(width: 200, height: 40))
+                    return CGSize(width: measured.width + 6, height: measured.height + 2)
+                }
+                let spots = zip(ends, plates).map { EBSDOverlayLabels.traceSpots(from: $0.0.0, to: $0.0.1, size: $0.1) }
+                let marker = geometry.panePoint(of: ImagePoint(x: Double(session.pinned.column), y: Double(session.pinned.row)))
+                let side = SEMScanMarker.handleDiameter
+                let clear = CGRect(x: marker.x - side / 2, y: marker.y - side / 2, width: side, height: side)
+                for placed in EBSDOverlayLabels.place(sizes: plates, spots: spots, in: CGRect(origin: .zero, size: size), avoiding: [clear]) {
+                    context.fill(Path(roundedRect: placed.frame, cornerRadius: 3), with: .color(.black.opacity(0.65)))
+                    context.draw(words[placed.index], at: CGPoint(x: placed.frame.midX, y: placed.frame.midY))
                 }
             }
         }

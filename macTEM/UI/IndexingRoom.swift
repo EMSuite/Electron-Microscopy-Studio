@@ -567,15 +567,21 @@ private struct DetectedBandsOverlay: View {
             path(true).stroke(Color.black.opacity(SEMOverlayStyle.haloOpacity), style: SEMOverlayStyle.halo)
             path(false).stroke(Color.orange.opacity(SEMOverlayStyle.lineOpacity), style: SEMOverlayStyle.line(dashed: true))
             path(true).stroke(Color.green.opacity(SEMOverlayStyle.lineOpacity), style: SEMOverlayStyle.line(dashed: false))
-            ForEach(bands.filter(\.isMatched)) { band in
-                if let start = band.start, let end = band.end, let family = band.family {
-                    Text(family)
-                        .font(.caption2.weight(.semibold).monospacedDigit())
-                        .foregroundStyle(Color.green)
-                        .padding(.horizontal, SEMOverlayStyle.plateHorizontalPadding)
-                        .padding(.vertical, SEMOverlayStyle.plateVerticalPadding)
-                        .background(Color.black.opacity(SEMOverlayStyle.plateOpacity), in: Capsule()) // science: a label plate on the pattern
-                        .position(point((start + end) / 2))
+            // The families on their dark plates, placed from the strongest band down so no plate covers another (#1059): a band
+            // whose label finds no free spot on its line is left unlabelled (the Bands table names it).
+            Canvas { context, size in
+                let labelled = bands.filter { $0.isMatched && $0.start != nil && $0.end != nil }.sorted { $0.id < $1.id }
+                let words = labelled.map { band in
+                    context.resolve(Text(band.family ?? "").font(.caption2.weight(.semibold).monospacedDigit()).foregroundStyle(Color.green))
+                }
+                let measured = words.map { $0.measure(in: CGSize(width: 200, height: 40)) }
+                let plates = measured.map { CGSize(width: $0.width + 2 * SEMOverlayStyle.plateHorizontalPadding,
+                                                   height: $0.height + 2 * SEMOverlayStyle.plateVerticalPadding) }
+                let spots = labelled.map { band in EBSDOverlayLabels.bandSpots(from: point(band.start ?? .zero), to: point(band.end ?? .zero)) }
+                for placed in EBSDOverlayLabels.place(sizes: plates, spots: spots, in: CGRect(origin: .zero, size: size)) {
+                    context.fill(Path(roundedRect: placed.frame, cornerRadius: placed.frame.height / 2),
+                                 with: .color(Color.black.opacity(SEMOverlayStyle.plateOpacity)))   // science: a label plate on the pattern
+                    context.draw(words[placed.index], at: CGPoint(x: placed.frame.midX, y: placed.frame.midY))
                 }
             }
         }

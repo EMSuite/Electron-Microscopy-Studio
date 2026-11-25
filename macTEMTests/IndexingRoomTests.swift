@@ -145,6 +145,15 @@ nonisolated final class IndexingRoomTests: XCTestCase {
         XCTAssertEqual(matched.count, solutions[first].matchedBands, "the overlay names the bands the solution counts, no more")
         XCTAssertLessThanOrEqual(matched.filter { $0.fitDegrees != nil }.count, 6, "QUEST weighs at most six bands")
         XCTAssertTrue(indexing.detectedBands.filter(\.isValid).allSatisfy { $0.start != nil && $0.end != nil }, "a valid band crosses its pattern")
+        // The demo's ten bands as the pattern pane labels them at 300 pt (#1059): no two plates meet, the strongest matched band keeps one.
+        let scale = 300 / Double(max(indexing.patternShape.columns, 1))
+        let labelled = matched.filter { $0.start != nil && $0.end != nil }.sorted { $0.id < $1.id }
+        let pane = { (p: SIMD2<Double>) in CGPoint(x: p.x * scale, y: p.y * scale) }
+        let plates = EBSDOverlayLabels.place(sizes: Array(repeating: CGSize(width: 46, height: 19), count: labelled.count),
+                                             spots: labelled.map { EBSDOverlayLabels.bandSpots(from: pane($0.start!), to: pane($0.end!)) },
+                                             in: CGRect(x: 0, y: 0, width: 300, height: Double(indexing.patternShape.rows) * scale))
+        for (i, a) in plates.enumerated() { for b in plates.dropFirst(i + 1) { XCTAssertFalse(a.frame.intersects(b.frame), "band labels meet") } }
+        XCTAssertEqual(plates.first?.index, labelled.isEmpty ? nil : 0, "the strongest matched band keeps its label")
 
         // The simulation overlay (#201): off by default; on, the run's solution here drawn on the pattern as indexed (kikuchipy's
         // geometrical simulation at the run's mean PC), every band the solution matched lying on a simulated line, within 3° and 3 px.
