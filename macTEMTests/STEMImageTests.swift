@@ -147,8 +147,8 @@ nonisolated final class STEMImageTests: XCTestCase {
         XCTAssertEqual(fresh.positionsDone, 0)
         let count = fresh.positionCount
         XCTAssertGreaterThan(count, 1)
-        var sliced = fresh
-        while !sliced.isComplete { sliced = try await STEMImage.advance(sliced, slice: .milliseconds(20)) }   // Stop, Continue, ...
+        // Stop, Continue, ...: slices grown as the model grows them, so a slice shorter than a resume's setup cannot loop forever.
+        let sliced = try await finish(fresh, slice: .milliseconds(20))
         XCTAssertTrue(sliced.isComplete)
         XCTAssertEqual(sliced.completedPositions, 0, "the kit's own count restarts when the last configuration ends")
         XCTAssertEqual(sliced.positionsDone, count)
