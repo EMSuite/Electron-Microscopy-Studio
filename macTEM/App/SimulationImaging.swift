@@ -121,11 +121,15 @@ extension AppState {
         simulation.multislice.beside.flatMap { pairedItem(at: $0.measured)?.item }
     }
 
-    /// What Place Beside shows now, in the section's words: off, the measured image closed, without a calibration, or the scale
-    /// both are shown at (and whether the measured pixels are coarser than the simulation's). One source for the section and the door.
+    /// What Place Beside shows now, in the section's words: off, the measured image closed (and where its file is), its file not
+    /// connected or different (#824), without a calibration, or the scale both are shown at (and whether the measured pixels are
+    /// coarser than the simulation's). One source for the section and the door.
     enum BesideStatus: Equatable {
         case off
-        case closed(String)
+        /// Closed; the file, when its link found it, can be opened again.
+        case closed(String, file: URL?)
+        /// The link's line (not connected, on a server, or a different file found); `different` offers Link Anyway.
+        case unlinked(String, different: Bool)
         case uncalibrated
         case shown(scale: String, coarser: Bool)
 
@@ -133,7 +137,8 @@ extension AppState {
         var lines: [String] {
             switch self {
             case .off: []
-            case .closed(let name): ["\(name) is closed: the simulation shows alone."]
+            case .closed(let name, _): ["\(name) is closed: the simulation shows alone."]
+            case .unlinked(let line, _): [line]
             case .uncalibrated: [HRTEMBeside.uncalibrated]
             case let .shown(scale, coarser): [scale] + (coarser ? [HRTEMBeside.coarser] : []) + [HRTEMBeside.pairNote]
             }
@@ -142,10 +147,78 @@ extension AppState {
 
     func besideStatus(of simulation: OpenItem) -> BesideStatus {
         guard let beside = simulation.multislice.beside else { return .off }
-        guard let measured = besideMeasuredItem(of: simulation)?.session.image else { return .closed(beside.measured.lastPathComponent) }
+        guard let measured = besideMeasuredItem(of: simulation)?.session.image else {
+            if let link = beside.link, let state = simulation.multislice.besideLinkState {
+                if case .connected(let url) = state { return .closed(link.name, file: url) }
+                if let line = state.line(for: link) {
+                    if case .different = state { return .unlinked(line, different: true) }
+                    return .unlinked(line, different: false)
+                }
+            }
+            return .closed(beside.link?.name ?? beside.measured.lastPathComponent, file: nil)
+        }
         guard let scale = HRTEMBeside.sameScaleLine(measured) else { return .uncalibrated }
         let coarser = simulation.multislice.exitWaves?.nanometresPerPixel.map { HRTEMBeside.isCoarser(measured, than: $0) } ?? false
         return .shown(scale: scale, coarser: coarser)
+    }
+
+    /// Place Beside names `item`: its URL while it is open, and the link a document keeps (name, size, fingerprint; never a path)
+    /// with the app's bookmark for it (#824). The link is kept while the same file stays named. The section's and the door's one path.
+    func besideNaming(_ item: OpenItem, in beside: HRTEMBeside?) -> HRTEMBeside {
+        var new = beside ?? HRTEMBeside(measured: item.url)
+        if beside?.measured != item.url || new.link == nil { new.link = LinkedFileGrants.link(to: item.url) }
+        new.measured = item.url
+        return new
+    }
+
+    /// Resolves Place Beside's link while its measured image is not open: through the app's bookmark, off the main actor, without
+    /// interface or mounting, given `LinkedFiles.resolveSeconds`; a stale bookmark is kept renewed. The section then says what was
+    /// found. Nothing while the image is open or the link is unknown.
+    /// `system` and `defaults` are the app's; a test passes its own.
+    func resolveBesideLink(of simulation: OpenItem, system: LinkedFileSystem = .securityScoped,
+                           defaults: UserDefaults = .standard) async {
+        guard let link = simulation.multislice.beside?.link, besideMeasuredItem(of: simulation) == nil else { return }
+        let resolution = await LinkedFiles.resolve(link, bookmark: LinkedFileGrants.bookmark(for: link, defaults: defaults), system: system,
+                                                   within: LinkedFiles.resolveSeconds)
+        if let renewed = resolution.renewedBookmark { LinkedFileGrants.store(renewed, for: link, defaults: defaults) }
+        simulation.multislice.setBesideLinkState(resolution.state, for: link)
+    }
+
+    /// Locate…: the person picks the measured image's file. The same contents link it again (a new bookmark) and open it beside
+    /// the simulation; other contents are named as different and linked only with Link Anyway.
+    func locateBesideLink(of simulation: OpenItem) async {
+        guard let link = simulation.multislice.beside?.link, let picked = await LinkedFilePanels.locate(link, appState: self) else { return }
+        let found = LinkedFiles.locate(link, picked: picked)
+        if case .connected(let url) = found.state {
+            LinkedFileGrants.store(found.bookmark, for: link)
+            simulation.multislice.setBesideLinkState(found.state, for: link)
+            await openBeside(of: simulation, at: url)
+        } else {
+            simulation.multislice.setBesideLinkState(found.state, for: link)
+        }
+    }
+
+    /// Link Anyway: the different file found or picked becomes the measured image's file (the link takes its name, size and
+    /// fingerprint, and a new bookmark), and opens beside the simulation.
+    func linkBesideAnyway(of simulation: OpenItem) async {
+        guard var beside = simulation.multislice.beside, let link = beside.link,
+              case .different(let url) = simulation.multislice.besideLinkState,
+              let relinked = LinkedFiles.relinked(link, to: url) else { return }
+        LinkedFileGrants.store(relinked.bookmark, for: relinked.link)
+        beside.link = relinked.link
+        simulation.multislice.setBeside(beside)
+        await openBeside(of: simulation, at: url)
+    }
+
+    /// Opens the measured image's file at `url` and names it as Place Beside's while it is open.
+    func openBeside(of simulation: OpenItem, at url: URL) async {
+        await open(urls: [url])?.value
+        let path = url.standardizedFileURL.path
+        let states = [self] + (windows?.onScreen.filter { $0 !== self } ?? [])
+        guard var beside = simulation.multislice.beside,
+              let item = states.flatMap(\.openItems.items).first(where: { $0.url.standardizedFileURL.path == path }) else { return }
+        beside.measured = item.url
+        if simulation.multislice.setBeside(beside) { refreshHRTEMImage(of: simulation) }
     }
 
     /// The images Place Beside can pick: every open image in the windows on screen that is not a simulation's and not a pattern
