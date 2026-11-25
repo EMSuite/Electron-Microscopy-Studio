@@ -50,6 +50,12 @@ package nonisolated enum PatternIndexing {
         package var d: Double { 1 / qLength }
         /// (d − d_listed) / d_listed in percent, under the room's scale.
         package var deltaPercent: Double? { dListed.map { 100 * (d - $0) / $0 } }
+
+        package init(id: UUID, row: Double, column: Double, intensity: Double?, radiusPx: Double, q: SIMD2<Double>, hkl: MillerIndex?,
+                     dListed: Double?) {
+            self.id = id; self.row = row; self.column = column; self.intensity = intensity; self.radiusPx = radiusPx; self.q = q
+            self.hkl = hkl; self.dListed = dListed
+        }
     }
 
     /// What Index says about the pattern.
@@ -255,14 +261,52 @@ package nonisolated enum PatternIndexing {
     }
 
     /// The rows of `outcome`'s spots that are still marked, numbered as the readout numbers them (`numbers`: a mark's id to its
-    /// number), in the marks' order. With the camera's pixel pitch (mm), R in mm is R px times it.
-    package static func rows(_ outcome: Outcome, numbers: [UUID: Int], pitchMM: Double? = nil) -> [SpotRow] {
+    /// number), in the marks' order. A spot the orientation does not explain that sits on a spot double diffraction adds (`added`,
+    /// #786; within the solver's tolerance, 1 % of |q| and at least 0.004 Å⁻¹, at Index's fitted scale) carries that spot's hkl, its
+    /// d from `cell`, and the phase "<phase> · double diffraction". With the camera's pixel pitch (mm), R in mm is R px times it.
+    package static func rows(_ outcome: Outcome, numbers: [UUID: Int], added: [AddedSpot] = [], cell: UnitCell? = nil,
+                            pitchMM: Double? = nil) -> [SpotRow] {
         let pitch = pitchMM.flatMap { $0.isFinite && $0 > 0 ? $0 : nil }
+        let scale = outcome.scale ?? 1
+        let settings = ZoneAxisSolver.Settings()
         return outcome.spots.compactMap { s in
             guard let number = numbers[s.id] else { return nil }
+            if s.hkl == nil, let cell {
+                let window = max(settings.tolerance * s.qLength, settings.floor)
+                let near = added.map { a -> (AddedSpot, Double) in
+                    let dq = s.q - scale * a.q
+                    return (a, (dq.x * dq.x + dq.y * dq.y).squareRoot())
+                }.filter { $0.1 <= window }.min { $0.1 < $1.1 }
+                if let a = near?.0, case let d = cell.d(a.hkl), d.isFinite, d > 0 {
+                    return SpotRow(id: s.id, number: number, hkl: a.hkl, radiusPx: s.radiusPx, radiusMM: pitch.map { s.radiusPx * $0 },
+                                   q: s.qLength, d: s.d, dExpected: d,
+                                   deltaPercent: 100 * (s.d - d) / d, phase: outcome.phase + doubleDiffractionPhase)
+                }
+            }
             return SpotRow(id: s.id, number: number, hkl: s.hkl, radiusPx: s.radiusPx, radiusMM: pitch.map { s.radiusPx * $0 },
-                           q: s.qLength, d: s.d, dExpected: s.dListed, deltaPercent: s.deltaPercent, phase: s.hkl == nil ? "" : outcome.phase)
+                           q: s.qLength, d: s.d, dExpected: s.dListed,
+                           deltaPercent: s.deltaPercent, phase: s.hkl == nil ? "" : outcome.phase)
         }.sorted { $0.number < $1.number }
+    }
+
+    /// What a row's phase adds when double diffraction explains the spot.
+    package static let doubleDiffractionPhase = " · double diffraction"
+
+    /// A spot double diffraction adds at an orientation (#786): its hkl and (qx, qy) at |g|, Å⁻¹.
+    package struct AddedSpot: Sendable, Equatable {
+        package let hkl: MillerIndex
+        package let q: SIMD2<Double>
+        package init(hkl: MillerIndex, q: SIMD2<Double>) { self.hkl = hkl; self.q = q }
+    }
+
+    /// The spots double diffraction adds within one crystal at `orientation` (DiffractoKit's `DoubleDiffraction.spots`), to Index's
+    /// reach, with the excitation error σ the Simulation section sets.
+    package static func addedSpots(structure: CrystalStructure, orientation: CrystalOrientation, volts: Double,
+                                   sigma: Double) throws -> [AddedSpot] {
+        let simulator = try SpotPatternSimulator(structure: structure, kMax: reach)
+        return try DoubleDiffraction.spots(simulator: simulator, orientation: orientation, volts: volts,
+                                           settings: SpotPatternSimulator.Settings(sigmaExcitationError: sigma))
+            .added.compactMap { s in s.hkl.map { AddedSpot(hkl: $0, q: s.position) } }
     }
 
     /// The rows of a Simulation document's spots (#907): every kinematic spot drawn (double diffraction's added spots have no

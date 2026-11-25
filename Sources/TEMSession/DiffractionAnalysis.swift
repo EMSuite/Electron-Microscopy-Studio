@@ -157,6 +157,9 @@ package final class DiffractionAnalysis {
     @ObservationIgnored private var readoutCache: (key: ReadoutKey, rows: [DiffractionReadoutRow])?
     @ObservationIgnored private var simulatorCache: (key: String, simulator: SpotPatternSimulator?, failure: String?)?
     @ObservationIgnored private var simulationCache: (key: SimulationKey, result: SimulatedSpots)?
+    @ObservationIgnored private var addedCache: (key: String, spots: [PatternIndexing.AddedSpot])?
+    /// The beam energy Index's answer was found at (V).
+    private var indexVolts: Double?
     @ObservationIgnored private var boundSize: (Int, Int)?
 
     package init() {}
@@ -419,14 +422,14 @@ package final class DiffractionAnalysis {
                                                   misfitPercent: nil)
             }
             if Task.isCancelled { return }
-            await self?.landIndex(outcome, found: found, generation: gen, scale: started, spots: startedSpots)
+            await self?.landIndex(outcome, found: found, generation: gen, scale: started, spots: startedSpots, volts: volts)
         }
         indexTask = task
         return task
     }
 
     private func landIndex(_ outcome: PatternIndexing.Outcome, found: [PatternIndexing.Mark]?, generation gen: Int, scale started: IndexScaleKey,
-                           spots startedSpots: [MeasuredSpot]) {
+                           spots startedSpots: [MeasuredSpot], volts: Double) {
         guard gen == indexGeneration else { return }
         isIndexing = false
         indexTask = nil
@@ -439,6 +442,7 @@ package final class DiffractionAnalysis {
                                              refusal: nil, intensity: $0.intensity) }
         }
         indexOutcome = outcome
+        indexVolts = volts
         indexScaleKey = started
         indexedSpots = spots.map(\.id)
         solutionIndex = 0
@@ -463,7 +467,20 @@ package final class DiffractionAnalysis {
     package var indexSpotRows: [PatternIndexing.SpotRow] {
         guard let outcome = indexOutcome else { return [] }
         let numbers = Dictionary(uniqueKeysWithValues: spots.enumerated().map { ($1.id, $0 + 1) })
-        return PatternIndexing.rows(outcome, numbers: numbers, pitchMM: pitchMM)
+        return PatternIndexing.rows(outcome, numbers: numbers, added: addedSpots(outcome), cell: crystal.structure.cell,
+                                    pitchMM: pitchMM)
+    }
+
+    /// The spots double diffraction adds at Index's best orientation, with Double diffraction on (#786): the Spots table names a
+    /// spot Index left unexplained that sits on one. Kept while the crystal, the beam, σ and the orientation stay.
+    private func addedSpots(_ outcome: PatternIndexing.Outcome) -> [PatternIndexing.AddedSpot] {
+        guard simulation.doubleDiffraction, let orientation = outcome.orientation, let volts = indexVolts else { return [] }
+        let key = "\(crystal.name)|\(crystal.sha256 ?? "")|\(volts)|\(simulation.excitationError)|\(orientation.orixQuaternion)"
+        if let addedCache, addedCache.key == key { return addedCache.spots }
+        let added = (try? PatternIndexing.addedSpots(structure: crystal.structure, orientation: orientation, volts: volts,
+                                                     sigma: simulation.excitationError)) ?? []
+        addedCache = (key, added)
+        return added
     }
 
     /// The Spots CSV (#785): the table's columns, its rows by number, under the file and Index's line.
