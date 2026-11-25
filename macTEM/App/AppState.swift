@@ -113,7 +113,17 @@ final class AppState {
     /// The infobar's one line, events only (an open, an error), empty otherwise; every non-empty change is also an
     /// Output line.
     var statusText = "" {
-        didSet { activityLog.record(statusText) }
+        didSet { if recordsStatus { activityLog.record(statusText) } }
+    }
+    @ObservationIgnored private var recordsStatus = true
+
+    /// An agent's step (#1090): the infobar names the tool in words ("An agent used Diffraction room settings."), and the Output
+    /// line keeps what it was given, so the record still reads as the call ("… (calibrate true; inner 37)").
+    func setAgentStatus(_ line: String, record: String) {
+        recordsStatus = false
+        statusText = line
+        recordsStatus = true
+        activityLog.record(record)
     }
 
     /// The alert's text; nil when no alert is up. Dismissing it puts the title back to the generic one, so an alert raised by

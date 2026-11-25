@@ -449,9 +449,9 @@ extension MacTEMAgentDoor {
         var moved: [String] = []
         if a["map"] == nil, session.mapChoice != mapBefore { moved.append("map \(mapWord(mapBefore)) → \(mapWord(session.mapChoice))") }
         if a["mix_red"] == nil, a["mix_green"] == nil, a["mix_blue"] == nil, session.mixTiles != mixBefore { moved.append("colour mix cleared") }
-        var line = agentLine("Patterns room view", a)
-        if !moved.isEmpty { line += " It also changed: " + moved.joined(separator: "; ") + "." }
-        appState.statusText = line
+        var line = agentLine("Patterns room view", a), short = agentLine("Patterns room view", [:])
+        if !moved.isEmpty { line += " It also changed: " + moved.joined(separator: "; ") + "."; short += " It also changed: " + moved.joined(separator: "; ") + "." }
+        appState.setAgentStatus(short, record: line)
         guard case .json(var answer) = patterns(appState) else { return patterns(appState) }
         answer["also_changed"] = moved
         return .json(answer)

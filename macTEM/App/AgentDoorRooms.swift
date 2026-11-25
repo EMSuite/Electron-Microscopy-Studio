@@ -101,7 +101,7 @@ extension MacTEMAgentDoor {
                          acts: true) { call in
             let output = run(call)
             if case .refusal = output { return output }
-            if let appState = call.window?.state as? AppState { appState.statusText = agentLine(tool.title, call.arguments) }
+            if let appState = call.window?.state as? AppState { appState.setAgentStatus(agentLine(tool.title, [:]), record: agentLine(tool.title, call.arguments)) }
             return output
         }
     }
