@@ -16,8 +16,8 @@ import SwiftUI
 import TEMCore
 import TEMSession
 
-/// The words of the side pane and the table strip. Pure.
-nonisolated enum DiffractionPaneWords {
+/// The words of the side pane and the table strip. Pure; main-actor, as the view state's pane enums are.
+enum DiffractionPaneWords {
     static func title(_ pane: DiffractionViewState.SidePane) -> String {
         switch pane {
         case .crystal: "Crystal"
@@ -205,7 +205,7 @@ struct DiffractionPowderPeakTable: View {
 
 /// The Peaks table's columns, cells and ⌘C text. Pure.
 nonisolated enum DiffractionPowderPeakFormat {
-    enum Column: CaseIterable {
+    nonisolated enum Column: CaseIterable, Sendable {
         case phase, hkl, d, position, intensity, marks
 
         /// The column's title: the position's is 2θ for X-rays, q for rings.

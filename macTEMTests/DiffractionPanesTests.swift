@@ -41,7 +41,7 @@ nonisolated final class DiffractionPanesTests: XCTestCase {
     }
 
     /// The View menu's items name the pane and say Hide only while it is shown (never "Hide Crystal" outside the room).
-    func testTheMenuTitlesNameThePane() {
+    @MainActor func testTheMenuTitlesNameThePane() {
         XCTAssertEqual(DiffractionPaneWords.menuTitle(.crystal, shown: false), "Show Crystal")
         XCTAssertEqual(DiffractionPaneWords.menuTitle(.zoneAxisMap, shown: true), "Hide Zone-axis Map")
         XCTAssertEqual(DiffractionPaneWords.menuTitle(.powder, shown: false), "Show Powder Pattern")
