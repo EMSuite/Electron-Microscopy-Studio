@@ -8,7 +8,11 @@ The frame: the one with the most spot pixels in an annulus around the direct bea
 pattern; a spot pixel is four times the annulus's median or more), i.e. the clearest Bragg spots of the wire; the scan position is
 printed and written into the file's title.
 
-    python3 -I tools/demo/extract-spot-pattern.py <twinned_nanowire.hdf5> <out.hspy>
+    python3 -I tools/demo/extract-spot-pattern.py <twinned_nanowire.hdf5> <out.hspy> [<y> <x>]
+
+Several frames tie on the score (26 spot pixels); the committed DemoData/twinned_nanowire_frame.hspy is the frame at (y 84, x 26),
+which Public data run 45572788710 (2026-11-25) chose and printed, so the workflow now names it: `<y> <x>` takes that frame and
+prints the scores all the same.
 """
 import base64, hashlib, sys
 import h5py
@@ -53,6 +57,9 @@ with h5py.File(source, 'r') as f:
     for k in order[:10]:
         print('top', np.unravel_index(k, score.shape), f'{score.flat[k]:.1f}')
     iy, ix = np.unravel_index(order[0], score.shape)
+    if len(sys.argv) == 5:
+        iy, ix = int(sys.argv[3]), int(sys.argv[4])
+        print('named', (iy, ix), 'score', score[iy, ix])
     frame = data[iy, ix, :, :]
     print('chosen', (int(iy), int(ix)), 'min', frame.min(), 'max', frame.max(), 'sum', float(np.asarray(frame, dtype=np.float64).sum()))
 

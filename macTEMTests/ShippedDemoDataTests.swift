@@ -2,11 +2,13 @@
 //  ShippedDemoDataTests.swift
 //  The real, licensed files the app bundle ships as demo data (`DemoDocuments.Shipped`, DemoData/, NOTICE): each is in the built bundle at
 //  the size and md5 its source publishes, its contents read back to the truth h5py gave (readers are tested exact), and the SEM-EDS
-//  spectrum opens through the app's own route into the EDS room. A replaced or truncated file, a lost folder reference in the Xcode
+//  spectrum opens through the app's own route into the EDS room; the recorded spot pattern is one image, and the silicon CIF is
+//  silicon (#804). A replaced or truncated file, a lost folder reference in the Xcode
 //  project, or a `.hspy` that no longer routes goes red here.
 //
 
 import XCTest
+import DiffractoCore
 import FormatoCore
 import FormatoHDF5
 import SpectroCore
@@ -20,7 +22,7 @@ nonisolated final class ShippedDemoDataTests: XCTestCase {
     /// Every shipped file is in the bundle (the `DemoData` folder reference copies the whole folder) at the pinned size and md5.
     /// Mutation: a file replaced, truncated or renamed; the folder reference dropped from the project.
     func testEveryShippedFileIsInTheBundleAtItsPinnedSizeAndMD5() throws {
-        XCTAssertEqual(DemoDocuments.Shipped.all.count, 4)
+        XCTAssertEqual(DemoDocuments.Shipped.all.count, 6)
         for file in DemoDocuments.Shipped.all {
             let url = try XCTUnwrap(file.url, "\(file.relativePath) is not in the bundle's DemoData/")
             let size = try XCTUnwrap(FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int)
@@ -73,6 +75,27 @@ nonisolated final class ShippedDemoDataTests: XCTestCase {
             XCTAssertEqual(mp.pattern(hemisphere: h, energy: 0).reduce(UInt64(0)) { $0 + UInt64($1) }, DemoDocuments.Shipped.nickelMasterPatternLambertSum)
         }
         XCTAssertNoThrow(try MasterPatternProjection.checkSuitable(mp))
+    }
+
+    /// The recorded spot pattern (#804): a HyperSpy file of one 144 x 144 2D signal, which the Open route takes as an image (the Image,
+    /// FFT and Diffraction rooms), with the scan's 300 kV. Mutation: the frame cut wrong (a 4D or 3D signal), the file replaced - red.
+    func testTheSpotPatternIsOneImageOfTheNanowireScan() throws {
+        let url = try XCTUnwrap(DemoDocuments.Shipped.nanowirePattern.url)
+        let experiments = try HyperSpyOpening.experiments(path: url.path)
+        XCTAssertEqual(experiments.count, 1)
+        XCTAssertEqual(experiments.first?.shape, [DemoDocuments.Shipped.nanowirePatternSide, DemoDocuments.Shipped.nanowirePatternSide])
+        XCTAssertEqual(HyperSpyOpening.contents(of: experiments).images.count, 1)
+        XCTAssertEqual(FileRouting.inventory(path: url.path), FileInventory(image: true))
+    }
+
+    /// The silicon CIF of the demo simulation (#804): Fd-3m, eight atoms in the cell, a = 5.4309 Å, as the kit reads it.
+    func testTheSiliconCIFIsTheDiamondStructure() throws {
+        let url = try XCTUnwrap(DemoDocuments.Shipped.siliconCIF.url)
+        let loaded = try CrystalLoading.load(bytes: Data(contentsOf: url), fileName: url.lastPathComponent)
+        XCTAssertEqual(loaded.structure.sites.count, 8)
+        XCTAssertTrue(loaded.structure.sites.allSatisfy { $0.z == 14 })
+        XCTAssertEqual(loaded.structure.cell.a, 5.4309)
+        XCTAssertEqual(loaded.structure.spaceGroupNumber, 227)
     }
 
     /// The BAM TM002 spectrum through the HyperSpy reader: 1024 channels of 0.01 keV from -0.1 keV, 10 kV, the counts exact (their total,
