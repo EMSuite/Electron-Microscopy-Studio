@@ -460,6 +460,16 @@ extension AppState {
         if !statusText.isEmpty { statusText = "" }
     }
 
+    /// The person moving to another room or part (the sidebar, the Workspace menu, Show Next Room) ends the line of the event before
+    /// too (#1026): the Diffraction room kept "Opened Demo EELS — 16 × 16 px, 1024 channels" from the EELS room. An open still
+    /// running keeps its "Opening…" line; a step that stays in the room shown changes nothing.
+    func movingRoom(_ step: () -> Void) {
+        let before = (navigation.workspaceArea, navigation.diffractionPart)
+        step()
+        guard (navigation.workspaceArea, navigation.diffractionPart) != before, opensInFlight == 0, !statusText.isEmpty else { return }
+        statusText = ""
+    }
+
     /// The read `OpenItems` asks for, off the main actor: a re-read resolves the item's bookmark (a stale one is made
     /// again) and holds its scope for the read; a first read uses the URL the sandbox just granted. The read itself is
     /// `read(_ url:)`; then the row's thumbnail from the display copy, and the bookmark, made inside the live scope.
