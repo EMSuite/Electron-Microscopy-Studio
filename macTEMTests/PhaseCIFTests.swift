@@ -9,6 +9,7 @@
 
 import DiffractoCore
 import ShellPhaseLibrary
+import UniformTypeIdentifiers
 import XCTest
 @testable import macTEM
 
