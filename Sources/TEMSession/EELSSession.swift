@@ -195,8 +195,12 @@ package final class EELSSession {
     package var isSingleSpectrum: Bool { (source?.image.nx ?? 0) * (source?.image.ny ?? 0) == 1 }
     /// The low loss the thickness map is made from: the aligned one once Align has run.
     package var workingLowLoss: LowLossSpectrumImage? { alignment?.aligned ?? source?.image }
-    /// The core loss the edge model fits: the aligned one once Align has run.
-    package var workingCoreLoss: CoreLossSpectrumImage? { alignment?.alsoAligned.first ?? source?.coreLoss }
+    /// The core loss the edge model fits: the aligned one once Align has run; in a file with only a core loss, its one cube (`coreOnlyView`).
+    package var workingCoreLoss: CoreLossSpectrumImage? { alignment?.alsoAligned.first ?? source?.coreLoss ?? coreOnlyView }
+    /// A file whose only cube is a core loss (`onlyCoreLoss`) holds it in `LoadedEELS.image`; this is that cube as the core loss the edges are offered
+    /// on and fitted to, without a low loss (no convolution, no Fourier ratio: exSpy's `EELSModel(s)` with no `ll`), #1073. Made once on bind from the
+    /// same counts (`EELSCounts` is shared, not copied), so the room still holds one cube.
+    private var coreOnlyView: CoreLossSpectrumImage?
 
     /// Whether the low loss holds the zero-loss peak (its energy window contains 0 eV).
     package var hasLowLoss: Bool {
@@ -303,7 +307,8 @@ package final class EELSSession {
         return deconvolveState == .current ? deconvolution?.coreLoss : nil
     }
     /// Convolve with the low loss as the fit does it: never on a Fourier-ratio deconvolved core loss (the low loss is divided out already).
-    package var effectiveConvolve: Bool { convolveLowLoss && !deconvolutionChoice.feedsTheFit && workingLowLoss != nil }
+    /// A file with no zero-loss peak (`hasLowLoss` false, a core loss alone) has nothing to convolve with.
+    package var effectiveConvolve: Bool { convolveLowLoss && !deconvolutionChoice.feedsTheFit && hasLowLoss && workingLowLoss != nil }
 
     /// Run does every stage that is not current, in order; nothing to do when all are. Fit joins them only when it can run.
     package var canRun: Bool {
@@ -498,6 +503,7 @@ package final class EELSSession {
         cancelPass()
         source = loaded
         sourceURL = url
+        coreOnlyView = Self.coreLossView(of: loaded, onlyCoreLoss: onlyCoreLoss)
         threshold = .estimated; meanFreePath = .none; typedBeamEnergyKeV = nil
         alignment = nil; alignmentTile = nil; alignmentShiftTile = nil; inputVersion += 1; fitUsed = nil
         alignChoice = EELSAlignChoice(); alignedWith = nil; alignNotice = nil
@@ -514,6 +520,14 @@ package final class EELSSession {
         return refresh() ?? Task {}
     }
 
+    /// The one cube of a file with only a core loss as a core loss on the same counts and axis; nil for any other file.
+    private static func coreLossView(of loaded: LoadedEELS, onlyCoreLoss: Bool) -> CoreLossSpectrumImage? {
+        guard onlyCoreLoss else { return nil }
+        let image = loaded.image
+        return try? CoreLossSpectrumImage(nx: image.nx, ny: image.ny, channels: image.channels, storedCounts: image.storedCounts,
+                                          energyOffsetEV: image.energyOffsetEV, energyScaleEV: image.energyScaleEV)
+    }
+
     package func close() {
         cancelPass()
         openTask?.cancel(); openTask = nil; isOpening = false
@@ -524,7 +538,7 @@ package final class EELSSession {
         fitModel = .exactNNLS; fitOnlyElements = []; modelDeconvolution = nil; fitToEV = nil; fitToNotice = nil; regionQuality = nil
         deconvolutionChoice = .off; deconvolution = nil; deconvolutionSignature = ""; deconvolutionNotice = nil; zeroLossFWHM = nil
         alignChoice = EELSAlignChoice(); alignedWith = nil; alignNotice = nil
-        source = nil; sourceURL = nil; alignment = nil; alignmentTile = nil; pickedEdges = []; model = nil; modelComposition = nil; regionModel = nil; regionComposition = nil; modelTiles = []; modelSignature = ""; map = nil; tiles = []; unavailableReasons = []; failure = nil
+        source = nil; sourceURL = nil; coreOnlyView = nil; alignment = nil; alignmentTile = nil; pickedEdges = []; model = nil; modelComposition = nil; regionModel = nil; regionComposition = nil; modelTiles = []; modelSignature = ""; map = nil; tiles = []; unavailableReasons = []; failure = nil
         resetRegions()
     }
 

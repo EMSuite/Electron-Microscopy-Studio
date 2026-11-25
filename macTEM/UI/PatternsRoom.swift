@@ -303,6 +303,13 @@ struct LivePatternPane: View {
                 Text(absence.sentence).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                     .accessibilityIdentifier("patterns.overlay.absence")
             }
+            // The lines over the pattern are the virtual backscatter detector's tiles (kikuchipy's VirtualBSEImager): name them (#1069).
+            if session.virtualGrid.tileCount > 1 {
+                Text(verbatim: "detector tiles \(session.virtualGrid.columns) × \(session.virtualGrid.rows)")
+                    .help("The virtual backscatter detector's tiles drawn over the pattern; click a tile to show its image on the map")
+                    .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    .accessibilityIdentifier("patterns.pattern.tiles")
+            }
             Text(verbatim: "\(dataset.patternColumns) × \(dataset.patternRows)")
                 .help("Pattern columns × rows, in detector pixels")
                 .font(.caption.monospaced()).foregroundStyle(.secondary).fixedSize()

@@ -333,6 +333,16 @@ final class AppState {
         followMapsPin()
     }
 
+    /// What the Maps room says when it shows a map other than the Indexing room's run on the same scan while that run could be handed
+    /// over (#1068): after indexing, Maps would otherwise show the pattern file's own map with nothing saying the new result is elsewhere.
+    /// Nil when the map shown is a run, is on another scan, or when Open in Maps would refuse (no run, or one still going).
+    var mapsIndexingOffer: String? {
+        guard let document = maps.document, let dataset = ebsd.dataset, maps.isOnScan(of: dataset),
+              indexing.openInMapsRefusal == nil else { return nil }
+        if case .indexing = document.source { return nil }
+        return "The Indexing room has indexed this scan; this map is the pattern file's own."
+    }
+
     /// What the Maps room says of the map it shows when that is an Indexing run (`IndexingSession.staleness(ofRun:method:)`), nil
     /// otherwise.
     var mapsStaleness: String? {
