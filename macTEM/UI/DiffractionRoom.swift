@@ -881,7 +881,7 @@ private struct DiffractionLegendChip: View {
                                        style: StrokeStyle(lineWidth: 1.5, dash: entry.mark == .unexplained ? [2, 1.5] : []))
                         }
                     }
-                    .frame(width: 12, height: 12)
+                    .frame(width: 12, height: 12) // science: the legend chip drawn on the pattern
                     Text(entry.text).font(.caption).foregroundStyle(.white)
                 }
             }
