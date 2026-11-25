@@ -58,7 +58,7 @@ nonisolated final class TSVCopyTests: XCTestCase {
     /// Red before: the window cleared and set the general pasteboard itself.
     func testCopyDetailsWritesThroughTheOnePasteboardWriter() throws {
         let view = try source("macTEM/UI/ContentView.swift")
-        XCTAssertTrue(view.contains("Button(\"Copy Details\") { SystemPaneTextWriter().write(appState.errorMessage ?? \"\") }"))
+        XCTAssertTrue(view.contains("if action == .copyDetails { SystemPaneTextWriter().write(appState.errorMessage ?? \"\") }"))
         XCTAssertFalse(view.contains("NSPasteboard"), "the window has no pasteboard code of its own")
     }
 }

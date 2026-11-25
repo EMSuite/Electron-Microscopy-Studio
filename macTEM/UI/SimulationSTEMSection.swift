@@ -167,7 +167,8 @@ struct SimulationSTEMSection: View {
         }
     }
 
-    /// The radial plot with the band and the probe angle, the chip and the method line.
+    /// The radial plot with the band and the probe angle, and the chip. The method line is a record: the Info tab's Simulation
+    /// section (#1043, `SimulationRecordSection`).
     @ViewBuilder
     private func resultRows(_ model: STEMModel) -> some View {
         if let scan = model.scan, !scan.isEmpty {
@@ -176,7 +177,6 @@ struct SimulationSTEMSection: View {
             if let chip = scan.notQuantitative(band: model.band) {
                 InspectorWarning(chip).accessibilityIdentifier("simulation.stem.notQuantitative")
             }
-            InspectorNote(scan.methodLine(band: model.band)).accessibilityIdentifier("simulation.stem.method")
         }
     }
 }
@@ -210,9 +210,39 @@ private struct STEMRadialChart: View {
                 .annotation(position: .top, alignment: .leading) { Text("α").font(.caption2) }
         }
         .chartYScale(type: .log)
+        // Powers of ten, never Charts' "1,0E-7" (#1040): every other decade when more than five crowd the chart's height.
+        .chartYAxis {
+            AxisMarks(values: DecadeAxis.values(samples.map(\.intensity))) { value in
+                AxisGridLine()
+                AxisTick()
+                AxisValueLabel { if let v = value.as(Double.self) { Text(DecadeAxis.label(v)) } }
+            }
+        }
         .chartXAxisLabel("mrad", alignment: .center)
         .accessibilityLabel("Scattered intensity against angle")
         .accessibilityValue("Band \(UnitDisplay.number(band.inner, digits: 3)) to \(UnitDisplay.number(band.outer, digits: 3)) mrad, "
                             + "probe \(UnitDisplay.number(semiangleMrad, digits: 3)) mrad")
+    }
+}
+
+/// A log axis's marks as powers of ten (#1040): "10⁰", "10⁻²", "10⁻⁷", so a comma locale never reads "1,0E-7". Pure.
+nonisolated enum DecadeAxis {
+    /// The decades that span the positive `values`, from the highest down, every other one when more than five would crowd a
+    /// 100 pt chart; ascending. [] with no positive value.
+    static func values(_ values: [Double]) -> [Double] {
+        let positive = values.filter { $0 > 0 && $0.isFinite }
+        guard let low = positive.min(), let high = positive.max() else { return [] }
+        let bottom = Int(log10(low).rounded(.down)), top = Int(log10(high).rounded(.up))
+        let step = top - bottom > 5 ? 2 : 1
+        return stride(from: top, through: bottom, by: -step).reversed().map { pow(10, Double($0)) }
+    }
+
+    /// "10⁻⁷" for 1e-7, "10⁰" for 1: the nearest power of ten's exponent in superscript digits.
+    static func label(_ value: Double) -> String {
+        guard value > 0, value.isFinite else { return "" }
+        let exponent = Int(log10(value).rounded())
+        let digits: [Character] = ["⁰", "¹", "²", "³", "⁴", "⁵", "⁶", "⁷", "⁸", "⁹"]
+        let text = String(String(abs(exponent)).map { digits[$0.wholeNumberValue ?? 0] })
+        return "10" + (exponent < 0 ? "⁻" : "") + text
     }
 }

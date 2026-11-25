@@ -566,18 +566,20 @@ now answers that: deleting it sends every job back to `macos-26` at once.
 **What would reverse it.** The Mac often asleep or away while pull requests wait, or a failure that only the Mac's state
 explains; then delete the variable, and this line back to `runs-on: macos-26`.
 
-## 2026-11-25 — CI: a pull request's `unit` takes GitHub's `macos-26` while the Mac runner is taken
+## 2026-11-25 — CI: a pull request's `unit` overflows to GitHub's `macos-26` only while the Mac has a queue and GitHub has room
 
-**What.** Before `unit` is queued, the Linux job `changes` asks the Actions API whether another pull request's `unit
-(XCTest)` in this repo is queued or running on the self-hosted Mac. If one is, this pull request's `unit` runs on
-`macos-26`; if none is, on the Mac, as the entry above. An API error picks the Mac. Check names are unchanged.
+**What.** Before `unit` is queued, the Linux job `changes` counts this repo's queued and running jobs. The Mac takes the
+job unless it already holds three (`MAC_DEPTH`: the one it runs and the ones waiting) and no job here waits for a GitHub
+macOS runner; only then does `unit` run on `macos-26`. An API error picks the Mac. Check names are unchanged. Periphery
+scans a pull request only when it carries the label `periphery`; the weekly scan on main is unchanged.
 
-**Why.** One Mac takes one job at a time, so 13 pull requests queued behind it one by one on 25 Nov while GitHub's free
-macOS runners stood idle. GitHub cannot send a job to whichever of two labels is free, so the choice is made before the
-job is queued.
+**Why.** One Mac takes one job at a time, so 13 pull requests queued behind it while GitHub's free macOS runners stood
+idle. The first rule (#1051: GitHub whenever the Mac held any job) then sent ten to GitHub's five shared slots, three of
+them held by Periphery's 15-minute pull-request scans, and left the Mac idle. GitHub chooses a runner when the job is
+queued, not when it starts, so the choice weighs both queues before that.
 
-**What would reverse it.** Failures that only `macos-26` shows (the Mac runs a newer macOS), or GitHub's queue becoming the
-wait again; then drop the `mac` output from `unit`'s `runs-on`.
+**What would reverse it.** Failures that only `macos-26` shows (the Mac runs a newer macOS); then drop the `mac` output
+from `unit`'s `runs-on`. Unused code that lands because no one added the label; then run Periphery on pushes to main.
 
 ## 2026-11-24 — A Simulation document's HRTEM image is an item of its own, in a tab beside its document
 

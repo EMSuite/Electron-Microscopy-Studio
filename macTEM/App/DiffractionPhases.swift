@@ -10,6 +10,7 @@
 import DiffractoCore
 import ShellPhaseLibrary
 import SwiftUI
+import TEMCore
 import TEMSession
 
 nonisolated enum PhaseMarker: String, CaseIterable, Sendable {
@@ -60,8 +61,11 @@ enum DiffractionPhases {
         }
     }
 
-    /// The lattice in one line (DiffractionCrystal's words, which the exports write too).
-    nonisolated static func latticeText(_ cell: UnitCell) -> String { DiffractionCrystal.latticeText(cell) }
+    /// The lattice in one line (DiffractionCrystal's words, which the exports write too): with a decimal point for the door, in the
+    /// reader's locale for the Phases list (#1039).
+    nonisolated static func latticeText(_ cell: UnitCell, locale: Locale = UnitDisplay.point) -> String {
+        DiffractionCrystal.latticeText(cell, locale: locale)
+    }
 
     /// The room keeps its own copy of a shown phase (#780): an edit of the library's phase reaches the room's results only
     /// through Update from Library. True when `phase` is the one in use and the library's copy differs from it.

@@ -150,6 +150,17 @@ nonisolated final class DemoDocumentsTests: XCTestCase {
         XCTAssertFalse(DemoDocuments.isDemo(URL(fileURLWithPath: "/Users/x/a.dm4")))
     }
 
+    /// A STEM image opened before Simulate (Show STEM Image starts no run: a scan takes minutes) says so, never "computing" (#1022);
+    /// the placeholder says "computing" only while a run goes. Red before: the STEM item held the HRTEM placeholder's "computing".
+    @MainActor func testAStemImageBeforeSimulateSaysItIsNotComputedYet() async throws {
+        let state = AppState(launch: LaunchOptions(arguments: []))
+        await state.open(urls: [DemoDocuments.stemURL(of: DemoDocuments.simulationURL(1))])?.value
+        let image = try XCTUnwrap(state.openItems.selected?.session.image)
+        XCTAssertEqual(image.notes, ["simulated image, no measured data", "not computed yet: press Simulate"])
+        XCTAssertFalse(image.notes.contains("computing"))
+        XCTAssertEqual(DemoDocuments.stemPlaceholder(name: "STEM of Simulation 1", computing: true).notes.last, "computing")
+    }
+
     @MainActor func testTheSpectrumFixturesOpenTheirRooms() async throws {
         let state = AppState(launch: LaunchOptions(arguments: ["--demo-spectrum-fixture", "--demo-eels-fixture"]))
         await state.edx.settled()

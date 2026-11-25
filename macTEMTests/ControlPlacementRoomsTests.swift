@@ -45,7 +45,8 @@ nonisolated final class ControlPlacementRoomsTests: XCTestCase {
     /// log switch. Red under: the tool back in Display, a labelled row, the section missing from the room's list, the id lost.
     func testDiffractionToolsHaveTheirOwnSection() throws {
         let source = try ui("DiffractionRoomInspector.swift")
-        XCTAssertTrue(source.contains("InspectorSection(\"Tools\") { SegmentedPicker(label: \"Tool\", items: [(DiffractionViewState.Tool.ring, .title(\"Ring\")), (.spot, .title(\"Spot\")), (.tilt, .title(\"Tilt\"))],"))
+        XCTAssertTrue(source.contains("InspectorSection(\"Tools\") { SegmentedPicker(label: \"Tool\", items: tools.map {"))
+        XCTAssertEqual(DiffractionSections.tools(.measured), [.ring, .spot, .tilt])
         XCTAssertTrue(source.contains(".accessibilityIdentifier(\"diffraction.tool\")"))
         XCTAssertFalse(source.contains("InspectorRow(\"Tool\")"))
         let display = try XCTUnwrap(source.components(separatedBy: "private struct DiffractionDisplaySection").last?
@@ -58,7 +59,9 @@ nonisolated final class ControlPlacementRoomsTests: XCTestCase {
     /// Red under: Display back after Rings, a hand-made Display, the View row of small buttons back.
     @MainActor func testDiffractionDisplayIsTheImageRoomsSectionAndSecond() throws {
         let source = try ui("DiffractionRoomInspector.swift")
-        XCTAssertTrue(source.contains("if isSimulation { DiffractionMicroscopeSection(analysis: analysis) } else { DiffractionCentreSection(analysis: analysis, view: view) DiffractionCalibrationSection(session: item.session, analysis: analysis, view: view) } DiffractionDisplaySection(view: view) DiffractionToolsSection(view: view) DiffractionPhasesSection(item: item, analysis: analysis) if isSimulation { InspectorSection(\"Orientation\") { DiffractionOrientationRows(analysis: analysis) } } else { DiffractionIndexSection(analysis: analysis) } DiffractionHolderSection(item: item) DiffractionSimulationSection(item: item) if isSimulation { SimulationSpecimenSection(item: item) } DiffractionCrystalViewSection(view: view) DiffractionPrecipitateSection(item: item) DiffractionPowderSection(item: item) DiffractionRingsSection(session: item.session, analysis: analysis, view: view) DiffractionThicknessSection(item: item) DiffractionExportSection(session: item.session, analysis: analysis, isSimulation: isSimulation)"))
+        // The order is `DiffractionSections.order` (#1043, InspectorSectionOrderTests), drawn before Export.
+        XCTAssertTrue(source.contains("ForEach(DiffractionSections.order(kind), id: \\.self) { section in self.section(section, kind: kind, analysis: analysis, view: view) } DiffractionExportSection("))
+        XCTAssertEqual(Array(DiffractionSections.order(.measured).prefix(4)), [.centre, .calibration, .display, .tools])
         XCTAssertTrue(source.contains("ImageRoomDisplaySection(presentation: view.presentation, colormapID: \"diffraction.colormap\", logID: \"diffraction.log\", log: Binding(get: { view.useLog }, set: { view.useLog = $0 }))"))
         XCTAssertFalse(source.contains("InspectorRow(\"View\")") || source.contains(".controlSize(.small)"))
         let display = try ui("ImageRoomDisplay.swift")

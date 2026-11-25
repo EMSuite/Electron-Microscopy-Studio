@@ -100,8 +100,9 @@ struct DiffractionPowderSection: View {
             }
             DiffractionPowderChart(table: table)
             ForEach(table.phases.indices, id: \.self) { i in
-                if table.patterns[i] == nil { InspectorWarning(table.headline(phase: i)) } else { InspectorNote(table.headline(phase: i)) }
-                if let marks = table.marksSentence(phase: i) { InspectorNote(marks) }
+                let headline = table.headline(phase: i, locale: .autoupdatingCurrent)
+                if table.patterns[i] == nil { InspectorWarning(headline) } else { InspectorNote(headline) }
+                if let marks = table.marksSentence(phase: i, locale: .autoupdatingCurrent) { InspectorNote(marks) }
                 if let lattice = table.calculatedLatticeSentence(phase: i) { InspectorNote(lattice) }
             }
             DiffractionPowderPeakList(table: table, limit: Self.listed)
@@ -197,7 +198,7 @@ struct DiffractionPowderChart: View {
             .chartYAxisLabel("I (of 100)")
             .frame(height: LayoutPolicy.powderChartHeight)
             .accessibilityLabel("Powder pattern")
-            .accessibilityValue(table.phases.indices.map { table.headline(phase: $0) }.joined(separator: ". "))
+            .accessibilityValue(table.phases.indices.map { table.headline(phase: $0, locale: .autoupdatingCurrent) }.joined(separator: ". "))
             // The key: each phase's name beside a line in its colour and its dash, never a colour swatch alone.
             if names.count > 1 {
                 HStack(spacing: 10) {
@@ -242,8 +243,9 @@ struct DiffractionPowderPeakList: View {
 /// The words of a peak line. Pure.
 nonisolated enum DiffractionPowderText {
     /// "Al 111  d 2.338 Å  38.51°  100 ◆", or "… ⧉ Au" for a peak another phase overlaps.
-    static func line(_ row: PowderRow, table: PowderTable) -> String {
-        var parts = ["\(row.phase) \(row.hkl)", "d \(Num.fixed(row.d, 3)) Å", table.positionText(row.position), Num.fixed(row.intensity, 0)]
+    static func line(_ row: PowderRow, table: PowderTable, locale: Locale = .autoupdatingCurrent) -> String {
+        var parts = ["\(row.phase) \(row.hkl)", "d \(Num.fixed(row.d, 3, locale: locale)) Å", table.positionText(row.position, locale: locale),
+                     Num.fixed(row.intensity, 0, locale: locale)]
         if row.isDiagnostic { parts.append("◆") }
         if row.isOverlapped { parts.append("⧉ " + row.overlaps.joined(separator: ", ")) }
         return parts.joined(separator: "  ")
@@ -251,7 +253,7 @@ nonisolated enum DiffractionPowderText {
 
     /// The line for VoiceOver: "Al 111, d 2.338 ångström, at 38.51°, intensity 100, diagnostic".
     static func spoken(_ row: PowderRow, table: PowderTable) -> String {
-        var parts = ["\(row.phase) \(row.hkl)", "d \(Num.fixed(row.d, 3)) ångström", "at " + table.positionText(row.position),
+        var parts = ["\(row.phase) \(row.hkl)", "d \(Num.fixed(row.d, 3)) ångström", "at " + table.positionText(row.position, locale: .autoupdatingCurrent),
                      "intensity \(Num.fixed(row.intensity, 0))"]
         if row.isDiagnostic { parts.append("diagnostic") }
         if row.isOverlapped { parts.append("overlapped by " + row.overlaps.joined(separator: ", ")) }

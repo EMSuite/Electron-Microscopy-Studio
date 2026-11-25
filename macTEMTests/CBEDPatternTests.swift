@@ -125,6 +125,42 @@ nonisolated final class CBEDPatternTests: XCTestCase {
         XCTAssertEqual(pattern.index(nearest: 3.9), pattern.thicknessesNM.count - 1)
     }
 
+    /// The run reports each stored plane as done (#1021), so the progress bar moves whether or not the kit reports inside a stretch,
+    /// ascending, and the last report is the whole run. Red before: the fractions were the kit's alone.
+    func testTheRunReportsEachStoredPlane() throws {
+        let built = try SimulationSpecimen.build(CrystalPresets.silicon, zoneAxis: SIMD3(1, 1, 0), thicknessNM: 2).get()
+        var settings = CBEDSettings()
+        settings.angularStepMrad = 1
+        settings.largestThicknessNM = 4
+        settings.edgeMrad = 40
+        let plan = try CBEDRun.plan(built, settings: settings, volts: 200_000)
+        let reports = FractionLog()
+        _ = try CBEDRun.run(built, settings: settings, semiangleMrad: 2, volts: 200_000, specimen: "Si [1 1 0]", reference: true,
+                            progress: { reports.add($0) })
+        let fractions = reports.values
+        for plane in plan.planePeriods {
+            XCTAssertTrue(fractions.contains(Double(plane) / Double(plan.periods)), "plane \(plane) of \(plan.periods): \(fractions)")
+        }
+        XCTAssertEqual(fractions.last, 1)
+        for (a, b) in zip(fractions, fractions.dropFirst()) { XCTAssertGreaterThanOrEqual(b, a - 1e-12, "ascending: \(fractions)") }
+    }
+
+    /// The depth chip gives the pattern's size as width × height, as the image's header does (#1033: "521 × 523 pattern" beside a
+    /// "523 × 521 px" header). Red before: rows × columns.
+    func testTheDepthChipGivesWidthByHeight() throws {
+        XCTAssertEqual(CBEDPattern.depthSentence(slices: 1040, rows: 521, columns: 523),
+                       "1040 slices on a 523 × 521 pattern: beyond the validated depth of the Metal path")
+        let built = try SimulationSpecimen.build(CrystalPresets.silicon, zoneAxis: SIMD3(1, 1, 0), thicknessNM: 2).get()
+        var settings = CBEDSettings()
+        settings.angularStepMrad = 1
+        settings.largestThicknessNM = 2
+        settings.edgeMrad = 40
+        let pattern = try CBEDRun.run(built, settings: settings, semiangleMrad: 2, volts: 200_000, specimen: "Si [1 1 0]", reference: true)
+        let image = pattern.image(at: 0, name: "CBED of Simulation 1")
+        XCTAssertTrue(CBEDPattern.depthSentence(slices: pattern.slices, rows: pattern.rows, columns: pattern.columns)
+                        .contains("on a \(image.width) × \(image.height) pattern"))
+    }
+
     /// Under 20 Å across, the plan carries the design's chip.
     func testASmallBoxSaysTheProbeOverlapsItsCopies() throws {
         let built = try SimulationSpecimen.build(CrystalPresets.silicon, zoneAxis: SIMD3(1, 1, 0), thicknessNM: 2).get()
@@ -149,4 +185,12 @@ nonisolated final class CBEDPatternTests: XCTestCase {
         XCTAssertNil(model.semiangle(shortestG: nil, volts: 200_000))
         XCTAssertNil(model.shownIndex, "no run yet")
     }
+}
+
+/// The fractions a run reports, from whichever thread reports them.
+private nonisolated final class FractionLog: @unchecked Sendable {
+    private let lock = NSLock()
+    private var kept: [Double] = []
+    var values: [Double] { lock.withLock { kept } }
+    func add(_ fraction: Double?) { if let fraction { lock.withLock { kept.append(fraction) } } }
 }
