@@ -229,8 +229,8 @@ Both texts ship in the application bundle at `Contents/Resources/Licenses/` with
 DiffractoKit (a Swift package the app is built with)
 ================================================================================
 
-The app links DiffractoKit (https://github.com/mac4DSTEM/DiffractoKit, tag 0.21.0, commit
-4e55444ea5a5d3b8d0c366a8a182ea4c6598df0e), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only, for crystal structures, the CIF
+The app links DiffractoKit (https://github.com/mac4DSTEM/DiffractoKit, tag 0.22.0, commit
+e1ac5dda8450f819f89b0691551da61060722884), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only, for crystal structures, the CIF
 import, kinematic reflection lists, ring and ellipse calibration, the indexing of a measured |q|, simulated spot patterns, double diffraction and
 the orientation of a spot pattern. Its scattering table and lattice conventions are py4DSTEM's (GPL-3.0); pymatgen (MIT) was
 its oracle and none of its code is copied. Its own third-party notices are in its NOTICE.

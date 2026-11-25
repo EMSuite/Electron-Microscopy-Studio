@@ -164,7 +164,7 @@ extension MacTEMAgentDoor {
         guard SimulationModel.isValid(optics) else { return refused("Those optics are not valid: a positive voltage, a finite Cs, spreads of at least 0, "
             + "an aperture above 0 or none, and a field of view up to \(UnitDisplay.number(SimulationModel.largestFieldOfViewNM, digits: 3)) nm.") }
         let turnsOn = arguments["frozen_phonons"] == "true" && model.thermal == nil
-        if turnsOn, crystal == nil { return refused(SimulationSpecimen.Refusal.noPhase.sentence) }
+        if turnsOn, model.sourceIdentity(crystal: crystal) == nil { return refused(SimulationSpecimen.Refusal.noPhase.sentence) }
         var thermal: HRTEMThermal?
         if arguments["sigma"] != nil || arguments["configurations"] != nil {
             guard arguments["frozen_phonons"] != "false" else { return refused("σ and configurations need frozen phonons on.") }
@@ -274,7 +274,11 @@ extension MacTEMAgentDoor {
         }
         switch model.specimen(crystal: crystal, zoneAxis: zoneAxis) {
         case .success(let built):
-            state["specimen"] = SimulationSpecimen.summary(built, phase: crystal?.name ?? "", zoneAxis: zoneAxis)
+            state["specimen"] = model.atomModel.map { $0.summary(built, beam: model.beamAxis) }
+                ?? SimulationSpecimen.summary(built, phase: crystal?.name ?? "", zoneAxis: zoneAxis)
+        case .failure(.building):
+            // Not a refusal: the model's slab is still being built; read again when it lands.
+            state["specimen_building"] = true
         case .failure(let refusal):
             state["specimen_refusal"] = refusal.sentence
             state["build_with_strain"] = AgentJSON.orNull(refusal.acceptableStrain)
