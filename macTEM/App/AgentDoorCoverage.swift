@@ -468,6 +468,7 @@ nonisolated enum AgentDoorCoverage {
         "simulation.beside.scale": .tool("read_simulation"),
         "simulation.hrtem.aperture": .tool("set_simulation"),
         "simulation.hrtem.apertureSemiangle": .tool("set_simulation"),
+        "simulation.hrtem.columns": .tool("set_simulation"),
         "simulation.hrtem.defocus": .tool("set_simulation"),
         "simulation.hrtem.defocusField": .tool("set_simulation"),
         "simulation.hrtem.fieldOfView": .tool("set_simulation"),

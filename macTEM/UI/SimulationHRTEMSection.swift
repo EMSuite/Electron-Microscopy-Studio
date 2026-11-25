@@ -7,6 +7,7 @@
 //        MA3 (#895) adds the objective aperture, the field of view, the Potential readout and the Table… sheet, and puts the
 //        Microscope section and the transfer function strip under it. MA4 (#896) adds the Thermal Vibrations section under it,
 //        MA6 (#898) the Beside Measured section.
+//        MA5 (#897) adds Atom columns, which rings the specimen's projected columns on the image (`SimulationColumnsOverlay`).
 //
 
 import ShellControls
@@ -106,6 +107,16 @@ struct SimulationHRTEMSection: View {
                 Text(HRTEMImage.potentialName).foregroundStyle(.secondary)
                     .accessibilityIdentifier("simulation.hrtem.potential")
             }
+            InspectorRow("Atom columns") {
+                Toggle("Mark atom columns", isOn: Binding(get: { model.marksColumns }, set: { model.setMarksColumns($0) }))
+                    .toggleStyle(.switch).labelsHidden()
+                    .help("Rings on the specimen's projected atom columns, the slab the crystal pane shows, so each contrast has its column")
+                    .accessibilityValue(columnsValue(simulation))
+                    .accessibilityIdentifier("simulation.hrtem.columns")
+            }
+            if model.marksColumns, let blocker = model.columnsBlocker(crystal: crystal, zoneAxis: zoneAxis) {
+                InspectorNote(blocker)
+            }
             InspectorActionRow {
                 Button("Defocus and Thickness Table…") { showsTable = true }
                     .disabled(waves == nil)
@@ -185,6 +196,18 @@ struct SimulationHRTEMSection: View {
     static let defocusRange = -100.0 ... 200.0
     /// The semiangle an objective aperture starts at when it is turned on: abTEM's examples use 20 mrad.
     static let defaultApertureMrad = 20.0
+
+    /// VoiceOver's value of the Atom columns switch: how many columns are marked on the image.
+    private func columnsValue(_ simulation: OpenItem) -> String {
+        let model = simulation.multislice, analysis = simulation.diffraction
+        guard model.marksColumns else { return "Off" }
+        let crystal = analysis.simulatedPhase, zoneAxis = analysis.simulation.zoneAxis
+        if let blocker = model.columnsBlocker(crystal: crystal, zoneAxis: zoneAxis) { return "On, none drawn: \(blocker)" }
+        guard let image = item.session.image, let columns = model.drawnColumns(crystal: crystal, zoneAxis: zoneAxis, on: image) else {
+            return "On, no specimen"
+        }
+        return "On, \(UnitDisplay.count(columns.count, "column", "columns")) marked"
+    }
 
     private func scherzerText(_ model: SimulationModel) -> String {
         (try? model.optics.scherzerDefocusNM()).map { "\(UnitDisplay.number($0, digits: 4)) nm" } ?? "not defined for these optics"

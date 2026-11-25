@@ -66,6 +66,15 @@ struct ImagePane: View {
     /// Settings > Images: the databar hidden (the default) or shown as a strip under the picture.
     @AppStorage(SEMImageSettings.cropDatabarKey) private var cropsDatabar = SEMImageSettings.cropDatabarDefault
     private var image: CalibratedImage { item.session.image ?? Self.blankImage }
+
+    /// The atom columns marked on a Simulation document's HRTEM image (#897): nil unless the image is one, its document is open with
+    /// Atom columns on, its specimen builds, the image is of that specimen and Place Beside is off (`columnsBlocker`).
+    private var simulationColumns: [SlabDrawing.Column]? {
+        guard DemoDocuments.isHRTEM(item.url), let document = appState.simulationDocument(ofHRTEM: item),
+              document.multislice.marksColumns else { return nil }
+        let analysis = document.diffraction
+        return document.multislice.drawnColumns(crystal: analysis.simulatedPhase, zoneAxis: analysis.simulation.zoneAxis, on: image)
+    }
     private var canvas: CanvasPixels { item.presentation.canvas ?? Self.blankCanvas }
     static let blankImage = CalibratedImage(width: 1, height: 1, pixels: [0], x: nil, y: nil, fileName: "", source: "", voltage: nil)
     static let blankCanvas = CanvasPixels(width: 1, height: 1, normalized: [0], contentVersion: 0, rawRange: nil)
@@ -273,6 +282,15 @@ struct ImagePane: View {
                                 geometry: MarkGeometry(transform: MetalDisplayTransform(paneSize: box, imageBox: box,
                                                                                         zoom: zp.drawZoom, offset: zp.effectiveOffset),
                                                        imageWidth: canvas.width, imageHeight: canvas.height))
+            }
+            .overlay {
+                // A Simulation document's atom columns on its HRTEM image (#897), under the marks.
+                if let columns = simulationColumns {
+                    SimulationColumnsOverlay(columns: columns,
+                                             geometry: MarkGeometry(transform: MetalDisplayTransform(paneSize: box, imageBox: box,
+                                                                                                     zoom: zp.drawZoom, offset: zp.effectiveOffset),
+                                                                    imageWidth: canvas.width, imageHeight: canvas.height))
+                }
             }
             .overlay {
                 // Pane-sized and untransformed, like the Metal view: the marks are mapped through the shader's own

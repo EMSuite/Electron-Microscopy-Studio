@@ -16,6 +16,7 @@
 import DiffractoCore
 import DiffractoScattering
 import Foundation
+import ImagoCore
 import Observation
 import TEMCore
 
@@ -131,6 +132,10 @@ package final class SimulationModel {
         let maximumStrain: Double
     }
     @ObservationIgnored private var cache: (key: Key, result: Result<SimulationSpecimen.Built, SimulationSpecimen.Refusal>)?
+    @ObservationIgnored private var drawnCache: (built: SimulationSpecimen.Built, drawn: SlabDrawing.Drawn)?
+    @ObservationIgnored private var columnsCache: (key: ColumnsKey, columns: [SlabDrawing.Column])?
+    /// The specimen's atom columns are marked on the HRTEM image (#897).
+    package private(set) var marksColumns = false
 
     /// The atom model simulated in the phase's place (Source: Atom Model…); nil simulates the Diffraction room's phase.
     package private(set) var atomModel: AtomModelSpecimen?
@@ -667,6 +672,56 @@ package final class SimulationModel {
         cache = (key, result)
         return result
     }
+
+    /// The slab of `crystal` along `zoneAxis` as the crystal pane draws it (#897): capped at `SlabDrawing.drawnAtomLimit`, with
+    /// the count named; nil while no specimen builds. Cached with the specimen, so a view may call it while drawing.
+    package func drawnSlab(crystal: DiffractionCrystal?, zoneAxis: SIMD3<Int>) -> SlabDrawing.Drawn? {
+        guard case .success(let built) = specimen(crystal: crystal, zoneAxis: zoneAxis) else { return nil }
+        if let drawnCache, drawnCache.built == built { return drawnCache.drawn }
+        let drawn = SlabDrawing.drawn(built)
+        drawnCache = (built, drawn)
+        return drawn
+    }
+
+    /// The specimen's atom columns on `image`, its HRTEM image (#897); nil while no specimen builds. Cached on the specimen and the
+    /// image's size and sampling, so a view may call it while drawing (each zoom step redraws the image pane).
+    package func columns(crystal: DiffractionCrystal?, zoneAxis: SIMD3<Int>, on image: CalibratedImage) -> [SlabDrawing.Column]? {
+        guard case .success(let built) = specimen(crystal: crystal, zoneAxis: zoneAxis) else { return nil }
+        let key = ColumnsKey(built: built, width: image.width, height: image.height, x: image.x?.scale, y: image.y?.scale)
+        if let columnsCache, columnsCache.key == key { return columnsCache.columns }
+        let columns = SlabDrawing.columns(built, on: image)
+        columnsCache = (key, columns)
+        return columns
+    }
+
+    private struct ColumnsKey: Equatable {
+        let built: SimulationSpecimen.Built
+        let width: Int, height: Int
+        let x: Double?, y: Double?
+
+        // Written out (not synthesized) so the unused-code scan sees each field read.
+        static func == (a: ColumnsKey, b: ColumnsKey) -> Bool {
+            a.built == b.built && a.width == b.width && a.height == b.height && a.x == b.x && a.y == b.y
+        }
+    }
+
+    /// Why the Atom columns rings are not drawn though the switch is on, in the section's words; nil when they are. The rings read
+    /// the HRTEM image's size and calibration as the simulation's, so they wait for the image of this specimen, and Place Beside's
+    /// pair (at the measured image's scale) has none.
+    package func columnsBlocker(crystal: DiffractionCrystal?, zoneAxis: SIMD3<Int>) -> String? {
+        if beside != nil { return "Column rings show on the simulation alone; turn Place Beside off." }
+        if !exitWavesAreCurrent(crystal: crystal, zoneAxis: zoneAxis) { return "The rings wait for the image of this specimen." }
+        return nil
+    }
+
+    /// The rings to draw on `image`: the columns while the switch is on and nothing blocks them, else nil.
+    package func drawnColumns(crystal: DiffractionCrystal?, zoneAxis: SIMD3<Int>, on image: CalibratedImage) -> [SlabDrawing.Column]? {
+        guard marksColumns, columnsBlocker(crystal: crystal, zoneAxis: zoneAxis) == nil else { return nil }
+        return columns(crystal: crystal, zoneAxis: zoneAxis, on: image)
+    }
+
+    /// Marks the atom columns of the specimen on its HRTEM image (the HRTEM section's Atom columns switch and the door's).
+    package func setMarksColumns(_ on: Bool) { marksColumns = on }
 }
 
 extension DiffractionAnalysis {

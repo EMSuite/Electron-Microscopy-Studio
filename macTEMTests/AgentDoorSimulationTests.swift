@@ -68,7 +68,10 @@ nonisolated final class AgentDoorSimulationTests: XCTestCase {
         let opened = try await call("new_simulation")
         XCTAssertFalse(opened.refused, opened.text)
         XCTAssertEqual(try json(opened.text)["opens_in_new_window"] as? Bool, false, "an empty window takes the simulation itself")
-        try await waitUntil("the simulation to open", seconds: 30) { state.openItems.selected?.session.image != nil }
+        // The image loads before the open lands the simulation in its room (`landSimulation`, after `settled()`): wait for both.
+        try await waitUntil("the simulation to open", seconds: 30) {
+            state.openItems.selected?.session.image != nil && state.navigation.workspaceArea == .diffraction
+        }
         XCTAssertEqual(state.navigation.workspaceArea, .diffraction)
 
         let view = try await call("get_crystal_view")
