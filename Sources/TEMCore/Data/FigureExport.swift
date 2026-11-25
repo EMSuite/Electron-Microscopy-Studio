@@ -32,7 +32,6 @@ package nonisolated enum FigureExport {
 
     /// The marks' yellow, as the Image room draws them (`ImageExport.drawMarks`).
     package static let markColor = FigureColor(red: 1, green: 0.8, blue: 0)
-    static let simulatedColor = FigureColor(red: 0, green: 0.85, blue: 1)
     /// The plate under the scale bar, as the PNG's.
     static let plateColor = FigureColor(gray: 0, alpha: 0.45)
     /// The bar's thickness, the plate's padding and its distance from the picture's edges, in points.
