@@ -233,6 +233,30 @@ nonisolated final class DiffractionIndexTests: XCTestCase {
 
     // MARK: The Spots table and its CSV (#785)
 
+    /// A spot Index leaves unexplained that sits on a spot double diffraction adds is named in the Spots table (#786): silicon down
+    /// [1 1 0] forbids 002, 1̄11 + 11̄1 lands there; a measured spot at 1.01 times its q (Index's fitted scale 1.01) reads 002, d expected
+    /// a/2 = 2.71545 Å, phase "Si · double diffraction". Off the added spot, or with no added spots, it stays unexplained. Red before:
+    /// the table named no spot of double diffraction.
+    func testTheSpotsTableNamesASpotOfDoubleDiffraction() throws {
+        let si = try XCTUnwrap(StandardCrystals.named("Si"))
+        let o = try CrystalOrientation(zoneAxis: SIMD3(1, 1, 0), cell: si.structure.cell)
+        let added = try PatternIndexing.addedSpots(structure: si.structure, orientation: o, volts: 200_000, sigma: 0.02)
+        let s002 = try XCTUnwrap(added.first { $0.hkl == MillerIndex(0, 0, 2) }, "\(added.map(\.hkl))")
+        let on = PatternIndexing.Spot(id: UUID(), row: 0, column: 0, intensity: 1, radiusPx: 40, q: 1.01 * s002.q, hkl: nil, dListed: nil)
+        let off = PatternIndexing.Spot(id: UUID(), row: 0, column: 0, intensity: 1, radiusPx: 40, q: 1.2 * s002.q, hkl: nil, dListed: nil)
+        let outcome = PatternIndexing.Outcome(phase: "Si", verdict: .found, spots: [on, off], explained: 0, indexed: 2, orientation: o,
+                                              alternatives: [], zoneAxis: SIMD3(1, 1, 0), zoneAxisAngle: 0, scale: 1.01, misfitPercent: nil)
+        let numbers = [on.id: 1, off.id: 2]
+        let rows = PatternIndexing.rows(outcome, numbers: numbers, added: added, cell: si.structure.cell)
+        XCTAssertEqual(rows[0].hkl, MillerIndex(0, 0, 2))
+        XCTAssertEqual(rows[0].phase, "Si · double diffraction")
+        XCTAssertEqual(try XCTUnwrap(rows[0].dExpected), 5.4309 / 2, accuracy: 1e-9)
+        XCTAssertEqual(try XCTUnwrap(rows[0].deltaPercent), 100 * (on.d - 5.4309 / 2) / (5.4309 / 2), accuracy: 1e-9)
+        XCTAssertNil(rows[1].hkl, "20 % off: not the added spot")
+        XCTAssertEqual(rows[1].phase, "")
+        XCTAssertNil(PatternIndexing.rows(outcome, numbers: numbers).first?.hkl, "no added spots: unexplained")
+    }
+
     /// The Spots table lists Index's spots still marked, numbered as the readout numbers them, each with its hkl, R, q, d, the
     /// expected d of its hkl, Δd/d and its phase; a row's id is its mark's (selecting it selects the spot); the CSV has the same
     /// columns. Red before: the room had no Spots table and no Spots CSV.
