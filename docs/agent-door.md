@@ -47,6 +47,7 @@ door this one follows (4DSTEM Studio `docs/agent-door.md`). This app hands the d
 | `get_diffraction_picture` | the pattern as the Diffraction room shows it, with the marked spots (yellow, numbered as the Spots table) and the simulated spots (cyan, the strongest labelled with hkl) |
 | `list_phases` | the phase library on this Mac: each phase's id, name, source and credit, marker, lattice and whether it was edited, its free lattice parameters, unreadable records, and an `add_phase` running or its outcome |
 | `get_indexing_picture` | `which` map (the layer as Export's Map PNG… draws it), pattern (as indexed, without the band overlay) or best_match (a Dictionary run's) |
+| `get_crystal_view` | the Diffraction room's crystal pane: shown or hidden, the phase, the zone axis nearest the drawn orientation and the tilt off it, the orientation as the 3 by 3 matrix the simulated spots are drawn with, the unit cell switch and the scene (atoms and bonds by element, cell lengths); with `picture`, the pane's picture (the first ask starts the drawing and answers 409, ask again) |
 
 Every picture and number comes from the code that draws or exports it for the person, so the agent judges what the
 person sees. Numbers in JSON fields use a point; the status and Output lines are the window's own text, in the Mac's Region.
@@ -82,6 +83,7 @@ Behind "Let agents run analyses". Each goes through the entry point its control 
 | `set_fft_spots` | Find Spots, Measure at… (whole bins from the centre), selects and removes spots, puts spots in or out of the mask |
 | `set_diffraction` | the Diffraction room's Centre (typed, or a fitted ring's), Calibration (standard, ring, Calibrate on Ring, Clear, typed Δq and kV for a file without them, camera and pixel pitch), Phases (a standard as the crystal, k_max, tolerance; a library phase through `add_phase`), the annulus, Fit Ring, the tool and the log display |
 | `set_diffraction_marks` | adds a spot as a click on the pattern does, selects a ring or spot, removes one or all |
+| `new_simulation` | File > New Simulation: a simulated pattern with no measured one, in the Diffraction room with the simulated spots on; a window that holds a file gives it a tab of its own |
 | `index_pattern` | presses Index (optionally Remove Spots first, and Fit scale on or off) and answers at once with `get_spot_table`'s answer; refused in the room's words without a centre, a scale, a beam energy or a crystal |
 | `set_zone_axis` | the Index section's zone axis (as typed) and turn, its Solution stepper and Flip 180°, and the Tilt tool's tilt and ⌥ turn; answers with the orientation's place once set by hand |
 | `simulate_pattern` | the Simulation section's overlay, labels, double diffraction and excitation error; answers with the simulated spots on the pattern (each flagged when double diffraction adds it) or why there are none |
@@ -100,7 +102,7 @@ The EDS tools are EMSuiteUI's `EDXAgentTools`, written once and registered by bo
 `macTEM/App/AgentDoorCoverage.swift` lists every control in the app, by its accessibility identifier, with how an agent
 reaches it: the tool that does it, already seen in a get tool's answer, left to the person on purpose (with the reason), or a
 gap with its open issue. `AgentDoorCoverageTests` fails when a control has no row, a row names a tool the door does not have,
-or a row outlives its control, so a new control cannot ship undecided. The menu bar has its own table beside it, `menuItems`: every item of the File, View, Image, Workspace and Help menus by its title as the source writes it, held by the same test. Every tool that acts is in the table above, and the test fails when one is not. A feature that adds a room action adds its row in the same PR, and the release walk reads the gaps. The gaps left are its crystal pane, File > New Simulation and its Microscope section (#846), and the EDS room's polygon and line regions and Pin Region (#885). A room's open panel is the
+or a row outlives its control, so a new control cannot ship undecided. The menu bar has its own table beside it, `menuItems`: every item of the File, View, Image, Workspace and Help menus by its title as the source writes it, held by the same test. Every tool that acts is in the table above, and the test fails when one is not. A feature that adds a room action adds its row in the same PR, and the release walk reads the gaps. The gaps left are the crystal pane's Unit cell switch and the Simulation document's Microscope section (#846), and the EDS room's polygon and line regions and Pin Region (#885). A room's open panel is the
 person's; `open_file` opens a file of the Agent folder and `open_demo` the shipped demos. The EDS room's own controls are
 EMSuiteUI's and are reached through its tools.
 
