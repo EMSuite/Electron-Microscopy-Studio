@@ -53,6 +53,20 @@ nonisolated final class CBEDTimingDiagnosticTests: XCTestCase {
             let runText = "CBEDRun.run 6 nm \(fmt(tRun)) s; stamps " + stamps.values.suffix(8).map(fmt).joined(separator: " ")
             lines.append(head + "; " + parts + "; " + runText)
         }
+        for step in [0.5, 0.25] {
+            var settings = CBEDSettings()
+            settings.angularStepMrad = step
+            settings.largestThicknessNM = 200
+            let stamps = Stamps()
+            let start = ContinuousClock.now
+            let tRun = try seconds {
+                _ = try CBEDRun.run(built, settings: settings, semiangleMrad: 6.5, volts: 200_000, specimen: "Si [0 0 1]",
+                                    progress: { _ in stamps.add((ContinuousClock.now - start) / .seconds(1)) })
+            }
+            let v = stamps.values
+            let at = [0.1, 0.25, 0.5, 0.75].map { v.isEmpty ? "-" : fmt(v[min(v.count - 1, Int(Double(v.count) * $0))]) }
+            lines.append("full 200 nm step \(step): \(fmt(tRun)) s; \(v.count) progress calls; quartile stamps " + at.joined(separator: " "))
+        }
         XCTFail("CBED timing (#1078):\n" + lines.joined(separator: "\n"))
     }
 
