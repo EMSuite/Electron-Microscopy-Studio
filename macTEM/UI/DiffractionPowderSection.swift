@@ -1,9 +1,10 @@
 //
 //  DiffractionPowderSection.swift
 //  Role: the Diffraction room's Powder section (plan row R11, #810): the powder pattern of the room's crystal, and of one more phase
-//        to compare with, as rings against q at the pattern's beam energy or as an X-ray pattern against 2θ at a chosen line. A
-//        stick chart (one colour a phase, the strongest peak of a phase at 100), the headline of each phase, the overlap and
-//        diagnostic marks with two phases, and the peaks in a short table. Presentation only: every number is `PowderTable`'s over
+//        to compare with, as rings against q at the pattern's beam energy or as an X-ray pattern against 2θ at a chosen line. The
+//        section holds the settings; the stick chart (one colour a phase, the strongest peak of a phase at 100) with the headline of
+//        each phase and the overlap and diagnostic marks is the Powder Pattern pane, the peaks the Peaks table under the pattern
+//        (#921, `DiffractionSidePane`). Presentation only: every number is `PowderTable`'s over
 //        DiffractoKit's `PowderPattern`. The Simulation document (R6, #788) takes the same table when it lands.
 //
 
@@ -27,16 +28,12 @@ struct DiffractionPowderSection: View {
 
     private static let degrees = FloatingPointFormatStyle<Double>.number.precision(.fractionLength(0...2))
     private static let reach = FloatingPointFormatStyle<Double>.number.precision(.fractionLength(0...3))
-    /// The rows the section lists; the CSV has them all.
-    private static let listed = 12
 
     var body: some View {
-        let analysis = item.diffraction
         let powder = item.diffractionPowder
         let settings = powder.settings
-        let others = comparable(besides: analysis.crystal.name)
-        let phases = powder.phases(crystal: analysis.crystal, others: others)
-        let table = powder.table(phases: phases, volts: analysis.volts(for: item.session.imageOrBlank))
+        let others = Self.comparable(for: item, openItems: appState.openItems)
+        let table = Self.table(of: item, openItems: appState.openItems)
         InspectorSection("Powder", startsExpanded: false) {
             InspectorRow("Pattern") {
                 Picker("Pattern", selection: Binding(get: { settings.kind }, set: { powder.setKind($0) })) {
@@ -98,14 +95,13 @@ struct DiffractionPowderSection: View {
                         .accessibilityIdentifier("diffraction.powder.markOverlaps")
                 }
             }
-            DiffractionPowderChart(table: table)
-            ForEach(table.phases.indices, id: \.self) { i in
-                if table.patterns[i] == nil { InspectorWarning(table.headline(phase: i)) } else { InspectorNote(table.headline(phase: i)) }
-                if let marks = table.marksSentence(phase: i) { InspectorNote(marks) }
-                if let lattice = table.calculatedLatticeSentence(phase: i) { InspectorNote(lattice) }
+            // The pattern, its headlines and its peaks are results: the Powder Pattern pane beside the pattern and the Peaks table
+            // under it (#921). One next-step line here.
+            if !item.diffractionView.isShowing(.powder) {
+                InspectorNote("View › Show Powder Pattern draws it beside the pattern, its peaks in the table under it.")
+            } else if table.patterns.contains(where: { $0 == nil }) {
+                InspectorWarning("The kit drew no pattern for a phase: the pane says why.")
             }
-            DiffractionPowderPeakList(table: table, limit: Self.listed)
-            InspectorNote("A line pattern for planning and comparison: no instrument profile, no texture, no absorption, no thermal motion.")
             InspectorActionRow {
                 Button("Export Powder CSV…") { exportCSV(table) }
                     .disabled(table.rows.isEmpty)
@@ -149,12 +145,19 @@ struct DiffractionPowderSection: View {
         }
     }
 
+    /// The powder pattern the section draws and the Export section writes: the room's crystal and the phase it is compared with.
+    static func table(of item: OpenItem, openItems: OpenItems) -> PowderTable {
+        let analysis = item.diffraction
+        let phases = item.diffractionPowder.phases(crystal: analysis.crystal, others: comparable(for: item, openItems: openItems))
+        return item.diffractionPowder.table(phases: phases, volts: analysis.volts(for: item.session.imageOrBlank))
+    }
+
     /// The phases this crystal can be compared with: the room's standards, then the crystals of the other open patterns, each name once.
-    private func comparable(besides name: String) -> [PowderPhase] {
-        var seen: Set<String> = [name]
+    static func comparable(for item: OpenItem, openItems: OpenItems) -> [PowderPhase] {
+        var seen: Set<String> = [item.diffraction.crystal.name]
         var out: [PowderPhase] = []
         for s in StandardCrystals.all where seen.insert(s.name).inserted { out.append(PowderPhase(name: s.name, structure: s.structure)) }
-        for other in appState.openItems.items where other.id != item.id {
+        for other in openItems.items where other.id != item.id {
             let c = other.diffraction.crystal
             if seen.insert(c.name).inserted { out.append(PowderPhase(name: c.name, structure: c.structure)) }
         }
@@ -188,32 +191,9 @@ struct DiffractionPowderChart: View {
         .chartXAxisLabel(xTitle, alignment: .center)
         .chartYAxisLabel("I (of 100)")
         .chartLegend(table.phases.count > 1 ? .visible : .hidden)
-        .frame(height: LayoutPolicy.powderChartHeight)
+        .frame(minHeight: LayoutPolicy.powderChartHeight)
         .accessibilityLabel("Powder pattern")
         .accessibilityValue(table.phases.indices.map { table.headline(phase: $0) }.joined(separator: ". "))
-    }
-}
-
-/// The strongest peaks, strongest first: hkl, d, position and intensity, with ⧉ for an overlapped peak and ◆ for a diagnostic one.
-struct DiffractionPowderPeakList: View {
-    let table: PowderTable
-    let limit: Int
-
-    var body: some View {
-        let rows = table.rows.sorted { $0.intensity > $1.intensity }
-        let shown = rows.prefix(limit)
-        VStack(alignment: .leading, spacing: 2) {
-            ForEach(Array(shown), id: \.id) { row in
-                Text(DiffractionPowderText.line(row, table: table))
-                    .font(.callout.monospacedDigit())
-                    .foregroundStyle(row.isDiagnostic ? .primary : .secondary)
-                    .accessibilityLabel(DiffractionPowderText.spoken(row, table: table))
-            }
-            if rows.count > shown.count {
-                InspectorNote("\(rows.count - shown.count) weaker peaks are in the CSV.")
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

@@ -80,8 +80,14 @@ nonisolated final class DiffractionCrystalPaneTests: XCTestCase {
         view.showsCrystal = false
         XCTAssertFalse(view.showsCrystal)
         let room = try FFTRoomWiringTests.squeezedUI("DiffractionRoom.swift")
-        XCTAssertTrue(room.contains("if view.showsCrystal && analysis.simulation.isShown { PaneSplit(storageKey: \"diffraction.crystalSplit\""), "the split is stored")
-        XCTAssertTrue(room.contains("DiffractionCrystalPane(analysis: analysis, showsUnitCell: view.showsUnitCell,"))
+        XCTAssertTrue(room.contains("if DiffractionSidePaneView.isShown(view: view, analysis: analysis) { PaneSplit(storageKey: \"diffraction.crystalSplit\""), "the split is stored")
+        XCTAssertTrue(try FFTRoomWiringTests.squeezedUI("DiffractionSidePane.swift").contains("DiffractionCrystalPane(analysis: analysis, showsUnitCell: view.showsUnitCell,"))
+        let a = DiffractionAnalysis()
+        a.simulation.isShown = false
+        view.showsCrystal = true
+        XCTAssertFalse(DiffractionSidePaneView.isShown(view: view, analysis: a), "the crystal waits for the simulated spots")
+        a.simulation.isShown = true
+        XCTAssertTrue(DiffractionSidePaneView.isShown(view: view, analysis: a))
         let inspector = try FFTRoomWiringTests.squeezedUI("DiffractionRoomInspector.swift")
         XCTAssertFalse(inspector.contains("diffraction.crystal.show"), "showing the pane is a layout choice: View > Show Crystal")
         XCTAssertTrue(inspector.contains(".accessibilityIdentifier(\"diffraction.crystal.unitCell\")"))

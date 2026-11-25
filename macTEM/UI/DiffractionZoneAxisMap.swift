@@ -1,11 +1,10 @@
 //
 //  DiffractionZoneAxisMap.swift
-//  Role: the zone-axis map in the Holder section (plan row R15, #814): the stereographic projection around the beam of the indexed
+//  Role: the zone-axis map, a pane beside the pattern (plan row R15, #814; a pane since #921, `DiffractionZoneAxisPane`): the stereographic projection around the beam of the indexed
 //        crystal, its zone axes to index 3 within 60°, the traces of its three lowest plane families, and with a calibrated axis
 //        the holder's reach. A click picks the nearest zone axis, which the Holder section then names with its angle from the
 //        beam and the tilts to it. The map is drawn as the pattern is: lab x (down the rows) down, lab y (along the columns)
 //        right, the beam at the centre. Presentation only: every position is DiffractoKit's (`ZoneAxisMap`).
-//        Until the crystal pane (R7, #790) gives the map its own tab, it lives here.
 //
 
 import ShellLayout
@@ -41,7 +40,6 @@ struct DiffractionZoneAxisMap: View {
             draw(into: &context, map: map)
         }
         .aspectRatio(1, contentMode: .fit)
-        .frame(maxWidth: LayoutPolicy.zoneAxisMapMaximum)
         .onGeometryChange(for: CGSize.self) { $0.size } action: { size = $0 }
         .contentShape(Rectangle())
         .gesture(SpatialTapGesture().onEnded { tap in pick(at: tap.location) })

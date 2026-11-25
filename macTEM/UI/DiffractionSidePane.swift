@@ -1,0 +1,245 @@
+//
+//  DiffractionSidePane.swift
+//  Role: the pane beside the Diffraction room's pattern (#921): the crystal down the beam (#790), the zone-axis map (#814) or the powder
+//        pattern (#810). They are results of the room, so they sit beside the data and never in an inspector section (control placement
+//        §1; design DNA: a live or interactive view is a pane). The pane is picked in its header or from View (Show Crystal, Show Zone-axis
+//        Map, Show Powder Pattern), which also hides it; its width is the room's `PaneSplit`. The sentences that describe a result (the
+//        tilt to the picked zone axis, the powder headlines) are the pane's words above it; the inspector keeps the settings. The powder
+//        peaks are a table under the pattern (`DiffractionPowderPeakTable`) while the Powder Pattern pane is shown. Presentation only:
+//        the numbers are `TiltPlanning`'s and `PowderTable`'s over DiffractoKit.
+//
+
+import ShellControls
+import ShellInspector
+import ShellLayout
+import SwiftUI
+import TEMCore
+import TEMSession
+
+/// The words of the side pane and the table strip. Pure.
+nonisolated enum DiffractionPaneWords {
+    static func title(_ pane: DiffractionViewState.SidePane) -> String {
+        switch pane {
+        case .crystal: "Crystal"
+        case .zoneAxisMap: "Zone-axis Map"
+        case .powder: "Powder Pattern"
+        }
+    }
+
+    static func title(_ table: DiffractionViewState.LowerTable) -> String {
+        switch table {
+        case .readout: "Readout"
+        case .spots: "Spots"
+        case .peaks: "Peaks"
+        }
+    }
+
+    /// The View menu's item for a pane: "Show Zone-axis Map", or "Hide Zone-axis Map" while it is shown. With no Diffraction room on
+    /// screen the item reads "Show …" (and is disabled).
+    static func menuTitle(_ pane: DiffractionViewState.SidePane, shown: Bool) -> String {
+        (shown ? "Hide " : "Show ") + title(pane)
+    }
+
+    /// Why the crystal cannot be shown yet.
+    static let crystalBlocker = "Show the simulated spots, or Index, to see the crystal down the beam"
+    /// The zone-axis map before Index.
+    static let mapBlocker = "Index the pattern first: the zone axes and the tilts to them are placed from its orientation."
+    /// What the powder pattern leaves out: the pane's last words.
+    static let powderDisclaimer = "A line pattern for planning and comparison: no instrument profile, no texture, no absorption, no thermal motion."
+}
+
+/// The side pane: its header (which pane) and the pane.
+struct DiffractionSidePaneView: View {
+    let item: OpenItem
+    let analysis: DiffractionAnalysis
+    let view: DiffractionViewState
+
+    /// The side pane is on screen: shown, and for the crystal only once simulated spots are drawn (before, the pattern has the room).
+    static func isShown(view: DiffractionViewState, analysis: DiffractionAnalysis) -> Bool {
+        view.showsSidePane && (view.sidePane != .crystal || analysis.simulation.isShown)
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // The room's strip header, as the table strip under the pattern has one (Readout · Spots · Peaks).
+            HStack {
+                SegmentedPicker(label: "Pane", items: DiffractionViewState.SidePane.allCases.map { pane -> (DiffractionViewState.SidePane, SegmentedControl.Segment) in
+                                    (pane, .title(DiffractionPaneWords.title(pane),
+                                                  disabledReason: pane == .crystal && !analysis.simulation.isShown ? DiffractionPaneWords.crystalBlocker : nil))
+                                },
+                                selection: Binding(get: { view.sidePane }, set: { view.sidePane = $0 }))
+                    .fixedSize()
+                    .accessibilityIdentifier("diffraction.sidePane")
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, LayoutPolicy.infobarHorizontalPadding)
+            .frame(height: LayoutPolicy.paneHeaderHeight)
+            Divider()
+            switch view.sidePane {
+            case .crystal:
+                // A Simulation document draws the slab its multislice runs on (#897).
+                DiffractionCrystalPane(analysis: analysis, showsUnitCell: view.showsUnitCell,
+                                       slab: DemoDocuments.isSimulation(item.url)
+                                           ? item.multislice.drawnSlab(crystal: analysis.simulatedPhase, zoneAxis: analysis.simulation.zoneAxis)
+                                           : nil)
+            case .zoneAxisMap:
+                DiffractionZoneAxisPane(item: item)
+            case .powder:
+                DiffractionPowderPane(item: item)
+            }
+        }
+    }
+}
+
+/// A result's sentences above its pane: secondary words, two lines at most, the whole sentence as help.
+private struct DiffractionPaneSentence: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(.callout).foregroundStyle(.secondary).lineLimit(2).truncationMode(.tail)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .help(text)
+    }
+}
+
+/// The zone-axis map (#814) as a pane: the calibration's sentence and the picked zone axis's tilts above the map, which a click picks
+/// from, as the Holder section's Zone axis pop-up does.
+struct DiffractionZoneAxisPane: View {
+    let item: OpenItem
+
+    var body: some View {
+        let analysis = item.diffraction
+        let holder = item.diffractionHolder
+        if let plan = holder.plan(analysis: analysis, image: item.session.imageOrBlank) {
+            VStack(alignment: .leading, spacing: 6) {
+                DiffractionPaneSentence(text: plan.calibrationSentence)
+                if let uvw = holder.selected, let row = plan.row(uvw) {
+                    DiffractionPaneSentence(text: plan.sentence(for: row))
+                        .accessibilityIdentifier("diffraction.holder.sentence")
+                }
+                DiffractionZoneAxisMap(plan: plan, selected: Binding(get: { holder.selected }, set: { holder.selected = $0 }))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .padding(8)
+        } else {
+            Text(DiffractionPaneWords.mapBlocker)
+                .font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.center).padding(12)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+}
+
+/// The powder pattern (#810) as a pane: each phase's headline and marks above the chart, the disclaimer under it. Its peaks are the
+/// Peaks table under the pattern.
+struct DiffractionPowderPane: View {
+    let item: OpenItem
+    @Environment(AppState.self) private var appState
+
+    var body: some View {
+        let table = DiffractionPowderSection.table(of: item, openItems: appState.openItems)
+        VStack(alignment: .leading, spacing: 6) {
+            ForEach(table.phases.indices, id: \.self) { i in
+                // A phase the kit refused: its reason, in its words, with the glyph.
+                if table.patterns[i] == nil {
+                    InspectorWarning(table.headline(phase: i), font: .callout)
+                } else {
+                    DiffractionPaneSentence(text: table.headline(phase: i))
+                }
+                if let marks = table.marksSentence(phase: i) { DiffractionPaneSentence(text: marks) }
+                if let lattice = table.calculatedLatticeSentence(phase: i) { DiffractionPaneSentence(text: lattice) }
+            }
+            DiffractionPowderChart(table: table)
+                .frame(maxHeight: .infinity)
+            Text(DiffractionPaneWords.powderDisclaimer)
+                .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(8)
+        .accessibilityIdentifier("diffraction.powder.pane")
+    }
+}
+
+/// The powder peaks (#810) as a system `Table` under the pattern, strongest first: phase, hkl, d, position, intensity and the marks
+/// (◆ diagnostic, ⧉ overlapped and by what). ⌘C copies the selected rows as the other tables do (`DiffractionPowderPeakFormat`).
+struct DiffractionPowderPeakTable: View {
+    let table: PowderTable
+    @State private var selection: Set<PowderRow.ID> = []
+
+    private typealias Column = DiffractionPowderPeakFormat.Column
+
+    var body: some View {
+        let rows = DiffractionPowderPeakFormat.ordered(table)
+        Table(rows, selection: $selection) {
+            TableColumn(Column.phase.title(table)) { row in Text(DiffractionPowderPeakFormat.cell(.phase, row, table: table)) }
+                .width(min: 44, ideal: 64)
+            TableColumn(Column.hkl.title(table)) { row in
+                Text(DiffractionPowderPeakFormat.cell(.hkl, row, table: table)).monospacedDigit()
+                    .help(DiffractionPowderText.line(row, table: table))
+                    .accessibilityLabel(DiffractionPowderText.spoken(row, table: table))
+            }.width(min: 44, ideal: 60)
+            TableColumn(Column.d.title(table)) { row in Text(DiffractionPowderPeakFormat.cell(.d, row, table: table)).monospacedDigit() }
+                .width(min: 52, ideal: 60)
+            TableColumn(Column.position.title(table)) { row in
+                Text(DiffractionPowderPeakFormat.cell(.position, row, table: table)).monospacedDigit()
+            }.width(min: 56, ideal: 64)
+            TableColumn(Column.intensity.title(table)) { row in
+                Text(DiffractionPowderPeakFormat.cell(.intensity, row, table: table)).monospacedDigit()
+            }.width(min: 40, ideal: 48)
+            TableColumn(Column.marks.title(table)) { row in Text(DiffractionPowderPeakFormat.cell(.marks, row, table: table)) }
+                .width(min: 60, ideal: 120)
+        }
+        // ⌘C and Edit > Copy: the selected peaks; dimmed with none selected.
+        .onCopyCommand(perform: selection.isEmpty ? nil : {
+            [NSItemProvider(object: DiffractionPowderPeakFormat.copyText(rows.filter { selection.contains($0.id) }, table: table) as NSString)]
+        })
+        .overlay {
+            if rows.isEmpty {
+                Text("The kit drew no powder pattern for these phases.")
+                    .font(.callout).foregroundStyle(.secondary).padding(10).allowsHitTesting(false)
+            }
+        }
+        .accessibilityIdentifier("diffraction.powder.peaks")
+        .accessibilityLabel("Powder peaks")
+    }
+}
+
+/// The Peaks table's columns, cells and ⌘C text. Pure.
+nonisolated enum DiffractionPowderPeakFormat {
+    enum Column: CaseIterable {
+        case phase, hkl, d, position, intensity, marks
+
+        /// The column's title: the position's is 2θ for X-rays, q for rings.
+        func title(_ table: PowderTable) -> String {
+            switch self {
+            case .phase: "Phase"
+            case .hkl: "hkl"
+            case .d: "d (Å)"
+            case .position: table.settings.kind == .xray ? "2θ (°)" : "q (Å⁻¹)"
+            case .intensity: "I"
+            case .marks: "Marks"
+            }
+        }
+    }
+
+    /// Strongest first, as the section listed them.
+    static func ordered(_ table: PowderTable) -> [PowderRow] { table.rows.sorted { $0.intensity > $1.intensity } }
+
+    static func cell(_ column: Column, _ row: PowderRow, table: PowderTable, locale: Locale = .autoupdatingCurrent) -> String {
+        switch column {
+        case .phase: row.phase
+        case .hkl: row.hkl
+        case .d: Num.fixed(row.d, 3, locale: locale)
+        case .position: Num.fixed(row.position, table.settings.kind == .xray ? 2 : 3, locale: locale)
+        case .intensity: Num.fixed(row.intensity, 0, locale: locale)
+        case .marks:
+            ([row.isDiagnostic ? "◆ diagnostic" : nil] + [row.isOverlapped ? "⧉ " + row.overlaps.joined(separator: ", ") : nil])
+                .compactMap { $0 }.joined(separator: " ")
+        }
+    }
+
+    /// The header line and one line per row, tab-separated, cells as the table shows them; "" for no rows.
+    static func copyText(_ rows: [PowderRow], table: PowderTable, locale: Locale = .autoupdatingCurrent) -> String {
+        TableCopyText.text(titles: Column.allCases.map { $0.title(table) },
+                           rows: rows.map { row in Column.allCases.map { cell($0, row, table: table, locale: locale) } })
+    }
+}

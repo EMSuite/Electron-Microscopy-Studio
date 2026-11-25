@@ -52,6 +52,10 @@ nonisolated enum AgentDoorCoverage {
         "diffraction.camera": .tool("set_diffraction"),
         "diffraction.centre.useRing": .tool("set_diffraction"),
         "diffraction.crystalPane": .tool("get_crystal_view"),
+        "diffraction.sidePane": .personOnly(layoutReason),
+        "diffraction.holder.sentence": .tool("plan_tilt"),
+        "diffraction.powder.pane": .tool("powder_pattern"),
+        "diffraction.powder.peaks": .tool("powder_pattern"),
         "diffraction.crystal.unitCell": .gap(846),
         "diffraction.export": .personOnly(exportReason),
         "diffraction.export.spots": .personOnly(exportReason),
@@ -629,7 +633,7 @@ nonisolated enum AgentDoorCoverage {
         #"appState?.navigation.panels.sidebarIsVisible == true ? "Hide Sidebar" : "Show Sidebar""#: .personOnly(layoutReason),
         #"appState?.navigation.panels.inspectorIsVisible == true ? "Hide Inspector" : "Show Inspector""#: .personOnly(layoutReason),
         #"appState?.navigation.panels.showProcessArea == true ? "Hide Output" : "Show Output""#: .personOnly(layoutReason),
-        #"diffractionView?.showsCrystal == true ? "Hide Crystal" : "Show Crystal""#: .personOnly(layoutReason),
+        "DiffractionPaneWords.menuTitle(pane, shown: diffractionView?.isShowing(pane) == true)": .personOnly(layoutReason),
         // Image: the measuring tools.
         "tool.title": .tool("set_image_room"),
         // Workspace

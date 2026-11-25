@@ -33,6 +33,7 @@ import DiffractoGeometry
 
 struct DiffractionRoom: View {
     let item: OpenItem
+    @Environment(AppState.self) private var appState
     /// Read from the item, never stored: SwiftUI keeps a view's closures (hover, gestures, commands) after the view is gone, and a stored
     /// image kept its pixels alive after its tab closed (macTEM#574, `ImagePane.image`).
     private var image: CalibratedImage { item.session.image ?? ImagePane.blankImage }
@@ -47,16 +48,14 @@ struct DiffractionRoom: View {
         let rows = analysis.readout(image: image)
         VStack(spacing: 0) {
             DiffractionHeader(item: item, analysis: analysis, view: view)
-            // The crystal beside the pattern (#790), down the same beam: one orientation drives both. It appears once simulated spots
-            // are drawn (before, the pattern has the room), unless View > Hide Crystal hid it (#789); the divider's place is the
-            // window's (`PaneSplit`'s scene storage).
-            if view.showsCrystal && analysis.simulation.isShown {
-                PaneSplit(storageKey: "diffraction.crystalSplit", resizeLabel: "Resize the crystal and the pattern", leadingName: "Crystal") {
-                    // A Simulation document draws the slab its multislice runs on (#897).
-                    DiffractionCrystalPane(analysis: analysis, showsUnitCell: view.showsUnitCell,
-                                           slab: DemoDocuments.isSimulation(item.url)
-                                               ? item.multislice.drawnSlab(crystal: analysis.simulatedPhase, zoneAxis: analysis.simulation.zoneAxis)
-                                               : nil)
+            // The pane beside the pattern (#921): the crystal down the same beam (#790; one orientation drives both), the zone-axis map
+            // (#814) or the powder pattern (#810), picked from View or the pane's own header. The crystal appears once simulated spots
+            // are drawn (before, the pattern has the room); View hides the pane (#789); the divider's place is the window's
+            // (`PaneSplit`'s scene storage).
+            if DiffractionSidePaneView.isShown(view: view, analysis: analysis) {
+                PaneSplit(storageKey: "diffraction.crystalSplit", resizeLabel: "Resize the side pane and the pattern",
+                          leadingName: DiffractionPaneWords.title(view.sidePane)) {
+                    DiffractionSidePaneView(item: item, analysis: analysis, view: view)
                 } trailing: {
                     patternPane(analysis: analysis, view: view, rows: rows)
                 }
@@ -65,17 +64,21 @@ struct DiffractionRoom: View {
             }
             Divider()
             // One table under the pattern: the readout, or once Index has an answer, its Spots table (#785: hkl, expected d and
-            // misfit per spot), picked in the strip's header. Never both side by side: they share R, q, d and Δd/d and do not fit a
-            // small window.
+            // misfit per spot), or while the Powder Pattern pane is shown its peaks (#921), picked in the strip's header. Never two side
+            // by side: they share columns and do not fit a small window.
             // A Simulation document lists its simulated spots there (#907); a measured pattern lists Index's once it answers.
             let isSimulation = DemoDocuments.isSimulation(item.url)
             let hasSpots = isSimulation || analysis.indexOutcome != nil
+            let tables = view.lowerTables(hasSpots: hasSpots)
+            let shown = view.shownLowerTable(hasSpots: hasSpots)
             VStack(spacing: 0) {
-                if hasSpots {
+                if tables.count > 1 {
                     HStack {
-                        SegmentedPicker(label: "Table", items: [(DiffractionViewState.LowerTable.readout, .title("Readout")),
-                                                                (.spots, .title("Spots"))],
-                                        selection: Binding(get: { view.lowerTable }, set: { view.lowerTable = $0 }))
+                        SegmentedPicker(label: "Table",
+                                        items: tables.map { table -> (DiffractionViewState.LowerTable, SegmentedControl.Segment) in
+                                            (table, .title(DiffractionPaneWords.title(table)))
+                                        },
+                                        selection: Binding(get: { shown }, set: { view.lowerTable = $0 }))
                             .fixedSize()
                             .accessibilityIdentifier("diffraction.lowerTable")
                         Spacer()
@@ -84,7 +87,8 @@ struct DiffractionRoom: View {
                     .frame(height: LayoutPolicy.paneHeaderHeight)
                     Divider()
                 }
-                if hasSpots && view.lowerTable == .spots {
+                switch shown {
+                case .spots:
                     if isSimulation {
                         DiffractionSpotTable(view: view, rows: item.simulatedSpotRows(image: image),
                                              empty: "Add a phase and show the simulated spots to list them.", selectsMarks: false,
@@ -92,7 +96,9 @@ struct DiffractionRoom: View {
                     } else {
                         DiffractionSpotTable(view: view, rows: analysis.indexSpotRows)
                     }
-                } else {
+                case .peaks:
+                    DiffractionPowderPeakTable(table: DiffractionPowderSection.table(of: item, openItems: appState.openItems))
+                case .readout:
                     DiffractionReadoutTable(analysis: analysis, view: view, rows: rows)
                 }
             }
