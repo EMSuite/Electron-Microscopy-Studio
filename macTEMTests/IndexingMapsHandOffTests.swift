@@ -53,12 +53,15 @@ nonisolated final class IndexingMapsHandOffTests: XCTestCase {
         XCTAssertNil(state.openIndexingInMaps())
         XCTAssertEqual(state.statusText, "Index first")
         XCTAssertEqual(state.maps.document?.source, .patterns, "a refusal leaves the Maps room as it was")
+        XCTAssertNil(state.mapsIndexingOffer, "nothing indexed: Maps offers no run")
 
         XCTAssertNil(state.indexing.refusal)
         await state.indexing.index().value
         let result = try XCTUnwrap(state.indexing.result)
         XCTAssertTrue(result.isComplete)
         XCTAssertNil(state.indexing.openInMapsRefusal)
+        XCTAssertEqual(state.mapsIndexingOffer, "The Indexing room has indexed this scan; this map is the pattern file's own.",
+                       "the file's map shown while a run waits: Maps says so (#1068)")
         ebsd.pin(EBSDPosition(row: 4, column: 7))
 
         let drawn = try XCTUnwrap(state.openIndexingInMaps())
@@ -83,6 +86,7 @@ nonisolated final class IndexingMapsHandOffTests: XCTestCase {
         XCTAssertTrue(state.maps.isOnScan(of: dataset), "the live pattern pane shows the patterns beside the run")
         XCTAssertEqual(state.maps.sources.map(\.source), [.patterns, .indexing(run: run, method: .hough)])
         XCTAssertNil(state.mapsStaleness)
+        XCTAssertNil(state.mapsIndexingOffer, "the run shown: no offer")
         XCTAssertEqual(MapsRoomFormat.sourceWords(.indexing(run: run, method: .hough)), "The Indexing room's Hough run")
 
         // A setting or the Patterns room's processing changed since the run stales it, each named; a later run too, and Open in Maps
