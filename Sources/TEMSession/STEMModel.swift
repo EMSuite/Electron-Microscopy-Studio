@@ -32,13 +32,20 @@ package final class STEMModel {
     /// What a run is of: the specimen, the optics' Cs and voltage, the vibrations and the settings. Another key needs a new run.
     package nonisolated struct RunKey: Equatable, Sendable {
         /// The specimen: `SimulationModel.sourceIdentity`, the phase's or the atom model's with its beam axis (#953).
+        // periphery:ignore - read by the synthesized == (and hash)
         let source: String
+        // periphery:ignore - read by the synthesized == (and hash)
         let zoneAxis: SIMD3<Int>
+        // periphery:ignore - read by the synthesized == (and hash)
         let thicknessNM: Double
+        // periphery:ignore - read by the synthesized == (and hash)
         let maximumStrain: Double
         package let volts: Double
+        // periphery:ignore - read by the synthesized == (and hash)
         let csMM: Double
+        // periphery:ignore - read by the synthesized == (and hash)
         let thermal: HRTEMThermal?
+        // periphery:ignore - read by the synthesized == (and hash)
         let settings: STEMSettings
     }
 

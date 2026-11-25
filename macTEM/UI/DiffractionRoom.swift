@@ -331,7 +331,7 @@ private struct DiffractionPatternPane: View {
                     SimulatedSpotsOverlay(spots: simulated, showsLabels: analysis.simulation.showsLabels, layout: layout)
                         .allowsHitTesting(false)
                 }
-                // The shown variants of a precipitate (#808), magenta, under the measured marks; placed off the main actor, the last
+                // The shown variants of a precipitate (#808), pink diamonds, under the measured marks; placed off the main actor, the last
                 // placement drawn until the next lands.
                 if item.diffractionVariants.isShown {
                     let variants = item.diffractionVariants
@@ -791,21 +791,25 @@ private struct SimulatedSpotsOverlay: View {
     }
 }
 
-/// The shown variants' spots (#808): a magenta ring per merged spot, its size growing with the square root of its intensity against
-/// the strongest, as the simulated spots are drawn; a spot several variants predict is one ring.
+/// The shown variants' spots (#808): a pink diamond per merged spot, its size growing with the square root of its intensity against
+/// the strongest, as the simulated spots are drawn; a spot several variants predict is one diamond. A diamond, not the matrix's ring,
+/// so the two are told apart without colour (#923, `OverlaySignal.simulatedSpot`).
 private struct VariantSpotsOverlay: View {
     let pixels: [VariantPixel]
     let layout: DiffractionLayout
-    /// Spots double diffraction adds (#809): dashed rings of the smallest size.
+    /// Spots double diffraction adds (#809): dashed diamonds of the smallest size.
     var dashed = false
+    @Environment(\.colorSchemeContrast) private var contrast
 
     var body: some View {
         Canvas { ctx, _ in
+            let mark = OverlaySignal.simulatedSpot(variant: true)
+            let width = OverlaySignal.width(1.5, increasedContrast: contrast == .increased)
             for spot in pixels {
                 let p = layout.point(column: spot.column, row: spot.row)
                 let r = 3 + 6 * CGFloat(spot.relative.squareRoot())
-                ctx.stroke(Path(ellipseIn: CGRect(x: p.x - r, y: p.y - r, width: 2 * r, height: 2 * r)), with: .color(.pink),
-                           style: StrokeStyle(lineWidth: 1.5, dash: dashed ? [2, 2] : []))
+                ctx.stroke(Path(OverlaySignal.outline(mark, centre: p, radius: r)), with: .color(.pink),
+                           style: StrokeStyle(lineWidth: width, dash: dashed ? [2, 2] : []))
             }
         }
         .accessibilityHidden(true)

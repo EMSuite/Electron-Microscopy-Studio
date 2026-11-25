@@ -23,13 +23,6 @@ package nonisolated struct DynamicalSpots: Sendable, Equatable {
     /// The beam energy, V.
     package let volts: Double
 
-    package init(intensities: [[MillerIndex: Double]], thicknessesNM: [Double], specimen: String, volts: Double) {
-        self.intensities = intensities
-        self.thicknessesNM = thicknessesNM
-        self.specimen = specimen
-        self.volts = volts
-    }
-
     /// The beams of `exit`, the waves of `built`'s slab at whole periods (`HRTEMImage.exitWaves`), by hkl.
     package init(_ exit: HRTEMExitWaves, built: SimulationSpecimen.Built) throws {
         let slab = built.slab
