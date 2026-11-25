@@ -97,7 +97,7 @@ package nonisolated struct AtomModelSpecimen: Sendable, Equatable {
         } catch let refusal as Refusal {
             throw refusal
         } catch {
-            throw Refusal.unreadable(file: fileName, reason: (error as? CustomStringConvertible)?.description ?? "\(error)")
+            throw Refusal.unreadable(file: fileName, reason: String(describing: error))
         }
         self.fileName = fileName
         self.contents = contents
@@ -197,7 +197,7 @@ package nonisolated struct AtomModelSpecimen: Sendable, Equatable {
         } catch SimulatoError.partialOccupancy(let site, let occupancy) {
             return .failure(.partialOccupancy(site: "\(site + 1)", occupancy: occupancy))
         } catch {
-            return .failure(.refused((error as? CustomStringConvertible)?.description ?? "\(error)"))
+            return .failure(.refused(String(describing: error)))
         }
     }
 
