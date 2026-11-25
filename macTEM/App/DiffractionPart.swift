@@ -79,7 +79,8 @@ nonisolated enum DiffractionPart: String, CaseIterable, Identifiable, Sendable {
             [.simulatedCalibration, .phases, .index, .simulation, .crystalView, .precipitate, .tools, .rings, .display]
         case (.tiltPlan, _): [.holder]
         case (.powder, _): [.phases, .powder]
-        case (.thickness, _): [.thickness, .display]
+        // Phases above Thickness (#1083): the phase shown sets the rings the discs are looked for on, so it is picked where it is needed.
+        case (.thickness, _): [.phases, .thickness, .display]
         case (.calibrate, _), (.index, _), (.simulate, _): []
         }
         return list.filter(has.contains)
@@ -146,8 +147,7 @@ nonisolated enum DiffractionPart: String, CaseIterable, Identifiable, Sendable {
         case .calibrate, .index: facts.kind == .measured ? nil : measuredOnlySentence
         case .simulate: facts.kind == .measured ? simulationOnlySentence : nil
         case .tiltPlan: facts.isIndexed || facts.kind != .measured ? nil : noOrientationSentence
-        case .powder: facts.hasPhase ? nil : noPhaseSentence
-        case .thickness: nil
+        case .powder, .thickness: facts.hasPhase ? nil : noPhaseSentence
         }
     }
 

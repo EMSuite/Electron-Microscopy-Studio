@@ -128,7 +128,7 @@ package nonisolated enum CBEDThickness {
 
         package var sentence: String {
             switch self {
-            case .noPhase: "Add the phase first: the reflection sets the scale."
+            case .noPhase: "Show a phase in Phases first: its first reflections set the rings the discs are looked for on."
             case .noScale: "Calibrate the pattern first: the discs are found at |g| from the centre."
             case .noVoltage: "Type the beam energy first: the extinction distance depends on it."
             case .noDisc: "No diffracted disc stands out on the rings of the phase's first reflections: tilt to a two-beam condition."

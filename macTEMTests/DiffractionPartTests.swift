@@ -29,7 +29,8 @@ nonisolated final class DiffractionPartTests: XCTestCase {
                        [.simulatedCalibration, .microscope, .phases, .orientation, .simulation, .specimen])
         XCTAssertEqual(DiffractionPart.sections(.tiltPlan, kind: .measured), [.holder])
         XCTAssertEqual(DiffractionPart.sections(.powder, kind: .measured), [.phases, .powder])
-        XCTAssertEqual(DiffractionPart.sections(.thickness, kind: .cbed), [.thickness, .display])
+        XCTAssertEqual(DiffractionPart.sections(.thickness, kind: .cbed), [.phases, .thickness, .display])
+        XCTAssertEqual(DiffractionPart.sections(.thickness, kind: .measured), [.phases, .thickness, .display], "the phase is picked where it is needed (#1083)")
         XCTAssertTrue(DiffractionPart.sections(.calibrate, kind: .simulation).isEmpty)
         XCTAssertTrue(DiffractionPart.sections(.simulate, kind: .measured).isEmpty)
 
@@ -67,7 +68,8 @@ nonisolated final class DiffractionPartTests: XCTestCase {
         XCTAssertEqual(available(Facts(kind: .measured, isIndexed: true)), [.calibrate, .index, .tiltPlan, .powder, .thickness])
         XCTAssertEqual(available(Facts(kind: .simulation)), [.simulate, .tiltPlan, .powder, .thickness])
         XCTAssertEqual(available(Facts(kind: .cbed)), [.simulate, .tiltPlan, .powder, .thickness])
-        XCTAssertEqual(available(Facts(kind: .simulation, hasPhase: false)), [.simulate, .tiltPlan, .thickness])
+        XCTAssertEqual(available(Facts(kind: .simulation, hasPhase: false)), [.simulate, .tiltPlan])
+        XCTAssertEqual(DiffractionPart.unavailableReason(.thickness, facts: Facts(kind: .cbed, hasPhase: false)), DiffractionPart.noPhaseSentence)
 
         XCTAssertEqual(DiffractionPart.unavailableReason(.calibrate, facts: Facts(kind: .simulation)), DiffractionPart.measuredOnlySentence)
         XCTAssertEqual(DiffractionPart.unavailableReason(.simulate, facts: Facts(kind: .measured)), DiffractionPart.simulationOnlySentence)
