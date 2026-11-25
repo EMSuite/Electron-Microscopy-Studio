@@ -32,12 +32,17 @@ nonisolated final class CBEDPatternTests: XCTestCase {
     /// thickness dropped; the 0.05 Å grid's cutoff as the default edge.
     func testThePlanNamesTheBoxForTheAngularStep() throws {
         let built = try SimulationSpecimen.build(CrystalPresets.silicon, zoneAxis: SIMD3(1, 1, 1), thicknessNM: 2).get()
-        let plan = try CBEDRun.plan(built, settings: CBEDSettings(), volts: 200_000)
-        let reach = 0.025079 / (CBEDSettings().angularStepMrad / 1000)
+        // 0.25 mrad: the √3 cell finds a square box within twice its least repeats (19 × 11). At the 0.5 mrad default it does not
+        // (12 × 7 is 1 % off, and the tilted parity fixture pins the closest-pair box), so the pattern's rows and columns carry
+        // their own steps there (`rowDeltaQ`, `columnDeltaQ`).
+        var settings = CBEDSettings()
+        settings.angularStepMrad = 0.25
+        let plan = try CBEDRun.plan(built, settings: settings, volts: 200_000)
+        let reach = 0.025079 / 0.00025
         XCTAssertGreaterThanOrEqual(plan.box.x, reach * 0.999)
         XCTAssertGreaterThanOrEqual(plan.box.y, reach * 0.999)
         XCTAssertLessThanOrEqual(abs(plan.box.x - plan.box.y) / max(plan.box.x, plan.box.y), CBEDRun.squareTolerance)
-        XCTAssertLessThanOrEqual(max(plan.stepMrad.x, plan.stepMrad.y), CBEDSettings().angularStepMrad + 1e-9)
+        XCTAssertLessThanOrEqual(max(plan.stepMrad.x, plan.stepMrad.y), 0.25 + 1e-9)
         XCTAssertEqual(plan.planePeriods, plan.planePeriods.sorted())
         XCTAssertEqual(Set(plan.planePeriods).count, plan.planePeriods.count)
         XCTAssertEqual(plan.planePeriods.last, plan.periods)
@@ -47,7 +52,7 @@ nonisolated final class CBEDPatternTests: XCTestCase {
         XCTAssertGreaterThan(plan.planePeriods.count, 40, "about every 2 nm to 100 nm")
         XCTAssertTrue(plan.sentence.hasPrefix("Box "), plan.sentence)
         XCTAssertNil(plan.smallBoxSentence)
-        XCTAssertNoThrow(try CBEDRun.checkPlan(plan, built: built, settings: CBEDSettings(), volts: 200_000,
+        XCTAssertNoThrow(try CBEDRun.checkPlan(plan, built: built, settings: settings, volts: 200_000,
                                                limits: SimulationLimits(memoryBudget: 8 << 30, largestBuffer: 8 << 30)))
     }
 
