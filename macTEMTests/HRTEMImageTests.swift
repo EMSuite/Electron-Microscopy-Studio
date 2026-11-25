@@ -9,7 +9,8 @@
 //  there was no HRTEM image.
 //
 //  Si a = 5.4309 Å along [1 1 0]: the box is a × a√2 (5.4309 × 7.6805 Å), a period a√2. At a 40 mrad aperture and 200 kV the
-//  sampling with no aperture is the rule's finest, 0.05 Å (as min(0.05, λ / 3β) for any aperture up to 160 mrad), so 109 and 154 points, raised to 120 and 160 (factors 2, 3, 5). 2 nm is 2.6 periods:
+//  sampling with no aperture is the rule's finest, 0.05 Å (as min(0.05, λ / 3β) for any aperture up to 160 mrad), so at least 109 and 154 points; the
+//  square grid is 125 × 176 (pixels 0.04345 and 0.04364 Å, 0.44 % apart; no pair of factors 2, 3, 5 up to twice is within 0.5 %, #1006). 2 nm is 2.6 periods:
 //  3. A 4 nm view takes ⌈40 / 5.4309⌉ = 8 units across and ⌈40 / 7.6805⌉ = 6 up.
 //
 
@@ -30,16 +31,47 @@ nonisolated final class HRTEMImageTests: XCTestCase {
         try SimulationSpecimen.build(CrystalPresets.silicon, zoneAxis: SIMD3(1, 1, 0), thicknessNM: nm).get()
     }
 
-    /// Mutation: the grid not raised to factors 2, 3 and 5, the sampling not the kit's, the planes not at whole periods.
+    /// Mutation: each length raised on its own (120 × 160, #1006), the sampling not the kit's, the planes not at whole periods.
     func testTheExitWavesAreStoredAtEveryPeriodOnTheKitsGrid() throws {
         let exit = try HRTEMImage.exitWaves(try silicon(), optics: HRTEMOptics(), specimen: "Si [1 1 0]")
         XCTAssertEqual(exit.waves.count, 3)
         XCTAssertEqual(exit.planePeriods, [1, 2, 3])
-        XCTAssertEqual(exit.waves[0].grid.nx, 120)
-        XCTAssertEqual(exit.waves[0].grid.ny, 160)
+        XCTAssertEqual(exit.waves[0].grid.nx, 125)
+        XCTAssertEqual(exit.waves[0].grid.ny, 176)
         XCTAssertEqual(exit.periodNM, 5.4309 * 2.0.squareRoot() / 10, accuracy: 1e-12)
         XCTAssertEqual(exit.thicknessNM(at: 2), 3 * exit.periodNM, accuracy: 1e-12)
         XCTAssertNotEqual(exit.waves[0].field, exit.waves[2].field, "the planes are at different depths")
+    }
+
+    /// The pixels are square (#1006): the grid's lengths follow the box's sides, both at the sampling or finer. Si [1 1 0] (a × a√2)
+    /// and Mg [0 0 0 1] (a × a√3, hexagonal) within 0.5 %, the frozen-phonon supercell too; Si [0 0 1] (a × a) keeps 120 × 120.
+    /// Red before: each length was raised to factors 2, 3, 5 on its own, so Si [1 1 0] took 120 × 160 (0.0453 by 0.0480 Å, 6 %) and
+    /// Mg 72 × 120 (3.8 %). Mutation: the tolerance dropped, a length below the sampling's count, the longer side taken for both.
+    func testThePixelsAreSquareWithinHalfAPercent() throws {
+        let optics = HRTEMOptics()
+        let specimens: [(String, SimulationSpecimen.Built)] = [
+            ("Si [1 1 0]", try silicon()),
+            ("Mg [0 0 0 1]", try SimulationSpecimen.build(CrystalPresets.magnesium, zoneAxis: SIMD3(0, 0, 1), thicknessNM: 2,
+                                                          maximumStrain: 0.01).get()),
+            ("Si [0 0 1]", try SimulationSpecimen.build(CrystalPresets.silicon, zoneAxis: SIMD3(0, 0, 1), thicknessNM: 2).get()),
+        ]
+        for (name, built) in specimens {
+            for (box, grid) in [(built.box, try HRTEMImage.grid(built, optics: optics)),
+                                (built.slabBox, try HRTEMImage.thermalGrid(built, optics: optics))] {
+                let px = box.x / Double(grid.nx), py = box.y / Double(grid.ny)
+                XCTAssertLessThanOrEqual(abs(px - py) / max(px, py), 0.005, "\(name): \(grid.nx) × \(grid.ny) over \(box.x) × \(box.y) Å")
+                XCTAssertLessThanOrEqual(max(px, py), HRTEMImage.finestSampling + 1e-12, "\(name): no axis coarser than the sampling")
+            }
+        }
+        let si001 = try HRTEMImage.grid(specimens[2].1, optics: optics)
+        XCTAssertEqual(si001.nx, 120, "equal sides keep factors 2, 3, 5 at the least length")
+        XCTAssertEqual(si001.ny, 120)
+        let si110 = try HRTEMImage.grid(specimens[0].1, optics: optics)
+        XCTAssertEqual(si110.nx, 125)
+        XCTAssertEqual(si110.ny, 176)
+        let aperture = HRTEMImage.squareGrid(extent: SIMD2(3.2094, 3.2094 * 3.0.squareRoot()), sampling: 0.11)
+        let ratio = (3.2094 / Double(aperture.nx)) / (3.2094 * 3.0.squareRoot() / Double(aperture.ny))
+        XCTAssertEqual(ratio, 1, accuracy: 0.005, "a coarse sampling searches past twice the least length: \(aperture)")
     }
 
     /// The image is the kit's image of that wave at that defocus, tiled, in the simulated pattern's lab frame: x down the rows, y along
@@ -52,8 +84,8 @@ nonisolated final class HRTEMImageTests: XCTestCase {
             .tiled(repetitionsX: 8, repetitionsY: 6)
         XCTAssertEqual(image.height, truth.nx)
         XCTAssertEqual(image.width, truth.ny)
-        XCTAssertEqual(image.height, 8 * 120)
-        XCTAssertEqual(image.width, 6 * 160)
+        XCTAssertEqual(image.height, 8 * 125)
+        XCTAssertEqual(image.width, 6 * 176)
         let pixels = image.pixels
         for (ix, iy) in [(0, 0), (17, 3), (119, 159), (500, 700), (959, 959)] {
             XCTAssertEqual(pixels[ix * image.width + iy], Float(truth[ix, iy]), accuracy: 1e-6 * Float(truth.values.max()!))
@@ -176,7 +208,7 @@ nonisolated final class HRTEMImageTests: XCTestCase {
         XCTAssertTrue(state.simulationDocument(ofHRTEM: item) === simulation)
         let expected = try XCTUnwrap(simulation.multislice.hrtemImage(name: item.url.lastPathComponent)).get()
         XCTAssertEqual(item.session.image?.pixels, expected.pixels, "computed without the inspector")
-        XCTAssertEqual(item.session.image?.width, 960)
+        XCTAssertEqual(item.session.image?.width, 6 * 176)
     }
 
     /// In a window that holds its Simulation document the image gets a tab of its own (one file per window): that tab lands in the
