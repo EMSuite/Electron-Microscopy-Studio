@@ -87,6 +87,16 @@ package nonisolated enum ZoneAxisText {
 
 package nonisolated enum ZoneAxisOverlay {
 
+    /// Labels go on the 60 strongest spots of at least 2 % of the strongest, so a dense pattern stays readable (the room's overlay
+    /// and the door's picture).
+    package static let labelledCount = 60
+    package static let labelledFraction = 0.02
+
+    /// The spots that carry their hkl: the strongest first, as `spots` comes.
+    package static func labelled(_ spots: [Spot]) -> [Spot] {
+        Array(spots.filter { $0.relative >= labelledFraction }.prefix(labelledCount)) + spots.filter(\.isDoubleDiffraction).prefix(labelledCount)
+    }
+
     /// One simulated spot on the image.
     package struct Spot: Sendable, Equatable {
         package let hkl: MillerIndex
