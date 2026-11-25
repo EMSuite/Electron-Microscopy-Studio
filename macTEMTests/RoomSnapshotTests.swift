@@ -26,6 +26,9 @@ nonisolated final class RoomSnapshotTests: XCTestCase {
         state.selectWorkspace(area)
         XCTAssertEqual(state.navigation.workspaceArea, area, "a fresh window enters every room")
         let view = ContentView().environment(state)
+        // One picture to throw away first: the first window's `onAppear` turns the inspector on in `state` and SwiftUI animates
+        // it in, so a picture of the first window catches it part way. Later windows start with it on and draw it at rest.
+        _ = Snapshot.render(view, size: Self.windowSize, appearance: .light)
         for appearance in SnapshotAppearance.allCases {
             let result = Snapshot.verify(view, named: "\(area)-empty", size: Self.windowSize, appearance: appearance, testFile: file)
             if let failure = result.failure { XCTFail(failure, file: file, line: line) }
