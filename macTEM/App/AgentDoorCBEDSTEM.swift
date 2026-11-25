@@ -476,7 +476,8 @@ extension MacTEMAgentDoor {
         if let scan = model.scan {
             state["complete"] = scan.isComplete
             state["completed_configurations"] = scan.completedConfigurations
-            state["completed_positions"] = scan.completedPositions
+            state["completed_positions"] = scan.positionsDone
+            state["positions"] = scan.positionCount
             if !scan.isEmpty {
                 let profile = scan.radialProfile()
                 state["radial_profile"] = ["angles_mrad": profile.angles, "intensities": profile.intensities] as [String: Any]

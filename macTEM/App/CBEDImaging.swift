@@ -173,6 +173,8 @@ extension AppState {
                                                                  url: held.item.url,
                                                                  thumbnail: canvas.thumbnail(maxSide: Thumbnail.defaultMaxSide),
                                                                  bookmark: nil))
+        // The open's line was written for the placeholder (64 × 64 px): say the pattern's size and scale (#1005).
+        held.state.restateOpenedLine(of: held.item, image: image)
     }
 }
 

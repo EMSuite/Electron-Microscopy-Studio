@@ -4,8 +4,9 @@
 //        Simulation document. It opens through the app's own Open, as the demos do (`DemoDocuments.simulationURL`, answered from
 //        memory by an empty canvas with a scale and a beam energy), so one file per window holds: a window that already holds a file
 //        gives the simulation a tab of its own. Once the item has landed, the window shows the Diffraction room with the simulated
-//        spots on (`landSimulation`), and every tool there works on it as on a measured pattern: the zone axis, the phase, the Spots
-//        table, Export Spots… and Export Image….
+//        spots on (`landSimulation`) and the Add Phase sheet in front, and every tool there works on it as on a measured pattern: the
+//        zone axis, the phase, the Spots table, Export Spots… and Export Image…. Until a phase is shown the pattern is an empty state
+//        with the one button Add Phase… (`SimulationEmptyState`, #907).
 //
 
 import Foundation
@@ -39,6 +40,9 @@ extension AppState {
         // The beam energy is typed, not the file's, so the Calibration section changes it: 200 kV to start, the demo pattern's.
         if item.diffraction.typedBeamKV == nil { item.diffraction.typedBeamKV = DemoDocuments.Truth.patternVolts / 1000 }
         item.diffraction.simulation.isShown = true
+        // The Add Phase sheet in front (#788): a simulation needs a phase. Cancel leaves the empty pattern with its one button
+        // (`SimulationEmptyState`); a document that already holds a phase opens without it.
+        if item.diffraction.simulatedPhase == nil { item.diffractionView.isAddingPhase = true }
         selectWorkspace(.diffraction)
     }
 }

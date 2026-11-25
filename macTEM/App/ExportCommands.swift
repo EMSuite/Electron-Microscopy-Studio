@@ -86,6 +86,13 @@ struct RoomExportItems: View {
             .keyboardShortcut("e", modifiers: [.command, .shift])
             .disabled(inDiffraction ? diffractionFigure != true : availability?.image != true)
         }
+        // The phase the Diffraction room shows, as CIF (#821); a phase row's context menu saves any phase of the library.
+        if inDiffraction {
+            Button("Save Phase as CIF…") {
+                if let appState, let phase = PhaseCIF.shownPhase(in: appState) { PhaseCIF.save(phase, appState: appState) }
+            }
+            .disabled(appState.flatMap(PhaseCIF.shownPhase(in:)) == nil)
+        }
         // The Image room's profile.
         if fixed.contains(.image) {
             Button("Export Profile…") {
