@@ -55,7 +55,8 @@ nonisolated final class ToolbarDisplayTests: XCTestCase {
                 return XCTFail("\(room.title): the image's line")
             }
             XCTAssertEqual(file, "Demo lattice", room.title)
-            XCTAssertEqual(title, room.title)
+            // The Diffraction workspace names its part (#1044).
+            XCTAssertEqual(title, room == .diffraction ? "Diffraction · \(state.diffractionPart.title)" : room.title)
             XCTAssertEqual(detail, "512 × 512 px", room.title)
             XCTAssertNil(help, room.title)
         }

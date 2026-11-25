@@ -68,11 +68,12 @@ Behind "Let agents run analyses". Each goes through the entry point its control 
 | Tool | Does |
 |---|---|
 | `select_room` | moves the window to a room, as the room bar does; a room the files do not fill is refused with the room bar's reason |
+| `set_diffraction_part` | shows a part of the Diffraction workspace (calibrate, index, simulate, tiltPlan, powder, thickness), as its sidebar row does; a part the document has nothing for is refused with the sidebar's reason; get_window's `diffraction_part` says the part shown |
 | `open_demo` | opens a demo document in its room, as Help > Open Demo Data does |
 | `open_file` | opens a file of the Agent folder (Settings > Agents) as File > Open does, in the room that fits it; paths outside the folder are refused; `room` (eds or eels) answers the question File > Open asks for TIA spectra no `.emi` places, and such spectra are refused without it |
 | `set_eds` | picks and removes elements, sets an element's role (quantify or fit only), chooses the region (whole, rectangle, ellipse, polygon, a kept region), keeps the selected region as Pin Region does, and draws a line profile as the Line tool does |
 | `run_eds` | Auto ID, Quantify or Stop; answers at once, `get_eds` says busy until done |
-| `run_room` | presses the shown room's toolbar verb, as ⌘R does (Quantify, Run, Process, Index, Segment); refused with the button's own words while it cannot run |
+| `run_room` | presses the shown room's toolbar verb, as ⌘R does (Quantify, Run, Process, Index, Segment, Simulate); refused with the button's own words while it cannot run |
 | `stop_run` | Stop, as ⌘. does: the shown room's run or open, or a run left going in another room |
 | `select_scan_position` | picks a scan position (x column, y row) as a click on the Patterns, Indexing or Maps room's map does; in the Indexing room the pattern pane shows it as indexed, in the Maps room the grain under it is selected |
 | `set_patterns` | the Virtual images section (grid, map, tile, colour mix, tiles pane), the pattern's Raw/Processed switch and the Simulation section (overlay, Min d, Band width, Zone axes, Labels, Blend); says when a new grid also dropped the tile map or the mix |
@@ -95,7 +96,7 @@ Behind "Let agents run analyses". Each goes through the entry point its control 
 | `new_simulation` | File > New Simulation: a simulated pattern with no measured one, in the Diffraction room with the simulated spots on and the Add Phase sheet in front (add_phase takes it down); a window that holds a file gives it a tab of its own |
 | `index_pattern` | presses Index (optionally Remove Spots first, and Fit scale on or off) and answers at once with `get_spot_table`'s answer; refused in the room's words without a centre, a scale, a beam energy or a crystal |
 | `set_zone_axis` | the Index section's zone axis (as typed) and turn, its Solution stepper and Flip 180°, and the Tilt tool's tilt and ⌥ turn; answers with the orientation's place once set by hand |
-| `simulate_pattern` | the Simulation section's overlay, labels, double diffraction and excitation error; answers with the simulated spots on the pattern (each flagged when double diffraction adds it) or why there are none |
+| `simulate_pattern` | the Simulation section's overlay, labels and their mode (`label_mode`: strongest, all or off), double diffraction and excitation error; answers with the simulated spots on the pattern (each flagged when double diffraction adds it) or why there are none |
 | `add_phase` | adds a Materials Project entry by its id to the library as Add Phase… does (the open service, or the person's own key from Settings; no tool takes or shows a key), and with `show` shows it in the Diffraction room; answers at once, `list_phases` says when it is in |
 | `set_phase_lattice` | sets a library phase's free lattice parameters (DiffractoKit's `editingLattice`: tied ones follow, a change of Laue class is refused); the Diffraction room takes the edit when it shows the phase |
 | `set_simulation` | the Simulation document's settings through its sections' controls: the library phase and zone axis, thickness and Build with Strain, defocus or Scherzer and the thickness shown, voltage and camera length (the Diffraction room's Microscope section), optics preset, Cs, spreads, aperture, field of view, the atom columns ringed on the image, frozen phonons with σ and configurations, Place Beside (the measured image, layout, rotation, inset size) |
@@ -106,13 +107,13 @@ Behind "Let agents run analyses". Each goes through the entry point its control 
 | `plan_tilt` | the Holder section: the tilts now, the limits, the tilt axis typed, forgotten or calibrated from another open pattern, a zone axis picked on the map; writes the Tilt List CSV into the Agent folder |
 | `set_dynamical` | the Simulation section's Intensities: Kinematic or Dynamical (Dynamical runs the multislice, as the section does) and the stored thickness shown; Dynamical is refused with the section's sentence while an atom model is the source |
 | `set_cbed` | the Simulation section's Beam (Parallel or Convergent) and CBED settings: semiangle or Fit Discs, largest thickness, angular step, pattern edge, and the stored pattern shown; with an atom model as the source Fit Discs is refused and `read_cbed` gives the overlay's refusal |
-| `run_cbed` | Show CBED Pattern: opens the pattern in the Diffraction room and runs the probe, at the beam tilt drawn by hand (`set_zone_axis` `tilt_down`, `tilt_across`; at most 50 mrad); refused with the section's words while it cannot run |
-| `stop_cbed` | the CBED section's Stop; the patterns stored stay |
+| `run_cbed` | Show CBED Pattern: opens the pattern in the Diffraction room and runs its toolbar Simulate, at the beam tilt drawn by hand (`set_zone_axis` `tilt_down`, `tilt_across`; at most 50 mrad); refused with the section's words while it cannot run |
+| `stop_cbed` | the CBED pattern's toolbar Stop; the patterns stored stay |
 | `measure_thickness` | Measure Thickness on the pattern shown: the two-beam fit across the diffracted disc (Kelly et al. 1975), on a measured pattern or a simulated CBED pattern run at a hand tilt to one strong reflection; `read_thickness` gives the verdict |
 | `use_measured_thickness` | Use in Simulation: the thickness found becomes the Simulation document's specimen thickness; refused while the document simulates an atom model (its thickness is the model's own) |
 | `set_stem` | the STEM section: semiangle, defocus or Scherzer, scan step or Nyquist, Collect to, and the detector (a preset, or Custom with inner and outer angles on whole rings) |
-| `run_stem` | Show STEM Image and Simulate or Continue; the image fills as it is computed; refused with the section's words while it cannot run |
-| `stop_stem` | the STEM section's Stop; the positions done stay and `run_stem` continues |
+| `run_stem` | Show STEM Image and its toolbar Simulate or Continue; the image fills as it is computed; refused with the section's words while it cannot run |
+| `stop_stem` | the STEM image's toolbar Stop; the positions done stay and `run_stem` continues |
 | `set_atom_model` | the Specimen section's Source: an atom model file of the Agent folder (CIF, XYZ or POSCAR) read as Atom Model… does, back to the phase, and Beam along (c, a or b); answers at once, `read_atom_model` says when the file is in or why it was refused |
 | `select_grains` | selects grains as the grain table does, or none |
 

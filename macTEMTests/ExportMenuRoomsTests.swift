@@ -36,10 +36,10 @@ nonisolated final class ExportMenuRoomsTests: XCTestCase {
         let commands = squeezed(try source("macTEM/App/ExportCommands.swift"))
         XCTAssertTrue(commands.contains("let fixed = FixedExports.listed(in: appState?.navigation.workspaceArea)"))
         // Export Figure… once, on one key, behind the Image room's or the Diffraction room's check (#822): one room is on screen.
-        XCTAssertTrue(commands.contains("if fixed.contains(.image) || inDiffraction { Divider() Button(\"Export Figure…\")"))
+        XCTAssertTrue(commands.contains("if fixed.contains(.image) || inDiffraction { if dividesFromAbove { Divider() } Button(\"Export Figure…\")"))
         XCTAssertTrue(commands.contains(".keyboardShortcut(\"e\", modifiers: [.command, .shift]) .disabled(inDiffraction ? diffractionFigure != true : availability?.image != true)"))
         XCTAssertTrue(commands.contains("if fixed.contains(.image) { Button(\"Export Profile…\")"))
-        XCTAssertTrue(commands.contains("if fixed.contains(.fft) { Divider() Button(\"Export Transform…\")"))
+        XCTAssertTrue(commands.contains("if fixed.contains(.fft) { if dividesFromAbove { Divider() } Button(\"Export Transform…\")"))
         XCTAssertTrue(commands.contains(".keyboardShortcut(\"e\", modifiers: [.command, .option]) .disabled(fft?.transform != true)"))
         XCTAssertTrue(commands.contains(".disabled(fft?.spots != true) }"), "Export Spots… closes the FFT group")
         XCTAssertTrue(commands.contains("if fixed.contains(.results) { Button(\"Export Results…\")"))

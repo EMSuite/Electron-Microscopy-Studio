@@ -27,7 +27,18 @@ struct WorkspaceSidebar: View {
                 unavailableHelp: { appState.workspaceUnavailableReason($0) ?? "" },
                 // Each available row is a button to accessibility and its press chooses the room (EMSuiteUI#131).
                 selection: appState.sidebarRoute)
-            if group.hasParts {
+            if group == .diffraction {
+                // The Diffraction workspace's parts (#1044), as Imaging lists Image and FFT: an unavailable one dimmed with its reason.
+                Section(group.title) {
+                    ForEach(DiffractionPart.allCases) { part in
+                        let available = appState.diffractionPartUnavailableReason(part) == nil
+                        diffractionPartRow(part, available: available)
+                            .tag(SidebarRoute.diffractionPart(part))
+                            .disabled(!available)
+                            .selectionDisabled(!available)
+                    }
+                }
+            } else if group.hasParts {
                 Section(group.title) {
                     ForEach(group.parts) { room in
                         let available = appState.roomUnavailableReason(room) == nil
@@ -63,6 +74,33 @@ struct WorkspaceSidebar: View {
         .accessibilityIdentifier("workspace.\(room.id)")
         .accessibilityHint(available ? room.subtitle : "Not available")
     }
+
+    /// A Diffraction part's row, drawn as a room's (`partRow`), with its status mark at the trailing edge where there is a fact to
+    /// show (the scale known, Index answered): a glyph, spoken as the row's value.
+    @ViewBuilder
+    private func diffractionPartRow(_ part: DiffractionPart, available: Bool) -> some View {
+        let status = appState.diffractionPartFacts.flatMap { DiffractionPart.status(part, facts: $0) }
+        let label = Label(part.title, systemImage: part.systemImage)
+        HStack {
+            Group {
+                if available {
+                    label
+                } else {
+                    label.foregroundStyle(.tertiary)
+                }
+            }
+            Spacer(minLength: 4)
+            if let status {
+                Image(systemName: status.systemImage).foregroundStyle(.secondary).accessibilityHidden(true)
+            }
+        }
+        .help(available ? part.subtitle : (appState.diffractionPartUnavailableReason(part) ?? ""))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(part.title)
+        .accessibilityValue(status?.spoken ?? "")
+        .accessibilityIdentifier("diffraction.part.\(part.rawValue)")
+        .accessibilityHint(available ? part.subtitle : "Not available")
+    }
 }
 
 /// What the sidebar selects. A workspace with parts is represented by its selected part (selecting a file, not its folder, is what
@@ -71,10 +109,13 @@ struct WorkspaceSidebar: View {
 nonisolated enum SidebarRoute: Hashable, Sendable {
     case workspace(WorkspaceGroup)
     case room(WorkspaceArea)
+    /// A part of the Diffraction workspace (#1044).
+    case diffractionPart(DiffractionPart)
 
-    /// The row that reads as selected while `area` is in front.
-    static func current(_ area: WorkspaceArea) -> SidebarRoute {
-        area.group.hasParts ? .room(area) : .workspace(area.group)
+    /// The row that reads as selected while `area` is in front, the Diffraction workspace showing `diffractionPart`.
+    static func current(_ area: WorkspaceArea, diffractionPart: DiffractionPart = .calibrate) -> SidebarRoute {
+        if area == .diffraction { return .diffractionPart(diffractionPart) }
+        return area.group.hasParts ? .room(area) : .workspace(area.group)
     }
 }
 
@@ -83,11 +124,12 @@ extension AppState {
     /// (mac4DSTEM UI/WorkspaceRoute.swift). It lives in UI/ because `Binding` is SwiftUI's.
     var sidebarRoute: Binding<SidebarRoute?> {
         Binding(
-            get: { SidebarRoute.current(self.navigation.workspaceArea) },
+            get: { SidebarRoute.current(self.navigation.workspaceArea, diffractionPart: self.diffractionPart) },
             set: { route in
                 switch route {
                 case .workspace(let group): self.selectWorkspaceGroup(group)
                 case .room(let room): self.selectWorkspace(room)
+                case .diffractionPart(let part): self.selectDiffractionPart(part)
                 case nil: break
                 }
             }
@@ -98,5 +140,7 @@ extension AppState {
     var sidebarListIdentity: String {
         navigation.workspaceArea.group.rawValue + ":"
             + WorkspaceArea.allCases.map { roomUnavailableReason($0) == nil ? "1" : "0" }.joined()
+            + (navigation.workspaceArea == .diffraction
+                ? ":" + DiffractionPart.allCases.map { diffractionPartUnavailableReason($0) == nil ? "1" : "0" }.joined() : "")
     }
 }

@@ -622,3 +622,33 @@ header; a server that is not connected gets Locate… only (Connect, which mount
 
 **What would reverse it.** Two files that share their size and both ends taken for one (then the whole file is hashed, at the
 cost of a pass over a gigabyte scan).
+
+## 2026-11-25 — The toolbar's second button is Export (#1048)
+
+**What.** The slot beside the verb (`ShellToolbar(documentMenu:)`) holds Export, a menu with a primary action: a click runs the
+room's main export (⇧⌘E's Export Figure… in the Image and Diffraction rooms, else the first item the room's File menu lists), the
+chevron lists the room's exports through the File menu's own view (`RoomExportItems`), and it is off with its reason while the room
+holds no document. The Image menu that repeated File > Open Image… and Close Image is gone, and with it #629's departure.
+
+**Why.** Paul's pick in the design review of 25 Nov 2026: exporting the figure follows every result, and HIG Toolbars puts the
+commands people use most there, each also in the menu bar. In full screen with the menu bar hidden, #629's reason for the old
+menu, ⌘O and ⌘W still work and the welcome screen has Open.
+
+**Reverse it.** Put `ImageMenu` back in `ContentView` as the `documentMenu` and its row back in `AgentDoorCoverage`.
+
+## 2026-11-25 — Diffraction has parts in the sidebar (#1044)
+
+**What.** The Diffraction workspace lists six parts under it in the sidebar, as Imaging lists Image and FFT: Calibrate, Index,
+Simulate, Tilt Plan, Powder and Thickness (`DiffractionPart`). Each shows a few of the room's existing sections, the pane beside the
+pattern and the table under it; the pattern, its zoom, selection and overlays stay in every part. A part the document has nothing
+for is listed, dimmed, with its reason; Calibrate and Index carry a mark once the scale is known and once Index has answered. A
+measured pattern opens on Calibrate until it has a scale, then on Index; a Simulation document on Simulate; its CBED pattern on
+Thickness. The part is the window's (`WorkspaceNavigation.diffractionPart`, kept with the scene), the toolbar reads
+"file · Diffraction · Index", Show Next Room steps through the parts, and the door's set_diffraction_part and get_window reach it.
+`WorkspaceArea.diffraction` stays one room, so no switch over the rooms changed.
+
+**Why.** Paul's design review of 25 Nov 2026: the inspector stacked up to fifteen sections; HIG Layout's progressive disclosure
+and 4DSTEM Studio's sidebar of parts.
+
+**Reverse it.** Draw `DiffractionSections.order(kind)` in `DiffractionRoomSettings` again and drop the parts section from
+`WorkspaceSidebar`; the door tool and the navigation field can stay unused.

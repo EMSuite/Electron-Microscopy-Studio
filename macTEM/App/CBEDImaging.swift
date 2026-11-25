@@ -24,8 +24,10 @@ extension AppState {
         return pairedItem(at: DemoDocuments.simulationURL(ofCBED: item.url))?.item
     }
 
-    /// Show CBED Pattern: opens (or brings forward) the pattern of `simulation`, here or in a tab of its own, and runs the probe for
-    /// it; its pixels land when the patterns are computed. Returns the task that ends when both are done.
+    /// Show CBED Pattern: opens (or brings forward) the pattern of `simulation`, here or in a tab of its own, which then runs its verb
+    /// (`simulateCBED`, the pattern's toolbar Simulate, #1047): its pixels land when the patterns are computed, and the run's progress
+    /// and Stop are that window's toolbar's. Nothing runs while the verb is refused; the pattern's toolbar says why. Returns the task
+    /// that ends when both are done.
     @discardableResult
     func showCBEDPattern(of simulation: OpenItem) -> Task<Void, Never>? {
         let url = DemoDocuments.cbedURL(of: simulation.url)
@@ -40,8 +42,22 @@ extension AppState {
         }
         return Task {
             await opening?.value
-            await computeCBEDPattern(of: simulation)
+            await simulateCBED(of: simulation)
         }
+    }
+
+    /// The CBED pattern's Simulate (#1047: its toolbar verb, ⌘R, Show CBED Pattern and the door's run_cbed): computes the patterns
+    /// for `simulation`'s settings now unless the verb is refused (`cbedVerbRefusal`). Returns when the run ends.
+    func simulateCBED(of simulation: OpenItem) async {
+        guard cbedVerbRefusal(of: simulation) == nil else { return }
+        await computeCBEDPattern(of: simulation)
+    }
+
+    /// Why the CBED pattern's Simulate cannot run for `simulation`: a Parallel beam (the pattern is the Convergent beam's), else
+    /// `cbedBlocker`.
+    func cbedVerbRefusal(of simulation: OpenItem) -> String? {
+        guard simulation.cbed.isConvergent else { return SimulateVerb.cbedParallelSentence }
+        return cbedBlocker(of: simulation)
     }
 
     /// The Simulation document whose thickness Use in Simulation sets for a measurement on `item`: `item` itself, or the document
@@ -113,7 +129,7 @@ extension AppState {
         return simulation.diffraction.shortestZeroOrderG()
     }
 
-    /// Why Show CBED Pattern cannot run for `simulation`: `cbedRun`'s refusal, an edge that cuts the discs off, another document's
+    /// Why the CBED pattern's Simulate cannot run for `simulation`: `cbedRun`'s refusal, an edge that cuts the discs off, another document's
     /// run. The section and the door read this one.
     func cbedBlocker(of simulation: OpenItem) -> String? {
         switch cbedRun(of: simulation) {
@@ -138,21 +154,30 @@ extension AppState {
     /// Runs the probe for `simulation`'s specimen (the atom model, else the phase down its axis) and settings at the document's beam
     /// energy, then draws the pattern into its item.
     func computeCBEDPattern(of simulation: OpenItem) async {
-        // The section disables Show CBED Pattern and says why for each refusal (`cbedBlocker`).
+        // The pattern's Simulate is off and says why for each refusal (`cbedBlocker`).
         guard case .success(let run) = cbedRun(of: simulation) else { return }
         await simulation.cbed.update(run.key, built: run.built, specimen: run.specimen, shortestG: run.shortestG)
         refreshCBEDPattern(of: simulation, inPlaneDegrees: run.built.inPlaneAngle * 180 / .pi, tiltMrad: run.key.tiltMrad)
     }
 
     /// After an Open's items have landed: a CBED item among them is selected in the Diffraction room with its document's phase,
-    /// axis and beam, and drawn from the stored patterns when they exist. Nothing for an Open with no CBED item.
+    /// axis and beam, runs its Simulate (which draws the stored patterns when they are current) or, while that is refused, is drawn
+    /// from the stored patterns when they exist. Nothing for an Open with no CBED item.
     @discardableResult
     func landCBED(_ made: [(id: OpenItem.ID, url: URL)]) -> Task<Void, Never>? {
         guard let made = made.first(where: { DemoDocuments.isCBED($0.url) }), let item = openItems.item(made.id) else { return nil }
         if openItems.selected?.id != item.id { openItems.select(item.id) }
         selectWorkspace(.diffraction)
         guard let simulation = simulationDocument(ofCBED: item) else { return nil }
-        return Task { await computeCBEDPattern(of: simulation) }
+        // The pattern runs its verb (#1047); while the verb is refused (a Parallel beam, an edge that cuts the discs off) it shows
+        // the stored patterns, if any, and its toolbar Simulate says why.
+        return Task {
+            if cbedVerbRefusal(of: simulation) == nil {
+                await simulateCBED(of: simulation)
+            } else {
+                refreshCBEDPattern(of: simulation)
+            }
+        }
     }
 
     /// Puts the shown stored pattern of `simulation` into its CBED item, in whichever window holds it, with the document's phase, zone

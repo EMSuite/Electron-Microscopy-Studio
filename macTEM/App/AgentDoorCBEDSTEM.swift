@@ -163,7 +163,8 @@ extension MacTEMAgentDoor {
         }),
         said(AgentTool(name: "run_cbed", title: "Show CBED pattern",
                        summary: "Show CBED Pattern for the shown Simulation document: opens the pattern in the Diffraction room (in a "
-                           + "tab of its own) and runs the probe through the slab, storing a pattern at every thickness step. Refused "
+                           + "tab of its own) and runs its toolbar Simulate, the probe through the slab, storing a pattern at every "
+                           + "thickness step. Refused "
                            + "with the section's words when it cannot run (Parallel beam, no phase, a refused specimen, no beam energy, an "
                            + "edge that cuts the discs off, a hand tilt past the small-angle range, another document's run) or while it "
                            + "runs. A tilt set by hand (set_zone_axis tilt_down, tilt_across) is the run's beam tilt, so a pattern tilted "
@@ -179,7 +180,7 @@ extension MacTEMAgentDoor {
             return .json(["started": "Show CBED Pattern"])
         }),
         said(AgentTool(name: "stop_cbed", title: "Stop CBED",
-                       summary: "The CBED section's Stop: ends the shown Simulation document's CBED run; the patterns already stored stay.",
+                       summary: "The CBED pattern's toolbar Stop: ends the shown Simulation document's CBED run; the patterns already stored stay.",
                        input: .window, acts: true) { call in
             guard let appState = call.window?.state as? AppState else { return notAWindowRefusal }
             guard let simulation = simulationItem(appState) else { return noSimulationDocument }
@@ -395,7 +396,7 @@ extension MacTEMAgentDoor {
             return .json(stemState(simulation, in: appState))
         }),
         said(AgentTool(name: "run_stem", title: "Simulate STEM",
-                       summary: "Show STEM Image and the STEM section's Simulate (Continue after a stop, with the settings unchanged) for "
+                       summary: "Show STEM Image and the image's toolbar Simulate (Continue after a stop, with the settings unchanged) for "
                            + "the shown Simulation document: opens the image in the Image room (in a tab of its own) and scans the probe "
                            + "over one projected unit, the image filling as it is computed. Refused with the section's words when it "
                            + "cannot run (no phase, no beam energy, a refused specimen, another document's run), while it runs, or when "
@@ -421,7 +422,7 @@ extension MacTEMAgentDoor {
             return .json(["started": resumes ? "Continue" : "Simulate"])
         }),
         said(AgentTool(name: "stop_stem", title: "Stop STEM",
-                       summary: "The STEM section's Stop: ends the shown Simulation document's STEM run after its current positions; what "
+                       summary: "The STEM image's toolbar Stop: ends the shown Simulation document's STEM run after its current positions; what "
                            + "is finished stays, and run_stem continues from there.",
                        input: .window, acts: true) { call in
             guard let appState = call.window?.state as? AppState else { return notAWindowRefusal }

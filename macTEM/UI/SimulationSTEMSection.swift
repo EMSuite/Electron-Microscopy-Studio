@@ -1,8 +1,8 @@
 //
 //  SimulationSTEMSection.swift
 //  Role: the STEM section of the Image room for a Simulation document's STEM image (#913, plan row MA10): the probe (semiangle,
-//        defocus with Scherzer), the scan step (Nyquist by default), the collection angle, the plan line, Simulate / Stop / Continue
-//        with the progress, the detector (BF, ABF, ADF, HAADF or Custom, with Inner and Outer) moved after the run with no new run,
+//        defocus with Scherzer), the scan step (Nyquist by default), the collection angle, the plan line (Simulate / Stop / Continue
+//        with the progress are the toolbar's, the image's verb, #1047), the detector (BF, ABF, ADF, HAADF or Custom, with Inner and Outer) moved after the run with no new run,
 //        the scattered intensity against angle with the band and the probe angle marked, the "not quantitative" chip and the method
 //        line. The thermal vibrations are the document's (the HRTEM image's Thermal Vibrations section sets them).
 //
@@ -81,7 +81,7 @@ struct SimulationSTEMSection: View {
         }
     }
 
-    /// The plan, Simulate / Stop, the progress and the failure.
+    /// The plan and the failure. Simulate, Continue, Stop and the progress are the toolbar's (#1047): the image's verb.
     @ViewBuilder
     private func runRows(_ simulation: OpenItem,
                          run: Result<(key: STEMModel.RunKey, built: SimulationSpecimen.Built, specimen: String), STEMRefusal>) -> some View {
@@ -100,31 +100,6 @@ struct SimulationSTEMSection: View {
                 InspectorNote("Static lattice: switch on Thermal vibrations in the HRTEM image's section for frozen phonons.")
             }
             if let blocker = model.blocker, !model.isRunning { InspectorWarning(blocker) }
-            InspectorActionRow {
-                if model.isRunning {
-                    Button("Stop") { model.stop() }
-                        .help("Stops after the current positions; what is finished stays, and Continue goes on from there")
-                        .accessibilityIdentifier("simulation.stem.stop")
-                } else {
-                    Button(model.holds(run.key) && !(model.scan?.isComplete ?? true) ? "Continue" : "Simulate") {
-                        Task { await appState.simulateSTEM(of: simulation) }
-                    }
-                    .disabled(model.blocker != nil || (model.holds(run.key) && model.scan?.isComplete == true))
-                    .help("Scans the probe over one projected unit; the image fills as it is computed")
-                    .accessibilityIdentifier("simulation.stem.simulate")
-                }
-            }
-            if model.isRunning {
-                if let fraction = model.progress {
-                    ProgressView(value: fraction) { Text("Scanning the probe") }
-                        .progressViewStyle(.linear).labelsHidden()
-                        .accessibilityIdentifier("simulation.stem.progress")
-                } else {
-                    InspectorNote("Scanning the probe…")
-                }
-            } else if model.scan != nil, !model.holds(run.key) {
-                InspectorNote("The settings changed since this image: Simulate runs them.")
-            }
             if let failure = model.failure { InspectorWarning("No STEM image: \(failure)") }
         }
     }

@@ -3,7 +3,7 @@
 //  Role: what closing a file or quitting would lose, asked before it is lost: the files whose marks are not saved to their
 //        session file (`ImageMeasurements.isDirty`) and, at quit, the rooms still working (an indexing run, a fit, a map being
 //        drawn). The sentences are pure (`CloseGuard`); the window's close requests are `AppState`'s, below. Close Image (⌘W and
-//        the toolbar's Image menu), ⌫ in Open Files and a row's Close and Close Others go through `requestClose`: a file with
+//        File > Close Image), ⌫ in Open Files and a row's Close and Close Others go through `requestClose`: a file with
 //        nothing unsaved closes at once, as before; otherwise the files stay open until the answer (`closeRequest`, asked as a
 //        sheet by `SessionPanels.askToClose`). Quitting asks in `AppDelegate`.
 //
@@ -105,7 +105,7 @@ extension AppState {
         WorkspaceArea.allCases.filter { isWorking($0) }.map(\.title)
     }
 
-    /// ⌘W, the Image menu's Close Image and ⌫ in Open Files: the selected file, through `requestClose`.
+    /// ⌘W, File > Close Image and ⌫ in Open Files: the selected file, through `requestClose`.
     func requestCloseSelected() {
         guard let id = openItems.selectedID else { return }
         requestClose([id])

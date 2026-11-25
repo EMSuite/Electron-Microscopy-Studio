@@ -3,9 +3,9 @@
 //  Role: Parallel | Convergent in a Simulation document's Simulation section (#912, plan row MA9). Convergent shows the CBED
 //        settings: the convergence semiangle with Fit Discs (the largest that keeps the discs apart), the largest thickness, the
 //        angular step (it sets the box, which the plan names), the pattern's edge; Show CBED Pattern opens the pattern as its own item
-//        in the Diffraction room and runs the probe (Stop ends it); the thickness slider steps through the stored patterns. The
-//        overlap sentence, the small-box chip and the beyond-the-validated-depth chip are the design's; a tilt drawn by hand is named
-//        as the run's beam tilt (#1013). Presentation only: the state
+//        in the Diffraction room, whose toolbar Simulate runs the probe with its progress and Stop (#1047); the thickness slider steps
+//        through the stored patterns. The overlap sentence, the small-box chip and the beyond-the-validated-depth chip are the
+//        design's; a tilt drawn by hand is named as the run's beam tilt (#1013). Presentation only: the state
 //        is `CBEDModel`, every number SimulatoKit's.
 //
 
@@ -17,6 +17,8 @@ import TEMSession
 
 struct SimulationCBEDRows: View {
     let item: OpenItem
+    /// Show CBED Pattern: in the Simulation document's own section; the pattern's item, already open, leaves it out.
+    var opensPattern = true
     @Environment(AppState.self) private var appState
 
     private let mradFormat = FloatingPointFormatStyle<Double>.number.precision(.fractionLength(0...3))
@@ -80,25 +82,12 @@ struct SimulationCBEDRows: View {
                 InspectorNote(note).accessibilityIdentifier("diffraction.simulation.cbed.tilt")
             }
             if let blocker, !model.isComputing { InspectorWarning(blocker) }
-            InspectorActionRow {
-                if model.isComputing {
-                    Button("Stop") { model.stop() }
-                        .help("Stops the run; the patterns already stored stay")
-                        .accessibilityIdentifier("diffraction.simulation.cbed.stop")
-                } else {
+            if opensPattern {
+                // Opens the pattern, whose toolbar Simulate runs it (#1047): never blocked here, the pattern's verb says why it cannot run.
+                InspectorActionRow {
                     Button("Show CBED Pattern") { appState.showCBEDPattern(of: item) }
-                        .disabled(blocker != nil)
-                        .help("Opens the pattern in the Diffraction room and runs the probe through the slab")
+                        .help("Opens the pattern in the Diffraction room, where Simulate in the toolbar runs the probe through the slab")
                         .accessibilityIdentifier("diffraction.simulation.cbed.show")
-                }
-            }
-            if model.isComputing {
-                if let fraction = model.progress {
-                    ProgressView(value: fraction) { Text("Computing the CBED patterns") }
-                        .progressViewStyle(.linear).labelsHidden()
-                        .accessibilityIdentifier("diffraction.simulation.cbed.progress")
-                } else {
-                    InspectorNote("Computing the CBED patterns…")
                 }
             }
             if let failure = model.failure { InspectorWarning("No CBED pattern: \(failure)") }

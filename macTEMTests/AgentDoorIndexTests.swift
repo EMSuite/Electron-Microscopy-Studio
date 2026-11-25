@@ -155,6 +155,20 @@ nonisolated final class AgentDoorIndexTests: XCTestCase {
         XCTAssertFalse(item.diffraction.simulation.showsLabels)
         let simulation = try XCTUnwrap(try json(shown.text)["simulation"] as? [String: Any])
         XCTAssertFalse(try XCTUnwrap(simulation["spots"] as? [[String: Any]]).isEmpty, "\(simulation)")
+        XCTAssertEqual(simulation["label_mode"] as? String, "off", "labels false is the pop-up's None (#1045)")
+
+        // The hkl labels pop-up (#1045): the door reads and sets it; a word it does not know is refused.
+        let all = try await call("simulate_pattern", ["label_mode": "all"])
+        XCTAssertFalse(all.refused, all.text)
+        XCTAssertEqual(item.diffraction.simulation.labelMode, .all)
+        XCTAssertEqual(try XCTUnwrap(try json(all.text)["simulation"] as? [String: Any])["label_mode"] as? String, "all")
+        let unknown = try await call("simulate_pattern", ["label_mode": "some"])
+        XCTAssertTrue(unknown.refused)
+        let off = try await call("simulate_pattern", ["labels": false])
+        XCTAssertFalse(off.refused, off.text)
+        let on = try await call("simulate_pattern", ["labels": true])
+        XCTAssertFalse(on.refused, on.text)
+        XCTAssertEqual(item.diffraction.simulation.labelMode, .strongest, "labels on from None is the default, Strongest")
 
         await item.diffractionView.show(image: image, generation: item.session.generation, analysis: item.diffraction)
         let picture = try await call("get_diffraction_picture")

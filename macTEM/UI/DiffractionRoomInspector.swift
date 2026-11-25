@@ -18,34 +18,41 @@ import DiffractoGeometry
 
 struct DiffractionRoomSettings: View {
     let item: OpenItem
+    @Environment(AppState.self) private var appState
     private var image: CalibratedImage { item.session.imageOrBlank }
 
     var body: some View {
         let analysis = item.diffraction
         let view = item.diffractionView
-        // The sections per document (`DiffractionSections`, #1043): a Simulation document (#907) and the CBED pattern derived from it
-        // are computed, so one read-only Calibration stands where a measured pattern's Centre and Calibration do; a Simulation
-        // document's Microscope leads its job and its Orientation stands where Index's does.
+        // The sections of the part the sidebar shows (#1044, `DiffractionPart.sections`), from the document's own list
+        // (`DiffractionSections`, #1043): a Simulation document (#907) and the CBED pattern derived from it are computed, so one
+        // read-only Calibration leads their Simulate part, and Calibrate and Index are a measured pattern's.
         let kind = DiffractionSections.kind(of: item.url)
         let isSimulation = kind == .simulation
+        let part = appState.diffractionPart
         Group {
-            ForEach(DiffractionSections.order(kind), id: \.self) { section in
-                self.section(section, kind: kind, analysis: analysis, view: view)
+            ForEach(DiffractionPart.sections(part, kind: kind), id: \.self) { section in
+                self.section(section, kind: kind, part: part, analysis: analysis, view: view)
             }
-            DiffractionExportSection(item: item, isSimulation: isSimulation)
+            if DiffractionPart.showsExport(part) {
+                DiffractionExportSection(item: item, isSimulation: isSimulation)
+            }
         }
         .onAppear { analysis.bind(image) }
     }
 
-    /// One section of `DiffractionSections.order`.
+    /// One section of `DiffractionPart.sections`.
     @ViewBuilder
-    private func section(_ section: DiffractionSections.Section, kind: DiffractionSections.Kind, analysis: DiffractionAnalysis,
-                         view: DiffractionViewState) -> some View {
+    private func section(_ section: DiffractionSections.Section, kind: DiffractionSections.Kind, part: DiffractionPart,
+                         analysis: DiffractionAnalysis, view: DiffractionViewState) -> some View {
         switch section {
         case .centre: DiffractionCentreSection(analysis: analysis, view: view)
         case .calibration: DiffractionCalibrationSection(session: item.session, analysis: analysis, view: view)
         case .simulatedCalibration: DiffractionSimulatedCalibrationSection(session: item.session, analysis: analysis)
-        case .display: DiffractionDisplaySection(view: view)
+        case .display:
+            // Closed where the part's job is not the picture; remembered per part, so closing it in Index leaves Calibrate's open.
+            DiffractionDisplaySection(view: view, startsExpanded: !DiffractionPart.startsClosed(.display, in: part))
+                .environment(\.inspectorScope, "settings.diffraction.\(part.rawValue)")
         case .tools: DiffractionToolsSection(view: view, tools: DiffractionSections.tools(kind))
         case .microscope: DiffractionMicroscopeSection(analysis: analysis)
         case .phases: DiffractionPhasesSection(item: item, analysis: analysis)
@@ -436,8 +443,9 @@ private struct DiffractionSimulationSection: View {
                 dynamicalRows(item.multislice)
                 SimulationCBEDRows(item: item)
             } else if let simulation = appState.simulationDocument(ofCBED: item) {
-                // The CBED pattern's own item: its document's rows (the slider, Stop, progress, failure), so they stay as it appears.
-                SimulationCBEDRows(item: simulation)
+                // The CBED pattern's own item: its document's rows (the settings, the plan, the slider, the failure); the run is this
+                // pattern's toolbar Simulate (#1047).
+                SimulationCBEDRows(item: simulation, opensPattern: false)
             }
             if appState.simulationDocument(ofCBED: item)?.multislice.atomModel != nil {
                 // An atom model's pattern: no reflections to draw or label (#953).
@@ -450,10 +458,13 @@ private struct DiffractionSimulationSection: View {
                         .accessibilityIdentifier("diffraction.simulation.show")
                 }
                 InspectorRow("hkl labels") {
-                    Toggle("hkl labels", isOn: Binding(get: { analysis.simulation.showsLabels }, set: { analysis.simulation.showsLabels = $0 }))
-                        .toggleStyle(.switch).labelsHidden()
-                        .help("Each simulated spot's hkl beside it (the 60 strongest)")
-                        .accessibilityIdentifier("diffraction.simulation.labels")
+                    // Strongest · All · None (#1045): a label goes only where it meets no other and not the centre's mark.
+                    Picker("hkl labels", selection: Binding(get: { analysis.simulation.labelMode }, set: { analysis.simulation.labelMode = $0 })) {
+                        ForEach(HKLLabelMode.allCases, id: \.self) { Text($0.title).tag($0) }
+                    }
+                    .pickerStyle(.menu).labelsHidden().fixedSize()
+                    .help(DiffractionLabelWords.modeHelp)
+                    .accessibilityIdentifier("diffraction.simulation.labels")
                 }
                 InspectorRow("Double diffraction") {
                     Toggle("Double diffraction", isOn: Binding(get: { analysis.simulation.doubleDiffraction }, set: { analysis.simulation.doubleDiffraction = $0 }))
@@ -639,10 +650,11 @@ private struct DiffractionToolsSection: View {
 /// window, gamma, and the log switch. The zoom is the pane's own (the wheel, a pinch, a double-click), not buttons here (§6).
 private struct DiffractionDisplaySection: View {
     let view: DiffractionViewState
+    var startsExpanded = true
 
     var body: some View {
         ImageRoomDisplaySection(presentation: view.presentation, colormapID: "diffraction.colormap", logID: "diffraction.log",
-                                log: Binding(get: { view.useLog }, set: { view.useLog = $0 }))
+                                log: Binding(get: { view.useLog }, set: { view.useLog = $0 }), startsExpanded: startsExpanded)
     }
 }
 

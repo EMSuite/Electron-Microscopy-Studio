@@ -30,7 +30,10 @@ nonisolated final class WorkspaceGroupTests: XCTestCase {
     func testTheSelectedRowIsThePartOrTheOneRoomWorkspace() {
         XCTAssertEqual(SidebarRoute.current(.maps), .room(.maps))
         XCTAssertEqual(SidebarRoute.current(.fft), .room(.fft))
-        XCTAssertEqual(SidebarRoute.current(.diffraction), .workspace(.diffraction))
+        // The Diffraction workspace's row is its part since #1044, as Imaging's is Image or FFT.
+        XCTAssertEqual(SidebarRoute.current(.diffraction), .diffractionPart(.calibrate))
+        XCTAssertEqual(SidebarRoute.current(.diffraction, diffractionPart: .index), .diffractionPart(.index))
+        XCTAssertEqual(SidebarRoute.current(.fft, diffractionPart: .index), .room(.fft))
         XCTAssertEqual(SidebarRoute.current(.results), .workspace(.results))
     }
 

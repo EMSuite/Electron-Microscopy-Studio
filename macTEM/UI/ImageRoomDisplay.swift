@@ -30,9 +30,11 @@ struct ImageRoomDisplaySection: View {
     /// Whether the file shown is a render (`ImagePresentation.startsWithScaleBar(notes:)` false): a note under Show Scale Bar says
     /// why its bar starts hidden.
     var isRender = false
+    /// Whether the section opens before the person opens or closes it (a Diffraction part whose job is not the picture: #1044).
+    var startsExpanded = true
 
     var body: some View {
-        InspectorSection(title) {
+        InspectorSection(title, startsExpanded: startsExpanded) {
             ImageRoomDisplayRows(presentation: presentation, colormapID: colormapID, logID: logID, log: log, sem: sem, isRender: isRender)
         }
     }
