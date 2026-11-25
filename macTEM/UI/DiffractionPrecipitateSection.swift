@@ -30,7 +30,7 @@ struct DiffractionPrecipitateSection: View {
             InspectorRow("Show") {
                 Toggle("Show variants", isOn: Binding(get: { variants.isShown }, set: { variants.isShown = $0 }))
                     .toggleStyle(.switch).labelsHidden()
-                    .help("Draws the shown variants' spots over the pattern, in magenta")
+                    .help("Draws the shown variants' spots over the pattern as pink diamonds")
                     .accessibilityIdentifier("diffraction.precipitate.show")
             }
             InspectorRow("Precipitate") {
@@ -45,7 +45,7 @@ struct DiffractionPrecipitateSection: View {
             InspectorRow("Double diffraction") {
                 Toggle("Double diffraction with the matrix", isOn: Binding(get: { variants.doubleDiffraction }, set: { variants.doubleDiffraction = $0 }))
                     .toggleStyle(.switch).labelsHidden()
-                    .help("Also draws, as dashed magenta rings, the spots a beam diffracted by one crystal and again by another adds (g₁ + g₂ between the matrix and a variant)")
+                    .help("Also draws, as dashed pink diamonds, the spots a beam diffracted by one crystal and again by another adds (g₁ + g₂ between the matrix and a variant)")
                     .accessibilityIdentifier("diffraction.precipitate.doubleDiffraction")
             }
             DiffractionRelationshipFields(relationship: variants.relationship, matrix: analysis.crystal.name) { variants.setRelationship($0) }
