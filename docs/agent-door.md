@@ -52,6 +52,8 @@ door this one follows (4DSTEM Studio `docs/agent-door.md`). This app hands the d
 | `read_cbed` | the Beam and CBED rows: the settings, the semiangle used and the largest that keeps the discs apart, the overlap sentence, the plan and small-box warning, why Show CBED Pattern cannot run, the run's progress and failure, the stored patterns, the depth chip and the method line |
 | `read_thickness` | the Thickness section for the pattern shown: the verdict and sentence, the thickness, extinction distances and residual, the fringe line, the method line, the profile with the fitted curve and the minima, and whether Use in Simulation is offered |
 | `read_stem` | the STEM section: the settings with the defocus and step used, the plan line, the wrap and band warnings, why Simulate cannot run, the run's progress and positions, whether the settings changed since, the detector band, the scattered intensity against angle, the "not quantitative" chip and the method line |
+| `read_atom_model` | the Specimen section's source (Phase or Atom Model), a file being read or why the last one was not opened, and with a model its file, atoms by element, the beam axis, its own thickness along the beam, the box, the summary and the notes |
+| `get_abtem_script` | the Python script Export abTEM Script… writes for the HRTEM image (name and text), once the exit waves are current |
 | `get_indexing_picture` | `which` map (the layer as Export's Map PNG… draws it), pattern (as indexed, without the band overlay) or best_match (a Dictionary run's) |
 | `get_crystal_view` | the Diffraction room's crystal pane: shown or hidden, the phase, the zone axis nearest the drawn orientation and the tilt off it, the orientation as the 3 by 3 matrix the simulated spots are drawn with, the unit cell switch and the scene (atoms and bonds by element, cell lengths); with `picture`, the pane's picture (the first ask starts the drawing and answers 409, ask again) |
 
@@ -110,6 +112,7 @@ Behind "Let agents run analyses". Each goes through the entry point its control 
 | `set_stem` | the STEM section: semiangle, defocus or Scherzer, scan step or Nyquist, Collect to, and the detector (a preset, or Custom with inner and outer angles on whole rings) |
 | `run_stem` | Show STEM Image and Simulate or Continue; the image fills as it is computed; refused with the section's words while it cannot run |
 | `stop_stem` | the STEM section's Stop; the positions done stay and `run_stem` continues |
+| `set_atom_model` | the Specimen section's Source: an atom model file of the Agent folder (CIF, XYZ or POSCAR) read as Atom Model… does, back to the phase, and Beam along (c, a or b); answers at once, `read_atom_model` says when the file is in or why it was refused |
 | `select_grains` | selects grains as the grain table does, or none |
 
 The EDS tools are EMSuiteUI's `EDXAgentTools`, written once and registered by both apps.
