@@ -28,14 +28,31 @@ package nonisolated struct DiffractionReadoutRow: Sendable, Equatable, Identifia
     package var verdict: String
     package var validation: String
     package var isCalibrating: Bool
+    /// The kit's sentence for a refused indexing (`DisplayedIndexing.refusalText`): the verdict cell's tooltip, nil otherwise (#1018).
+    package var verdictDetail: String?
 
     package init(id: UUID, kind: Kind, number: Int, radiusPx: Double?, q: Double?, d: Double?, family: String?, dListed: Double?,
                  deltaPercent: Double?, oddsText: String?, verdict: String, validation: String, isCalibrating: Bool = false,
-                 listedIntensity: Double? = nil) {
+                 listedIntensity: Double? = nil, verdictDetail: String? = nil) {
         self.id = id; self.kind = kind; self.number = number; self.radiusPx = radiusPx; self.q = q; self.d = d
         self.family = family; self.dListed = dListed; self.deltaPercent = deltaPercent; self.oddsText = oddsText
         self.verdict = verdict; self.validation = validation; self.isCalibrating = isCalibrating
-        self.listedIntensity = listedIntensity
+        self.listedIntensity = listedIntensity; self.verdictDetail = verdictDetail
+    }
+
+    /// The verdict as the table, the announcement and the Results room show it: the kit's refusal names (`RingIndexing.Error.name`,
+    /// stable keys for the door and the CSV) in plain words (#1018); any other verdict is words already and passes through.
+    package var verdictWords: String { Self.words(forVerdict: verdict) }
+
+    /// Plain words for a verdict key: every case of the kit's `RingIndexing.Error` and the accepted verdict.
+    package static func words(forVerdict verdict: String) -> String {
+        switch verdict {
+        case "ambiguous": "ambiguous: more than one family fits"
+        case "noneWithinTolerance": "no family of the phase within tolerance"
+        case "beyondKMax": "past the list's reach: raise k max"
+        case "invalidInput": "cannot index this radius"
+        default: verdict
+        }
     }
 }
 

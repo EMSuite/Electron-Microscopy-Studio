@@ -120,7 +120,7 @@ nonisolated enum DiffractionReadoutFormat {
         case .intensity: return row.listedIntensity.map { Num.fixed($0, 0, locale: locale) } ?? UnitDisplay.noValue
         case .delta: return row.deltaPercent.map { Num.signed($0, 2, locale: locale) } ?? UnitDisplay.noValue
         case .odds: return row.oddsText ?? UnitDisplay.noValue
-        case .verdict: return row.verdict
+        case .verdict: return row.verdictWords
         }
     }
 

@@ -804,7 +804,8 @@ package final class DiffractionAnalysis {
                                          family: indexing.family.map { DiffractionCompute.familyName($0) }, dListed: indexing.dListed,
                                          deltaPercent: indexing.deltaPercent, oddsText: indexing.assignment == nil ? nil : indexing.oddsText,
                                          verdict: indexing.verdict, validation: indexing.validation, isCalibrating: calibrating,
-                                         listedIntensity: indexing.family.flatMap { Self.relativeIntensity(of: $0, in: list) })
+                                         listedIntensity: indexing.family.flatMap { Self.relativeIntensity(of: $0, in: list) },
+                                         verdictDetail: indexing.refusalText)
         }
         for (i, ring) in rings.enumerated() {
             out.append(row(id: ring.id, kind: .ring, number: i + 1, radius: ring.radius, calibrating: ring.isCalibrating,
@@ -856,7 +857,7 @@ package final class DiffractionAnalysis {
         for r in readout(image: image) {
             let refusal = r.d == nil ? r.verdict : nil
             out.append(.ring(id: "diffraction:\(r.id.uuidString)", label: "\(r.kind == .ring ? "Ring" : "Spot") \(r.number)", radius: r.radiusPx, q: r.q,
-                             d: r.d, family: r.family, dListed: r.dListed, deltaPercent: r.deltaPercent, odds: r.oddsText, verdict: r.verdict, refusal: refusal,
+                             d: r.d, family: r.family, dListed: r.dListed, deltaPercent: r.deltaPercent, odds: r.oddsText, verdict: r.verdictWords, refusal: refusal,
                              crystal: "\(crystal.name), \(crystal.lattice)"))
         }
         return out
