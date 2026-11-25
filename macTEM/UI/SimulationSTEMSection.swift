@@ -167,7 +167,8 @@ struct SimulationSTEMSection: View {
         }
     }
 
-    /// The radial plot with the band and the probe angle, the chip and the method line.
+    /// The radial plot with the band and the probe angle, and the chip. The method line is a record: the Info tab's Simulation
+    /// section (#1043, `SimulationRecordSection`).
     @ViewBuilder
     private func resultRows(_ model: STEMModel) -> some View {
         if let scan = model.scan, !scan.isEmpty {
@@ -176,7 +177,6 @@ struct SimulationSTEMSection: View {
             if let chip = scan.notQuantitative(band: model.band) {
                 InspectorWarning(chip).accessibilityIdentifier("simulation.stem.notQuantitative")
             }
-            InspectorNote(scan.methodLine(band: model.band)).accessibilityIdentifier("simulation.stem.method")
         }
     }
 }

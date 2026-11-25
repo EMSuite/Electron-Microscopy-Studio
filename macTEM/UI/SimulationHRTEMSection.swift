@@ -140,11 +140,8 @@ struct SimulationHRTEMSection: View {
                 InspectorWarning("No image: \(failure)")
             } else if case .failure(let refusal) = model.specimen(crystal: crystal, zoneAxis: zoneAxis) {
                 InspectorWarning(refusal.sentence)
-            } else if let waves, let index = model.shownThicknessIndex {
-                InspectorNote(HRTEMImage.methodLine(waves, thicknessIndex: index,
-                                                    defocusNM: model.effectiveDefocusNM, optics: model.optics))
-                    .accessibilityIdentifier("simulation.hrtem.method")
             }
+            // The method line is a record, not a setting: the Info tab's Simulation section (#1043, `SimulationRecordSection`).
         }
         .roomExporter(isPresented: Binding(get: { script != nil }, set: { if !$0 { script = nil } }),
                       data: Data((script?.text ?? "").utf8), contentType: .pythonScript, defaultFilename: script?.name ?? "HRTEM.py",
@@ -157,9 +154,7 @@ struct SimulationHRTEMSection: View {
                          strain: crystal.map { model.maximumStrain(crystal: $0, zoneAxis: zoneAxis) }, thermal: model.thermal != nil)) {
             await appState.computeHRTEMImage(of: simulation)
         }
-        SimulationThermalSection(simulation: simulation)
-        SimulationBesideSection(simulation: simulation)
-        SimulationMicroscopeSection(model: model, analysis: analysis) { appState.refreshHRTEMImage(of: simulation) }
+        // Microscope, Thermal Vibrations and Beside Measured are the Image room's own sections, in its order (`ImageSections`, #1043).
         switch Result(catching: { try HRTEMTransferCurve.of(model.optics, defocusNM: model.effectiveDefocusNM) }) {
         case .success(let curve):
             let reach = curve.frequencies.last ?? 0
