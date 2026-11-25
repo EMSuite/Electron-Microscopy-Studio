@@ -75,21 +75,56 @@ package final class DiffractionViewState {
 
     // MARK: Showing the pattern
 
-    /// The room shows this pattern: it appeared, another file took the pane, or Log was switched. Binds the results owner to the
-    /// image, finds how far the pattern has signal (the view opens on that) and builds the canvas of the display values, both off
-    /// the main actor. A pass cancelled while it computes (a quick Log toggle, another file) writes nothing more, so the newer
-    /// pass's extent and canvas are the ones left on screen.
-    package func show(image: CalibratedImage, analysis: DiffractionAnalysis) async {
+    /// What the canvas was drawn from: the image session's generation (`ImageSession.generation`) and the Log switch.
+    package struct CanvasSource: Equatable, Sendable {
+        package let generation: Int
+        package let log: Bool
+
+        package init(generation: Int, log: Bool) {
+            self.generation = generation
+            self.log = log
+        }
+    }
+
+    /// The source of the canvas shown; nil before the first.
+    package private(set) var canvasSource: CanvasSource?
+
+    /// Whether the canvas is the one the room draws for the image of `generation` with Log as it is now: false while a pass is still
+    /// to land (a new pattern of the same size, a CBED pattern at another thickness, a frame, a Log switch) or after the canvas went.
+    package func showsCanvas(generation: Int) -> Bool {
+        presentation.canvas != nil && canvasSource == CanvasSource(generation: generation, log: useLog)
+    }
+
+    /// The room shows this pattern: it appeared, another file took the pane, new pixels replaced it (a frame, a CBED pattern at another
+    /// thickness: `generation`), or Log was switched. Binds the results owner to the image, finds how far the pattern has signal (the
+    /// view opens on that) and builds the canvas of the display values, both off the main actor. A pass cancelled while it computes
+    /// (a quick Log toggle, another file) writes nothing more, so the newer pass's extent and canvas are the ones left on screen.
+    package func show(image: CalibratedImage, generation: Int, analysis: DiffractionAnalysis) async {
         analysis.bind(image)
+        let log = useLog
         let centre = analysis.centre ?? .imageCentre(width: image.width, height: image.height)
         let radius = await Self.extent(image, centre: centre)
         guard !Task.isCancelled else { return }
         setAutoExtent(radius)
-        let canvas = await Self.canvas(image, log: useLog)
+        let canvas = await Self.canvas(image, log: log)
         guard !Task.isCancelled else { return }
+        place(canvas, source: CanvasSource(generation: generation, log: log))
+    }
+
+    /// The same pass as `show`, at once on the caller's actor: the agent door's picture asks for it when the room has not drawn the
+    /// pattern shown (the room is off screen, or its pass is still to land), so the door draws what the room will.
+    package func showNow(image: CalibratedImage, generation: Int, analysis: DiffractionAnalysis) {
+        analysis.bind(image)
+        let centre = analysis.centre ?? .imageCentre(width: image.width, height: image.height)
+        setAutoExtent(DiffractionCompute.contentRadius(pixels: image.pixels, width: image.width, height: image.height, centre: centre))
+        place(CanvasPixels.pattern(image: image, log: useLog), source: CanvasSource(generation: generation, log: useLog))
+    }
+
+    private func place(_ canvas: CanvasPixels, source: CanvasSource) {
         // A window in log values means nothing in linear ones: the range starts whole again.
         if presentation.canvas.map({ $0.contentVersion != canvas.contentVersion }) ?? false { presentation.resetWindow() }
         presentation.show(canvas)
+        canvasSource = source
     }
 
     @concurrent
