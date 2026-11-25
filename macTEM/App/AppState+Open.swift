@@ -64,7 +64,8 @@ extension AppState {
             // every room that has data in it (`FileInventory`), and the window lands in the room of the richest dataset.
             var inventories = await Self.inventories(urls)
             // A NORDIF scan whose settings file the sandbox refused asks for its folder, once per folder in an Open (`FolderPanels`): the
-            // grant is kept (`FolderGrants`) and the scan is routed again inside it. Declined, the scan keeps its refusal. A folder
+            // grant is kept (`FolderGrants`) and the scan is routed again inside it. Declined, the scan keeps its refusal. A TIA file
+            // whose .ser or .emi beside it the sandbox refused asks the same way; a .ser declined opens alone (#955). A folder
             // granted for an earlier scan of this Open that is around this one too (their common parent) reaches it: nothing is asked.
             var answered: [String: Bool] = [:]   // each folder asked for in this Open: granted or not
             var granted: [String] = []           // the folders granted in this Open, by `FolderGrants.path`
@@ -240,7 +241,8 @@ extension AppState {
     /// remembered). The generated demo image is an image, in memory, with no bookmark. The file a vendor file is read with (an EBSD
     /// scan's `.ang` or `.ctf` beside its patterns, and back) is granted first, inside that scope: the sandbox grants the picked file
     /// only, and the routing already reads the other (`RelatedFileAccess`). A NORDIF scan's folder granted at an earlier Open is held
-    /// for its routing (`FolderGrants`); `asksForFolder` is set for one whose settings file the sandbox refused without a grant.
+    /// for its routing (`FolderGrants`); `asksForFolder` is set for one whose settings file the sandbox refused without a grant,
+    /// and for a TIA file whose acquisition's other files it refused (`FolderGrants.asksForFolder(of:refused:)`).
     @concurrent
     nonisolated static func inventories(_ urls: [URL]) async -> [(url: URL, inventory: FileInventory, bookmark: Data?, asksForFolder: Bool)] {
         var seen = Set<String>()
