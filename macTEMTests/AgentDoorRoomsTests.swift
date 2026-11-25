@@ -95,7 +95,8 @@ nonisolated final class AgentDoorRoomsTests: XCTestCase {
         let picked = try await call("set_eds", ["add": "Fe"])
         XCTAssertFalse(picked.refused, picked.text)
         XCTAssertTrue(state.edx.picks.contains { $0.symbol == "Fe" })
-        XCTAssertEqual(state.statusText, "An agent used EDS room settings (add Fe).")
+        XCTAssertEqual(state.statusText, "An agent used EDS room settings.", "the infobar names the tool, never the raw parameters (#1090)")
+        XCTAssertTrue(state.activityLog.messages.contains { $0.hasSuffix("An agent used EDS room settings (add Fe).") }, "the Output line keeps them")
 
         let maps = try await call("get_eds_maps")
         XCTAssertFalse(maps.refused, maps.text)
