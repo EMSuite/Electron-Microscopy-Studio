@@ -144,6 +144,7 @@ nonisolated enum AgentDoorCoverage {
         "diffraction.simulation.cbed.show": .tool("run_cbed"),
         "diffraction.simulation.cbed.thickness": .tool("set_cbed"),
         "diffraction.simulation.cbed.thicknessValue": .tool("read_cbed"),
+        "diffraction.simulation.cbed.tilt": .tool("read_cbed"),
         "diffraction.simulation.dynamical": .tool("set_dynamical"),
         "diffraction.simulation.method": .tool("read_dynamical"),
         "diffraction.simulation.modelLabels": .tool("read_cbed"),

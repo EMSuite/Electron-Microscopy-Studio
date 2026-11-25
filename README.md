@@ -93,8 +93,9 @@ The rooms:
   the crystal forbids as open rings and each spot's dynamical intensity in the Spots table. Convergent turns the beam into a
   probe: Show CBED Pattern opens its convergent-beam pattern in the Diffraction room, the semiangle set by Fit Discs to keep the
   discs apart, a pattern stored about every 2 nm to the largest thickness for the thickness slider, and the box the angular step
-  needs named before the run. Measure Thickness reads a two-beam CBED pattern's diffracted disc and fits its fringes for the
-  specimen thickness (Kelly et al. 1975), with the profile, the fitted curve and Use in Simulation.
+  needs named before the run; a tilt set by hand with the Tilt tool is the run's beam tilt, so a pattern tilted to one strong
+  reflection is two-beam. Measure Thickness reads a two-beam CBED pattern's diffracted disc, measured or simulated, and fits its
+  fringes for the specimen thickness (Kelly et al. 1975), with the profile, the fitted curve and Use in Simulation.
   Show STEM Image opens the slab's STEM image in the Image room: Simulate scans the probe over one projected unit, the image
   filling as it is computed, with or without frozen phonons, and Stop and Continue keep what is done; BF, ABF, ADF and HAADF are
   bands on the scattered intensity against angle, moved after the run with no new run, and the scan step starts at Nyquist.

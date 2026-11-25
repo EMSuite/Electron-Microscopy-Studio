@@ -5,9 +5,12 @@
 //        Ring, Index, Export) and its kinematic overlay work on the discs as on a measured pattern. The document's `CBEDModel` holds
 //        the stored patterns; every move of the thickness replaces the item's pixels (`OpenItems.showComputed`). The item takes the
 //        document's phase, zone axis and beam energy, and the overlay's turn is the slab's, so the hkl labels sit on the discs.
+//        A tilt drawn by hand on the document (the Tilt tool, the door's tilt_down and tilt_across) is the run's beam tilt (#1013,
+//        `CBEDTilt`), and the pattern's overlay is drawn at that tilt, so the disc its Laue circle excites is the bright one.
 //        Nothing here makes a number.
 //
 
+import DiffractoCore
 import FormatoCore
 import Foundation
 import ImagoCore
@@ -71,7 +74,8 @@ extension AppState {
 
     /// A CBED run of `simulation` as its settings stand: the key, the specimen with its name, and the zone's shortest reflection the
     /// edge must hold (none for an atom model); or why there is none, in the order a person fixes them: no phase or model, a refused
-    /// specimen, no beam energy, no semiangle. The section, Show CBED Pattern and the door read this one.
+    /// specimen, no beam energy, no semiangle, a hand tilt past the small-angle range. The key carries the hand tilt (`cbedTilt`).
+    /// The section, Show CBED Pattern and the door read this one.
     func cbedRun(of simulation: OpenItem) -> Result<CBEDRunInputs, CBEDRefusal> {
         let analysis = simulation.diffraction, model = simulation.multislice
         let crystal = analysis.simulatedPhase, zoneAxis = analysis.simulation.zoneAxis
@@ -87,11 +91,35 @@ extension AppState {
             return .failure(CBEDRefusal(sentence: model.atomModel != nil ? SimulationModel.modelFitDiscsSentence
                                             : "Type the convergence semiangle: this zone has no reflection for Fit Discs."))
         }
+        let tilt = cbedTilt(of: simulation, built: built) ?? .zero
+        if let sentence = CBEDTilt.refusal(tilt, zoneAxis: zoneAxis) { return .failure(CBEDRefusal(sentence: sentence)) }
         let key = simulation.cbed.key(source: source, zoneAxis: model.sourceZoneAxis(zoneAxis),
                                       maximumStrain: model.maximumStrain(crystal: crystal, zoneAxis: zoneAxis), volts: volts,
-                                      semiangleMrad: semiangle)
+                                      semiangleMrad: semiangle, tiltMrad: tilt)
         return .success(CBEDRunInputs(key: key, built: built, specimen: model.sourceName(crystal: crystal, zoneAxis: zoneAxis) ?? source,
                                       shortestG: shortestG))
+    }
+
+    /// The beam tilt (x, y) along the slab's box, mrad, of the orientation drawn on `simulation` by hand (`CBEDTilt.tilt`): zero
+    /// when it was not turned by hand (a typed zone axis, an Index solution); nil for an atom model (its beam axis is the model's)
+    /// or a beam 90° or more off the zone. `built` is the specimen of the run.
+    func cbedTilt(of simulation: OpenItem, built: SimulationSpecimen.Built) -> SIMD2<Double>? {
+        let analysis = simulation.diffraction
+        guard simulation.multislice.atomModel == nil else { return nil }
+        guard analysis.isTurnedByHand else { return .zero }
+        guard let drawn = analysis.drawnOrientation,
+              let slab = try? CrystalOrientation(zoneAxis: analysis.simulation.zoneAxis, inPlaneAngle: built.inPlaneAngle,
+                                                 cell: analysis.crystal.structure.cell)
+        else { return nil }
+        return CBEDTilt.tilt(of: drawn, slab: slab)
+    }
+
+    /// The beam tilt the next run of `simulation` takes, mrad, while its specimen builds (`cbedTilt(of:built:)`); nil without one.
+    func cbedTilt(of simulation: OpenItem) -> SIMD2<Double>? {
+        let analysis = simulation.diffraction
+        guard case .success(let built) = simulation.multislice.specimen(crystal: analysis.simulatedPhase, zoneAxis: analysis.simulation.zoneAxis)
+        else { return nil }
+        return cbedTilt(of: simulation, built: built)
     }
 
     /// The zero-order zone's shortest reflection, 1/Å, that Fit Discs keeps apart (`DiffractionAnalysis.shortestZeroOrderG`); nil
@@ -129,7 +157,7 @@ extension AppState {
         // The pattern's Simulate is off and says why for each refusal (`cbedBlocker`).
         guard case .success(let run) = cbedRun(of: simulation) else { return }
         await simulation.cbed.update(run.key, built: run.built, specimen: run.specimen, shortestG: run.shortestG)
-        refreshCBEDPattern(of: simulation, inPlaneDegrees: run.built.inPlaneAngle * 180 / .pi)
+        refreshCBEDPattern(of: simulation, inPlaneDegrees: run.built.inPlaneAngle * 180 / .pi, tiltMrad: run.key.tiltMrad)
     }
 
     /// After an Open's items have landed: a CBED item among them is selected in the Diffraction room with its document's phase,
@@ -153,9 +181,10 @@ extension AppState {
     }
 
     /// Puts the shown stored pattern of `simulation` into its CBED item, in whichever window holds it, with the document's phase, zone
-    /// axis, beam and the slab's turn on the item's overlay. An atom model's pattern has no overlay: its spots and hkl labels would be
-    /// the phase's (`SimulationModel.modelLabelsSentence`, #953). Nothing while either is missing or before the first run.
-    func refreshCBEDPattern(of simulation: OpenItem, inPlaneDegrees: Double? = nil) {
+    /// axis, beam and the slab's turn on the item's overlay, tilted by the run's `tiltMrad` (`CBEDTilt.orientation`) so the overlay's
+    /// excited spots are the run's. An atom model's pattern has no overlay: its spots and hkl labels would be the phase's
+    /// (`SimulationModel.modelLabelsSentence`, #953). Nothing while either is missing or before the first run.
+    func refreshCBEDPattern(of simulation: OpenItem, inPlaneDegrees: Double? = nil, tiltMrad: SIMD2<Double>? = nil) {
         let url = DemoDocuments.cbedURL(of: simulation.url)
         guard let held = pairedItem(at: url), let image = simulation.cbed.image(name: url.lastPathComponent) else { return }
         let source = simulation.diffraction, target = held.item.diffraction
@@ -166,6 +195,9 @@ extension AppState {
             if target.crystal != source.crystal { target.setCrystal(source.crystal) }
             if target.simulation.zoneAxis != source.simulation.zoneAxis { target.setZoneAxis(source.simulation.zoneAxis) }
             if let inPlaneDegrees { target.setTurn(degrees: inPlaneDegrees) }
+            if let tiltMrad, tiltMrad != .zero, let slab = target.drawnOrientation {
+                target.turnByHand(to: CBEDTilt.orientation(slab: slab, tiltMrad: tiltMrad))
+            }
             target.simulation.isShown = true
         }
         let canvas = Self.canvas(for: image)
