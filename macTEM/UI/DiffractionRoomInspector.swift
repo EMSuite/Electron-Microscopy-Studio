@@ -1,6 +1,6 @@
 //
 //  DiffractionRoomInspector.swift
-//  Role: the Diffraction room's Settings (design section 3): Centre, Calibration, Display, Tools, Phases, Index, Simulation, Rings, Export (control placement §2:
+//  Role: the Diffraction room's Settings (design section 3): Centre, Calibration, Display, Tools, Phases, Index, Holder, Simulation, Precipitate, Powder, Rings, Export (control placement §2:
 //        what I am looking at, then the job; Centre stays above Calibration, which it feeds). Presentation only;
 //        the state is `DiffractionAnalysis` and every number DiffractoKit's. Every field commits on Return or blur
 //        (`OptionalNumericField`), every control has an accessibility identifier for the journey.
@@ -29,9 +29,12 @@ struct DiffractionRoomSettings: View {
             DiffractionCalibrationSection(session: item.session, analysis: analysis, view: view)
             DiffractionDisplaySection(view: view)
             DiffractionToolsSection(view: view)
-            DiffractionPhasesSection(analysis: analysis)
+            DiffractionPhasesSection(item: item, analysis: analysis)
             DiffractionIndexSection(analysis: analysis)
+            DiffractionHolderSection(item: item)
             DiffractionSimulationSection(session: item.session, analysis: analysis)
+            DiffractionPrecipitateSection(item: item)
+            DiffractionPowderSection(item: item)
             DiffractionRingsSection(session: item.session, analysis: analysis, view: view)
             DiffractionExportSection(session: item.session, analysis: analysis)
         }
@@ -147,9 +150,11 @@ private struct DiffractionCalibrationSection: View {
 /// one phase is shown at a time and is the crystal Index, the readout and the simulated spots use; with none shown the room uses
 /// its calibration standard. The library is on this Mac, so a phase added once works offline.
 private struct DiffractionPhasesSection: View {
+    let item: OpenItem
     let analysis: DiffractionAnalysis
     @State private var adding = false
     @State private var importing = false
+    @State private var findingPhases = false
     @State private var addModel = AddPhaseModel(library: PhaseServices.library, client: PhaseServices.client,
                                                 keyStore: PhaseServices.keyStore)
     private var library: PhaseLibrary { PhaseServices.library }
@@ -169,6 +174,9 @@ private struct DiffractionPhasesSection: View {
                 Button("Add Phase…") { adding = true }
                     .help("Find a phase on the Materials Project, or open a CIF. Until a phase is shown, the room indexes against \(analysis.standard.name), the calibration standard.")
                     .accessibilityIdentifier("diffraction.phases.add")
+                Button("Find Phases…") { findingPhases = true }
+                    .help("Ranks the room's standards and the open crystals by how many of the measured rings or marked spots each explains")
+                    .accessibilityIdentifier("diffraction.findPhases")
             }
             if let why = analysis.crystalFailure { InspectorWarning(why) }
             InspectorRow("k_max") {
@@ -179,6 +187,7 @@ private struct DiffractionPhasesSection: View {
             }
         }
         .task { await PhaseServices.loadLibrary() }
+        .sheet(isPresented: $findingPhases) { DiffractionFindPhasesSheet(item: item) }
         .sheet(isPresented: $adding) {
             AddPhaseSheet(model: addModel, onOpenCIF: { importing = true }) { phase in
                 DiffractionPhases.set(phase, shown: true, in: analysis)

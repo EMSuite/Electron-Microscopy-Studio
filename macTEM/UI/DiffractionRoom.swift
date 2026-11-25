@@ -297,6 +297,24 @@ private struct DiffractionPatternPane: View {
                     SimulatedSpotsOverlay(spots: simulated, showsLabels: analysis.simulation.showsLabels, layout: layout)
                         .allowsHitTesting(false)
                 }
+                // The shown variants of a precipitate (#808), magenta, under the measured marks; placed off the main actor, the last
+                // placement drawn until the next lands.
+                if item.diffractionVariants.isShown {
+                    let variants = item.diffractionVariants
+                    Group {
+                        if case .success(let set)? = variants.variants(analysis: analysis, image: image) {
+                            VariantSpotsOverlay(pixels: variants.pixels(of: set, analysis: analysis, image: image), layout: layout)
+                            if case .success(let added)? = variants.addedSpots(analysis: analysis, image: image) {
+                                VariantSpotsOverlay(pixels: variants.pixels(of: added, analysis: analysis, image: image), layout: layout,
+                                                    dashed: true)
+                            }
+                        }
+                    }
+                    .allowsHitTesting(false)
+                    .task(id: variants.inputs(analysis: analysis, image: image)) {
+                        if let inputs = variants.inputs(analysis: analysis, image: image) { await variants.place(inputs) }
+                    }
+                }
                 DiffractionOverlay(analysis: analysis, view: view, rows: rows, layout: layout, drag: drag.flatMap { radii(from: $0.start, to: $0.end, layout: layout) })
                     .allowsHitTesting(false)
                 // The spot cursor, for the eyes, once a key or an action has moved it.
@@ -737,6 +755,27 @@ private struct SimulatedSpotsOverlay: View {
     }
 }
 
+/// The shown variants' spots (#808): a magenta ring per merged spot, its size growing with the square root of its intensity against
+/// the strongest, as the simulated spots are drawn; a spot several variants predict is one ring.
+private struct VariantSpotsOverlay: View {
+    let pixels: [VariantPixel]
+    let layout: DiffractionLayout
+    /// Spots double diffraction adds (#809): dashed rings of the smallest size.
+    var dashed = false
+
+    var body: some View {
+        Canvas { ctx, _ in
+            for spot in pixels {
+                let p = layout.point(column: spot.column, row: spot.row)
+                let r = 3 + 6 * CGFloat(spot.relative.squareRoot())
+                ctx.stroke(Path(ellipseIn: CGRect(x: p.x - r, y: p.y - r, width: 2 * r, height: 2 * r)), with: .color(.pink),
+                           style: StrokeStyle(lineWidth: 1.5, dash: dashed ? [2, 2] : []))
+            }
+        }
+        .accessibilityHidden(true)
+    }
+}
+
 // MARK: - The readout
 
 /// The rings and spots as a system `Table` with a selection: arrow keys, ⌫ (removes the selected row), ⌘C (copies it, tab-separated under
@@ -776,6 +815,7 @@ private struct DiffractionReadoutTable: View {
                     .accessibilityValue(row.family ?? "")
             }.width(min: 46, ideal: 52)
             TableColumn(header(.dListed)) { row in Text(DiffractionReadoutFormat.cell(.dListed, row)).monospacedDigit() }.width(min: 52, ideal: 58)
+            TableColumn(header(.intensity)) { row in Text(DiffractionReadoutFormat.cell(.intensity, row)).monospacedDigit() }.width(min: 40, ideal: 46)
             TableColumn(header(.delta)) { row in Text(DiffractionReadoutFormat.cell(.delta, row)).monospacedDigit() }.width(min: 48, ideal: 54)
             TableColumn(header(.odds)) { row in Text(DiffractionReadoutFormat.cell(.odds, row)).monospacedDigit() }.width(min: 60, ideal: 68)
             TableColumn(header(.verdict)) { row in

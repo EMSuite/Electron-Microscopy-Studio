@@ -54,6 +54,15 @@ extension LayoutPolicy {
     static let mapsPoleMarkerRadius: CGFloat = 3.5
     static let mapsHistogramTickHeight: CGFloat = 8
 
+    /// The Diffraction room's 2.4 sections (rule 4): the Find Phases sheet and its ranking table, the powder chart, a
+    /// relationship's index field in Precipitate, the zone-axis map's largest side and a family's line in its legend.
+    static let findPhasesSheet: (min: CGSize, idealWidth: CGFloat) = (CGSize(width: 620, height: 360), 700)
+    static let findPhasesTableMinimum: CGFloat = 180
+    static let powderChartHeight: CGFloat = 140
+    static let precipitateIndexFieldWidth: CGFloat = 72
+    static let zoneAxisMapMaximum: CGFloat = 260
+    static let zoneAxisLegendLine = CGSize(width: 10, height: 2)
+
     /// The Settings window (`SettingsWindow`): a sidebar of sections beside a grouped form, mac4DSTEM's size.
     static let settingsWindow: (min: CGSize, ideal: CGSize) = (CGSize(width: 560, height: 380), CGSize(width: 660, height: 600))
 }
