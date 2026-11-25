@@ -109,7 +109,7 @@ nonisolated final class MapsRoomFrameTests: XCTestCase {
     }
 
     /// The one line in place of the Slip table says what is missing, in order.
-    func testTheSlipTableSaysWhyItIsEmpty() {
+    @MainActor func testTheSlipTableSaysWhyItIsEmpty() {
         XCTAssertEqual(MapsSlipTable.emptyLine(segmented: false, picked: false), "Segment the map, then pick a grain for its slip systems.")
         XCTAssertEqual(MapsSlipTable.emptyLine(segmented: true, picked: false), "Pick a grain on the map or in the Grains table for its slip systems.")
         XCTAssertTrue(MapsSlipTable.emptyLine(segmented: true, picked: true).contains("inspector's Slip section"))
