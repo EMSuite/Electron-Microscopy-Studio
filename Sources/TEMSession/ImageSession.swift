@@ -26,6 +26,10 @@ package final class ImageSession {
     /// The file the image came from (the sandbox granted it by the open panel or Finder).
     package private(set) var url: URL?
     package private(set) var isLoading = false
+    /// Counts every change of `image`: a published open (a file, a frame of a stack, a computed image such as a CBED pattern at another
+    /// thickness) and a release. A view that draws the pixels keys its work on it, since a new image of the same size is still new
+    /// pixels (#1003: the Diffraction room and the door's picture kept a CBED pattern's first thickness).
+    package private(set) var generation = 0
     @ObservationIgnored private var latestOpen = 0
 
     package init() {}
@@ -47,6 +51,7 @@ package final class ImageSession {
         self.url = url
         self.metadata = metadata
         self.sem = sem
+        generation &+= 1
         isLoading = false
         return true
     }
@@ -57,6 +62,7 @@ package final class ImageSession {
     package func release() {
         latestOpen &+= 1
         image = nil
+        generation &+= 1
         metadata = AcquisitionMetadata()
         sem = nil
         url = nil

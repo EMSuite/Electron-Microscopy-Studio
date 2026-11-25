@@ -85,9 +85,12 @@ package nonisolated enum FileRouting {
         (kind: "patterns and images saved as pictures", extensions: PictureImageReader.extensions),
         (kind: "EDS and EELS spectra and spectrum images", extensions: EDXOpening.readableExtensions + EELSOpening.readableExtensions),
         (kind: "EBSD patterns and orientation maps", extensions: EBSDOpening.readableExtensions),
+        // A Simulation document's session file (#908): an Open reopens the document (`AppState.openSimulationSessions`), no room reads it.
+        (kind: "Simulation documents", extensions: [SimulationSessionFile.fileExtension]),
     ]
 
-    /// Every extension an Open routes somewhere (an image, an EDS or EELS spectrum image, a single spectrum, EBSD patterns, an orientation map), each once:
+    /// Every extension an Open routes somewhere (an image, an EDS or EELS spectrum image, a single spectrum, EBSD patterns, an orientation map, a
+    /// Simulation document's session file), each once:
     /// what the Open panel offers, a drop takes, and the app declares as document types for Finder's Open With.
     package static let openableExtensions: [String] = {
         var seen = Set<String>()

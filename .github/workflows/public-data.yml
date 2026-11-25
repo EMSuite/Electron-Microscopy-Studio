@@ -16,6 +16,11 @@ name: Public data
 
 on:
   workflow_dispatch:
+    inputs:
+      extract_demo_frame:
+        description: 'Also write the demo spot pattern (tools/lib/extract-spot-pattern.py) and print it to the log (#804)'
+        type: boolean
+        default: false
   pull_request:
     paths:
       - 'tools/public-data.tsv'
@@ -61,6 +66,14 @@ jobs:
             grep -E '^fetch-public-data: (ok|MISMATCH|FAILED|MISSING|WRONG)' "$RUNNER_TEMP/fetch.log" || echo "no file line was printed"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+      - name: The demo spot pattern, printed to the log (#804)
+        if: github.event_name == 'workflow_dispatch' && inputs.extract_demo_frame
+        run: |
+          python3 -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install --quiet 'h5py==3.16.0' 'numpy==2.3.5'
+          # The record's own words (title, description, licence, creators): the phase and zone axis the docs name come from here.
+          curl -fsSL https://zenodo.org/api/records/15490547 | "$RUNNER_TEMP/venv/bin/python" -I -c 'import json,sys; r=json.load(sys.stdin)["metadata"]; print("zenodo record", json.dumps({k: r.get(k) for k in ("title","description","license","creators","related_identifiers","publication_date")}, indent=1))'
+          "$RUNNER_TEMP/venv/bin/python" -I tools/lib/extract-spot-pattern.py References/public-data/pyxem/twinned_nanowire.hdf5 "$RUNNER_TEMP/demo-frame.hspy" 84 26
       - name: Upload the files as the run's artifact
         if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v7

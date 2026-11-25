@@ -11,6 +11,8 @@ struct AgentSettingsView: View {
     @AppStorage(MacTEMAgentDoor.enabledKey) private var enabled = false
     @AppStorage(MacTEMAgentDoor.runsKey) private var runs = false
     @AppStorage(MacTEMAgentDoor.folderKey) private var folderBookmark: Data?
+    /// Where the bookmark points, resolved off the main actor when the bookmark changes, never in `body` (#926).
+    @State private var folderPath: String?
 
     var body: some View {
         AgentDoorSettingsSection(door: MacTEMAgentDoor.shared, isOn: $enabled,
@@ -25,7 +27,7 @@ struct AgentSettingsView: View {
         Section("Agent folder") {
             LabeledContent("Folder") {
                 HStack {
-                    Text(AgentFolder.displayPath(bookmark: folderBookmark) ?? "None")
+                    Text(folderPath ?? "None")
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                         .truncationMode(.middle)
@@ -47,5 +49,6 @@ struct AgentSettingsView: View {
         .onChange(of: folderBookmark) { _, bookmark in
             if let refreshed = MacTEMAgentDoor.setFolder(bookmark: bookmark) { folderBookmark = refreshed }
         }
+        .task(id: folderBookmark) { folderPath = await AgentFolder.shownPath(bookmark: folderBookmark) }
     }
 }
