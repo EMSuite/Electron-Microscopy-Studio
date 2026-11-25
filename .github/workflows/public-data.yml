@@ -69,8 +69,9 @@ jobs:
       - name: The demo spot pattern, printed to the log (#804)
         if: github.event_name == 'workflow_dispatch' && inputs.extract_demo_frame
         run: |
-          python3 -m pip install --quiet 'h5py==3.16.0' 'numpy==2.3.5'
-          python3 -I tools/demo/extract-spot-pattern.py References/public-data/pyxem/twinned_nanowire.hdf5 "$RUNNER_TEMP/demo-frame.hspy"
+          python3 -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install --quiet 'h5py==3.16.0' 'numpy==2.3.5'
+          "$RUNNER_TEMP/venv/bin/python" -I tools/demo/extract-spot-pattern.py References/public-data/pyxem/twinned_nanowire.hdf5 "$RUNNER_TEMP/demo-frame.hspy"
       - name: Upload the files as the run's artifact
         if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v7
