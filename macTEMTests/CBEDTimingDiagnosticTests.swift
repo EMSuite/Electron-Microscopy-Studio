@@ -5,6 +5,7 @@
 //
 
 import XCTest
+import DiffractoCore
 import SimulatoCore
 import SimulatoMultislice
 import SimulatoProbe
@@ -47,10 +48,10 @@ nonisolated final class CBEDTimingDiagnosticTests: XCTestCase {
                 _ = try CBEDRun.run(built, settings: settings, semiangleMrad: 6.5, volts: 200_000, specimen: "Si [0 0 1]",
                                     progress: { _ in stamps.add((ContinuousClock.now - start) / .seconds(1)) })
             }
-            lines.append("step \(step): grid \(plan.grid.x)x\(plan.grid.y), k \(k) periods (\(k * perPeriod) slices), "
-                         + "\(plan.planePeriods.count) planes; build \(fmt(tBuild)) s; metal(built) \(fmt(tMetalBuilt)) s then "
-                         + "\(fmt(tMetalBuilt2)) s; metal(lazy) \(fmt(tMetalLazy)) s; CBEDRun.run 6 nm \(fmt(tRun)) s; "
-                         + "progress stamps \(stamps.values.suffix(8).map(fmt))")
+            let head = "step \(step): grid \(plan.grid.x)x\(plan.grid.y), k \(k) periods (\(k * perPeriod) slices), \(plan.planePeriods.count) planes"
+            let parts = "build \(fmt(tBuild)) s; metal(built) \(fmt(tMetalBuilt)) s then \(fmt(tMetalBuilt2)) s; metal(lazy) \(fmt(tMetalLazy)) s"
+            let runText = "CBEDRun.run 6 nm \(fmt(tRun)) s; stamps " + stamps.values.suffix(8).map(fmt).joined(separator: " ")
+            lines.append(head + "; " + parts + "; " + runText)
         }
         XCTFail("CBED timing (#1078):\n" + lines.joined(separator: "\n"))
     }
