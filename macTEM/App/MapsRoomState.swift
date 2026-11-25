@@ -1049,4 +1049,3 @@ enum MapsDetailTab: String, CaseIterable, Identifiable {
     case histogram = "Histogram"
     var id: String { rawValue }
 }
-
