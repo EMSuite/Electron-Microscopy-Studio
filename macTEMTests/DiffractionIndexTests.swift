@@ -357,6 +357,21 @@ nonisolated final class DiffractionIndexTests: XCTestCase {
         XCTAssertEqual(b.indexBlocker(image: unpowered), "Index needs the beam energy: type it under Calibration")
     }
 
+    /// #1019: while Index is off, the Index section's note says what it waits for (the beam energy here), beside the dimmed control;
+    /// once nothing blocks it, the note is the usual one. Red before: the note had no blocker and never named the beam energy.
+    @MainActor func testTheIndexNoteSaysWhyIndexIsOff() {
+        let unpowered = CalibratedImage(width: 8, height: 8, pixels: [Float](repeating: 1, count: 64), x: nil, y: nil, fileName: "u",
+                                        source: "test", voltage: nil)
+        let b = DiffractionAnalysis()
+        b.bind(unpowered)
+        b.typedDeltaQ = 0.01
+        let note = DiffractionIndexText.note(spots: b.spots, outcome: nil, indexed: false, blocker: b.indexBlocker(image: unpowered))
+        XCTAssertEqual(note, "Index needs the beam energy: type it under Calibration.")
+        b.typedBeamKV = 200
+        let ready = DiffractionIndexText.note(spots: b.spots, outcome: nil, indexed: false, blocker: b.indexBlocker(image: unpowered))
+        XCTAssertFalse(ready.contains("beam energy"), ready)
+    }
+
     // MARK: The map and the words
 
     /// q of a pixel is the inverse of the overlay's map: a simulated spot's pixel reads back the kit's (qx, qy).
