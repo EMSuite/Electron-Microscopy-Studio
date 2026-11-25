@@ -9,6 +9,7 @@
 //  mean, a band line mirrored or transposed, Stop that keeps landing rows, a phase change that does not stale the result.
 //
 
+import CoreGraphics
 import XCTest
 import FormatoCore
 import ShellLayout

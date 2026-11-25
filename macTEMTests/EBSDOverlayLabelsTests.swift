@@ -8,6 +8,7 @@
 //
 
 import CoreGraphics
+import Foundation
 import XCTest
 @testable import macTEM
 

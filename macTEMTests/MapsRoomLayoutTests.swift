@@ -5,6 +5,7 @@
 //  the map beside the live pattern pane over a strip of tabs, and there was no `MapsRoomLayout`, no inset and no switch.
 //
 
+import ShellAgentDoor
 import SwiftUI
 import XCTest
 @testable import macTEM

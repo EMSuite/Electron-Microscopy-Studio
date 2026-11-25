@@ -6,6 +6,7 @@
 //  to "PC (0,4…", nine Patterns switches were `.controlSize(.small)`, and the tables' columns took their default widths.
 //
 
+import ShellLayout
 import XCTest
 @testable import macTEM
 
@@ -55,7 +56,7 @@ nonisolated final class EBSDRoomPolishTests: XCTestCase {
         let pane: CGFloat = (1280 - 220 - 310) / 2 - 16
         let columns = [LayoutPolicy.ebsdIndexColumn] + Array(repeating: LayoutPolicy.ebsdNumberColumn, count: 5) + [LayoutPolicy.ebsdFamilyColumn]
         let spacing: CGFloat = 8
-        XCTAssertLessThanOrEqual(columns.map(\.ideal).reduce(0, +) + spacing * CGFloat(columns.count), pane)
+        XCTAssertLessThanOrEqual(columns.map { $0.ideal }.reduce(0, +) + spacing * CGFloat(columns.count), pane)
         for column in columns { XCTAssertLessThan(column.min, column.ideal) }
         let room = try ui("IndexingRoom.swift")
         let bands = try XCTUnwrap(room.components(separatedBy: "Table(session.detectedBands, selection: $selection) {").last?
