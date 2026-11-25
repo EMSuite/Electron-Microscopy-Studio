@@ -19,8 +19,13 @@ extension AppState {
     /// File > New Simulation: opens the next simulation, here or in a tab of its own. Returns the open's task.
     @discardableResult
     func newSimulation() -> Task<Void, Never>? {
-        Self.simulationsMade += 1
-        return open(urls: [DemoDocuments.simulationURL(Self.simulationsMade)])
+        open(urls: [Self.nextSimulationURL()])
+    }
+
+    /// The next simulation's document ("Simulation 1", "Simulation 2", …): New Simulation's, and a reopened session file's (#908).
+    static func nextSimulationURL() -> URL {
+        simulationsMade += 1
+        return DemoDocuments.simulationURL(simulationsMade)
     }
 
     /// After an Open's items have landed: a simulation among them is selected, its beam energy typed, its simulated spots shown, and
@@ -29,6 +34,8 @@ extension AppState {
         guard let simulation = made.first(where: { DemoDocuments.isSimulation($0.url) }),
               let item = openItems.item(simulation.id) else { return }
         if openItems.selected?.id != item.id { openItems.select(item.id) }
+        // A reopened session file (#908): its phase and settings first, so what follows keeps them.
+        SimulationSessions.landReopened(item)
         // The beam energy is typed, not the file's, so the Calibration section changes it: 200 kV to start, the demo pattern's.
         if item.diffraction.typedBeamKV == nil { item.diffraction.typedBeamKV = DemoDocuments.Truth.patternVolts / 1000 }
         item.diffraction.simulation.isShown = true

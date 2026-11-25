@@ -34,6 +34,16 @@ extension AppState {
     /// forward in the window that holds it. A state no window shows takes the whole batch (`windows`).
     @discardableResult
     func open(urls picked: [URL], refused: [String] = []) -> Task<Void, Never>? {
+        // A Simulation document's session file reopens its document (#908); no room reads it. Its refusal joins the batch's alert.
+        if picked.contains(where: SimulationSessionFile.isSessionFile) {
+            let sessions = openSimulationSessions(picked.filter(SimulationSessionFile.isSessionFile))
+            let rest = picked.filter { !SimulationSessionFile.isSessionFile($0) }
+            guard !rest.isEmpty else {
+                presentRefusals(refused + sessions.refusals)
+                return sessions.task
+            }
+            return open(urls: rest, refused: refused + sessions.refusals)
+        }
         let batch = TIASpectra.withoutSeriesOfPickedEMI(picked)
         let urls: [URL]
         let tabs: Task<[String], Never>?   // the files that get a tab of their own, looked at first (`tabsChecked`): the refused ones' sentences
