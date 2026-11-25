@@ -566,6 +566,19 @@ now answers that: deleting it sends every job back to `macos-26` at once.
 **What would reverse it.** The Mac often asleep or away while pull requests wait, or a failure that only the Mac's state
 explains; then delete the variable, and this line back to `runs-on: macos-26`.
 
+## 2026-11-25 — CI: a pull request's `unit` takes GitHub's `macos-26` while the Mac runner is taken
+
+**What.** Before `unit` is queued, the Linux job `changes` asks the Actions API whether another pull request's `unit
+(XCTest)` in this repo is queued or running on the self-hosted Mac. If one is, this pull request's `unit` runs on
+`macos-26`; if none is, on the Mac, as the entry above. An API error picks the Mac. Check names are unchanged.
+
+**Why.** One Mac takes one job at a time, so 13 pull requests queued behind it one by one on 25 Nov while GitHub's free
+macOS runners stood idle. GitHub cannot send a job to whichever of two labels is free, so the choice is made before the
+job is queued.
+
+**What would reverse it.** Failures that only `macos-26` shows (the Mac runs a newer macOS), or GitHub's queue becoming the
+wait again; then drop the `mac` output from `unit`'s `runs-on`.
+
 ## 2026-11-24 — A Simulation document's HRTEM image is an item of its own, in a tab beside its document
 
 **What.** Show HRTEM Image opens "HRTEM of Simulation 1" as a separate item through the app's own Open, so a window that holds the
