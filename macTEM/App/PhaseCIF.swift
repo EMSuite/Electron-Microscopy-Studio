@@ -27,7 +27,7 @@ nonisolated enum PhaseCIF {
 
     /// Where the phase came from, as the file's `# Source:` lines: a Materials Project entry with its id, the date it was fetched
     /// (UTC, ISO), its licence and its page; a CIF by its file name.
-    static func sourceLines(_ source: PhaseSource) -> [String] {
+    static func sourceLines(_ source: ShellPhaseLibrary.PhaseSource) -> [String] {
         switch source {
         case let .materialsProject(id, fetched):
             let day = fetched.formatted(Date.ISO8601FormatStyle(timeZone: TimeZone(identifier: "UTC")!).year().month().day())
