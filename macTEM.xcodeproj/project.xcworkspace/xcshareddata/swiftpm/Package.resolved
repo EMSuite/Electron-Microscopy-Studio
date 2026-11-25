@@ -6,8 +6,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/mac4DSTEM/DiffractoKit",
       "state" : {
-        "revision" : "4e55444ea5a5d3b8d0c366a8a182ea4c6598df0e",
-        "version" : "0.21.0"
+        "revision" : "e1ac5dda8450f819f89b0691551da61060722884",
+        "version" : "0.22.0"
       }
     },
     {

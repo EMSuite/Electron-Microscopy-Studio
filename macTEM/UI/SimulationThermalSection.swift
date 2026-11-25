@@ -27,7 +27,7 @@ struct SimulationThermalSection: View {
             InspectorRow("Frozen phonons") {
                 Toggle("Frozen phonons", isOn: Binding(get: { model.thermal != nil },
                                                        set: { model.useThermalVibrations($0, crystal: crystal) }))
-                    .disabled(model.isSimulating || crystal == nil)
+                    .disabled(model.isSimulating || model.sourceIdentity(crystal: crystal) == nil)
                     .help("Averages images of the atoms displaced at random (Einstein model); off is the static lattice, whose image is live")
                     .accessibilityIdentifier("simulation.thermal.frozenPhonons")
             }
@@ -94,7 +94,7 @@ struct SimulationThermalSection: View {
                 }
             }
         }
-        .task(id: RateKey(crystal: crystal?.identity, zoneAxis: zoneAxis, thicknessNM: model.thicknessNM, volts: model.optics.volts,
+        .task(id: RateKey(crystal: model.sourceIdentity(crystal: crystal), zoneAxis: zoneAxis, thicknessNM: model.thicknessNM, volts: model.optics.volts,
                           apertureMrad: model.optics.apertureMrad, on: model.thermal != nil)) {
             await model.measureRate(crystal: crystal, zoneAxis: zoneAxis)
         }

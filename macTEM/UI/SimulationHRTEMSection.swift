@@ -14,11 +14,14 @@ import ShellInspector
 import SwiftUI
 import TEMCore
 import TEMSession
+import UniformTypeIdentifiers
 
 struct SimulationHRTEMSection: View {
     let item: OpenItem
     @Environment(AppState.self) private var appState
     @State private var showsTable = false
+    /// The script Export abTEM Script… writes while its panel is up.
+    @State private var script: (name: String, text: String)?
 
     var body: some View {
         if let simulation = appState.simulationDocument(ofHRTEM: item) {
@@ -109,6 +112,14 @@ struct SimulationHRTEMSection: View {
                     .help("Images of the specimen at five defocus values and five thicknesses; a click picks one")
                     .accessibilityIdentifier("simulation.hrtem.table")
             }
+            InspectorActionRow {
+                Button("Export abTEM Script…") {
+                    script = model.abTEMScript(crystal: crystal, zoneAxis: zoneAxis, appVersion: MacTEMAgentDoor.version())
+                }
+                .disabled(waves == nil || model.isComputing || !model.exitWavesAreCurrent(crystal: crystal, zoneAxis: zoneAxis))
+                .help("A Python script that runs this image again in abTEM \(AbTEMScript.abTEMVersion): the same specimen, grid, slices, lens and defocus")
+                .accessibilityIdentifier("simulation.hrtem.saveScript")
+            }
             if model.isComputing {
                 InspectorNote("Computing the exit waves…")
             } else if let failure = model.computeFailure {
@@ -123,10 +134,13 @@ struct SimulationHRTEMSection: View {
                     .accessibilityIdentifier("simulation.hrtem.method")
             }
         }
+        .roomExporter(isPresented: Binding(get: { script != nil }, set: { if !$0 { script = nil } }),
+                      data: Data((script?.text ?? "").utf8), contentType: .pythonScript, defaultFilename: script?.name ?? "HRTEM.py",
+                      didWrite: { _ in script = nil }, didFinish: { script = nil })
         .sheet(isPresented: $showsTable) {
             SimulationHRTEMTableSheet(model: model) { appState.refreshHRTEMImage(of: simulation) }
         }
-        .task(id: RunKey(crystal: crystal?.identity, zoneAxis: zoneAxis, thicknessNM: model.thicknessNM,
+        .task(id: RunKey(crystal: model.sourceIdentity(crystal: crystal), zoneAxis: zoneAxis, thicknessNM: model.thicknessNM,
                          beamKV: analysis.typedBeamKV, apertureMrad: model.optics.apertureMrad,
                          strain: crystal.map { model.maximumStrain(crystal: $0, zoneAxis: zoneAxis) }, thermal: model.thermal != nil)) {
             await appState.computeHRTEMImage(of: simulation)
