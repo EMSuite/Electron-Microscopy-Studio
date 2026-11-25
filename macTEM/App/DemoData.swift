@@ -7,6 +7,7 @@
 //        UI tests open the same documents through `openDemo`, so the menu and the tests cannot drift apart.
 //
 
+import DiffractoCore
 import Foundation
 import TEMSession
 import ShellEDXModel
@@ -23,6 +24,12 @@ nonisolated enum DemoDocument: String, CaseIterable, Identifiable, Sendable {
     case ebsd
     /// The shipped two-phase orientation map (`DemoDocuments.Shipped.duplexSteelMap`), opened through the app's own Open into the Maps room.
     case orientationMap
+    /// The shipped recorded spot pattern (`DemoDocuments.Shipped.nanowirePattern`, #804), opened through the app's own Open and shown in
+    /// the Diffraction room.
+    case spotPattern
+    /// File > New Simulation with the shipped silicon CIF as its crystal (`DemoDocuments.Shipped.siliconCIF`, #804): simulated spots of
+    /// silicon, with no measured pattern, in the Diffraction room.
+    case siliconSimulation
 
     var id: String { rawValue }
 
@@ -37,6 +44,8 @@ nonisolated enum DemoDocument: String, CaseIterable, Identifiable, Sendable {
         case .semSpectrum: DemoDocuments.Shipped.semEDSSpectrum.title
         case .ebsd: DemoDocuments.Shipped.nickelEBSD.title
         case .orientationMap: DemoDocuments.Shipped.duplexSteelMap.title
+        case .spotPattern: DemoDocuments.Shipped.nanowirePattern.title
+        case .siliconSimulation: DemoDocuments.Shipped.siliconCIF.title
         }
     }
 
@@ -44,7 +53,7 @@ nonisolated enum DemoDocument: String, CaseIterable, Identifiable, Sendable {
     var room: WorkspaceArea {
         switch self {
         case .lattice, .semImage: .image
-        case .diffraction: .diffraction
+        case .diffraction, .spotPattern, .siliconSimulation: .diffraction
         case .edx, .semSpectrum: .edx
         case .eels: .eels
         case .ebsd: .patterns
@@ -88,6 +97,20 @@ extension AppState {
             // The file in the bundle, through the Open route (`FileRouting`: an `.ang` without patterns lands in the Maps room).
             guard let url = DemoDocuments.Shipped.duplexSteelMap.url else { return nil }
             task = open(urls: [url])
+        case .spotPattern:
+            // The file in the bundle, through the Open route (`FileRouting`: a `.hspy` of one 2D signal is an image, which the
+            // Diffraction room shows).
+            guard let url = DemoDocuments.Shipped.nanowirePattern.url else { return nil }
+            task = open(urls: [url])
+        case .siliconSimulation:
+            // New Simulation's own call, then the shipped CIF as the room's crystal, as Open CIF… would set it.
+            guard let url = DemoDocuments.Shipped.siliconCIF.url, let bytes = try? Data(contentsOf: url),
+                  let silicon = try? CrystalLoading.load(bytes: bytes, fileName: url.lastPathComponent) else { return nil }
+            let opening = newSimulation()
+            task = Task {
+                await opening?.value
+                if let item = openItems.selected, DemoDocuments.isSimulation(item.url) { item.diffraction.setCrystal(.cif(silicon)) }
+            }
         }
         navigation.workspaceArea = demo.room
         return task

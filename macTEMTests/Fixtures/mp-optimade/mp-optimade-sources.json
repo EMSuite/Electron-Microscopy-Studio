@@ -1,0 +1,27 @@
+{
+  "date": "2026-11-24",
+  "source": "DiffractoKit Tests/DiffractoCoreTests/Fixtures/mp-optimade (recorded from the keyless Materials Project OPTIMADE service; data CC BY 4.0)",
+  "files": [
+    {
+      "bytes": 6364,
+      "file": "search-Al.json",
+      "note": "the search for Al",
+      "sha256": "e2d571645594a00c8ff0f60bb01a93eeae064f807b5be1f34d4d7a0694abdf3d",
+      "url": "https://optimade.materialsproject.org/v1/structures?filter=chemical_formula_reduced%3D%22Al%22&response_fields=chemical_formula_reduced%2Cnsites%2C_mp_stability&page_limit=500"
+    },
+    {
+      "bytes": 2175,
+      "file": "entry-mp-134.json",
+      "note": "Al, cF (spglib, the same at symprec 1e-4, 1e-3 and 1e-2)",
+      "sha256": "3a1ae03f1d20fed662753b4372511e7c52166336249e1efff28dced322d421a1",
+      "url": "https://optimade.materialsproject.org/v1/structures/mp-134"
+    },
+    {
+      "bytes": 2443,
+      "file": "entry-mp-1183144.json",
+      "note": "Al, hP (spglib, the same at symprec 1e-4, 1e-3 and 1e-2)",
+      "sha256": "14430bc5bfb5d19f1a79a1bd73222e964aa194aced9d5c1ba8116764fb510016",
+      "url": "https://optimade.materialsproject.org/v1/structures/mp-1183144"
+    }
+  ]
+}

@@ -79,6 +79,46 @@ nonisolated final class CBEDThicknessTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(m.minima.count, 4, "two fitted minima or more on each side")
     }
 
+    /// A recorded pattern (#978): the same discs at 1000 counts for an intensity of 1, on a background rising from 5 counts at the
+    /// left edge by 0.02 counts a column, every pixel a Poisson draw (seeded). Noise and the ramp break the plateau of the highest
+    /// mean, so its middle fell back to the noisy maximum, several pixels along the ring; the middle of the turns above half height
+    /// stays within 1.5 px. Red before: the plateau within 1e-3 of the top.
+    func testTheDiscsCentreOnANoisyPatternWithASlopingBackground() throws {
+        let (clean, disc) = try pattern(thickness: 2500)
+        var generator = SplitMix64(seed: 978)
+        var pixels = [Float](repeating: 0, count: Self.size * Self.size)
+        for r in 0 ..< Self.size {
+            for c in 0 ..< Self.size {
+                let i = r * Self.size + c
+                let mean = 1000 * Double(clean.value(at: i)) + 5 + 0.02 * Double(c)
+                pixels[i] = Float(Self.poisson(mean, using: &generator))
+            }
+        }
+        let image = CalibratedImage(width: Self.size, height: Self.size, pixels: pixels, x: nil, y: nil, fileName: "two-beam recorded",
+                                    source: "test", voltage: Self.volts)
+        let centre = SIMD2(Double(Self.size / 2), Double(Self.size / 2))
+        let discs = try CBEDThickness.discs(image: image, centre: centre, deltaQ: Self.deltaQ, cell: CrystalPresets.silicon.cell,
+                                            families: try families())
+        XCTAssertEqual(discs.hkl, MillerIndex(2, 2, 0))
+        XCTAssertEqual(Self.length(discs.diffracted - disc), 0, accuracy: 1.5, "the disc's centre")
+        XCTAssertEqual(discs.radius, Self.radius, accuracy: 1.5)
+    }
+
+    /// A Poisson draw of `mean` counts: Knuth's product of uniforms under 30, a rounded normal (Box-Muller) above, where the two
+    /// agree to well under the test's tolerance.
+    private static func poisson(_ mean: Double, using generator: inout SplitMix64) -> Double {
+        if mean < 30 {
+            let limit = exp(-mean)
+            var k = 0.0, product = Double.random(in: 0 ..< 1, using: &generator)
+            while product > limit { k += 1; product *= Double.random(in: 0 ..< 1, using: &generator) }
+            return k
+        }
+        let u = Double.random(in: Double.leastNonzeroMagnitude ..< 1, using: &generator)
+        let v = Double.random(in: 0 ..< 1, using: &generator)
+        let z = (-2 * log(u)).squareRoot() * cos(2 * Double.pi * v)
+        return max(0, (mean + mean.squareRoot() * z).rounded())
+    }
+
     /// No scale, no disc on the rings: the design's sentences, not a number. Mutation: a fit run on an empty profile.
     func testNoScaleOrNoDiscIsRefused() throws {
         let (image, _) = try pattern(thickness: 2500)
@@ -91,5 +131,18 @@ nonisolated final class CBEDThicknessTests: XCTestCase {
                                                        families: [], phase: "Si", volts: Self.volts)) {
             XCTAssertEqual($0 as? CBEDThickness.Refusal, .noDisc)
         }
+    }
+}
+
+/// A seeded generator, so the recorded pattern is the same on every run (SplitMix64, Steele et al. 2014).
+private nonisolated struct SplitMix64: RandomNumberGenerator {
+    private var state: UInt64
+    init(seed: UInt64) { state = seed }
+    mutating func next() -> UInt64 {
+        state &+= 0x9E37_79B9_7F4A_7C15
+        var z = state
+        z = (z ^ (z >> 30)) &* 0xBF58_476D_1CE4_E5B9
+        z = (z ^ (z >> 27)) &* 0x94D0_49BB_1331_11EB
+        return z ^ (z >> 31)
     }
 }

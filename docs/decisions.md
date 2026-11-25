@@ -566,6 +566,19 @@ now answers that: deleting it sends every job back to `macos-26` at once.
 **What would reverse it.** The Mac often asleep or away while pull requests wait, or a failure that only the Mac's state
 explains; then delete the variable, and this line back to `runs-on: macos-26`.
 
+## 2026-11-25 — CI: a pull request's `unit` takes GitHub's `macos-26` while the Mac runner is taken
+
+**What.** Before `unit` is queued, the Linux job `changes` asks the Actions API whether another pull request's `unit
+(XCTest)` in this repo is queued or running on the self-hosted Mac. If one is, this pull request's `unit` runs on
+`macos-26`; if none is, on the Mac, as the entry above. An API error picks the Mac. Check names are unchanged.
+
+**Why.** One Mac takes one job at a time, so 13 pull requests queued behind it one by one on 25 Nov while GitHub's free
+macOS runners stood idle. GitHub cannot send a job to whichever of two labels is free, so the choice is made before the
+job is queued.
+
+**What would reverse it.** Failures that only `macos-26` shows (the Mac runs a newer macOS), or GitHub's queue becoming the
+wait again; then drop the `mac` output from `unit`'s `runs-on`.
+
 ## 2026-11-24 — A Simulation document's HRTEM image is an item of its own, in a tab beside its document
 
 **What.** Show HRTEM Image opens "HRTEM of Simulation 1" as a separate item through the app's own Open, so a window that holds the
@@ -590,3 +603,20 @@ the pair into that picture gives Export Image, the scale bar and the agent door'
 
 **What would reverse it.** Measuring on the simulation alone (FFT, Profile) while the pair is shown; then the pair would become
 an item of its own beside the HRTEM image.
+
+## 2026-11-25 — A document names an outside file by name, size and fingerprint; the app keeps the bookmark (#824)
+
+**What.** A document names each outside file as a `LinkedFile`: its name, its size and a fingerprint (the SHA-256 of the size,
+the first MiB and the last MiB), never a path. The permission is the app's own security-scoped bookmark, kept in its defaults
+under the link's id. A link resolves off the main actor, without interface and without mounting, within 5 seconds: found where
+it moved or under a new name, a stale bookmark renewed; otherwise one line says the file is not connected, on a server that is
+not connected, or different, with Locate…, and a file with other contents is linked only with Link Anyway. Place Beside's
+measured image is the first link; the Simulation document's session file (#908) will save it as it is.
+
+**Why.** The suite's files-exports design, "The sandbox rule for documents that point at other files": a path does not travel to
+another Mac and tells a reader the user's folders, and a bookmark inside the document needs a second entitlement and fights the
+write-then-rename save. Departure: the line sits in Place Beside's section, where the measured image is named, not in a window
+header; a server that is not connected gets Locate… only (Connect, which mounts, is not offered).
+
+**What would reverse it.** Two files that share their size and both ends taken for one (then the whole file is hashed, at the
+cost of a pass over a gigabyte scan).

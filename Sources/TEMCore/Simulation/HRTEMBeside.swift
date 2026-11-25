@@ -26,15 +26,21 @@ package nonisolated struct HRTEMBeside: Sendable, Equatable {
         case inset = "Inset"
     }
 
-    /// The measured image's file.
+    /// The measured image's file, while it is open in this app's windows. Never saved: a document names the file by `link`.
     package var measured: URL
+    /// The measured image's file as a document names it (#824): name, size and fingerprint, never a path; nil when it has no file
+    /// to read (an image made in memory).
+    package var link: LinkedFile?
     package var layout = Layout.beside
     /// The simulation's rotation on screen, degrees, counter-clockwise.
     package var rotationDegrees = 0.0
     /// The inset's size in unit cells, across and down (Inset only).
     package var insetCells = SIMD2(4, 4)
 
-    package init(measured: URL) { self.measured = measured }
+    package init(measured: URL, link: LinkedFile? = nil) {
+        self.measured = measured
+        self.link = link
+    }
 
     package static let insetCellRange = 1 ... 50
     /// The design's sentences. The design's "Calibrate it in Imaging first." is left out: the Image room sets no calibration
