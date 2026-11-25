@@ -537,6 +537,7 @@ nonisolated enum AgentDoorCoverage {
         "simulation.microscope.focalSpread": .tool("set_simulation"),
         "simulation.microscope.optics": .tool("set_simulation"),
         "simulation.microscope.voltage": .tool("set_simulation"),
+        "simulation.record.copyParagraph": .tool("get_methods_record"),
         "simulation.specimen.beamAxis": .tool("set_atom_model"),
         "simulation.specimen.box": .tool("read_simulation"),
         "simulation.specimen.hrtem": .tool("run_simulation"),
