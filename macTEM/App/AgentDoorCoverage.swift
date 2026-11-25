@@ -400,6 +400,8 @@ nonisolated enum AgentDoorCoverage {
         "maps.slip.phase.\\(entry.id)": .tool("set_maps"),
         "maps.slip.traces": .tool("set_maps"),
         "maps.source": .tool("set_maps"),
+        "maps.source.indexingOffer": .tool("get_maps"),
+        "maps.source.showIndexingRun": .tool("open_in_maps"),
         "maps.source.stale": .tool("get_maps"),
         "maps.texture.compute": .tool("set_maps"),
         "maps.texture.empty": .tool("get_maps"),
