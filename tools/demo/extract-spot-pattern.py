@@ -4,8 +4,9 @@ signal axes and metadata. Run by .github/workflows/public-data.yml (workflow_dis
 which reaches Zenodo; the file is printed to the log as base64 between markers, with its sha256, so a session can take it from the
 log and commit it under DemoData/.
 
-The frame: the one with the most intensity in an annulus around the direct beam (12 to 60 px from its centre of mass in the mean
-pattern), i.e. the strongest Bragg spots of the wire; the scan position is printed and written into the file's title.
+The frame: the one with the most spot pixels in an annulus around the direct beam (12 to 60 px from its centre of mass in the mean
+pattern; a spot pixel is four times the annulus's median or more), i.e. the clearest Bragg spots of the wire; the scan position is
+printed and written into the file's title.
 
     python3 -I tools/demo/extract-spot-pattern.py <twinned_nanowire.hdf5> <out.hspy>
 """
@@ -42,7 +43,11 @@ with h5py.File(source, 'r') as f:
     cy, cx = (mean * yy).sum() / mean.sum(), (mean * xx).sum() / mean.sum()
     r = np.hypot(yy - cy, xx - cx)
     ring = (r >= 12) & (r <= 60)
-    score = (stack * ring).sum(axis=(2, 3))
+    # Spots, not background: the pixels of the annulus at four times or more its median (the frames are noisy, so a plain sum
+    # picks the brightest background, not the sharpest spots).
+    annulus = stack[:, :, ring]
+    median = np.median(annulus, axis=2, keepdims=True)
+    score = (annulus >= 4 * np.maximum(median, 1)).sum(axis=2).astype(np.float64)
     order = np.argsort(score, axis=None)[::-1]
     print(f'centre of mass of the mean pattern: ({cy:.2f}, {cx:.2f}); annulus score mean {score.mean():.1f}')
     for k in order[:10]:

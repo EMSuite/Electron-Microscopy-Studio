@@ -10,4 +10,4 @@
 #
 # The first entry is the 2.3 demo pattern's source (#804, Q21): pyxem's twinned GaAs nanowire 4D-STEM scan, pyxem data
 # 0.9.0 (pyxem/data/_registry.py, `twinned_nanowire.hdf5`).
-pyxem/twinned_nanowire.hdf5	md5:2765fa855db8bc011252dbb425facc81	https://zenodo.org/records/15490547/files/twinned_nanowire.hdf5	CC-BY-4.0	10.5281/zenodo.15490547
+pyxem/twinned_nanowire.hdf5	sha256:da7b123938eae009ca85ed32aef9cd6ba5fe0ab9be4cb8d2d316c06cd9b23b77	https://zenodo.org/records/15490547/files/twinned_nanowire.hdf5	CC-BY-4.0	10.5281/zenodo.15490547
