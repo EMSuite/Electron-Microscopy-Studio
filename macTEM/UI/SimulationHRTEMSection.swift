@@ -5,7 +5,7 @@
 //        names every setting. The section's task runs the multislice when the specimen, the beam energy or the aperture changes, and
 //        each move puts a new image into the item. Presentation only; the state is `SimulationModel` and every number SimulatoKit's.
 //        MA3 (#895) adds the objective aperture, the field of view, the Potential readout and the Table… sheet, and puts the
-//        Microscope section and the transfer function strip under it. MA4 (#896) adds the Thermal Vibrations section under it,
+//        Microscope section under it; the transfer function strip is under the image (#921). MA4 (#896) adds the Thermal Vibrations section under it,
 //        MA6 (#898) the Beside Measured section.
 //        MA5 (#897) adds Atom columns, which rings the specimen's projected columns on the image (`SimulationColumnsOverlay`).
 //
@@ -159,13 +159,7 @@ struct SimulationHRTEMSection: View {
         SimulationThermalSection(simulation: simulation)
         SimulationBesideSection(simulation: simulation)
         SimulationMicroscopeSection(model: model, analysis: analysis) { appState.refreshHRTEMImage(of: simulation) }
-        switch Result(catching: { try HRTEMTransferCurve.of(model.optics, defocusNM: model.effectiveDefocusNM) }) {
-        case .success(let curve):
-            let reach = curve.frequencies.last ?? 0
-            SimulationTransferSection(curve: curve, spacings: analysis.strongestSpacings().filter { 10 / $0.d <= reach })
-        case .failure(let error):
-            InspectorSection("Transfer Function") { InspectorWarning("No transfer function: \(ErrorDetail.text(error))") }
-        }
+        // The transfer function is a strip under the image (#921, `HRTEMTransferStrip`), not a section here.
     }
 
     /// Changes the optics through the model's one validated path and redraws the image; an aperture change also re-runs the

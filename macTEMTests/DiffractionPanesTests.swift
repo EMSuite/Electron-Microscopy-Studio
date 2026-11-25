@@ -91,4 +91,14 @@ nonisolated final class DiffractionPanesTests: XCTestCase {
         XCTAssertTrue(pane.contains(".onCopyCommand(perform: selection.isEmpty ? nil :"), "⌘C copies the peaks")
         XCTAssertTrue(try ui("DiffractionZoneAxisMap.swift").contains(".accessibilityIdentifier(\"diffraction.holder.map\")"))
     }
+
+    /// The HRTEM transfer function is a strip under its image, not an inspector section (#921, mockup 5).
+    func testTheTransferFunctionIsAStripUnderTheImage() throws {
+        let hrtem = try ui("SimulationHRTEMSection.swift")
+        XCTAssertFalse(hrtem.contains("InspectorSection(\"Transfer Function\")") || hrtem.contains("SimulationTransfer"))
+        XCTAssertTrue(try ui("ImagePane.swift").contains("HRTEMTransferStrip(item: item)"), "the strip is under the image")
+        let strip = try ui("SimulationHRTEMOptics.swift")
+        XCTAssertTrue(strip.contains("if DemoDocuments.isHRTEM(item.url), let simulation = appState.simulationDocument(ofHRTEM: item) {"))
+        XCTAssertTrue(strip.contains(".accessibilityIdentifier(\"simulation.hrtem.transfer\")"), "the door's id kept")
+    }
 }
