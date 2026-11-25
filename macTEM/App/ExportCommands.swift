@@ -44,14 +44,20 @@ struct ExportCommands: Commands {
         let hyperSpy = appState.map { HyperSpyExportPanel.isAvailable(in: $0) }
         let diffractionFigure = appState.map { ExportSnapshot.diffractionFigureAvailable(in: $0) }
         CommandGroup(after: .saveItem) {
-            // The Image room's two.
-            if fixed.contains(.image) {
+            // Export Figure…: the Image room's picture, or the Diffraction room's figure of the pattern on screen (#822). One item on
+            // one key, as one room is on screen at a time.
+            let inDiffraction = appState?.navigation.workspaceArea == .diffraction
+            if fixed.contains(.image) || inDiffraction {
                 Divider()
                 Button("Export Figure…") {
-                    if let appState { ExportPanels.exportImage(appState: appState) }
+                    guard let appState else { return }
+                    if inDiffraction { ExportPanels.exportDiffractionFigure(appState: appState) } else { ExportPanels.exportImage(appState: appState) }
                 }
                 .keyboardShortcut("e", modifiers: [.command, .shift])
-                .disabled(availability?.image != true)
+                .disabled(inDiffraction ? diffractionFigure != true : availability?.image != true)
+            }
+            // The Image room's profile.
+            if fixed.contains(.image) {
                 Button("Export Profile…") {
                     if let appState { ExportPanels.exportProfile(appState: appState) }
                 }
@@ -73,13 +79,6 @@ struct ExportCommands: Commands {
                     if let appState { ExportPanels.exportSpots(appState: appState) }
                 }
                 .disabled(fft?.spots != true)
-            }
-            // The Diffraction room's figure of the pattern on screen (#822), on the Image room's key: one room is on screen at a time.
-            if appState?.navigation.workspaceArea == .diffraction {
-                Divider()
-                Button("Export Figure…") { if let appState { ExportPanels.exportDiffractionFigure(appState: appState) } }
-                    .keyboardShortcut("e", modifiers: [.command, .shift])
-                    .disabled(diffractionFigure != true)
             }
             if fixed.contains(.results) || fixed.contains(.sessionReport) { Divider() }
             // The Results room's one: every finished measurement of the file as one CSV. ⇧⌥⌘E is free (⌘E is the
