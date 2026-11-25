@@ -570,7 +570,7 @@ struct SpotCursorActions {
     static func announcement(_ row: DiffractionReadoutRow) -> String {
         var parts = ["Added " + DiffractionReadoutFormat.spokenName(row)]
         if row.d != nil { parts.append("d " + DiffractionReadoutFormat.cell(.d, row) + " ångströms") }
-        parts.append(row.family ?? row.verdict)
+        parts.append(row.family ?? row.verdictWords)
         return parts.joined(separator: ", ")
     }
 }
@@ -874,8 +874,9 @@ private struct DiffractionReadoutTable: View {
             TableColumn(header(.odds)) { row in Text(DiffractionReadoutFormat.cell(.odds, row)).monospacedDigit() }.width(min: 60, ideal: 68)
             TableColumn(header(.verdict)) { row in
                 Text(DiffractionReadoutFormat.cell(.verdict, row)).lineLimit(1)
+                    .help(row.verdictDetail ?? row.verdictWords)
                     .accessibilityIdentifier("diffraction.row.\(row.kind.rawValue)\(row.number).verdict")
-                    .accessibilityValue(row.verdict)
+                    .accessibilityValue(row.verdictWords)
             }.width(min: 70, ideal: 90)
         }
         .onDeleteCommand { if let id = view.selection { DiffractionUndo.remove(id, in: analysis, undoManager: undoManager); view.selection = nil } }

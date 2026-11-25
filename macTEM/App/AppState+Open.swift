@@ -175,6 +175,7 @@ extension AppState {
             if landing == .image, [.edx, .eels, .patterns, .indexing, .maps].contains(navigation.workspaceArea) { selectWorkspace(.image) }
             await openItems.settled()
             landSimulation(made)
+            landDemoPattern(made)
             await landHRTEM(made)?.value
             // Not awaited: the probe's run can take minutes, and the Open (its status line, Recents, the door's folder tool) ends
             // when the files are in. The pattern lands when its run does.
