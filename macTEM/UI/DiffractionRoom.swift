@@ -1,8 +1,14 @@
 //
 //  DiffractionRoom.swift
 //  Role: the Diffraction room's centre: the pattern (log display), the centre, the
-//        annulus being dragged, the fitted rings and the clicked spots drawn over it, and the readout table under it. The selected file
+//        annulus being dragged, the fitted rings and the clicked spots drawn over it, and the room's tables (the readout, the spots),
+//        which are panes of the shell's bottom area (`DiffractionTablePane`, #1094). The selected file
 //        is the pattern; the state is `DiffractionAnalysis` (TEMSession, `OpenItem.diffraction`), every number DiffractoKit's.
+//
+//        The centre is the shell's (`WorkspaceCentre`, EMSuiteUI): the side pane of the part (the crystal, the zone-axis map, the
+//        powder pattern) beside the pattern with one divider the person drags, or the pattern alone, and each is a `CentrePanel`, the
+//        frame's one panel header. The pattern's header names the file, sets the scale's summary in the readout slot and holds Index's
+//        verdict, the hand-set orientation, the view's half-side and the figure handle at its right.
 //        Pure SwiftUI. Zoom (control placement §6): the wheel and a pinch zoom about the pattern's centre, a double-click (Ring tool) fits again,
 //        and View > Zoom In, Zoom Out and Zoom to Fit (⌘+, ⌘−, ⌘0) do the same from the menu (`DiffractionZoomCommands`);
 //        the view stays centred on the pattern, so there is no pan, and the drag belongs to the Ring tool. The R · q · d under the pointer is the
@@ -56,71 +62,38 @@ struct DiffractionRoom: View {
         let analysis = item.diffraction
         let view = item.diffractionView
         let rows = analysis.readout(image: image)
-        // The part shown (#1044) decides the pane beside the pattern and the strip under it; the pattern itself, its zoom, selection
-        // and overlays, are the same in every part.
+        // The part shown (#1044) decides the pane beside the pattern and the tables in the bottom area; the pattern itself, its zoom,
+        // selection and overlays, are the same in every part.
         let part = appState.diffractionPart
-        let strip = DiffractionPart.tableStrip(part)
-        VStack(spacing: 0) {
-            DiffractionHeader(item: item, analysis: analysis, view: view)
-            // The pane beside the pattern, by the part (#921, #1044): the crystal down the same beam in Index and Simulate (#790; one
-            // orientation drives both; it appears once simulated spots are drawn and View > Hide Crystal hides it, #789), the zone-axis
-            // map in Tilt Plan (#814), the powder pattern in Powder (#810). The divider's place is the window's (the split's scene
-            // storage). The pane takes a third and the pattern, the data, two thirds until the person drags it (#1046,
-            // `DiffractionCrystalSplit`); a place dragged in an earlier version is kept.
+        // The pane beside the pattern, by the part (#921, #1044): the crystal down the same beam in Index and Simulate (#790; one
+        // orientation drives both; it appears once simulated spots are drawn and View > Hide Crystal hides it, #789), the zone-axis
+        // map in Tilt Plan (#814), the powder pattern in Powder (#810); none, and the pattern alone fills the centre, in Calibrate and
+        // Thickness. The centre is the shell's (#1094): the divider's place is the window's (scene storage under the key the split
+        // had, which held the side pane's share too, so a place dragged in an earlier version is kept), the pane takes a third and
+        // the pattern, the data, two thirds until the person drags it (#1046, `DiffractionCrystalSplit`), and a double click on the
+        // divider puts it back there.
+        Group {
             if let pane = DiffractionSidePaneView.shown(part: part, view: view, analysis: analysis) {
-                HorizontalPaneSplit(storageKey: DiffractionCrystalSplit.storageKey, defaultFraction: DiffractionCrystalSplit.defaultCrystalFraction,
-                                    resizeLabel: "Resize the side pane and the pattern", leadingName: DiffractionPaneWords.title(pane),
-                                    minimumLeading: LayoutPolicy.imagePaneMinimum, minimumTrailing: LayoutPolicy.imagePaneMinimum) {
+                WorkspaceCentre(storageKey: DiffractionCrystalSplit.storageKey, defaultFraction: DiffractionCrystalSplit.defaultCrystalFraction,
+                                resizeLabel: "Resize the side pane and the pattern", leadingName: DiffractionPaneWords.title(pane)) {
                     DiffractionSidePaneView(item: item, analysis: analysis, view: view, pane: pane)
                 } trailing: {
-                    patternPane(analysis: analysis, view: view, rows: rows)
+                    patternPanel(analysis: analysis, view: view, rows: rows)
                 }
             } else {
-                patternPane(analysis: analysis, view: view, rows: rows)
-            }
-            if strip != .none {
-                Divider()
-                // One table under the pattern: the readout, or once Index has an answer, its Spots table (#785: hkl, expected d and
-                // misfit per spot), picked in the strip's header; in Powder the powder pattern's peaks. Never two side by side: they
-                // share columns and do not fit a small window.
-                // A Simulation document lists its simulated spots there (#907); a measured pattern lists Index's once it answers.
-                let isSimulation = DemoDocuments.isSimulation(item.url)
-                // Calibrate lists the readout alone; Index and Simulate their spots, with the readout picked beside them (#1044).
-                let hasSpots = strip == .spots && (isSimulation || analysis.indexOutcome != nil)
-                VStack(spacing: 0) {
-                    if hasSpots {
-                        HStack {
-                            SegmentedPicker(label: "Table", items: [(DiffractionViewState.LowerTable.readout, .title("Readout")),
-                                                                    (.spots, .title("Spots"))],
-                                            selection: Binding(get: { view.lowerTable }, set: { view.lowerTable = $0 }))
-                                .fixedSize()
-                                .accessibilityIdentifier("diffraction.lowerTable")
-                            Spacer()
-                        }
-                        .padding(.horizontal, LayoutPolicy.infobarHorizontalPadding)
-                        .frame(height: LayoutPolicy.paneHeaderHeight)
-                        Divider()
-                    }
-                    if strip == .peaks {
-                        // The Powder part lists the powder pattern's peaks (#921), strongest first, with ⌘C.
-                        DiffractionPowderPeakTable(table: DiffractionPowderSection.table(of: item, openItems: appState.openItems))
-                    } else if hasSpots && view.lowerTable == .spots {
-                        if isSimulation {
-                            DiffractionSpotTable(view: view, rows: SimulationEmptyState.spotRows(of: item, image: image),
-                                                 empty: "Add a phase and show the simulated spots to list them.", selectsMarks: false,
-                                                 showsDynamical: item.dynamicalBeams != nil)
-                        } else {
-                            DiffractionSpotTable(view: view, rows: analysis.indexSpotRows)
-                        }
-                    } else {
-                        DiffractionReadoutTable(analysis: analysis, view: view, rows: rows)
-                    }
+                WorkspaceCentre {
+                    patternPanel(analysis: analysis, view: view, rows: rows)
                 }
-                .frame(height: LayoutPolicy.diffractionReadoutHeight)
             }
         }
         // The part: the scene's when the window comes back, else the one the document opens on; another document opens on its own.
-        .onAppear { appState.settleDiffractionPart(restored: DiffractionPart(rawValue: storedPart)) }
+        // The part's tables are the bottom area's panes (`WorkspaceView`): the table the strip under the pattern showed is shown the
+        // first time a part asks for it, once the part is settled, and the person's toggles rule after that (`DiffractionRoomState.offer`).
+        .onAppear {
+            appState.settleDiffractionPart(restored: DiffractionPart(rawValue: storedPart))
+            offerTable()
+        }
+        .onChange(of: DiffractionPart.openingTable(part, hasSpots: Self.hasSpots(item))) { offerTable() }
         .onChange(of: item.id) { appState.diffractionDocumentChanged() }
         .onChange(of: part) { storedPart = part.rawValue }
         // The pattern is shown by its owner (the bind, the extent and the canvas, off the main actor); a quick Log toggle or another
@@ -139,15 +112,63 @@ struct DiffractionRoom: View {
 }
 
 extension DiffractionRoom {
-    private func patternPane(analysis: DiffractionAnalysis, view: DiffractionViewState, rows: [DiffractionReadoutRow]) -> some View {
-        DiffractionPatternPane(item: item, analysis: analysis, view: view, rows: rows)
-            .modifier(DiffractionZoomCommands(item: item, view: view))
+    /// The part's spots can be listed: a Simulation document's, or Index's once it answers (the strip showed its Spots table then).
+    private static func hasSpots(_ item: OpenItem) -> Bool {
+        DemoDocuments.isSimulation(item.url) || item.diffraction.indexOutcome != nil
+    }
+
+    /// Shows the part's opening table in the bottom area if the window has not shown it on its own before.
+    private func offerTable() {
+        appState.diffractionRoom.offer(DiffractionPart.openingTable(appState.diffractionPart, hasSpots: Self.hasSpots(item)),
+                                       in: appState.navigation.panels)
+    }
+
+    /// The pattern in the frame's panel: its header names the file, the scale's summary is the readout slot's (it gives way first),
+    /// and Index's verdict, the hand-set orientation, the view's half-side and the figure handle sit at its right.
+    private func patternPanel(analysis: DiffractionAnalysis, view: DiffractionViewState, rows: [DiffractionReadoutRow]) -> some View {
+        CentrePanel(title: image.fileName) {
+            DiffractionPatternPane(item: item, analysis: analysis, view: view, rows: rows)
+                .modifier(DiffractionZoomCommands(item: item, view: view))
+        } controls: {
+            DiffractionHeaderFacts(item: item, analysis: analysis, view: view)
+        } readout: {
+            DiffractionHeaderScale(item: item, analysis: analysis)
+        }
     }
 }
 
 // MARK: - Header
 
-private struct DiffractionHeader: View {
+/// The pattern panel's readout slot (`CentrePanel`): the fullest summary of the pattern that fits, the least needed parts dropped
+/// first (#1090), never a word cut mid-way. The panel sets it in the caption, secondary, on one line.
+private struct DiffractionHeaderScale: View {
+    let item: OpenItem
+    /// Read from the item, never stored: SwiftUI keeps a view's closures (hover, gestures, commands) after the view is gone, and a stored
+    /// image kept its pixels alive after its tab closed (macTEM#574, `ImagePane.image`).
+    private var image: CalibratedImage { item.session.image ?? ImagePane.blankImage }
+    let analysis: DiffractionAnalysis
+
+    var body: some View {
+        let calibration = analysis.calibration(for: image)
+        let volts = analysis.volts(for: image)
+        let levels = DiffractionHeaderText.levels(width: image.width, height: image.height, volts: volts, voltsFromFile: image.voltage != nil,
+                                                  calibration: calibration)
+        ViewThatFits(in: .horizontal) {
+            ForEach(levels.indices, id: \.self) { i in
+                Text(levels[i]).lineLimit(1).truncationMode(.tail)
+            }
+        }
+        .help(levels.first ?? "")
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(levels.first ?? "")
+        .accessibilityIdentifier("diffraction.scale")
+        .accessibilityValue(DiffractionValueFormat.scale(calibration?.deltaQ))
+    }
+}
+
+/// The pattern panel's right end (`CentrePanel`'s controls): Index's verdict, the hand-set orientation, the view's half-side and the
+/// figure handle, as the room's header row had them.
+private struct DiffractionHeaderFacts: View {
     @Environment(AppState.self) private var appState
     let item: OpenItem
     /// Read from the item, never stored: SwiftUI keeps a view's closures (hover, gestures, commands) after the view is gone, and a stored
@@ -157,25 +178,7 @@ private struct DiffractionHeader: View {
     let view: DiffractionViewState
 
     var body: some View {
-        let calibration = analysis.calibration(for: image)
-        let volts = analysis.volts(for: image)
         HStack(spacing: 8) {
-            Text(image.fileName).font(.callout.weight(.semibold)).lineLimit(1).truncationMode(.middle).layoutPriority(1)
-            // The fullest line that fits, the least needed parts dropped first (#1090), never a word cut mid-way.
-            let levels = DiffractionHeaderText.levels(width: image.width, height: image.height, volts: volts, voltsFromFile: image.voltage != nil,
-                                                      calibration: calibration)
-            ViewThatFits(in: .horizontal) {
-                ForEach(levels.indices, id: \.self) { i in
-                    Text(levels[i]).lineLimit(1).truncationMode(.tail)
-                }
-            }
-            .font(.callout).foregroundStyle(.secondary)
-            .help(levels.first ?? "")
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(levels.first ?? "")
-            .accessibilityIdentifier("diffraction.scale")
-            .accessibilityValue(DiffractionValueFormat.scale(calibration?.deltaQ))
-            Spacer(minLength: 8)
             // Index's verdict in words (#783): "Al · 2.1° from [001] · 22 of 24 spots explained · misfit 0.07 %".
             if let outcome = analysis.indexOutcome, let line = analysis.indexHeaderLine(locale: .autoupdatingCurrent) {
                 Text(line)
@@ -213,10 +216,7 @@ private struct DiffractionHeader: View {
                 .accessibilityIdentifier("diffraction.figureDrag")
                 .accessibilityAction(named: "Copy Figure") { ExportPanels.copyDiffractionFigure(appState: appState) }
         }
-        .padding(.horizontal, LayoutPolicy.infobarHorizontalPadding)
-        .frame(height: LayoutPolicy.paneHeaderHeight)
     }
-
 }
 
 /// The pattern header's summary at each length (#1090): the whole line first, then the ring's camera length, the "(file)" mark, the
@@ -961,6 +961,56 @@ private struct VariantSpotsOverlay: View {
     }
 }
 
+// MARK: - The tables, panes of the bottom area
+
+/// One of the room's tables as a pane of the shell's bottom area (#1094): `WorkspaceView` registers one `ProcessTab` per table of the
+/// part (`DiffractionPart.tables`) beside Output, each with its toggle in the infobar, under the bar the person drags. The selected
+/// document is read here, at each draw, and never held by the tab. Readout and Spots sit side by side when both are shown, where the
+/// strip under the pattern switched between them; Powder lists its peaks.
+struct DiffractionTablePane: View {
+    let table: DiffractionTable
+    @Environment(AppState.self) private var appState
+
+    var body: some View {
+        if let item = appState.openItems.selected {
+            DiffractionTableContent(item: item, table: table)
+        }
+    }
+}
+
+private struct DiffractionTableContent: View {
+    let item: OpenItem
+    let table: DiffractionTable
+    @Environment(AppState.self) private var appState
+    /// Read from the item, never stored: SwiftUI keeps a view's closures (hover, gestures, commands) after the view is gone, and a stored
+    /// image kept its pixels alive after its tab closed (macTEM#574, `ImagePane.image`).
+    private var image: CalibratedImage { item.session.image ?? ImagePane.blankImage }
+
+    var body: some View {
+        let analysis = item.diffraction
+        let view = item.diffractionView
+        switch table {
+        case .readout:
+            DiffractionReadoutTable(analysis: analysis, view: view, rows: analysis.readout(image: image))
+        case .spots:
+            // A Simulation document lists its simulated spots (#907); a measured pattern Index's once it answers (#785: hkl, expected d
+            // and misfit per spot).
+            if DemoDocuments.isSimulation(item.url) {
+                DiffractionSpotTable(view: view, rows: SimulationEmptyState.spotRows(of: item, image: image),
+                                     empty: "Add a phase and show the simulated spots to list them.", selectsMarks: false,
+                                     showsDynamical: item.dynamicalBeams != nil)
+            } else if analysis.indexOutcome == nil {
+                DiffractionSpotTable(view: view, rows: [], empty: "Index the pattern to list its spots with their hkl.")
+            } else {
+                DiffractionSpotTable(view: view, rows: analysis.indexSpotRows)
+            }
+        case .peaks:
+            // The Powder part lists the powder pattern's peaks (#921), strongest first, with ⌘C.
+            DiffractionPowderPeakTable(table: DiffractionPowderSection.table(of: item, openItems: appState.openItems))
+        }
+    }
+}
+
 // MARK: - The readout
 
 /// The rings and spots as a system `Table` with a selection: arrow keys, ⌫ (removes the selected row), ⌘C (copies it, tab-separated under
@@ -1127,20 +1177,23 @@ nonisolated enum DiffractionValueFormat {
     }
 }
 
-/// The crystal pane's share of the centre beside the pattern (#1046): a third, so the pattern, the data, has two thirds. The split keeps
-/// the key it had under `PaneSplit`, whose stored value was the crystal's share too, so a place dragged in an earlier version is read
-/// back and only the default changes. Pure.
+/// The crystal pane's share of the centre beside the pattern (#1046): a third, so the pattern, the data, has two thirds. The centre
+/// (`WorkspaceCentre`, #1094) keeps the key the split had under `HorizontalPaneSplit` and `PaneSplit`, whose stored value was the
+/// crystal's share too, so a place dragged in an earlier version is read back and only the default changes. Pure.
 nonisolated enum DiffractionCrystalSplit {
     static let storageKey = "diffraction.crystalSplit"
     static let defaultCrystalFraction = 1.0 / 3
 
-    /// The pattern's side, points, in a centre `width` × `height` (the header row, the dividers and the table strip already taken
-    /// off the height): the crystal pane takes `crystalFraction` of the width less the divider, held to `minimumPane` each side as
-    /// the split holds it, and the square pattern is the smaller of what is left across and the height. No margin.
+    /// The pattern's side, points, in a centre `width` × `height` (the infobar and the bottom area already taken off the height): the
+    /// crystal pane takes `crystalFraction` of the width less the divider, held to `minimumPane` each side as the centre holds it
+    /// (`CentreSplitModel.widths`), the pattern's panel takes its inset and its header off what is left, and the square pattern is the
+    /// smaller of the two sides of the panel's content. No margin of the room's own.
     static func patternSide(width: CGFloat, height: CGFloat, crystalFraction: Double, minimumPane: CGFloat) -> CGFloat {
-        let usable = max(width - 1, 1)
-        let limits = HorizontalPaneSplit<EmptyView, EmptyView>.bounds(usable: usable, minimumLeading: minimumPane, minimumTrailing: minimumPane)
-        let crystal = (usable * min(max(CGFloat(crystalFraction), limits.smallest), limits.largest)).rounded()
-        return max(min(usable - crystal, height), 0)
+        let model = CentreSplitModel(arrangement: .split, defaultFraction: defaultCrystalFraction,
+                                     minimumLeading: minimumPane, minimumTrailing: minimumPane)
+        let panel = model.widths(fraction: crystalFraction, total: width).trailing
+        let across = panel - 2 * LayoutPolicy.centrePanelPadding
+        let down = height - 2 * LayoutPolicy.centrePanelPadding - LayoutPolicy.paneHeaderHeight - LayoutPolicy.centrePanelHeaderSpacing
+        return max(min(across, down), 0)
     }
 }

@@ -520,12 +520,42 @@ nonisolated final class FFTRoomWiringTests: XCTestCase {
         XCTAssertTrue(inspector.contains("InspectorSection(\"Display\") { // What the source pane shows, first"), "Display opens with the View row")
         XCTAssertTrue(inspector.contains("InspectorRow(\"View\") { FFTSourceViewControl(analysis: analysis) }"), "the View row draws the picker")
         let pane = try Self.squeezedUI("FFTSourceImagePane.swift")
-        let header = try XCTUnwrap(pane.range(of: "private func header(")).upperBound
-        let title = try XCTUnwrap(pane.range(of: "private var title: some View", range: header..<pane.endIndex)).lowerBound
-        let body = pane[header..<title]
+        // The header is the frame's `CentrePanel`: its controls and readout run from `} controls: {` to the pane's press modifier.
+        let panel = try XCTUnwrap(pane.range(of: "CentrePanel(title: image.fileName) {")).upperBound
+        let header = try XCTUnwrap(pane.range(of: "} controls: {", range: panel..<pane.endIndex)).upperBound
+        let end = try XCTUnwrap(pane.range(of: ".modifier(FFTPanePress(pane: .source", range: header..<pane.endIndex)).lowerBound
+        let body = pane[header..<end]
         XCTAssertFalse(body.contains("FFTSourceViewControl"), "the header holds no picker")
         XCTAssertFalse(body.contains("Picker("), "the header holds no picker")
         XCTAssertTrue(body.contains("FFTFilteringIndicator(analysis: analysis)"), "the header keeps the filtering spinner")
+    }
+
+    /// The room's two panes sit in the frame's centre (`WorkspaceCentre`: a divider the person drags, remembered per window, back
+    /// to halves on a double click) and each pane's header is the frame's `CentrePanel` (#1094). Red before: the panes were fixed
+    /// halves in a bare `HStack` with a `Divider()`, each drawing a header of its own.
+    func testThePanesSitInTheFramesCentreAndShareItsPanelHeader() throws {
+        let room = try Self.squeezedUI("FFTRoom.swift")
+        XCTAssertTrue(room.contains("WorkspaceCentre(storageKey: FFTRoomLayout.centreKey, defaultFraction: FFTRoomLayout.defaultFraction,"),
+                      "the room's centre is the shared one")
+        XCTAssertTrue(room.contains("{ FFTSourceImagePane(item: item, keyPane: $keyPane) } trailing: { FFTSpectrumImagePane(analysis: item.fft, keyPane: $keyPane) }"),
+                      "the image leads, the transform trails")
+        XCTAssertFalse(room.contains("HStack(spacing: 0) { FFTSourceImagePane"), "no fixed halves")
+        XCTAssertFalse(room.contains("Divider()"), "the divider is the centre's")
+        XCTAssertEqual(FFTRoomLayout.centreKey, CentreSplitModel.storageKey(room: "fft"))
+        XCTAssertEqual(FFTRoomLayout.defaultFraction, 0.5)
+
+        let source = try Self.squeezedUI("FFTSourceImagePane.swift")
+        XCTAssertTrue(source.contains("CentrePanel(title: image.fileName) {"), "the source pane's header names the file")
+        XCTAssertTrue(source.contains("} controls: { FFTFilteringIndicator(analysis: analysis) } readout: { size(layer) } .modifier(FFTPanePress(pane: .source"),
+                      "the spinner at the right, the size in the readout")
+        let spectrum = try Self.squeezedUI("FFTSpectrumImagePane.swift")
+        XCTAssertTrue(spectrum.contains("CentrePanel(title: \"FFT\") {"), "the transform pane's header says FFT")
+        XCTAssertTrue(spectrum.contains("} controls: { headerIndicator(isUpdating) } readout: { subjectText(spectrum.map { FFTPaneFormat.subject(crop: $0.key.crop, width: $0.width, height: $0.height) }) } .modifier(FFTPanePress(pane: .spectrum"),
+                      "Updating… at the right, what it is of in the readout")
+        for (name, pane) in [("source", source), ("spectrum", spectrum)] {
+            XCTAssertFalse(pane.contains(".frame(height: LayoutPolicy.paneHeaderHeight)"), "\(name): no header of its own")
+            XCTAssertFalse(pane.contains("VStack(spacing: 6) { header("), "\(name): no header of its own")
+        }
     }
 
     /// A source file of macTEM/UI with its whitespace squeezed to single spaces (and a trailing space, so a line's end matches).

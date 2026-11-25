@@ -5,7 +5,8 @@
 //        inspector shows that part's few sections. HIG Layout: "Use progressive disclosure… An interface with too much content and
 //        too many choices makes it harder to find information quickly" — the room stacked up to fifteen sections in one inspector.
 //        A regrouping of what exists: no new feature, no changed number. The pattern stays in the centre in every part (zoom,
-//        selection and overlays carry over); only the inspector's sections, the side pane and the table strip follow the part.
+//        selection and overlays carry over); only the inspector's sections, the side pane and the tables (panes of the shell's
+//        bottom area, #1094) follow the part.
 //
 //        One `WorkspaceArea.diffraction` stays, so no switch over the rooms changes; the part the window shows is
 //        `WorkspaceNavigation.diffractionPart`, its sidebar row `SidebarRoute.diffractionPart`. What each part lists, when it can be
@@ -108,17 +109,27 @@ nonisolated enum DiffractionPart: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    /// The strip of tables under the pattern.
-    enum TableStrip: Sendable, Equatable { case readout, spots, peaks, none }
+    /// The part's tables, left to right after Output in the shell's bottom area (#1094: panes of the bottom area behind its draggable
+    /// bar, each with its toggle in the infobar, where a fixed strip under the pattern held one at a time): Calibrate's readout;
+    /// Index's and Simulate's readout and spots; Powder's peaks (#921); none in Tilt Plan and Thickness.
+    static func tables(_ part: DiffractionPart) -> [DiffractionTable] {
+        switch part {
+        case .calibrate: [.readout]
+        case .index, .simulate: [.readout, .spots]
+        case .powder: [.peaks]
+        case .tiltPlan, .thickness: []
+        }
+    }
 
-    /// Calibrate lists the readout; Index and Simulate the spots (with the readout beside them, picked in the strip's header); Powder
-    /// the powder pattern's peaks (#921); the others none.
-    static func tableStrip(_ part: DiffractionPart) -> TableStrip {
+    /// The table the strip under the pattern showed in `part` before #1094, which the window shows on its own the first time
+    /// (`DiffractionRoomState.offer`): the readout in Calibrate, and in Index and Simulate until there are spots to list
+    /// (`hasSpots`: a Simulation document's, or Index's once it answers), then the spots; Powder's peaks; none elsewhere.
+    static func openingTable(_ part: DiffractionPart, hasSpots: Bool) -> DiffractionTable? {
         switch part {
         case .calibrate: .readout
-        case .index, .simulate: .spots
+        case .index, .simulate: hasSpots ? .spots : .readout
         case .powder: .peaks
-        case .tiltPlan, .thickness: .none
+        case .tiltPlan, .thickness: nil
         }
     }
 
@@ -264,6 +275,30 @@ extension AppState {
             selectDiffractionPart(part)
         } else if let room = neighbourRoom(forward: forward) {
             selectWorkspace(room)
+        }
+    }
+}
+
+/// One of the Diffraction room's tables (#1094): a pane of the shell's bottom area beside Output, shown and hidden by its own toggle
+/// at the infobar's right end, as Output is. Its pane identity is `DiffractionRoomState`'s (`paneID`).
+nonisolated enum DiffractionTable: String, CaseIterable, Sendable {
+    case readout, spots, peaks
+
+    /// The pane's name: the infobar toggle's help ("Readout pane") and VoiceOver label.
+    var title: String {
+        switch self {
+        case .readout: "Readout"
+        case .spots: "Spots"
+        case .peaks: "Peaks"
+        }
+    }
+
+    /// The infobar toggle's symbol.
+    var systemImage: String {
+        switch self {
+        case .readout: "tablecells"
+        case .spots: "circle.grid.3x3"
+        case .peaks: "chart.bar.xaxis"
         }
     }
 }

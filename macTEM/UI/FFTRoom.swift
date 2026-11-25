@@ -4,8 +4,10 @@
 //        beside its transform, mounted by `WorkspaceView`'s room switch; its inspector content mounted by
 //        `WorkspaceInspector`'s Settings and Info switches.
 //
-//  THE ROOM is two panes of equal width, each at least `LayoutPolicy.imagePaneMinimum` (the window budgets
-//  `scienceMinimum` for "the image beside its transform"): the source pane (FFTSourceImagePane.swift: the file with the
+//  THE ROOM is the shell's centre, `WorkspaceCentre` (EMSuiteUI): two panes with one divider the person drags, starting at
+//  halves, remembered per window under `FFTRoomLayout.centreKey`, back to halves on a double click, neither driven under
+//  `LayoutPolicy.imagePaneMinimum` while there is room for both (the window budgets `scienceMinimum` for "the image beside
+//  its transform"). Each pane is a `CentrePanel`, the frame's one panel header: the source pane (FFTSourceImagePane.swift: the file with the
 //  region, or a product of the transformed pixels) and the transform pane (FFTSpectrumImagePane.swift: the spectrum, its
 //  spots and the mask). Both are built as `ImagePane` is. The room appearing asks the owner for the spectrum
 //  (`.task(id: contentVersion)` asks again when the file is read again; skill, views.md ".task(id:) for Reactive Async
@@ -36,12 +38,13 @@ struct FFTRoom: View {
     @State private var keyPane: FFTKeyPane?
 
     var body: some View {
-        HStack(spacing: 0) {
+        // The shell's centre (EMSuiteUI's `WorkspaceCentre`): one divider the person drags, remembered per window, back to
+        // halves on a double click; each pane is a `CentrePanel` with the shared header (#1094).
+        WorkspaceCentre(storageKey: FFTRoomLayout.centreKey, defaultFraction: FFTRoomLayout.defaultFraction,
+                        resizeLabel: "Resize the image and its transform", leadingName: "Image") {
             FFTSourceImagePane(item: item, keyPane: $keyPane)
-                .frame(minWidth: LayoutPolicy.imagePaneMinimum, maxWidth: .infinity)
-            Divider()
+        } trailing: {
             FFTSpectrumImagePane(analysis: item.fft, keyPane: $keyPane)
-                .frame(minWidth: LayoutPolicy.imagePaneMinimum, maxWidth: .infinity)
         }
         // The one keyed container of the room: arrows, ⌫, ⌘C and Edit > Copy / Delete (`PaneKeys.swift`).
         .modifier(FFTKeyedRoom(analysis: item.fft, imageWidth: image.width, imageHeight: image.height, active: $keyPane))
@@ -49,6 +52,12 @@ struct FFTRoom: View {
         .onDisappear { item.fft.release() }
         .accessibilityIdentifier("fft.room")
     }
+}
+
+/// Where the room's centre divider is remembered and where it starts.
+nonisolated enum FFTRoomLayout {
+    static let centreKey = CentreSplitModel.storageKey(room: "fft")
+    static let defaultFraction = 0.5
 }
 
 /// The room's Settings tab content.
