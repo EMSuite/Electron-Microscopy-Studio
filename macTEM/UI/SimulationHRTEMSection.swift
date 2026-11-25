@@ -82,9 +82,10 @@ struct SimulationHRTEMSection: View {
                                     + "\(index + 1) of \(waves.waves.count) stored thicknesses")
                 .accessibilityIdentifier("simulation.hrtem.thickness")
             }
-            InspectorRow("Aperture") {
+            InspectorRow("Objective aperture") {
                 Toggle("Objective aperture", isOn: Binding(get: { model.optics.apertureMrad != nil },
                                                            set: { on in change(simulation) { $0.apertureMrad = on ? Self.defaultApertureMrad : nil } }))
+                    .toggleStyle(.switch).labelsHidden()
                     .help("An objective aperture cuts the transfer at its semiangle; a new aperture computes the exit waves again")
                     .accessibilityIdentifier("simulation.hrtem.aperture")
             }
@@ -108,7 +109,7 @@ struct SimulationHRTEMSection: View {
                     .accessibilityIdentifier("simulation.hrtem.potential")
             }
             InspectorRow("Atom columns") {
-                Toggle("Mark atom columns", isOn: Binding(get: { model.marksColumns }, set: { model.setMarksColumns($0) }))
+                Toggle("Atom columns", isOn: Binding(get: { model.marksColumns }, set: { model.setMarksColumns($0) }))
                     .toggleStyle(.switch).labelsHidden()
                     .help("Rings on the specimen's projected atom columns, the slab the crystal pane shows, so each contrast has its column")
                     .accessibilityValue(columnsValue(simulation))

@@ -395,7 +395,7 @@ private struct DiffractionCrystalViewSection: View {
     var body: some View {
         InspectorSection("Crystal View") {
             InspectorRow("Unit cell") {
-                Toggle("Show unit cell", isOn: Binding(get: { view.showsUnitCell }, set: { view.showsUnitCell = $0 }))
+                Toggle("Unit cell", isOn: Binding(get: { view.showsUnitCell }, set: { view.showsUnitCell = $0 }))
                     .toggleStyle(.switch).labelsHidden()
                     .disabled(!view.showsCrystal)
                     .help("Draw the unit cell's edges in the crystal pane")
@@ -432,20 +432,20 @@ private struct DiffractionSimulationSection: View {
                 // An atom model's pattern: no reflections to draw or label (#953).
                 InspectorNote(SimulationModel.modelLabelsSentence).accessibilityIdentifier("diffraction.simulation.modelLabels")
             } else {
-                InspectorRow("Overlay") {
-                    Toggle("Show simulated spots", isOn: Binding(get: { analysis.simulation.isShown }, set: { analysis.simulation.isShown = $0 }))
+                InspectorRow("Simulated spots") {
+                    Toggle("Simulated spots", isOn: Binding(get: { analysis.simulation.isShown }, set: { analysis.simulation.isShown = $0 }))
                         .toggleStyle(.switch).labelsHidden()
                         .help("The crystal's kinematical spot pattern at the Index section's orientation, drawn over the pattern with the scale and centre in use")
                         .accessibilityIdentifier("diffraction.simulation.show")
                 }
-                InspectorRow("Labels") {
-                    Toggle("Show hkl labels", isOn: Binding(get: { analysis.simulation.showsLabels }, set: { analysis.simulation.showsLabels = $0 }))
+                InspectorRow("hkl labels") {
+                    Toggle("hkl labels", isOn: Binding(get: { analysis.simulation.showsLabels }, set: { analysis.simulation.showsLabels = $0 }))
                         .toggleStyle(.switch).labelsHidden()
                         .help("Each simulated spot's hkl beside it (the 60 strongest)")
                         .accessibilityIdentifier("diffraction.simulation.labels")
                 }
                 InspectorRow("Double diffraction") {
-                    Toggle("Show double diffraction", isOn: Binding(get: { analysis.simulation.doubleDiffraction }, set: { analysis.simulation.doubleDiffraction = $0 }))
+                    Toggle("Double diffraction", isOn: Binding(get: { analysis.simulation.doubleDiffraction }, set: { analysis.simulation.doubleDiffraction = $0 }))
                         .toggleStyle(.switch).labelsHidden()
                         .help("Also draws, as dashed rings, the spots a twice-diffracted beam adds (g₁ + g₂) where the crystal forbids a reflection, such as 002 in silicon down [1 1 0]")
                         .accessibilityIdentifier("diffraction.simulation.doubleDiffraction")
