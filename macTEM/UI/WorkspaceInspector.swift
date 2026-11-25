@@ -104,7 +104,7 @@ private struct InspectorSettingsTab: View {
             ContentUnavailableView(
                 "No image open",
                 systemImage: "photo",
-                description: Text("\(OpenItemRowFormat.openPrompt); each room's controls appear here.")
+                description: Text("\(OpenItemRowFormat.wrappingOpenPrompt); each room's controls appear here.")
             )
         }
     }

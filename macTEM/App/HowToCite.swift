@@ -71,6 +71,8 @@ struct HowToCiteWindow: Scene {
 
     var body: some Scene {
         Window("How to Cite", id: Self.id) { HowToCiteView(windows: windows) }
+            // Help > How to Cite opens it; the Window menu's own item for the scene was a second How to Cite there (#1032).
+            .commandsRemoved()
             .defaultLaunchBehavior(.suppressed)
             .restorationBehavior(.disabled)
             .windowResizability(.contentSize)
