@@ -472,6 +472,7 @@ nonisolated enum AgentDoorCoverage {
         "patterns.overlay.absence": .tool("get_patterns"),
         "patterns.pattern": .tool("get_patterns_picture"),
         "patterns.pattern.title": .tool("get_patterns_picture"),
+        "patterns.pattern.tiles": .tool("get_patterns"),
         "patterns.processing.previewFailure": .tool("get_patterns"),
         "patterns.processing.refusal": .tool("get_patterns"),
         "patterns.room": .tool("get_patterns"),
