@@ -17,6 +17,15 @@ extension OpenItem {
         return multislice.dynamicalBeams(crystal: diffraction.simulatedPhase, zoneAxis: diffraction.simulation.zoneAxis)
     }
 
+    /// What a change of runs the Dynamical multislice again (the HRTEM section's key, and the switch): the specimen is
+    /// `SimulationModel.sourceIdentity`, so a new atom model or beam axis is a new run (#953).
+    package var dynamicalRunKey: DynamicalRunKey {
+        let model = multislice, crystal = diffraction.simulatedPhase, zoneAxis = diffraction.simulation.zoneAxis
+        return DynamicalRunKey(on: model.isDynamical, source: model.sourceIdentity(crystal: crystal), zoneAxis: model.sourceZoneAxis(zoneAxis),
+                               thicknessNM: model.thicknessNM, beamKV: diffraction.typedBeamKV, apertureMrad: model.optics.apertureMrad,
+                               strain: model.maximumStrain(crystal: crystal, zoneAxis: zoneAxis), thermal: model.thermal?.sigmas)
+    }
+
     /// Why Dynamical draws the kinematical spots: the overlay's beam is tilted off the zone axis (the Tilt tool, Index), while the
     /// multislice's beams are those of the exact axis. Nil on the axis, with Dynamical off, and for a measured file.
     package var dynamicalOffAxis: String? {
@@ -44,4 +53,16 @@ extension OpenItem {
     package func simulatedSpots(image: CalibratedImage) -> DiffractionAnalysis.SimulatedSpots? {
         diffraction.simulatedSpots(image: image, dynamical: dynamicalBeams)
     }
+}
+
+/// What a change of runs a Simulation document's Dynamical multislice again (`OpenItem.dynamicalRunKey`).
+package nonisolated struct DynamicalRunKey: Equatable, Sendable {
+    let on: Bool
+    let source: String?
+    let zoneAxis: SIMD3<Int>
+    let thicknessNM: Double
+    let beamKV: Double?
+    let apertureMrad: Double?
+    let strain: Double
+    let thermal: [Int: Double]?
 }

@@ -36,11 +36,12 @@ package final class CBEDModel {
     package static let shownThicknessNM = 10.0
 
     package nonisolated struct RunKey: Equatable, Sendable {
-        let crystal: String
+        /// The specimen: `SimulationModel.sourceIdentity`, the phase's or the atom model's with its beam axis (#953).
+        let source: String
         let zoneAxis: SIMD3<Int>
         let maximumStrain: Double
-        let volts: Double
-        let semiangleMrad: Double
+        package let volts: Double
+        package let semiangleMrad: Double
         let settings: CBEDSettings
     }
 
@@ -84,9 +85,9 @@ package final class CBEDModel {
     /// Whether the stored patterns are those of `key`.
     package func isCurrent(_ key: RunKey?) -> Bool { key != nil && patternKey == key }
 
-    /// The key of a run for this crystal, axis, strain limit, voltage and semiangle.
-    package func key(crystal: DiffractionCrystal, zoneAxis: SIMD3<Int>, maximumStrain: Double, volts: Double, semiangleMrad: Double) -> RunKey {
-        RunKey(crystal: crystal.identity, zoneAxis: zoneAxis, maximumStrain: maximumStrain, volts: volts, semiangleMrad: semiangleMrad,
+    /// The key of a run for this specimen (`SimulationModel.sourceIdentity`), axis, strain limit, voltage and semiangle.
+    package func key(source: String, zoneAxis: SIMD3<Int>, maximumStrain: Double, volts: Double, semiangleMrad: Double) -> RunKey {
+        RunKey(source: source, zoneAxis: zoneAxis, maximumStrain: maximumStrain, volts: volts, semiangleMrad: semiangleMrad,
                settings: settings)
     }
 

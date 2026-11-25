@@ -153,7 +153,7 @@ package final class SimulationModel {
     /// Raised each time a model's slab lands: views key their runs on it (with `sourceIdentity`).
     package private(set) var modelSlabsRevision = 0
     /// The model's slabs, built off the main actor (a million atoms cut and sorted would stall drawing): one unit across, and the
-    /// frozen-phonon supercell once frozen phonons are on, per beam axis.
+    /// supercell at least `HRTEMThermal.lateralSize` across that frozen phonons and a STEM scan run on, per beam axis.
     @ObservationIgnored private var modelSlabs: [ModelSlabKey: Result<SimulationSpecimen.Built, SimulationSpecimen.Refusal>] = [:]
     @ObservationIgnored private var modelBuildTask: Task<Void, Never>?
 
@@ -173,6 +173,8 @@ package final class SimulationModel {
         guard model != atomModel else { return }
         stop()
         atomModel = model
+        // A model has no reflections: Dynamical runs on a phase only (#953).
+        if model != nil { isDynamical = false }
         modelSlabs = modelSlabs.filter { $0.key.identity == model?.identity }
         if model == nil { beamAxis = .c }
         scheduleModelBuild()
@@ -193,19 +195,37 @@ package final class SimulationModel {
         return crystal?.identity
     }
 
+    /// The name a run's patterns and images carry: the model along its beam axis, else the phase down `zoneAxis`; nil with neither.
+    package func sourceName(crystal: DiffractionCrystal?, zoneAxis: SIMD3<Int>) -> String? {
+        source(crystal: crystal, zoneAxis: zoneAxis)?.name
+    }
+
+    /// The axis a run's beam runs down: the model's beam axis as a unit [u v w] while a model is the source, else `zoneAxis`.
+    package func sourceZoneAxis(_ zoneAxis: SIMD3<Int>) -> SIMD3<Int> {
+        guard atomModel != nil else { return zoneAxis }
+        return SIMD3<Int>(beamAxis == .a ? 1 : 0, beamAxis == .b ? 1 : 0, beamAxis == .c ? 1 : 0)
+    }
+
+    // What needs a phase's reflections or the thickness field refuses while a model is the source, in one sentence each (#953).
+    package static let modelDynamicalSentence = "Dynamical intensities need a phase: an atom model has no reflections to label. "
+        + "Its CBED pattern and images run on the model."
+    package static let modelFitDiscsSentence = "Type the convergence semiangle: Fit Discs reads a phase's reflections, and an atom model has none."
+    package static let modelLabelsSentence = "No simulated spots or hkl labels: the pattern is an atom model's, which has no reflections to label."
+    package static let modelThicknessSentence = "The atom model's thickness is its own slab's: Use in Simulation sets a phase's thickness only."
+
     private func scheduleModelBuild() {
         modelBuildTask?.cancel()
         guard atomModel != nil else { return }
         modelBuildTask = Task { [weak self] in await self?.buildModelSlabs() }
     }
 
-    /// Builds the open model's slabs not yet built (one unit across; the supercell too with frozen phonons on) off the main actor,
-    /// and returns when they have landed. Each lands even when the model changed meanwhile: it is valid for its key.
+    /// Builds the open model's slabs not yet built (one unit across, then the supercell a STEM scan and frozen phonons need) off
+    /// the main actor, and returns when they have landed. Each lands even when the model changed meanwhile: it is valid for its key.
     package func buildModelSlabs() async {
         guard let atomModel else { return }
         let axis = beamAxis
-        let laterals: [SIMD2<Double>?] = thermal == nil ? [nil] : [nil, HRTEMThermal.lateralSize]
-        for lateral in laterals {
+        // The supercell is built whatever the vibrations: a STEM scan always runs on it (`thermalSpecimen`, #953).
+        for lateral in [nil, HRTEMThermal.lateralSize] as [SIMD2<Double>?] {
             let key = ModelSlabKey(identity: atomModel.identity, axis: axis, thermal: lateral != nil)
             guard modelSlabs[key] == nil else { continue }
             let result = await offMainActor { atomModel.build(beamAlong: axis, lateralSize: lateral) }
@@ -229,7 +249,7 @@ package final class SimulationModel {
         if let atomModel {
             let axis = beamAxis
             // The model's own thickness is the slab's: the thickness field does not key it.
-            let along = SIMD3<Int>(axis == .a ? 1 : 0, axis == .b ? 1 : 0, axis == .c ? 1 : 0)
+            let along = sourceZoneAxis(.zero)
             let slabs = modelSlabs
             return Source(identity: atomModel.identity, zoneAxis: along, name: "\(atomModel.name) along \(axis.rawValue)",
                           atomicNumbers: atomModel.atomicNumbers) { _, _, lateral in
@@ -254,7 +274,7 @@ package final class SimulationModel {
 
     /// The strain limit for `crystal` along `zoneAxis`: the one Build with Strain accepted there (the kit's test is "at most", and the same
     /// box gives the same strain), else the kit's default.
-    package func maximumStrain(crystal: DiffractionCrystal, zoneAxis: SIMD3<Int>) -> Double {
+    package func maximumStrain(crystal: DiffractionCrystal?, zoneAxis: SIMD3<Int>) -> Double {
         source(crystal: crystal, zoneAxis: zoneAxis).map(maximumStrain) ?? SimulationSpecimen.defaultMaximumStrain
     }
 
@@ -282,6 +302,7 @@ package final class SimulationModel {
     /// refusal, the run's failure and the kit's absence. Writes no observed state.
     package func dynamicalAbsence(crystal: DiffractionCrystal?, zoneAxis: SIMD3<Int>) -> String? {
         guard isDynamical, !isComputing else { return nil }
+        if atomModel != nil { return Self.modelDynamicalSentence }
         if thermal != nil { return Self.thermalDynamicalSentence }
         if case .failure(let refusal) = specimen(crystal: crystal, zoneAxis: zoneAxis) { return refusal.sentence }
         if let computeFailure { return "No dynamical intensities: \(computeFailure)" }
@@ -294,7 +315,7 @@ package final class SimulationModel {
     /// The beams the Diffraction room draws in place of the kinematical intensities: those of the shown thickness, while Dynamical
     /// is on and the stored waves are this crystal's along this axis; else nil (the kinematical pattern). Writes no observed state.
     package func dynamicalBeams(crystal: DiffractionCrystal?, zoneAxis: SIMD3<Int>) -> DynamicalBeams? {
-        guard isDynamical, exitWavesAreCurrent(crystal: crystal, zoneAxis: zoneAxis), case .success(let spots)? = dynamicalSpots,
+        guard isDynamical, atomModel == nil, exitWavesAreCurrent(crystal: crystal, zoneAxis: zoneAxis), case .success(let spots)? = dynamicalSpots,
               let index = shownThicknessIndex else { return nil }
         return spots.beams(at: index)
     }
@@ -511,9 +532,7 @@ package final class SimulationModel {
                   HRTEMThermal.configurationRange.contains(new.configurations) else { return false }
         }
         if new?.sigmas != thermal?.sigmas { stop() }
-        let turnedOn = thermal == nil && new != nil
         thermal = new
-        if turnedOn, atomModel != nil { scheduleModelBuild() }
         return true
     }
 

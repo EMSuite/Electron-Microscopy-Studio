@@ -45,6 +45,7 @@ extension MacTEMAgentDoor {
             guard let simulation = simulationItem(appState) else { return noSimulationDocument }
             let model = simulation.multislice, analysis = simulation.diffraction
             let on = call.arguments["dynamical"].map { $0 == "true" }
+            if on == true, model.atomModel != nil { return refused(SimulationModel.modelDynamicalSentence) }
             let index = call.arguments["thickness_index"].flatMap(Int.init)
             if let index {
                 guard on ?? model.isDynamical else { return refused("The thickness steps through the dynamical beams: set dynamical true with it.") }
@@ -83,6 +84,7 @@ extension MacTEMAgentDoor {
             "dynamical": model.isDynamical,
             "computing": model.isComputing,
             "absence": AgentJSON.orNull(model.dynamicalAbsence(crystal: crystal, zoneAxis: zoneAxis)),
+            "model_refusal": AgentJSON.orNull(model.atomModel != nil ? SimulationModel.modelDynamicalSentence : nil),
             "off_axis": AgentJSON.orNull(analysis.simulation.isShown ? simulation.dynamicalOffAxis : nil),
         ]
         if model.isDynamical, let waves = model.exitWaves, let index = model.shownThicknessIndex,
@@ -133,6 +135,7 @@ extension MacTEMAgentDoor {
             if number("semiangle_mrad") != nil, arguments["fit_discs"] == "true" {
                 return refused("Give semiangle_mrad or fit_discs, not both: Fit Discs replaces the typed semiangle.")
             }
+            if arguments["fit_discs"] == "true", simulation.multislice.atomModel != nil { return refused(SimulationModel.modelFitDiscsSentence) }
             let index = arguments["thickness_index"].flatMap(Int.init)
             if let index {
                 guard let pattern = model.pattern else { return refused("No stored patterns yet: run_cbed computes them.") }
@@ -198,7 +201,7 @@ extension MacTEMAgentDoor {
     static func cbedState(_ simulation: OpenItem, in appState: AppState) -> [String: Any] {
         let model = simulation.cbed, analysis = simulation.diffraction, settings = model.settings
         let volts = analysis.typedBeamKV.map { $0 * 1000 }
-        let shortestG = analysis.shortestZeroOrderG(image: simulation.session.imageOrBlank)
+        let shortestG = appState.cbedShortestG(of: simulation)
         let separated = volts.flatMap { v in shortestG.flatMap { try? CBEDRun.separatedSemiangle(shortestG: $0, volts: v) } }
         let semiangle = volts.flatMap { model.semiangle(shortestG: shortestG, volts: $0) }
         var state: [String: Any] = [
@@ -212,6 +215,9 @@ extension MacTEMAgentDoor {
             "angular_step_mrad": settings.angularStepMrad,
             "edge_mrad": settings.edgeMrad,
             "blocker": AgentJSON.orNull(appState.cbedBlocker(of: simulation)),
+            // An atom model's pattern: Fit Discs and the overlay's spots and labels refuse with the section's sentences (#953).
+            "fit_discs_refusal": AgentJSON.orNull(simulation.multislice.atomModel != nil ? SimulationModel.modelFitDiscsSentence : nil),
+            "labels_refusal": AgentJSON.orNull(simulation.multislice.atomModel != nil ? SimulationModel.modelLabelsSentence : nil),
             "computing": model.isComputing,
             "progress": AgentJSON.number(model.progress),
             "failure": AgentJSON.orNull(model.failure),
@@ -265,10 +271,12 @@ extension MacTEMAgentDoor {
         said(AgentTool(name: "use_measured_thickness", title: "Use thickness in simulation",
                        summary: "The Thickness section's Use in Simulation: sets the specimen thickness of the Simulation document the "
                            + "measured pattern belongs to (the document itself or its CBED pattern) to the thickness found. Refused when "
-                           + "there is no current measurement that found one, or the pattern is a measured file with no Simulation document.",
+                           + "there is no current measurement that found one, the pattern is a measured file with no Simulation document, "
+                           + "or the document simulates an atom model (its thickness is the model's own).",
                        input: .window, acts: true) { call in
             guard let appState = call.window?.state as? AppState else { return notAWindowRefusal }
             guard let item = appState.openItems.selected else { return refused("The window shows no pattern.") }
+            if let refusal = appState.useInSimulationRefusal(of: item) { return refused(refusal) }
             guard let measurement = currentMeasurement(item), let nm = measurement.thicknessNM, !measurement.isPoor else {
                 return refused("No thickness was found on this pattern now: measure_thickness first, and read_thickness for its verdict.")
             }

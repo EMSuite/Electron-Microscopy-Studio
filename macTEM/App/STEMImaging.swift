@@ -41,20 +41,21 @@ extension AppState {
                                       semiangleMrad: simulation.stem.settings.semiangleMrad, volts: run.key.volts)
     }
 
-    /// The run's key for `simulation`'s specimen, optics and vibrations now, with the specimen built at least 20 Å across; or why
-    /// there is none, in the room's words.
+    /// The run's key for `simulation`'s specimen (the atom model when one is open, else the phase), optics and vibrations now, with
+    /// the specimen built at least 20 Å across; or why there is none, in the room's words.
     func stemRun(of simulation: OpenItem) -> Result<(key: STEMModel.RunKey, built: SimulationSpecimen.Built, specimen: String), STEMRefusal> {
         let analysis = simulation.diffraction, model = simulation.multislice
-        guard let crystal = analysis.simulatedPhase else { return .failure(STEMRefusal(sentence: "Add a phase to simulate.")) }
+        let crystal = analysis.simulatedPhase
+        guard let source = model.sourceIdentity(crystal: crystal) else { return .failure(STEMRefusal(sentence: "Add a phase to simulate.")) }
         guard let kV = analysis.typedBeamKV else { return .failure(STEMRefusal(sentence: "Type the beam energy to simulate.")) }
         let zoneAxis = analysis.simulation.zoneAxis
         switch model.thermalSpecimen(crystal: crystal, zoneAxis: zoneAxis) {
         case .failure(let refusal): return .failure(STEMRefusal(sentence: refusal.sentence))
         case .success(let built):
-            let key = simulation.stem.key(crystal: crystal, zoneAxis: zoneAxis, thicknessNM: model.thicknessNM,
+            let key = simulation.stem.key(source: source, zoneAxis: model.sourceZoneAxis(zoneAxis), thicknessNM: model.thicknessNM,
                                           maximumStrain: model.maximumStrain(crystal: crystal, zoneAxis: zoneAxis), volts: kV * 1000,
                                           csMM: model.optics.csMM, thermal: model.thermal)
-            return .success((key, built, "\(crystal.name) \(ZoneAxisText.text(zoneAxis))"))
+            return .success((key, built, model.sourceName(crystal: crystal, zoneAxis: zoneAxis) ?? source))
         }
     }
 

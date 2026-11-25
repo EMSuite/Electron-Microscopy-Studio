@@ -31,7 +31,8 @@ package final class STEMModel {
 
     /// What a run is of: the specimen, the optics' Cs and voltage, the vibrations and the settings. Another key needs a new run.
     package nonisolated struct RunKey: Equatable, Sendable {
-        let crystal: String
+        /// The specimen: `SimulationModel.sourceIdentity`, the phase's or the atom model's with its beam axis (#953).
+        let source: String
         let zoneAxis: SIMD3<Int>
         let thicknessNM: Double
         let maximumStrain: Double
@@ -119,10 +120,10 @@ package final class STEMModel {
     /// Whether the run held is of `key` (Simulate continues it rather than starting again).
     package func holds(_ key: RunKey) -> Bool { scan != nil && scanKey == key }
 
-    /// The key of a run for this specimen, optics and vibrations with the settings now.
-    package func key(crystal: DiffractionCrystal, zoneAxis: SIMD3<Int>, thicknessNM: Double, maximumStrain: Double, volts: Double,
+    /// The key of a run for this specimen (`SimulationModel.sourceIdentity`), optics and vibrations with the settings now.
+    package func key(source: String, zoneAxis: SIMD3<Int>, thicknessNM: Double, maximumStrain: Double, volts: Double,
                      csMM: Double, thermal: HRTEMThermal?) -> RunKey {
-        RunKey(crystal: crystal.identity, zoneAxis: zoneAxis, thicknessNM: thicknessNM, maximumStrain: maximumStrain, volts: volts,
+        RunKey(source: source, zoneAxis: zoneAxis, thicknessNM: thicknessNM, maximumStrain: maximumStrain, volts: volts,
                csMM: csMM, thermal: thermal, settings: settings)
     }
 
