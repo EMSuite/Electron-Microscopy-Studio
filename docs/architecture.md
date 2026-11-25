@@ -41,7 +41,13 @@ test targets set `SWIFT_PACKAGE_NAME` to the package's identity, derived from th
 still builds. `inventory` also greps that nothing in `Sources/` imports SwiftUI, AppKit, Cocoa or MetalKit (which
 brings AppKit in).
 
-Swift 6 language mode everywhere. The app and its tests default to MainActor isolation; TEMCore is nonisolated by
+Two app extensions sit beside the app (#903), `QuickLook/Thumbnail` and `QuickLook/Preview`: Quick Look's thumbnail and
+data-based preview for the .dm3, .dm4, .mrc, .emd and .ser types the app imports (`UTImportedTypeDeclarations`). Each is one
+class over FormatoKit's `Peek` (one decimated frame, the header facts) and EMSuiteUI's `ShellQuickLook` (the pixels, the card
+and its scale bar); sandboxed, reading only the file it is handed. They keep Xcode's extension template settings (Swift 5
+language mode, MainActor by default), as 4DSTEM Studio's do.
+
+Swift 6 language mode in the app, its tests and its packages. The app and its tests default to MainActor isolation; TEMCore is nonisolated by
 default; TEMSession defaults to MainActor because it holds the `@Observable` owners views read. Heavy work runs in
 `@concurrent` functions (`AppState.read`, which calls TEMCore's synchronous readers), so the main actor only
 publishes results. TEMCore and TEMSession compile at `-O` in Debug too, as mac4DSTEM's do; a versioned kit dependency cannot be given `-O`, so the kits
