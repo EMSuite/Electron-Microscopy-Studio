@@ -158,7 +158,8 @@ nonisolated final class SlabDrawingTests: XCTestCase {
                                     y: AxisCalibration(scale: a / 120 / 10, unit: "nm"), fileName: "f", source: "f", voltage: 200_000)
         let columns = try XCTUnwrap(model.columns(crystal: phase, zoneAxis: SIMD3(1, 1, 0), on: image))
         let built = try XCTUnwrap(try? model.specimen(crystal: phase, zoneAxis: SIMD3(1, 1, 0)).get())
-        XCTAssertEqual(columns, SlabDrawing.columns(built, rows: 120, columns: 160, rowSampling: a / 120, columnSampling: a * 2.0.squareRoot() / 160))
+        XCTAssertEqual(columns, SlabDrawing.columns(built, rows: 120, columns: 160, rowSampling: a / 120 / 10 * 10,
+                                                         columnSampling: a * 2.0.squareRoot() / 160 / 10 * 10), "the image's nm per pixel, in Å")
         XCTAssertEqual(columns.count, 8)
         XCTAssertNil(model.columns(crystal: nil, zoneAxis: SIMD3(1, 1, 0), on: image), "no phase, no columns")
         XCTAssertEqual(model.drawnSlab(crystal: phase, zoneAxis: SIMD3(1, 1, 0)), SlabDrawing.drawn(built))
