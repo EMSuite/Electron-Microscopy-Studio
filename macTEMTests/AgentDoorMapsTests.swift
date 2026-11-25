@@ -190,7 +190,8 @@ nonisolated final class AgentDoorMapsTests: XCTestCase {
         if MethodsRecordExport.isReading(state) {
             let first = try await call("get_methods_record")
             XCTAssertTrue(first.refused, "the file is being read")
-            XCTAssertTrue(await MethodsRecordExport.prepare(state))
+            let prepared = await MethodsRecordExport.prepare(state)
+            XCTAssertTrue(prepared)
         }
         XCTAssertFalse(MethodsRecordExport.isReading(state))
         let answer = try json(try await call("get_methods_record").text)
