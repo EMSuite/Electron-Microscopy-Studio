@@ -191,43 +191,34 @@ struct IndexingMapPane: View {
         return "Indexed map · \(session.shownRun?.title ?? result.method.title) · \(session.layer.title)" + (session.isStale ? " · stale" : "")
     }
 
-    /// "4120 of 4125 indexed", "1875 of 4125 reached" while it runs (a dictionary run's chunk first, and the phase matching when it
-    /// runs against several, D-SEM-98; "450 of 4125 refined" while Refine runs), "stopped at row 12 of 55"; the counts never grouped
-    /// (`IndexingInfoFormat.count`).
+    /// "4120 of 4125 indexed" once a run has ended, "stopped at row 12 of 55 · 4100 indexed" after Stop; nil while a run is in flight,
+    /// whose progress is the toolbar's busy line alone (#1061), and before any run. The counts never grouped (`IndexingInfoFormat.count`).
     private var count: String? {
-        guard let result = session.result else { return nil }
-        let n = { (v: Int) in IndexingInfoFormat.count(v) }
-        if session.isRefining { return "\(n(result.reachedCount)) of \(n(result.pointCount)) refined" }
-        if session.isIndexing, result.method == .dictionary {
-            let phase = session.chunkPhase.map { " · \($0)" } ?? ""
-            return "chunk \(session.chunksDone) of \(session.chunksTotal)\(phase) · \(n(result.reachedCount)) of \(n(result.pointCount)) reached"
-        }
-        if session.isIndexing { return "\(n(result.reachedCount)) of \(n(result.pointCount)) reached" }
-        if session.wasStopped { return "stopped at row \(result.rowsDone) of \(result.scanRows) · \(n(result.indexedCount)) indexed" }
-        return "\(IndexingInfoFormat.indexed(result)) indexed"
+        guard let result = session.result, !session.isIndexing, !session.isRefining else { return nil }
+        return IndexingInfoFormat.mapCount(result, stopped: session.wasStopped)
     }
 
+    /// The heading names the pane and its size only (#1061: a progress bar and the run's count beside the title cut it to "Indexed
+    /// ma…"); the count of the run on screen is the secondary line under it.
     private var header: some View {
-        HStack(spacing: 8) {
-            Text(title)
-                .font(.headline).lineLimit(1)
-                .accessibilityIdentifier("indexing.map.title")
-            Spacer(minLength: 8)
-            if session.isIndexing {
-                ProgressView(value: session.progress).progressViewStyle(.linear).frame(width: LayoutPolicy.paneHeaderProgressWidth)
-                    .accessibilityLabel("Indexing the scan")
-                    .accessibilityIdentifier("indexing.map.progress")
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 8) {
+                Text(title)
+                    .font(.headline).lineLimit(1)
+                    .help(title)
+                    .accessibilityIdentifier("indexing.map.title")
+                Spacer(minLength: 8)
+                Text(verbatim: "\(dataset.scanColumns) × \(dataset.scanRows)")
+                    .help("Scan columns × rows")
+                    .font(.caption.monospaced()).foregroundStyle(.secondary).fixedSize()
             }
+            .frame(height: LayoutPolicy.paneHeaderHeight)
             if let count {
                 Text(count)
                     .font(.caption.monospacedDigit()).foregroundStyle(.secondary).lineLimit(1)
                     .accessibilityIdentifier("indexing.map.count")
             }
-            Text(verbatim: "\(dataset.scanColumns) × \(dataset.scanRows)")
-                .help("Scan columns × rows")
-                .font(.caption.monospaced()).foregroundStyle(.secondary).fixedSize()
         }
-        .frame(height: LayoutPolicy.paneHeaderHeight)
     }
 
     private func content(in size: CGSize) -> some View {
@@ -635,20 +626,31 @@ struct IndexingResultsTable: View {
                    phases: result.phases.map(\.name), method: result.method)
     }
 
-    /// "Results · Dictionary · Refined · ni · 4125 of 4125 indexed · PC (…)": the run on screen named as the map's title names it
-    /// (`IndexingInfoFormat.resultsHeader`).
+    /// "Results · Dictionary · Refined": the run on screen named as the map's title names it (`IndexingInfoFormat.resultsHeading`); its
+    /// phases and PC are the secondary line (`resultsDetail`, #1061: in one heading they ran to "PC (0,4…").
     private var header: String {
         guard let result = session.result else { return "Results" }
-        return IndexingInfoFormat.resultsHeader(result, run: session.shownRun?.title ?? result.method.title,
-                                                projectionCentre: session.resultProjectionCenter)
+        return IndexingInfoFormat.resultsHeading(run: session.shownRun?.title ?? result.method.title)
+    }
+
+    private var detail: String? {
+        session.result.map { IndexingInfoFormat.resultsDetail($0, projectionCentre: session.resultProjectionCenter) }
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(header)
-                .font(.headline).lineLimit(1)
-                .frame(height: LayoutPolicy.paneHeaderHeight)
-                .accessibilityIdentifier("indexing.results.title")
+            VStack(alignment: .leading, spacing: 0) {
+                Text(header)
+                    .font(.headline).lineLimit(1)
+                    .frame(height: LayoutPolicy.paneHeaderHeight)
+                    .accessibilityIdentifier("indexing.results.title")
+                if let detail {
+                    Text(detail)
+                        .font(.caption.monospacedDigit()).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
+                        .help(detail)
+                        .accessibilityIdentifier("indexing.results.detail")
+                }
+            }
             table
             .focused($tableFocused)
             .onCopyCommand(perform: selection.isEmpty ? nil : { copied() })
@@ -682,41 +684,60 @@ struct IndexingResultsTable: View {
         if let result = session.result, result.method == .dictionary {
             Table(rows, selection: picks, sortOrder: $sortOrder) {
                 TableColumn("Row", value: \.row) { Text(verbatim: "\($0.row)").monospacedDigit() }
+                    .width(min: LayoutPolicy.ebsdIndexColumn.min, ideal: LayoutPolicy.ebsdIndexColumn.ideal)
                 TableColumn(SEMColumnSpeech.header("Col"), value: \.column) { Text(verbatim: "\($0.column)").monospacedDigit() }
+                    .width(min: LayoutPolicy.ebsdIndexColumn.min, ideal: LayoutPolicy.ebsdIndexColumn.ideal)
                 TableColumn("Phase", value: \.phase)
+                    .width(min: LayoutPolicy.ebsdNameColumn.min, ideal: LayoutPolicy.ebsdNameColumn.ideal)
                 TableColumn(SEMColumnSpeech.header("φ₁ °"), value: \.phi1Key) { Text(IndexingTableFormat.angle($0.phi1)).monospacedDigit() }
+                    .width(min: LayoutPolicy.ebsdNumberColumn.min, ideal: LayoutPolicy.ebsdNumberColumn.ideal)
                 TableColumn(SEMColumnSpeech.header("Φ °"), value: \.capitalPhiKey) {
                     Text(IndexingTableFormat.angle($0.capitalPhi)).monospacedDigit()
                 }
+                .width(min: LayoutPolicy.ebsdNumberColumn.min, ideal: LayoutPolicy.ebsdNumberColumn.ideal)
                 TableColumn(SEMColumnSpeech.header("φ₂ °"), value: \.phi2Key) { Text(IndexingTableFormat.angle($0.phi2)).monospacedDigit() }
+                    .width(min: LayoutPolicy.ebsdNumberColumn.min, ideal: LayoutPolicy.ebsdNumberColumn.ideal)
                 TableColumn(SEMColumnSpeech.header(result.scoreTitle), value: \.confidence) {
                     Text(IndexingTableFormat.fraction($0.confidence)).monospacedDigit()
                 }
+                .width(min: LayoutPolicy.ebsdNumberColumn.min, ideal: LayoutPolicy.ebsdNumberColumn.ideal)
                 TableColumn("Simulation", value: \.simulationIndex) {
                     Text(IndexingTableFormat.simulation($0.simulationIndex)).monospacedDigit()
                 }
+                .width(min: LayoutPolicy.ebsdNumberColumn.min, ideal: LayoutPolicy.ebsdNumberColumn.ideal)
                 TableColumn(SEMColumnSpeech.header("OSM"), value: \.similarityKey) {
                     Text(IndexingTableFormat.angle($0.similarity, digits: 2)).monospacedDigit()
                 }
+                .width(min: LayoutPolicy.ebsdNumberColumn.min, ideal: LayoutPolicy.ebsdNumberColumn.ideal)
             }
         } else {
             Table(rows, selection: picks, sortOrder: $sortOrder) {
                 TableColumn("Row", value: \.row) { Text(verbatim: "\($0.row)").monospacedDigit() }
+                    .width(min: LayoutPolicy.ebsdIndexColumn.min, ideal: LayoutPolicy.ebsdIndexColumn.ideal)
                 TableColumn(SEMColumnSpeech.header("Col"), value: \.column) { Text(verbatim: "\($0.column)").monospacedDigit() }
+                    .width(min: LayoutPolicy.ebsdIndexColumn.min, ideal: LayoutPolicy.ebsdIndexColumn.ideal)
                 TableColumn("Phase", value: \.phase)
+                    .width(min: LayoutPolicy.ebsdNameColumn.min, ideal: LayoutPolicy.ebsdNameColumn.ideal)
                 TableColumn(SEMColumnSpeech.header("φ₁ °"), value: \.phi1Key) { Text(IndexingTableFormat.angle($0.phi1)).monospacedDigit() }
+                    .width(min: LayoutPolicy.ebsdNumberColumn.min, ideal: LayoutPolicy.ebsdNumberColumn.ideal)
                 TableColumn(SEMColumnSpeech.header("Φ °"), value: \.capitalPhiKey) {
                     Text(IndexingTableFormat.angle($0.capitalPhi)).monospacedDigit()
                 }
+                .width(min: LayoutPolicy.ebsdNumberColumn.min, ideal: LayoutPolicy.ebsdNumberColumn.ideal)
                 TableColumn(SEMColumnSpeech.header("φ₂ °"), value: \.phi2Key) { Text(IndexingTableFormat.angle($0.phi2)).monospacedDigit() }
+                    .width(min: LayoutPolicy.ebsdNumberColumn.min, ideal: LayoutPolicy.ebsdNumberColumn.ideal)
                 TableColumn(SEMColumnSpeech.header("CI"), value: \.confidence) { Text(IndexingTableFormat.fraction($0.confidence)).monospacedDigit() }
+                    .width(min: LayoutPolicy.ebsdNumberColumn.min, ideal: LayoutPolicy.ebsdNumberColumn.ideal)
                 TableColumn(SEMColumnSpeech.header("Fit °"), value: \.fitKey) {
                     Text(IndexingTableFormat.angle($0.fit, digits: 2)).monospacedDigit()
                 }
+                .width(min: LayoutPolicy.ebsdNumberColumn.min, ideal: LayoutPolicy.ebsdNumberColumn.ideal)
                 TableColumn("Bands", value: \.bands) { Text(verbatim: "\($0.bands)").monospacedDigit() }
+                    .width(min: LayoutPolicy.ebsdIndexColumn.min, ideal: LayoutPolicy.ebsdIndexColumn.ideal)
                 TableColumn(SEMColumnSpeech.header("PQ"), value: \.patternQualityKey) {
                     Text(IndexingTableFormat.number($0.patternQuality)).monospacedDigit()
                 }
+                .width(min: LayoutPolicy.ebsdNumberColumn.min, ideal: LayoutPolicy.ebsdNumberColumn.ideal)
             }
         }
     }
@@ -881,12 +902,19 @@ struct IndexingBandsTable: View {
                 .accessibilityIdentifier("indexing.bands.title")
             Table(session.detectedBands, selection: $selection) {
                 TableColumn(SEMColumnSpeech.header("#")) { Text(verbatim: "\($0.id)").monospacedDigit() }
+                    .width(min: LayoutPolicy.ebsdIndexColumn.min, ideal: LayoutPolicy.ebsdIndexColumn.ideal)
                 TableColumn(SEMColumnSpeech.header("ρ px")) { Text(IndexingTableFormat.angle($0.rho, digits: 2)).monospacedDigit() }
+                    .width(min: LayoutPolicy.ebsdNumberColumn.min, ideal: LayoutPolicy.ebsdNumberColumn.ideal)
                 TableColumn(SEMColumnSpeech.header("θ °")) { Text(IndexingTableFormat.angle($0.thetaDegrees, digits: 2)).monospacedDigit() }
+                    .width(min: LayoutPolicy.ebsdNumberColumn.min, ideal: LayoutPolicy.ebsdNumberColumn.ideal)
                 TableColumn("Peak") { Text(IndexingTableFormat.number($0.peak)).monospacedDigit() }
+                    .width(min: LayoutPolicy.ebsdNumberColumn.min, ideal: LayoutPolicy.ebsdNumberColumn.ideal)
                 TableColumn("Width") { Text(IndexingTableFormat.number($0.width)).monospacedDigit() }
+                    .width(min: LayoutPolicy.ebsdNumberColumn.min, ideal: LayoutPolicy.ebsdNumberColumn.ideal)
                 TableColumn("Family") { Text(IndexingTableFormat.bandFamily($0.family, isValid: $0.isValid)) }
+                    .width(min: LayoutPolicy.ebsdFamilyColumn.min, ideal: LayoutPolicy.ebsdFamilyColumn.ideal)
                 TableColumn(SEMColumnSpeech.header("Fit °")) { Text(IndexingTableFormat.bandFit($0.fitDegrees)).monospacedDigit() }
+                    .width(min: LayoutPolicy.ebsdNumberColumn.min, ideal: LayoutPolicy.ebsdNumberColumn.ideal)
             }
             .focused($tableFocused)
             .onCopyCommand(perform: selection.isEmpty ? nil : { copiedBands() })

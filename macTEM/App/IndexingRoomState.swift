@@ -262,13 +262,23 @@ enum IndexingInfoFormat {
          EBSDBrowsing.Row("Detector tilt", "\(UnitDisplay.number(detector.tilt, locale: locale))°")]
     }
 
-    /// The Results table's header, the run named as the map's title names it, then its PC as the Calibration row writes it: "Results ·
-    /// Dictionary · Refined · ni · 4125 of 4125 indexed · PC (0.4215, 0.2163, 0.5323)".
-    nonisolated static func resultsHeader(_ result: IndexingResult, run: String, projectionCentre pc: SIMD3<Double>?,
+    /// The Results table's heading: the run named as the map's title names it, "Results · Dictionary · Refined" (#1061: the pane's name
+    /// alone, the facts on the line under it).
+    nonisolated static func resultsHeading(run: String) -> String { "Results · \(run)" }
+
+    /// The line under the Results heading: the run's phases and its PC as the Calibration row writes it, "ni · PC (0.4215, 0.2163,
+    /// 0.5323)". The count of indexed points is the map's line, once the run has ended.
+    nonisolated static func resultsDetail(_ result: IndexingResult, projectionCentre pc: SIMD3<Double>?,
                                           locale: Locale = .autoupdatingCurrent) -> String {
         let phases = result.phases.map(\.name).joined(separator: ", ")
-        let words = "Results · \(run) · \(phases) · \(count(result.indexedCount, locale: locale)) of \(count(result.reachedCount, locale: locale)) indexed"
-        return pc.map { words + " · PC " + triple($0, locale: locale) } ?? words
+        return pc.map { phases + " · PC " + triple($0, locale: locale) } ?? phases
+    }
+
+    /// The line under the indexed map's heading once a run has ended: "4120 of 4125 indexed", or after Stop "stopped at row 12 of 55 ·
+    /// 4100 indexed"; the counts never grouped.
+    nonisolated static func mapCount(_ result: IndexingResult, stopped: Bool, locale: Locale = .autoupdatingCurrent) -> String {
+        if stopped { return "stopped at row \(result.rowsDone) of \(result.scanRows) · \(count(result.indexedCount, locale: locale)) indexed" }
+        return "\(indexed(result, locale: locale)) indexed"
     }
 
     /// The Dictionary section's size row: "11935 patterns at 4°"; with several phases one count each, "11935 + 11935 patterns at 4°".

@@ -20,8 +20,13 @@ extension LayoutPolicy {
         }
     }
 
-    /// The Patterns room's map progress bar in the pane header: short, beside the title (rule 4).
-    static let paneHeaderProgressWidth: CGFloat = 80
+    /// The EBSD tables' column widths (#1061): sized to their content, so at the opening window size the Bands table shows every column
+    /// (the matched family and the fit too) and the Results table its angles, where each column's default width showed three. A scan
+    /// index ("#", row, column), a phase's name, a signed number to two places, a family "{113}".
+    static let ebsdIndexColumn: (min: CGFloat, ideal: CGFloat) = (22, 28)
+    static let ebsdNameColumn: (min: CGFloat, ideal: CGFloat) = (34, 44)
+    static let ebsdNumberColumn: (min: CGFloat, ideal: CGFloat) = (36, 46)
+    static let ebsdFamilyColumn: (min: CGFloat, ideal: CGFloat) = (36, 44)
     /// The HRTEM defocus by thickness table sheet's least height, with its readable width (rule 4).
     static let hrtemTableMinimumHeight: CGFloat = 480
     /// The Diffraction room's table strip under the pattern (rule 4, #1041): the Readout · Spots switch, the table's header and

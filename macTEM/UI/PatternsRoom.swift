@@ -155,15 +155,8 @@ struct ScanMapPane: View {
                 .font(.headline).lineLimit(1)
                 .accessibilityIdentifier("patterns.map.title")
             Spacer(minLength: 8)
-            if session.isMapping {
-                ProgressView(value: session.mapProgress).progressViewStyle(.linear).frame(width: LayoutPolicy.paneHeaderProgressWidth)
-                    .accessibilityLabel("Reading the scan")
-                    .accessibilityIdentifier("patterns.map.progress")
-            } else if session.isQualityMapping {
-                ProgressView(value: session.qualityProgress).progressViewStyle(.linear).frame(width: LayoutPolicy.paneHeaderProgressWidth)
-                    .accessibilityLabel("Computing the quality maps")
-                    .accessibilityIdentifier("patterns.map.progress")
-            } else if let why = session.mapFailure {
+            // The heading names the pane: reading the scan and the quality maps are the toolbar's busy line alone (#1061).
+            if let why = session.mapFailure, !session.isMapping, !session.isQualityMapping {
                 Text(why).font(.caption).foregroundStyle(.secondary).lineLimit(1)
             }
             Text(verbatim: "\(dataset.scanColumns) × \(dataset.scanRows)")
