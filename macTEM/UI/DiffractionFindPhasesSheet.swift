@@ -2,7 +2,7 @@
 //  DiffractionFindPhasesSheet.swift
 //  Role: the Diffraction room's Find Phases sheet (plan row R13, #812): the candidate phases ranked by how many of the measured rings
 //        (or marked spots) each explains, the strong rings it predicts that were not seen, its misfit and the scale it took, and the
-//        kit's ties, with the selected row's sentence. Use in Room makes the selected phase the room's crystal, so its indexing is
+//        kit's ties, with the selected row's sentence. Use Phase makes the selected phase the room's crystal, so its indexing is
 //        the room's. Presentation only: every number is `PhaseFindingResult`'s; the sheet says "explains", never "is".
 //        Candidates: the room's standards and the crystals of the open patterns, until My Phases (A2) lands.
 //
@@ -13,7 +13,7 @@ import DiffractoCore
 import TEMCore
 import TEMSession
 
-/// One candidate as the room holds it: the crystal Use in Room sets.
+/// One candidate as the room holds it: the crystal Use Phase sets.
 struct DiffractionPhaseCandidate: Identifiable {
     let crystal: DiffractionCrystal
     var id: String { crystal.name }
