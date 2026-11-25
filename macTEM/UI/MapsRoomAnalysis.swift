@@ -288,7 +288,7 @@ struct MapsGrainSlipRows: View {
                     HStack(spacing: 6) {
                         RoundedRectangle(cornerRadius: 2)
                             .fill(MapsAnalysisOverlay.traceColour(plane.colour))
-                            .frame(width: 10, height: 10)
+                            .frame(width: LayoutPolicy.regionSwatchSize, height: LayoutPolicy.regionSwatchSize)
                             .accessibilityHidden(true)
                         Text(verbatim: plane.label).font(.caption.monospaced())
                         Text(verbatim: MapsRoomFormat.planeText(plane)).font(.caption.monospacedDigit())
