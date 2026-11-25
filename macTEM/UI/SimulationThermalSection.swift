@@ -27,6 +27,7 @@ struct SimulationThermalSection: View {
             InspectorRow("Frozen phonons") {
                 Toggle("Frozen phonons", isOn: Binding(get: { model.thermal != nil },
                                                        set: { model.useThermalVibrations($0, crystal: crystal) }))
+                    .toggleStyle(.switch).labelsHidden()
                     .disabled(model.isSimulating || model.sourceIdentity(crystal: crystal) == nil)
                     .help("Averages images of the atoms displaced at random (Einstein model); off is the static lattice, whose image is live")
                     .accessibilityIdentifier("simulation.thermal.frozenPhonons")

@@ -26,8 +26,9 @@ import SimulatoCore
 import SimulatoMultislice
 import SimulatoProbe
 
-/// What a CBED run is asked for. The defaults are the design's: 100 nm in steps of 2 nm, 0.25 mrad per pixel, a 50 mrad edge (a 600 ×
-/// 600 grid for a 100 Å box at 200 kV, about 1.5 GB planned).
+/// What a CBED run is asked for. The defaults are the design's: 100 nm in steps of 2 nm, 0.25 mrad per pixel, a 50 mrad edge. The
+/// sampling is the kit's rule, the smaller of 0.05 Å and λ / 3β, so at 200 kV it is 0.05 Å whatever the edge: Si [1 1 0]'s 130 Å box
+/// is a 2880 × 2720 grid, about 1.9 GB planned for one stretch between stored planes (#1021).
 package nonisolated struct CBEDSettings: Sendable, Equatable, Hashable {
     /// The probe's convergence semiangle, mrad; nil is the largest that keeps the discs apart (`CBEDPattern.separatedSemiangle`).
     package var semiangleMrad: Double?
@@ -37,9 +38,8 @@ package nonisolated struct CBEDSettings: Sendable, Equatable, Hashable {
     package var thicknessStepNM = 2.0
     /// The angular step of the pattern, mrad per pixel: it sets the box across (λ / step).
     package var angularStepMrad = 0.25
-    /// The pattern's edge, mrad: the largest angle it shows, which sets the sampling (the kit's rule, the smaller of 0.05 Å and
-    /// λ / 3β), so abTEM's `max_angle="cutoff"` lands on it. The 0.05 Å grid's own cutoff (about 167 mrad at 200 kV) would plan
-    /// 16 GB or more for a 100 Å box.
+    /// The pattern's edge, mrad: the largest angle it shows; the pattern is cropped to it. It enters the sampling (the kit's rule,
+    /// the smaller of 0.05 Å and λ / 3β) only past 167 mrad at 200 kV, where λ / 3β falls under 0.05 Å.
     package var edgeMrad = 50.0
 
     package init() {}
@@ -77,10 +77,15 @@ package nonisolated struct CBEDPattern: Sendable, Equatable {
     /// The Metal run lies beyond the depth and grid its tolerance is registered to (`MetalAccuracy.covers`).
     package let beyondRegisteredDepth: Bool
 
-    /// The chip past the registered depth: "400 slices on a 600 × 600 pattern: beyond the validated depth of the Metal path"; nil
-    /// within it.
+    /// The chip past the registered depth: "1040 slices on a 523 × 521 pattern: beyond the validated depth of the Metal path"; nil
+    /// within it. The size is width × height (columns × rows), as the image's header and the toolbar give it (#1033).
     package var depthChip: String? {
-        beyondRegisteredDepth ? "\(slices) slices on a \(rows) × \(columns) pattern: \(CBEDRun.beyondDepthChip) of the Metal path" : nil
+        beyondRegisteredDepth ? Self.depthSentence(slices: slices, rows: rows, columns: columns) : nil
+    }
+
+    /// The depth chip's sentence for a pattern `rows` high and `columns` wide.
+    package static func depthSentence(slices: Int, rows: Int, columns: Int) -> String {
+        "\(slices) slices on a \(columns) × \(rows) pattern: \(CBEDRun.beyondDepthChip) of the Metal path"
     }
 
     /// The pattern at stored thickness `index` (kept in range) as an image of the app: calibrated in 1/nm with the origin on the
@@ -309,11 +314,20 @@ package nonisolated enum CBEDRun {
             let report: SimulationProgressHandler? = progress.map { handler -> SimulationProgressHandler in
                 { (step: SimulationProgress) in handler(start + share * (step.fraction ?? 0)) }
             }
-            guard let out = try Multislice.run(wave, through: try potential(periods: k), exitPlanes: .last,
-                                               backend: onMetal ? .metal : .cpu, progress: report).last else { break }
-            wave = out
-            try keep(out)
+            // Each stretch in a pool of its own (#1021): the Metal buffers a stretch makes (its slices, transmissions, propagators
+            // and waves) are autoreleased, and the run is one synchronous job, so without it every stretch's stayed until the run
+            // returned: 28.7 GB by the end of Si [1 1 0]'s 50 stretches, where the plan is 1.9 GB.
+            let advanced: Bool = try autoreleasepool {
+                guard let out = try Multislice.run(wave, through: try potential(periods: k), exitPlanes: .last,
+                                                   backend: onMetal ? .metal : .cpu, progress: report).last else { return false }
+                wave = out
+                try keep(out)
+                return true
+            }
+            guard advanced else { break }
             done = plane
+            // The stored planes count as done whether or not the kit reports inside a stretch.
+            progress?(Double(done) / Double(plan.periods))
         }
         let slices = plan.periods * perPeriod
         return CBEDPattern(patterns: patterns, rows: rows, columns: columns,

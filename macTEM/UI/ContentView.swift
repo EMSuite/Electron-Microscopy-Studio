@@ -40,6 +40,7 @@ struct ContentView: View {
         .onChange(of: appState.ebsd.isBusy, initial: true) { appState.markBusy(.patterns, appState.ebsd.isBusy) }
         .onChange(of: appState.indexing.isBusy, initial: true) { appState.markBusy(.indexing, appState.indexing.isBusy) }
         .onChange(of: appState.maps.isBusy, initial: true) { appState.markBusy(.maps, appState.maps.isBusy) }
+        .onChange(of: appState.runningCBEDDocument != nil, initial: true) { appState.markBusy(.diffraction, appState.runningCBEDDocument != nil) }
         // INTERIM, delete at MacEMUI <next>: the shared EDS room's own Open button reads its file past the app's Open, so the file
         // the room comes to hold is noted as one of the app's EDS files here (EDSRoomDoor.swift, #318).
         .onChange(of: appState.edx.source?.metadata.filePath) { _, path in appState.noteEDSRoomFile(path: path) }
@@ -62,12 +63,22 @@ struct ContentView: View {
                 set: { if !$0 { appState.errorMessage = nil } }
             )
         ) {
-            // Through the app's one pasteboard writer (PaneKeys.swift), as a pane's ⌘C.
-            Button("Copy Details") { SystemPaneTextWriter().write(appState.errorMessage ?? "") }
-            Button("OK", role: .cancel) { appState.errorMessage = nil }
+            // Through the app's one pasteboard writer (PaneKeys.swift), as a pane's ⌘C. OK is the default and the cancel; Copy
+            // Details the plain button (`ErrorAlertAction`, #1038).
+            errorAlertButton(.copyDetails)
+            errorAlertButton(.ok)
         } message: {
             Text(appState.errorMessage ?? "")
         }
+    }
+
+    /// One of the error alert's buttons as `ErrorAlertAction` says: its role (Esc) and its shortcut (Return) (#1038).
+    private func errorAlertButton(_ action: ErrorAlertAction) -> some View {
+        Button(action.title, role: action.isCancel ? ButtonRole.cancel : nil) {
+            if action == .copyDetails { SystemPaneTextWriter().write(appState.errorMessage ?? "") }
+            appState.errorMessage = nil
+        }
+        .keyboardShortcut(action.isDefault ? KeyboardShortcut.defaultAction : nil)
     }
 
     /// The arrangement (alignment design M2): the file, the room and the size as a DISPLAY in the centre, never a button; at the

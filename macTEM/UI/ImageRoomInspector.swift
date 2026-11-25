@@ -1,7 +1,8 @@
 //
 //  ImageRoomInspector.swift
-//  Role: the Image room's inspector content. Settings: the calibration a distance in this room is measured
-//        in (readiness, the first section), a simulated image's HRTEM settings (SimulationHRTEMSection.swift), then Display (ImageRoomDisplay.swift), Particles (ImageRoomParticles.swift) and Measure (ImageRoomMeasure.swift).
+//  Role: the Image room's inspector content. Settings, in `ImageSections.order` (#1043): the calibration a distance in this room is
+//        measured in (readiness, the first section), Display (ImageRoomDisplay.swift), a simulated image's job (Microscope, HRTEM,
+//        Thermal Vibrations, Beside Measured; or STEM), then Particles (ImageRoomParticles.swift) and Measure (ImageRoomMeasure.swift).
 //        Info: what the open image is, as the file states it, then what it records about the acquisition
 //        (ImageRoomAcquisition.swift; an SEM TIFF's vendor rows and databar control: ImageRoomSEM.swift).
 //
@@ -17,31 +18,57 @@ import SwiftUI
 import TEMCore
 import TEMSession
 
-/// The room's Settings: the calibration a distance in this room is measured in (readiness, first), then the
-/// display of the selected file and its marks.
+/// The room's Settings in `ImageSections.order` (#1043): the calibration a distance in this room is measured in (readiness, first),
+/// the display of the selected file, a simulated image's job in the order its numbers depend on each other, then its marks.
 struct ImageRoomSettings: View {
     let session: ImageSession
     private var image: CalibratedImage { session.imageOrBlank }
     @Environment(AppState.self) private var appState
 
     var body: some View {
-        ImageRoomCalibrationSection(session: session)
-        // A Simulation document's HRTEM image (#894): Defocus and Thickness, live.
-        if let item = appState.openItems.selected, DemoDocuments.isHRTEM(item.url) { SimulationHRTEMSection(item: item) }
-        if let item = appState.openItems.selected, DemoDocuments.isSTEM(item.url) { SimulationSTEMSection(item: item) }
-        // An image stack read on demand (a multi-page TIFF): the frame shown and the slider that moves it.
-        if let item = appState.openItems.selected, item.stack != nil { ImageRoomStackSection(item: item, items: appState.openItems) }
-        // A render's bar starts hidden (`ImagePresentation.startsWithScaleBar`), and its Display section says why.
-        ImageRoomDisplaySection(presentation: appState.presentation, sem: appState.imageSession.sem,
-                                isRender: !ImagePresentation.startsWithScaleBar(notes: image.notes))
-        // The Particles view: objects found on the image, outlined over it. Above Measure, so it is in view without scrolling past the tools.
-        if let item = appState.openItems.selected {
-            ImageRoomParticlesSection(item: item, rawRange: appState.presentation.canvas?.rawRange)
+        let item = appState.openItems.selected
+        ForEach(ImageSections.order(ImageSections.kind(of: item?.url)), id: \.self) { section in
+            self.section(section, item: item)
         }
-        ImageRoomMeasureSection(session: session, measurements: appState.measurements, tools: appState.imageRoomTools,
-                                item: appState.openItems.selected)
-        // The record of those marks: collapsed, drawn only when there is something to show.
-        if let item = appState.openItems.selected { ImageRoomLineageSection(item: item) }
+    }
+
+    /// One section of `ImageSections.order`.
+    @ViewBuilder
+    private func section(_ section: ImageSections.Section, item: OpenItem?) -> some View {
+        switch section {
+        case .calibration:
+            ImageRoomCalibrationSection(session: session)
+        case .stack:
+            // An image stack read on demand (a multi-page TIFF): the frame shown and the slider that moves it.
+            if let item, item.stack != nil { ImageRoomStackSection(item: item, items: appState.openItems) }
+        case .display:
+            // A render's bar starts hidden (`ImagePresentation.startsWithScaleBar`), and its Display section says why.
+            ImageRoomDisplaySection(presentation: appState.presentation, sem: appState.imageSession.sem,
+                                    isRender: !ImagePresentation.startsWithScaleBar(notes: image.notes))
+        case .microscope:
+            // A Simulation document's HRTEM image (#894): the voltage and the optics its Defocus and Thickness image through.
+            if let item, let simulation = appState.simulationDocument(ofHRTEM: item) {
+                SimulationMicroscopeSection(model: simulation.multislice, analysis: simulation.diffraction) {
+                    appState.refreshHRTEMImage(of: simulation)
+                }
+            }
+        case .hrtem:
+            if let item { SimulationHRTEMSection(item: item) }
+        case .thermalVibrations:
+            if let item, let simulation = appState.simulationDocument(ofHRTEM: item) { SimulationThermalSection(simulation: simulation) }
+        case .besideMeasured:
+            if let item, let simulation = appState.simulationDocument(ofHRTEM: item) { SimulationBesideSection(simulation: simulation) }
+        case .stem:
+            if let item { SimulationSTEMSection(item: item) }
+        case .particles:
+            // The Particles view: objects found on the image, outlined over it. Above Measure, so it is in view without scrolling past the tools.
+            if let item { ImageRoomParticlesSection(item: item, rawRange: appState.presentation.canvas?.rawRange) }
+        case .measure:
+            ImageRoomMeasureSection(session: session, measurements: appState.measurements, tools: appState.imageRoomTools, item: item)
+        case .lineage:
+            // The record of those marks: collapsed, drawn only when there is something to show.
+            if let item { ImageRoomLineageSection(item: item) }
+        }
     }
 }
 
@@ -80,6 +107,8 @@ struct ImageInfoSection: View {
 
     var body: some View {
         imageSection
+        // A Simulation document's HRTEM or STEM image: its method line and Copy Methods Paragraph, a record not a setting (#1043).
+        if let item = appState.openItems.selected { SimulationRecordSection(item: item) }
         // What the file records about the acquisition (ImageRoomAcquisition.swift), then what an SEM file records beyond it (ImageRoomSEM.swift).
         AcquisitionSection(metadata: appState.imageSession.metadata,
                            formatExtension: (image.fileName as NSString).pathExtension, sem: appState.imageSession.sem)

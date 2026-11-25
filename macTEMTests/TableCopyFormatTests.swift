@@ -82,7 +82,7 @@ nonisolated final class TableCopyFormatTests: XCTestCase {
     /// Red under: a column dropped or out of the table's order, d at the CSV's precision, a verdict's line break kept.
     func testAReadoutRowCopiesAsTheTableShowsIt() {
         let rows = Self.readout()
-        let header = "Ring or spot\tR px\tq \u{00C5}\u{207B}\u{00B9}\td \u{00C5}\tfamily\td listed\t\u{03A3}|F|\u{00B2} listed\t\u{0394}d/d %\todds\tverdict"
+        let header = "Ring or spot\tR (px)\tq (\u{00C5}\u{207B}\u{00B9})\td (\u{00C5})\tFamily\td Listed\t\u{03A3}|F|\u{00B2} Listed\t\u{0394}d/d (%)\tOdds\tVerdict"
         XCTAssertEqual(DiffractionReadoutFormat.copyText(rows, locale: Self.en),
                        [header,
                         "Ring 1 \u{25CF}\t33.98\t0.42477\t2.3542\t{111}\t2.3546\t100\t-0.01\t12:1\tmatches {111}",

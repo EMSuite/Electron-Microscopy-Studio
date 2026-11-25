@@ -28,6 +28,10 @@ package nonisolated enum UnitDisplay {
     /// What a number with no value (a NaN, an infinity) shows: one dash for every room's tables and lines.
     package static let noValue = "—"
 
+    /// The locale a file, the methods record and the agent door write numbers in: a decimal point on every Mac. A string that is both
+    /// drawn and written takes a `locale` defaulting to this, and the view passes the reader's (#1039).
+    package static let point = Locale(identifier: "en_US_POSIX")
+
     /// A number as the reader's locale writes it, at most `digits` significant digits, no grouping, no exponent ("0,25" in de_DE,
     /// where `%g` always printed "0.25"). The digits are printf's, so the screen shows the last digit the CSV writes: FormatStyle
     /// rounded the shortest decimal spelling instead of the binary value (2.675 read "2.68" there, "2.67" in `%.3g`). A zero is "0"
