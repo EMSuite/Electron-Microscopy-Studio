@@ -8,7 +8,6 @@
 //
 
 import XCTest
-@testable import macTEM
 
 nonisolated final class DiffractionWordsAndExportsTests: XCTestCase {
 
