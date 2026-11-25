@@ -196,7 +196,7 @@ nonisolated final class AgentDoorSimulationTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("readout.csv").path))
         let outside = try await call("save_diffraction", ["which": "spots_csv", "file": "../outside.csv"])
         XCTAssertTrue(outside.refused, outside.text)
-        await item.diffractionView.show(image: image, analysis: analysis)
+        await item.diffractionView.show(image: image, generation: item.session.generation, analysis: analysis)
         let png = try await call("save_diffraction", ["which": "png", "file": "pattern.png"])
         XCTAssertFalse(png.refused, png.text)
         let bytes = try Data(contentsOf: root.appendingPathComponent("pattern.png"))
