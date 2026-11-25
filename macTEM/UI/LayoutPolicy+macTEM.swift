@@ -60,7 +60,8 @@ extension LayoutPolicy {
     static let findPhasesTableMinimum: CGFloat = 180
     static let powderChartHeight: CGFloat = 140
     static let precipitateIndexFieldWidth: CGFloat = 72
-    static let zoneAxisLegendLine = CGSize(width: 10, height: 2)
+    /// Wide enough to show a dash and a dot pattern (#923).
+    static let zoneAxisLegendLine = CGSize(width: 18, height: 4)
 
     /// The Settings window (`SettingsWindow`): a sidebar of sections beside a grouped form, mac4DSTEM's size.
     static let settingsWindow: (min: CGSize, ideal: CGSize) = (CGSize(width: 560, height: 380), CGSize(width: 660, height: 600))
