@@ -667,3 +667,16 @@ describe (design DNA 4), the pattern as context on the map.
 
 **What would reverse it.** A drive that needs the pattern large beside the map; then the Patterns room is where it is shown large.
 
+## 2026-11-25 — The Maps room: the map is chosen in its heading, its key sits on it (#1065)
+
+**What.** The map pane's heading is the map picker: a menu of the map kinds (IPF-X/Y/Z, Phase, the file's properties and, after
+Segment, the derived maps) on the session's own layer, the property the inspector's Map row set (`maps.layer`, `set_maps layer`).
+The inspector keeps Source and the line on what the map shows. The colour key sits on the map's footer beside the scale bar: each
+phase's IPF key, the phase legend, the grain map's line or the value layer's colour bar. The results pane loses its Key tab.
+
+**Why.** Approved by Paul in the design review of 25 Nov 2026. Departure from control-placement §1 (a picker in the centre): the
+heading names what the pane shows, so choosing it there keeps the inspector to settings; the key belongs with the picture it
+explains, not in a tab beside it.
+
+**What would reverse it.** A map kind list too long for a menu, or a key too large for the footer on a small map.
+

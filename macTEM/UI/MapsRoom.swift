@@ -176,10 +176,27 @@ struct MapPane: View {
     private var header: some View {
         let shape = session.gridShape
         return HStack(spacing: 8) {
-            Text(MapsRoomFormat.mapTitle(session.layer, stale: staleness != nil))
-                .font(.headline).lineLimit(1)
-                .help(staleness ?? "")
-                .accessibilityIdentifier("maps.map.title")
+            // DEPARTURE from control-placement §1 (#1065, approved by Paul 25 Nov 2026): the heading is the map picker, a menu of the
+            // map kinds on the same property the inspector's Map row set; the heading names what the pane shows, and choosing it there
+            // keeps the inspector to settings.
+            Menu {
+                Picker("Map", selection: Binding(get: { session.layer }, set: { session.setLayer($0) })) {
+                    ForEach(session.layers) { layer in
+                        Text(layer.title).tag(layer)
+                    }
+                }
+                .pickerStyle(.inline)
+                .labelsHidden()
+            } label: {
+                Text(MapsRoomFormat.mapTitle(session.layer, stale: staleness != nil))
+                    .font(.headline).lineLimit(1)
+            }
+            .menuStyle(.button)
+            .buttonStyle(.borderless)
+            .menuIndicator(.visible)
+            .fixedSize()
+            .help(staleness ?? "What the map draws: the IPF colours along a sample axis, the phases, a property of the file, or after Segment a grain map")
+            .accessibilityIdentifier("maps.layer")
             Spacer(minLength: 8)
             if session.isDrawing {
                 ProgressView().controlSize(.small).accessibilityLabel("Drawing the map")
@@ -263,7 +280,9 @@ struct MapPane: View {
                              unitLabel: EBSDBrowsing.unitLabel(map.scanUnit))
                 }
             } trailing: {
-                HStack(spacing: 8) {
+                HStack(alignment: .bottom, spacing: 8) {
+                    // What the colours mean, always on the map (#1065), as the Indexing room's legend.
+                    MapsKeyInset(session: session)
                     if notIndexed > 0 {
                         Text(verbatim: "\(notIndexed) not indexed").font(.caption.monospacedDigit()).foregroundStyle(.secondary).fixedSize()
                             .accessibilityIdentifier("maps.map.notIndexed")
@@ -401,17 +420,18 @@ struct MapsPointInset: View {
 
 /// Where an IPF key and its corner labels sit in the key cell (#725): the key between two label bands, a corner in the key's upper
 /// half labelled in the band above it, one in the lower half in the band below, so no label covers the key ("[1̄11]" sat on the
-/// triangle's top), and a margin either side for the corners on the key's left and right edges.
+/// triangle's top), and a margin either side for the corners on the key's left and right edges. The key on the map (#1065) is
+/// `LayoutPolicy.mapsKeyInsetWidth` wide.
 struct MapsKeyLayout {
     let imageWidth: Int
     let imageHeight: Int
+    var width: CGFloat = LayoutPolicy.mapsKeyWidth
 
     /// A label line's height (caption2) plus a gap: the band above and below the key.
     static let band: CGFloat = 16
 
     var keySize: CGSize {
-        CGSize(width: LayoutPolicy.mapsKeyWidth,
-               height: LayoutPolicy.mapsKeyWidth * CGFloat(imageHeight) / CGFloat(max(imageWidth, 1)))
+        CGSize(width: width, height: width * CGFloat(imageHeight) / CGFloat(max(imageWidth, 1)))
     }
     var keyOrigin: CGPoint { CGPoint(x: LayoutPolicy.mapsKeyLabelInset, y: Self.band) }
     var cellSize: CGSize {
@@ -427,64 +447,58 @@ struct MapsKeyLayout {
     }
 }
 
-/// The bottom pane: what the colours mean. An IPF layer: each indexed phase's TSL key in the stereographic projection with its corners
-/// labelled; Phase: each phase's colour, name and point count; a property: its name and range.
-struct MapsKeyPane: View {
+/// The colour key of the map in front, on the map's footer beside the zoom badge (#1065; it was a bottom tab that the strip cut): an
+/// IPF layer's TSL key of each indexed phase with its corners labelled, Phase's colours with names and point counts, the grain map's
+/// one line, or a value layer's colour bar over its window in the Display section's colormap.
+struct MapsKeyInset: View {
     let session: OrientationMapSession
 
     var body: some View {
-        // Both axes: at the pane's smallest height a key and its labels scroll rather than being cut (#725).
-        ScrollView([.horizontal, .vertical]) {
-            HStack(alignment: .top, spacing: 20) {
-                switch session.layer {
-                case .ipf(let direction):
-                    if session.keys.isEmpty {
-                        Text(session.hasMap ? "No indexed phase with a point group: no colour key" : "")
-                            .foregroundStyle(.secondary)
+        Group {
+            switch MapsKeyKind.of(session.layer) {
+            case .ipf(let direction):
+                HStack(alignment: .bottom, spacing: 6) {
+                    if session.keys.isEmpty, session.hasMap {
+                        Text("No indexed phase with a point group: no colour key").font(.caption2).foregroundStyle(.secondary)
                     }
                     ForEach(session.keys) { key in
                         keyCell(key, direction: direction)
                     }
-                case .phase:
-                    phaseLegend
-                case .property(let name):
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(name).font(.headline)
-                        if let range = session.raster?.valueRange {
-                            Text(verbatim: "\(UnitDisplay.number(range.lowerBound, digits: 4)) to \(UnitDisplay.number(range.upperBound, digits: 4))")
-                                .font(.callout.monospacedDigit()).foregroundStyle(.secondary)
-                        }
-                        Text("Its colormap and window are the Display section's.").font(.caption).foregroundStyle(.secondary)
-                    }
-                case .derived(.grains):
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Grains").font(.headline)
-                        Text(verbatim: session.analysis.map { MapsRoomFormat.grainSummary($0) } ?? "")
-                            .font(.callout.monospacedDigit()).foregroundStyle(.secondary)
-                        Text("Each grain its own colour; grey: regions below the smallest grain; black: not indexed.")
-                            .font(.caption).foregroundStyle(.secondary)
-                    }
-                case .derived(let derived):
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(verbatim: derived.unit.isEmpty ? derived.title : "\(derived.title) (\(derived.unit))").font(.headline)
-                        if let range = session.raster?.valueRange {
-                            Text(verbatim: "\(UnitDisplay.number(range.lowerBound, digits: 4)) to \(UnitDisplay.number(range.upperBound, digits: 4))")
-                                .font(.callout.monospacedDigit()).foregroundStyle(.secondary)
-                        }
-                        Text(MapsRoomFormat.derivedNote(derived, load: session.loadDirection)).font(.caption).foregroundStyle(.secondary)
-                    }
                 }
+                .plate()
+            case .phases:
+                phaseLegend.plate()
+            case .grains:
+                Text(verbatim: "Grains · " + (session.analysis.map { "\($0.table.count)" } ?? UnitDisplay.noValue)
+                     + " · each its own colour, grey below the smallest, black not indexed")
+                    .font(.caption2).foregroundStyle(.secondary).lineLimit(2)
+                    .frame(maxWidth: LayoutPolicy.mapsKeyInsetWidth * 2, alignment: .leading)
+                    .plate()
+            case .colourBar:
+                colourBar
             }
-            .padding(10)
         }
         .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("maps.key.pane")
+        .accessibilityIdentifier("maps.map.key")
+    }
+
+    /// The value layer's colour bar (ShellControls', on its own plate) over the window's two ends in the layer's own values.
+    @ViewBuilder private var colourBar: some View {
+        let presentation = session.propertyPresentation
+        if let range = presentation.canvas?.rawRange {
+            let span = Double(range.upperBound - range.lowerBound)
+            let fractions = presentation.displayFractions
+            Colorbar(colormap: presentation.colormap, low: Double(range.lowerBound) + Double(fractions.low) * span,
+                     high: Double(range.lowerBound) + Double(fractions.high) * span, unitLabel: MapsRoomFormat.keyUnit(session.layer),
+                     gamma: Float(presentation.gamma))
+                .allowsHitTesting(false)
+                .accessibilityIdentifier("maps.map.colourBar")
+        }
     }
 
     private func keyCell(_ key: OrientationMapSession.PhaseKey, direction: SampleDirection) -> some View {
-        let layout = MapsKeyLayout(imageWidth: key.image.width, imageHeight: key.image.height)
-        return VStack(alignment: .leading, spacing: 4) {
-            Text(verbatim: "\(key.name) · \(key.pointGroup) · IPF-\(direction.rawValue.uppercased())").font(.caption).lineLimit(1)
+        let layout = MapsKeyLayout(imageWidth: key.image.width, imageHeight: key.image.height, width: LayoutPolicy.mapsKeyInsetWidth)
+        return VStack(alignment: .leading, spacing: 0) {
             ZStack(alignment: .topLeading) {
                 if let image = MapsFigure.keyPicture(key) {
                     Image(decorative: image, scale: 1)
@@ -501,6 +515,9 @@ struct MapsKeyPane: View {
                 }
             }
             .frame(width: layout.cellSize.width, height: layout.cellSize.height, alignment: .topLeading)
+            Text(verbatim: session.keys.count > 1 ? "\(key.name) · IPF-\(direction.rawValue.uppercased())" : "IPF-\(direction.rawValue.uppercased())")
+                .font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                .frame(width: layout.cellSize.width)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(IPFKeySpeech.label(title: "Colour key of \(key.name), IPF-\(direction.rawValue.uppercased())",
@@ -511,20 +528,27 @@ struct MapsKeyPane: View {
     private var phaseLegend: some View {
         let map = session.map
         let counts = session.phasePointCounts
-        return VStack(alignment: .leading, spacing: 6) {
+        return VStack(alignment: .leading, spacing: 3) {
             ForEach(map?.phasesInData.entries ?? [], id: \.id) { entry in
                 let rgb = entry.phase.colorRGB ?? .zero
-                HStack(spacing: 8) {
+                HStack(spacing: 6) {
                     Rectangle().fill(Color(red: rgb.x, green: rgb.y, blue: rgb.z))
                         .frame(width: LayoutPolicy.mapsPhaseSwatchSize, height: LayoutPolicy.mapsPhaseSwatchSize)
                         .overlay(Rectangle().stroke(Color.secondary.opacity(0.5), lineWidth: 0.5))
                     Text(verbatim: "\(MapsRoomFormat.phaseName(entry.phase, id: entry.id)) · "
                          + MapsRoomFormat.phasePoints(entry.phase, count: counts[entry.id] ?? 0, missing: UnitDisplay.noValue))
-                        .font(.callout.monospacedDigit())
+                        .font(.caption2.monospacedDigit())
                 }
                 .accessibilityElement(children: .combine)
                 .accessibilityIdentifier("maps.legend.\(entry.id)")
             }
         }
+    }
+}
+
+private extension View {
+    /// The key's plate on the map, as the Indexing room's legend.
+    func plate() -> some View {
+        padding(4).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 4))
     }
 }

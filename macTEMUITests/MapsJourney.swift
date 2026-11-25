@@ -1,9 +1,9 @@
 //
 //  MapsJourney.swift
 //  The Maps room's first slice (docs/sem/design/orientation-maps-room.md) on the shipped two-phase steel map: launch with `--demo-ang`,
-//  the room shows the IPF-Z map with both phases' colour keys in the bottom pane and the unit cell of the picked point beside the map;
-//  a click on the map moves the orientation pane's point, hovering does not, → steps it (D-SEM-110); the inspector's Map control switches
-//  to the phase map and its legend. P5-04:
+//  the room shows the IPF-Z map with both phases' colour keys on it (#1065) and the unit cell of the picked point as an inset (#1064);
+//  a click on the map moves the inset's point, hovering does not, → steps it (D-SEM-110); the map heading's menu switches to the phase
+//  map and its legend. P5-04:
 //  Segment fills the Grains tab, a click outlines its grain, the Pole figures tab draws three stereograms and the IPF density, the
 //  grain table exports as CSV. A screenshot at every step.
 //
@@ -29,8 +29,9 @@ nonisolated final class MapsJourney: Journey {
             launch(["--demo-ang"])
             waitFor("maps.room", timeout: 30)
             waitFor("maps.map", timeout: 30)
-            XCTAssertTrue(label("maps.map.title").contains("IPF-Z"), label("maps.map.title"))
-            waitFor("maps.key.pane", timeout: 30)
+            // The map pane's heading is the map picker and names the map (#1065); the colour key is on the map's footer.
+            XCTAssertTrue(label("maps.layer").contains("IPF-Z"), label("maps.layer"))
+            waitFor("maps.map.key", timeout: 30)
             waitFor("maps.key.1", timeout: 30)
             waitFor("maps.key.2", timeout: 30)
             waitFor("maps.orientation.cell", timeout: 30)
@@ -65,13 +66,13 @@ nonisolated final class MapsJourney: Journey {
             let moved = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in self.label("maps.orientation.title") == stepped }, object: nil)
             XCTAssertEqual(XCTWaiter().wait(for: [moved], timeout: 20), .completed, "never \(stepped); last \(label("maps.orientation.title"))")
         }
-        try step("the Map control shows the phase map and its legend") {
-            showInspector(waitingFor: "maps.layer")
+        try step("the map heading's menu shows the phase map and its legend") {
+            showInspector(waitingFor: "maps.source")
             try requireFrontmost()
             waitFor("maps.layer").click()
             app.menuItems["Phase"].firstMatch.click()
-            let phase = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in self.label("maps.map.title").contains("Phase") }, object: nil)
-            XCTAssertEqual(XCTWaiter().wait(for: [phase], timeout: 30), .completed, label("maps.map.title"))
+            let phase = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in self.label("maps.layer").contains("Phase") }, object: nil)
+            XCTAssertEqual(XCTWaiter().wait(for: [phase], timeout: 30), .completed, label("maps.layer"))
             waitFor("maps.legend.1", timeout: 20)
             waitFor("maps.legend.2", timeout: 20)
             waitFor("maps.phase.1")
@@ -114,7 +115,7 @@ nonisolated final class MapsJourney: Journey {
             XCTAssertTrue(label("maps.histogram.caption").contains("KAM"), label("maps.histogram.caption"))
         }
         try step("the grain table exports as CSV") {
-            showInspector(waitingFor: "maps.layer")
+            showInspector(waitingFor: "maps.source")
             try requireFrontmost()
             // The Export section starts closed, as in the other rooms: its header opens it.
             if !element("maps.export.grains").waitForExistence(timeout: 3) { app.buttons["Export"].firstMatch.click() }

@@ -1,8 +1,8 @@
 //
 //  MapsRoomAnalysis.swift
 //  Role: what the Maps room shows of its grain analysis and texture (docs/sem/design/orientation-maps-room.md §3-§4, brief P5-04): the
-//        boundaries, the selected grain's outline and its slip traces over the map; the results pane's tabs beside the map (Key,
-//        Grains, Pole figures, ODF, Histogram; #1064); and the inspector's Misorientation, Grains, Slip and Texture sections. Presentation only: the numbers are `MapAnalysis` and
+//        boundaries, the selected grain's outline and its slip traces over the map; the results pane's tabs beside the map (Grains,
+//        Pole figures, ODF, Histogram; #1064, #1065); and the inspector's Misorientation, Grains, Slip and Texture sections. Presentation only: the numbers are `MapAnalysis` and
 //        `MapTexture`'s (TEMCore), the state `OrientationMapSession`'s (TEMSession), the words `MapsRoomFormat`'s.
 //
 
@@ -124,10 +124,9 @@ struct MapsAnalysisOverlay: View {
 
 // MARK: - The results pane
 
-/// The results pane's tabs (design §3; the trailing pane at full height since #1064): the colour key, the grain table, the pole figures
-/// with the IPF density, the ODF sections, the histogram.
+/// The results pane's tabs (design §3; the trailing pane at full height since #1064): the grain table, the pole figures with the IPF
+/// density, the ODF sections, the histogram. The colour key is on the map (#1065).
 enum MapsResultsTab: String, CaseIterable, Identifiable {
-    case key = "Key"
     case grains = "Grains"
     case poleFigures = "Pole figures"
     case odf = "ODF"
@@ -167,7 +166,6 @@ struct MapsResultsPane: View {
             .fixedSize(horizontal: false, vertical: true)
             Group {
                 switch state.resultsTab {
-                case .key: MapsKeyPane(session: session)
                 case .grains: MapsGrainsTable(session: session)
                 case .poleFigures: MapsTextureFigures(session: session, odf: false)
                 case .odf: MapsTextureFigures(session: session, odf: true)
@@ -461,7 +459,7 @@ struct MapsMisorientationSection: View {
                 .help("Kernel average misorientation over the first neighbours of the same phase; a neighbour more misoriented than this is left out")
                 .accessibilityIdentifier("maps.kamMax")
             }
-            InspectorNote("KAM, GOS and GND appear in the Map picker after Segment. GND is DefDAP's Nye-tensor density from the primary phase's structure.")
+            InspectorNote("KAM, GOS and GND appear in the map heading's menu after Segment. GND is DefDAP's Nye-tensor density from the primary phase's structure.")
         }
     }
 }

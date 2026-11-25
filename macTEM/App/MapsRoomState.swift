@@ -31,7 +31,7 @@ final class MapsRoomState {
     /// What the save panel writes: the map figure or the texture figure (PNG) or the grain table (CSV).
     private(set) var exportType = UTType.png
     /// The results pane's tab (the trailing pane, #1064).
-    var resultsTab = MapsResultsTab.key
+    var resultsTab = MapsResultsTab.grains
     /// Whether the map carries the picked point's inset (Display › Pattern inset, #1064).
     var showsPointInset = true
     /// What the Histogram tab counts.
@@ -200,6 +200,24 @@ nonisolated enum IPFKeySpeech {
     }
 }
 
+/// Which colour key the map in front carries on its footer (#1065): each phase's IPF key along the layer's axis, the phases' colours,
+/// the grain map's line, or a value layer's colour bar.
+nonisolated enum MapsKeyKind: Equatable {
+    case ipf(SampleDirection)
+    case phases
+    case grains
+    case colourBar
+
+    static func of(_ layer: OrientationMapLayer) -> MapsKeyKind {
+        switch layer {
+        case .ipf(let direction): .ipf(direction)
+        case .phase: .phases
+        case .derived(.grains): .grains
+        case .property, .derived: .colourBar
+        }
+    }
+}
+
 nonisolated enum MapsRoomFormat {
     /// The methods a map figure of `layer` rests on, for the session report (D-SEM-104).
     static func methods(of layer: OrientationMapLayer) -> [SEMMethod] {
@@ -245,6 +263,14 @@ nonisolated enum MapsRoomFormat {
 
     /// "Map · IPF-Z", "Map · Phase", "Map · iq"; "Map · IPF-Z · stale" for an Indexing run the room has moved on from (D-SEM-99).
     static func mapTitle(_ layer: OrientationMapLayer, stale: Bool = false) -> String { "Map · " + layer.title + (stale ? " · stale" : "") }
+
+    /// A value layer's colour bar title: the property's name, or a derived layer's with its unit, "KAM (°)".
+    static func keyUnit(_ layer: OrientationMapLayer) -> String {
+        switch layer {
+        case .derived(let derived): derived.unit.isEmpty ? derived.title : "\(derived.title) (\(derived.unit))"
+        default: layer.title
+        }
+    }
 
     /// A held map's name in the Source pop-up (design §4: the result, then where it is from): "File · sdss.ang",
     /// "Hough · Indexing room".
