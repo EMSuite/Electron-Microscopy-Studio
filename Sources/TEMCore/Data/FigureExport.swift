@@ -104,6 +104,11 @@ package nonisolated enum FigureExport {
                 layers.append(.path(FigurePath(points: points, stroke: markColor, lineWidth: markLineWidth)))
             case .distance, .angle, .profile:
                 layers.append(.path(FigurePath(points: points, stroke: markColor, lineWidth: markLineWidth)))
+            case .ring:
+                layers.append(.path(FigurePath(points: points, closed: true, stroke: markColor, lineWidth: markLineWidth)))
+            case .annulus:
+                layers.append(.path(FigurePath(points: points, closed: true, stroke: FigureColor(red: 1, green: 1, blue: 1, alpha: 0.8),
+                                               lineWidth: markLineWidth)))
             }
             guard !mark.label.isEmpty else { continue }
             // The value beside the mark: at an angle's vertex, a line's middle, a spot's ring.
@@ -111,6 +116,7 @@ package nonisolated enum FigureExport {
             switch mark.kind {
             case .angle where points.count >= 3: at = points[1]
             case .spot, .simulatedSpot: at = FigurePoint(x: points[0].x + spotRing / 2, y: points[0].y - spotRing / 2)
+            case .ring, .annulus: at = points[0]
             default: at = FigurePoint(x: (points[0].x + points[1].x) / 2, y: (points[0].y + points[1].y) / 2)
             }
             layers.append(.text(FigureText(mark.label, at: FigurePoint(x: at.x + 2, y: at.y - 2), color: markColor)))
