@@ -36,10 +36,15 @@ package final class CBEDThicknessModel {
 
         /// The pattern's content (the canvas's version), the phase, the centre, the scale and the voltage.
         package struct Key: Equatable, Sendable {
+            // periphery:ignore - read by the synthesized == (and hash)
             let contentVersion: Int
+            // periphery:ignore - read by the synthesized == (and hash)
             let phase: String
+            // periphery:ignore - read by the synthesized == (and hash)
             let centre: SIMD2<Double>
+            // periphery:ignore - read by the synthesized == (and hash)
             let deltaQ: Double
+            // periphery:ignore - read by the synthesized == (and hash)
             let volts: Double
         }
     }
