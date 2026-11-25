@@ -27,6 +27,7 @@ enum RoomProgress {
         case .patterns: patternsFraction(appState.ebsd)
         case .indexing: appState.indexing.isIndexing ? min(max(appState.indexing.progress, 0), 1) : nil
         case .image: appState.simulatingDocument?.multislice.thermalProgress.map(BusyOperation.simulationFraction)
+        case .diffraction: appState.runningCBEDDocument?.cbed.progress.map { min(max($0, 0), 1) }
         default: nil
         }
     }
@@ -138,14 +139,16 @@ enum RoomPrimaryAction {
             guard let item = appState.openItems.selected, let image = item.session.image else { return nil }
             let analysis = item.diffraction
             let blocker = analysis.indexBlocker(image: image)
+            // A CBED run of the shown pattern's document is this room's work too (#1021): the button is its Stop while it runs.
+            let cbed = appState.runningCBEDDocument?.cbed
             return PrimaryAction(
                 title: "Index",
                 isEnabled: blocker == nil,
                 help: blocker ?? "Find the spots and the full orientation of \(analysis.crystal.name)",
                 hint: "Finds the spots and the crystal's full orientation",
-                isRunning: analysis.isIndexing || analysis.isFitting,
+                isRunning: analysis.isIndexing || analysis.isFitting || cbed != nil,
                 operationName: BusyOperation.name(room: .diffraction, appState: appState),
-                stop: { analysis.stop() },
+                stop: { if let cbed { cbed.stop() } else { analysis.stop() } },
                 run: { PendingEdits.run { analysis.index(image: image) } })
         default:
             return backgroundCancel(appState)
@@ -236,7 +239,8 @@ enum RoomPrimaryAction {
                 appState.ebsd.stop()
             }
         case .maps: appState.maps.stop()
-        case .diffraction: appState.openItems.selected?.diffraction.stop()
+        case .diffraction:
+            if let cbed = appState.runningCBEDDocument?.cbed { cbed.stop() } else { appState.openItems.selected?.diffraction.stop() }
         case .image: appState.simulatingDocument?.multislice.stop()
         default: break
         }
@@ -265,6 +269,7 @@ enum RoomPrimaryAction {
         case .indexing: appState.indexing.isBusy || appState.ebsd.isOpening
         case .maps: appState.maps.isOpening || appState.maps.isSegmenting || appState.maps.isTexturing
         case .diffraction: appState.openItems.selected.map { $0.diffraction.isFitting || $0.diffraction.isIndexing } ?? false
+            || appState.runningCBEDDocument != nil
         case .image: appState.simulatingDocument != nil
         default: false
         }

@@ -27,8 +27,8 @@ struct DiffractionPrecipitateSection: View {
         let options = precipitates(besides: analysis.crystal.name)
         let result = variants.variants(analysis: analysis, image: item.session.imageOrBlank)
         InspectorSection("Precipitate", startsExpanded: false) {
-            InspectorRow("Show") {
-                Toggle("Show variants", isOn: Binding(get: { variants.isShown }, set: { variants.isShown = $0 }))
+            InspectorRow("Variants") {
+                Toggle("Variants", isOn: Binding(get: { variants.isShown }, set: { variants.isShown = $0 }))
                     .toggleStyle(.switch).labelsHidden()
                     .help("Draws the shown variants' spots over the pattern as pink diamonds")
                     .accessibilityIdentifier("diffraction.precipitate.show")
@@ -43,7 +43,7 @@ struct DiffractionPrecipitateSection: View {
                 .accessibilityIdentifier("diffraction.precipitate.phase")
             }
             InspectorRow("Double diffraction") {
-                Toggle("Double diffraction with the matrix", isOn: Binding(get: { variants.doubleDiffraction }, set: { variants.doubleDiffraction = $0 }))
+                Toggle("Double diffraction", isOn: Binding(get: { variants.doubleDiffraction }, set: { variants.doubleDiffraction = $0 }))
                     .toggleStyle(.switch).labelsHidden()
                     .help("Also draws, as dashed pink diamonds, the spots a beam diffracted by one crystal and again by another adds (g₁ + g₂ between the matrix and a variant)")
                     .accessibilityIdentifier("diffraction.precipitate.doubleDiffraction")

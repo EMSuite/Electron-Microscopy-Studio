@@ -20,11 +20,13 @@
 #     a compiler warning in the app's own sources or tests fails it (tools/lib/app-warnings.sh).
 #   Each is its own step, so the job's log names the one that failed. The required check is the job, `unit (XCTest)`.
 #
-# MAC OR GITHUB: GitHub has no "whichever runner is free" across labels, so `changes` asks the Actions API before `unit`
-# is queued: if another pull request's `unit (XCTest)` in this repo is queued or running on a self-hosted label (here only
-# the Mac), this one takes macos-26; otherwise the Mac. It sees only this repo's jobs (4DSTEM Studio's and EMSuiteUI's on
-# the same Mac are not counted), and two pull requests deciding in the same second can both pick the Mac; either way the
-# job still runs, it only waits. An API error picks the Mac, as before this rule. The job's log says which and why.
+# MAC OR GITHUB: GitHub has no "whichever runner is free" across labels and chooses a job's runner when it is queued, so
+# `changes` asks the Actions API first. The Mac takes the job unless it already holds MAC_DEPTH jobs (running and waiting)
+# AND no job of this repo waits for a GitHub macOS runner; only then does it overflow to macos-26. So the Mac is never idle
+# while unit jobs wait on GitHub (25 Nov: routing on "any Mac job" sent ten to GitHub's five shared slots and left the Mac
+# idle), and GitHub is used only while it has room. It sees only this repo's jobs (4DSTEM Studio's and EMSuiteUI's on the
+# same Mac are not counted), and two pull requests deciding in the same second can both pick one side; either way the job
+# still runs, it only waits. An API error picks the Mac. The job's log says which and why.
 #
 # DOCS ONLY: a pull request that changes only the root's Markdown files (README, CONTRIBUTING, ...), files under docs/
 # (the store texts in docs/app-store/ among them) or the issue templates runs no macOS job (process item 3 again). The
@@ -161,28 +163,36 @@ jobs:
             fi
           done < <(git diff --name-only --no-renames HEAD^1 HEAD)
           echo "macos=$macos" | tee -a "$GITHUB_OUTPUT"
-      - name: Is the Mac runner free (MAC OR GITHUB in the header)
+      - name: Mac or GitHub (MAC OR GITHUB in the header)
         id: mac
         if: github.event_name == 'pull_request' && vars.MACEM_MAC_RUNNER != ''
         env:
           GH_TOKEN: ${{ github.token }}
+          # The Mac keeps this many jobs (the one it runs and the ones waiting for it) before a pull request overflows to GitHub.
+          MAC_DEPTH: 3
         run: |
           set -uo pipefail
-          busy=0
+          # Every queued or running job of this repo's other runs (any workflow, any event), as "status label-kind".
+          jobs=""
           for status in queued in_progress; do
-            runs=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?event=pull_request&status=$status&per_page=100" \
-                     --jq ".workflow_runs[] | select(.id != $GITHUB_RUN_ID and .name == \"$GITHUB_WORKFLOW\") | .id") \
+            runs=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?status=$status&per_page=100" \
+                     --jq ".workflow_runs[] | select(.id != $GITHUB_RUN_ID) | .id") \
               || { echo "the API did not answer: the Mac"; echo "mac=true" >> "$GITHUB_OUTPUT"; exit 0; }
             for run in $runs; do
-              n=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run/jobs?per_page=100" --jq "[.jobs[] | select(.name == \"unit (XCTest)\"
-                    and (.status == \"queued\" or .status == \"in_progress\") and (.labels | index(\"self-hosted\")))] | length") || n=0
-              [ "${n:-0}" -gt 0 ] && echo "run $run: its unit job holds or waits for the Mac" && busy=$((busy + n))
+              jobs+=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run/jobs?per_page=100" --jq '.jobs[]
+                  | select(.status == "queued" or .status == "in_progress")
+                  | "\(.status) \(if (.labels | index("self-hosted")) then "mac"
+                                  elif ([.labels[] | select(startswith("macos"))] | length) > 0 then "github" else "linux" end)"' \
+                  || true)$'\n'
             done
           done
-          if [ "$busy" -gt 0 ]; then
-            echo "$busy other unit job(s) on the Mac: this one runs on macos-26"; echo "mac=false" >> "$GITHUB_OUTPUT"
+          mac=$(grep -c ' mac$' <<< "$jobs" || true)
+          github_waiting=$(grep -c '^queued github$' <<< "$jobs" || true)
+          echo "the Mac holds $mac job(s) (running and waiting); $github_waiting job(s) wait for a GitHub macOS runner"
+          if [ "$mac" -ge "$MAC_DEPTH" ] && [ "$github_waiting" -eq 0 ]; then
+            echo "the Mac has a queue and GitHub has a free runner: this one runs on macos-26"; echo "mac=false" >> "$GITHUB_OUTPUT"
           else
-            echo "the Mac is free: this one runs there"; echo "mac=true" >> "$GITHUB_OUTPUT"
+            echo "this one runs on the Mac"; echo "mac=true" >> "$GITHUB_OUTPUT"
           fi
 
   unit:
