@@ -12,6 +12,7 @@ import Foundation
 import Observation
 import ShellEDXModel
 import SpectroCore
+import SpectroEDX
 import TEMCore
 
 @Observable
@@ -59,7 +60,22 @@ final class SEMEDSState {
         guard isSEMSpectrum, let elements = spectrum?.elements, !elements.isEmpty else { return }
         await session.settled()
         guard session.source?.metadata.filePath == path else { return }
-        for symbol in elements where !session.picks.contains(where: { $0.symbol == symbol }) { session.toggle(symbol) }
+        let computedK = session.method.kFactorSource == .computed
+        for symbol in elements where !session.picks.contains(where: { $0.symbol == symbol }) {
+            session.toggle(symbol)
+            guard let axis = session.source?.energyAxis,
+                  Self.fileElementRole(symbol, axis: axis, beamEnergy: session.beamEnergy, computedK: computedK) == .fitOnly else { continue }
+            session.setRole(.fitOnly, of: symbol)
+        }
+    }
+
+    /// The role a file's element is picked with: Fit only where the computed k cannot quantify it, that is where the spectrum holds no
+    /// Kα under the beam (the computed k covers Kα lines only, `PooledQuantifier`). TM002 at 10 kV: Zr Kα (15.78 keV) is past the beam,
+    /// so Zr is fitted on Zr_La (exspy's tutorial line) and left out of at%; Al, C, Mn and Cu are quantified on Kα. Picked at Quantify,
+    /// Zr refused the whole composition, and the demo's first Quantify showed "–" for every at% (#1027). A typed k quantifies anything.
+    nonisolated static func fileElementRole(_ symbol: String, axis: EnergyAxis, beamEnergy: Double?, computedK: Bool) -> EDXRole {
+        guard computedK else { return .quantify }
+        return XRayLines.linesInRange([symbol + "_Ka"], axis: axis, beamEnergy: beamEnergy).isEmpty ? .fitOnly : .quantify
     }
 
     private func recompute() {
