@@ -58,6 +58,15 @@ package final class CBEDThicknessModel {
                                                              volts: volts)))
     }
 
+    /// Why a simulated CBED pattern gives no two-beam thickness (#1004). The run is the exact zone axis (`CBEDRun.run` sends the probe
+    /// down it, untilted): every reflection meets its Bragg condition halfway to the direct beam, outside its own disc while the
+    /// discs are apart, so its disc never carries the two-beam fringes on both sides of the Bragg position at any thickness.
+    package static func zoneAxisPatternSentence(_ zoneAxis: SIMD3<Int>) -> String {
+        "This CBED pattern is simulated on the exact zone axis \(PatternIndexing.zoneText(zoneAxis)): no reflection meets its Bragg "
+            + "condition inside its disc, so there are no two-beam fringes to fit at any thickness. Measure Thickness needs a pattern "
+            + "tilted until one reflection is strong; the simulation does not tilt the beam yet."
+    }
+
     /// Whether the outcome is that of these inputs.
     package func isCurrent(_ inputs: Inputs?) -> Bool { inputs != nil && inputs?.key == outcomeKey }
 
@@ -95,6 +104,10 @@ extension OpenItem {
     /// centre and beam energy; or why not. The room's section and the door read this one.
     package var thicknessInputs: Result<CBEDThicknessModel.Inputs, CBEDThickness.Refusal> {
         guard let image = session.image else { return .failure(.kit("The pattern is still loading.")) }
+        // A Simulation document's CBED pattern is the exact zone axis (#1004): no thickness has fringes to fit, so say why up front.
+        if DemoDocuments.isCBED(url) {
+            return .failure(.kit(CBEDThicknessModel.zoneAxisPatternSentence(diffraction.simulation.zoneAxis)))
+        }
         return CBEDThicknessModel.inputs(image: image, contentVersion: presentation.canvas?.contentVersion ?? 0, analysis: diffraction)
     }
 }

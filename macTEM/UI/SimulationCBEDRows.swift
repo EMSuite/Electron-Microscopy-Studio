@@ -75,6 +75,9 @@ struct SimulationCBEDRows: View {
             }
             let blocker = appState.cbedBlocker(of: item)
             planRows()
+            if let note = appState.cbedTiltNote(of: item) {
+                InspectorNote(note).accessibilityIdentifier("diffraction.simulation.cbed.tiltNote")
+            }
             if let blocker, !model.isComputing { InspectorWarning(blocker) }
             InspectorActionRow {
                 if model.isComputing {

@@ -8,6 +8,7 @@
 //        Nothing here makes a number.
 //
 
+import DiffractoCore
 import FormatoCore
 import Foundation
 import ImagoCore
@@ -95,6 +96,20 @@ extension AppState {
                                                    shortestG: run.shortestG, volts: run.key.volts) { return sentence }
             return simulation.cbed.blocker
         }
+    }
+
+    /// What Show CBED Pattern does with a tilt set by hand (#1004): the run is the exact zone axis, untilted (`CBEDRun.run`), so a
+    /// tilt off it is not simulated and the pattern stays the zone axis' (its key has no tilt, so nothing runs again). Nil without a
+    /// hand tilt off the axis, with a Parallel beam, or with an atom model (its beam axis is the model's). The section and the door
+    /// read this one.
+    func cbedTiltNote(of simulation: OpenItem) -> String? {
+        let analysis = simulation.diffraction
+        guard simulation.cbed.isConvergent, simulation.multislice.atomModel == nil, analysis.isTurnedByHand,
+              let near = analysis.drawnOrientation?.nearestZoneAxis(cell: analysis.crystal.structure.cell) else { return nil }
+        let degrees = near.angle * 180 / .pi
+        guard degrees >= 0.005 else { return nil }
+        return "CBED is simulated on the exact zone axis \(PatternIndexing.zoneText(analysis.simulation.zoneAxis)): the tilt of "
+            + "\(UnitDisplay.number(degrees, digits: 3))° set by hand is not simulated, so Show CBED Pattern draws the zone-axis pattern."
     }
 
     /// The plan of a run of `simulation`'s CBED settings before it runs (the box the angular step needs); nil while there is no

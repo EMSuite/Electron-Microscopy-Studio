@@ -165,7 +165,8 @@ extension MacTEMAgentDoor {
                            + "tab of its own) and runs the probe through the slab, storing a pattern at every thickness step. Refused "
                            + "with the section's words when it cannot run (Parallel beam, no phase, a refused specimen, no beam energy, an "
                            + "edge that cuts the discs off, another document's run) or while it runs. It answers at once; read_cbed says "
-                           + "computing until it ends, and stop_cbed stops it.",
+                           + "computing until it ends, and stop_cbed stops it. The run is the exact zone axis: a tilt set by hand is not "
+                           + "simulated, and tilt_note says so.",
                        input: .window, acts: true) { call in
             guard let appState = call.window?.state as? AppState else { return notAWindowRefusal }
             guard let simulation = simulationItem(appState) else { return noSimulationDocument }
@@ -173,7 +174,9 @@ extension MacTEMAgentDoor {
             if simulation.cbed.isComputing { return refused("The CBED run is going; wait until read_cbed says it ended, or stop_cbed.") }
             if let blocker = appState.cbedBlocker(of: simulation) { return refused(blocker) }
             appState.showCBEDPattern(of: simulation)
-            return .json(["started": "Show CBED Pattern"])
+            var answer: [String: Any] = ["started": "Show CBED Pattern"]
+            if let note = appState.cbedTiltNote(of: simulation) { answer["tilt_note"] = note }
+            return .json(answer)
         }),
         said(AgentTool(name: "stop_cbed", title: "Stop CBED",
                        summary: "The CBED section's Stop: ends the shown Simulation document's CBED run; the patterns already stored stay.",
@@ -187,7 +190,7 @@ extension MacTEMAgentDoor {
         AgentTool(name: "read_cbed", title: "CBED",
                   summary: "The shown Simulation document's Beam and CBED rows: the settings, the semiangle used (typed or Fit Discs') and "
                       + "the largest that keeps the discs apart, the overlap sentence, the plan (box, grid, patterns) and the small-box "
-                      + "warning, why Show CBED Pattern cannot run, the run's progress and failure, and the stored patterns: their "
+                      + "warning, the tilt note (a tilt set by hand is not simulated), why Show CBED Pattern cannot run, the run's progress and failure, and the stored patterns: their "
                       + "thicknesses, the one shown, the beyond-the-validated-depth chip and the method line. get_image draws the "
                       + "pattern with the CBED pattern shown.",
                   input: .window) { call in
@@ -222,6 +225,7 @@ extension MacTEMAgentDoor {
             "progress": AgentJSON.number(model.progress),
             "failure": AgentJSON.orNull(model.failure),
             "pattern_shown": appState.pairedItem(at: DemoDocuments.cbedURL(of: simulation.url)) != nil,
+            "tilt_note": AgentJSON.orNull(appState.cbedTiltNote(of: simulation)),
         ]
         if let semiangle, let separated, let sentence = CBEDRun.overlapSentence(semiangleMrad: semiangle, separatedMrad: separated) {
             state["overlap"] = sentence
@@ -244,8 +248,8 @@ extension MacTEMAgentDoor {
 
     static let thicknessTools: [AgentTool] = [
         said(AgentTool(name: "measure_thickness", title: "Measure thickness",
-                       summary: "The Diffraction room's Measure Thickness on the pattern shown (a measured two-beam CBED pattern, or a "
-                           + "Simulation document's CBED pattern): finds the transmitted and diffracted discs on the phase's first "
+                       summary: "The Diffraction room's Measure Thickness on the pattern shown (a measured two-beam CBED pattern; a "
+                           + "Simulation document's CBED pattern is the exact zone axis and is refused with the reason): finds the transmitted and diffracted discs on the phase's first "
                            + "reflections and fits the two-beam intensity across the diffracted disc (Kelly et al. 1975). Needs the "
                            + "phase, the calibration and the beam energy (set_diffraction). It answers at once; read_thickness gives the "
                            + "verdict, the sentence and the numbers when it ends.",
