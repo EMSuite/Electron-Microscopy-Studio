@@ -51,6 +51,8 @@ extension LayoutPolicy {
     static let mapsPhaseSwatchSize: CGFloat = 12
     /// The picked point's inset on the Maps room's map (#1064): the pattern or the unit cell this wide, small enough to leave the map.
     static let mapsInsetSide: CGFloat = 120
+    /// The picked grain's slip planes under the Grains table, at most this high, scrolling (#1089).
+    static let mapsSlipListHeight: CGFloat = 160
     /// The kinematical master pattern's picture in the Simulation section: wide enough to read its zone axes (rule 4).
     static let overlayMasterPictureWidth: CGFloat = 180
     /// The colour bar under a texture figure, and the boundary and trace line widths on the map (points).

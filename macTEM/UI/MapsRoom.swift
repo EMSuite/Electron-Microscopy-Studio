@@ -111,10 +111,22 @@ enum MapsRoomLayout {
     static let splitKey = "maps.resultsSplit"
     static let insetAlignment = Alignment.topTrailing
     static let insetMargin: CGFloat = 6
-    /// Whether the map's box holds the inset with room to spare: at least twice its side each way, else the inset would hide the map.
-    static func fitsInset(in box: CGSize) -> Bool {
-        let side = LayoutPolicy.mapsInsetSide + 2 * insetMargin + 8
-        return box.width >= 2 * side && box.height >= 2 * side
+    /// The picked point's inset side in a map box (#1089): at most a quarter of the box's shorter side, so a small map keeps most of
+    /// its pixels (on the 117 × 100 duplex steel map in a narrow pane the inset and the keys hid more than half of it); never above
+    /// `LayoutPolicy.mapsInsetSide`, and nil where it would be smaller than `smallestInsetSide` (the inset is then left out).
+    static func insetSide(in box: CGSize) -> CGFloat? {
+        let side = min(LayoutPolicy.mapsInsetSide, min(box.width, box.height) / 4 - 2 * insetMargin)
+        return side >= smallestInsetSide ? side : nil
+    }
+    static let smallestInsetSide: CGFloat = 60
+    /// Whether the map's box holds the inset (`insetSide`).
+    static func fitsInset(in box: CGSize) -> Bool { insetSide(in: box) != nil }
+
+    /// Each IPF key's width on the map (#1089): the keys of all `count` phases together take at most a third of the box's width,
+    /// never above `LayoutPolicy.mapsKeyInsetWidth` each.
+    static func keyWidth(in box: CGSize, count: Int) -> CGFloat {
+        let share = box.width / 3 / CGFloat(max(count, 1)) - 2 * LayoutPolicy.mapsKeyLabelInset - 6
+        return max(min(LayoutPolicy.mapsKeyInsetWidth, share), 32)
     }
 }
 
@@ -267,8 +279,8 @@ struct MapPane: View {
 
             // The picked point beside the data it belongs to, opposite the scale bar (#1064); it takes no clicks, so the map under it
             // still picks.
-            if state.showsPointInset, MapsRoomLayout.fitsInset(in: box) {
-                MapsPointInset(session: session, patterns: patterns)
+            if state.showsPointInset, let side = MapsRoomLayout.insetSide(in: box) {
+                MapsPointInset(session: session, patterns: patterns, side: side)
                     .padding(MapsRoomLayout.insetMargin)
                     .frame(width: box.width, height: box.height, alignment: MapsRoomLayout.insetAlignment)
                     .allowsHitTesting(false)
@@ -282,7 +294,7 @@ struct MapPane: View {
             } trailing: {
                 HStack(alignment: .bottom, spacing: 8) {
                     // What the colours mean, always on the map (#1065), as the Indexing room's legend.
-                    MapsKeyInset(session: session)
+                    MapsKeyInset(session: session, keyWidth: MapsRoomLayout.keyWidth(in: box, count: session.keys.count))
                     if notIndexed > 0 {
                         Text(verbatim: "\(notIndexed) not indexed").font(.caption.monospacedDigit()).foregroundStyle(.secondary).fixedSize()
                             .accessibilityIdentifier("maps.map.notIndexed")
@@ -339,10 +351,11 @@ struct MapsPointInset: View {
     let session: OrientationMapSession
     /// The Patterns room's session when the map is on its scan.
     let patterns: EBSDSession?
+    /// The picture's side (`MapsRoomLayout.insetSide`).
+    var side: CGFloat = LayoutPolicy.mapsInsetSide
 
     var body: some View {
         let point = session.pinned
-        let side = LayoutPolicy.mapsInsetSide
         VStack(alignment: .leading, spacing: 3) {
             if let patterns {
                 pattern(patterns, side: side)
@@ -452,6 +465,8 @@ struct MapsKeyLayout {
 /// one line, or a value layer's colour bar over its window in the Display section's colormap.
 struct MapsKeyInset: View {
     let session: OrientationMapSession
+    /// Each IPF key's width (`MapsRoomLayout.keyWidth`).
+    var keyWidth: CGFloat = LayoutPolicy.mapsKeyInsetWidth
 
     var body: some View {
         Group {
@@ -497,7 +512,7 @@ struct MapsKeyInset: View {
     }
 
     private func keyCell(_ key: OrientationMapSession.PhaseKey, direction: SampleDirection) -> some View {
-        let layout = MapsKeyLayout(imageWidth: key.image.width, imageHeight: key.image.height, width: LayoutPolicy.mapsKeyInsetWidth)
+        let layout = MapsKeyLayout(imageWidth: key.image.width, imageHeight: key.image.height, width: keyWidth)
         return VStack(alignment: .leading, spacing: 0) {
             ZStack(alignment: .topLeading) {
                 if let image = MapsFigure.keyPicture(key) {

@@ -246,7 +246,12 @@ struct MapsGrainsTable: View {
                         personPicked = false
                     }
                     .accessibilityIdentifier("maps.grains.table")
-                    MapsGrainSlipRows(session: session)
+                    // The table keeps most of the height (#1089): the picked grain's slip planes scroll in a strip of their own under it
+                    // (bcc lists 48), where they took the pane and left the table three rows.
+                    if session.selectedSlip != nil {
+                        ScrollView { MapsGrainSlipRows(session: session).frame(maxWidth: .infinity, alignment: .leading) }
+                            .frame(maxHeight: LayoutPolicy.mapsSlipListHeight)
+                    }
                 }
                 .padding(10)
             } else {

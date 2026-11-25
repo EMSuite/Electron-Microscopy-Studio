@@ -31,9 +31,17 @@ nonisolated final class MapsRoomLayoutTests: XCTestCase {
         XCTAssertEqual(MapsRoomLayout.insetAlignment, .topTrailing)
         XCTAssertTrue(MapsRoomLayout.fitsInset(in: CGSize(width: 500, height: 400)))
         XCTAssertFalse(MapsRoomLayout.fitsInset(in: CGSize(width: 200, height: 400)), "a narrow map keeps its pixels")
+        // #1089: on the duplex steel map in a narrow pane (350 × 300 points) the inset is a quarter of the short side, not 120 points,
+        // and the two IPF keys shrink to their smallest.
+        let small = CGSize(width: 350, height: 300)
+        XCTAssertEqual(try XCTUnwrap(MapsRoomLayout.insetSide(in: small)), 63, accuracy: 0.5)
+        XCTAssertEqual(MapsRoomLayout.insetSide(in: CGSize(width: 900, height: 800)), LayoutPolicy.mapsInsetSide, "a large map keeps the full inset")
+        let keys = MapsRoomLayout.keyWidth(in: small, count: 2)
+        XCTAssertLessThan(keys, LayoutPolicy.mapsKeyInsetWidth / 2, "the keys shrink on a small map")
+        XCTAssertEqual(MapsRoomLayout.keyWidth(in: CGSize(width: 2000, height: 800), count: 1), LayoutPolicy.mapsKeyInsetWidth)
         XCTAssertTrue(MapsRoomState().showsPointInset, "on by default")
         let room = try ui("MapsRoom.swift")
-        XCTAssertTrue(room.contains("if state.showsPointInset, MapsRoomLayout.fitsInset(in: box) { MapsPointInset(session: session, patterns: patterns)"))
+        XCTAssertTrue(room.contains("if state.showsPointInset, let side = MapsRoomLayout.insetSide(in: box) { MapsPointInset(session: session, patterns: patterns, side: side)"))
         XCTAssertTrue(room.contains(".frame(width: box.width, height: box.height, alignment: MapsRoomLayout.insetAlignment) .allowsHitTesting(false)"))
         let inspector = try ui("MapsRoomInspector.swift")
         XCTAssertTrue(inspector.contains("InspectorSection(\"Display\") {"))

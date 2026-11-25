@@ -38,7 +38,7 @@ nonisolated final class MapsResultsInTheRoomTests: XCTestCase {
         let table = try slice(analysis, from: "struct MapsGrainsTable: View {", to: "private func refresh()")
         XCTAssertTrue(table.contains("Text(verbatim: MapsRoomFormat.grainHeadline(analysis))"))
         XCTAssertTrue(table.contains("Text(verbatim: \"Made with \" + MapsRoomFormat.madeWith(analysis.settings))"))
-        XCTAssertTrue(table.contains(".accessibilityIdentifier(\"maps.grains.table\") MapsGrainSlipRows(session: session)"), "the planes sit under the table")
+        XCTAssertTrue(table.contains("ScrollView { MapsGrainSlipRows(session: session).frame(maxWidth: .infinity, alignment: .leading) } .frame(maxHeight: LayoutPolicy.mapsSlipListHeight)"), "the planes sit under the table in a strip of their own (#1089)")
         let rows = try slice(analysis, from: "struct MapsGrainSlipRows: View {", to: "extension GrainRow {")
         XCTAssertTrue(rows.contains(".fill(MapsAnalysisOverlay.traceColour(plane.colour))"), "each plane in its trace's colour")
         XCTAssertTrue(rows.contains("Text(verbatim: MapsRoomFormat.planeText(plane))"))
