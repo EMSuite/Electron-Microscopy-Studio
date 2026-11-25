@@ -45,7 +45,6 @@ package final class CBEDModel {
         let maximumStrain: Double
         package let volts: Double
         package let semiangleMrad: Double
-        // periphery:ignore - read by the synthesized == (and hash)
         let settings: CBEDSettings
     }
 
