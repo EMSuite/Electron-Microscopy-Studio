@@ -74,14 +74,17 @@ The rooms:
   flip 180°, fit the scale or hold it, and drag the simulated spots to tilt them (⌥ drag turns them; ⌥ and an arrow tilt by a step); the Spots table lists each
   spot's hkl, R (in mm with the camera's pixel pitch), expected d and misfit, and exports as a Spots CSV.
   Phases come from your library: Add Phase… finds one on the Materials Project or opens a CIF, and a phase added once works offline.
+  Find Phases ranks your phases against the measured rings or spots, and with the sample's elements (typed or taken from the
+  EDS room) also the Materials Project's most stable phases of every combination of them, saying how many came from each.
   The crystal pane beside the pattern appears with the simulated spots and shows the phase in 3D down the same beam; turning it
   turns the spots, and View > Hide Crystal hides it.
   File > New Simulation (⇧⌘N) opens the simulated spots with no measured pattern under them, with the Add Phase sheet in front
   (Cancel leaves the empty pattern with its one button, Add Phase…): its Microscope section sets the
   voltage and camera length, its Orientation section the zone axis and turn, and its Spots table lists each spot's hkl, R in px and
-  in mm (R = λ L |g|), q and d, and exports as a Spots CSV.
+  in mm (R = λ L |g|), q and d, and exports as a Spots CSV. ⌘S (File > Save Simulation) saves the document as a small `.emsim`
+  session file holding its phase and settings; opening that file brings back the same pattern and spot list.
   Its Specimen section builds the phase along that axis into the slab a simulation computes, with its box, atoms and strain,
-  and Show HRTEM Image opens the slab's HRTEM image in the Image room, with Defocus and Thickness that redraw it live, the Uncorrected and Cs Corrected optics, an objective aperture, the transfer function strip, a defocus by thickness table that exports as a PNG, and frozen phonons (σ per element, Simulate, Stop and Continue, with the run's plan, progress and convergence); the crystal pane shows the slab with its box and size, and Atom columns rings the slab's projected columns on the image, and Place Beside, which shows it beside an open measured image or inset in it at the measured image's nanometres per pixel, one picture that exports with one scale bar. Export abTEM Script… writes the image's run as a Python script for abTEM 1.0.10, to rerun or change it there. The Specimen section's Source also takes an atom model built elsewhere (CIF, XYZ or POSCAR, up to a million atoms, from atomsk, ASE or VASP), with the beam along its c, a or b.
+  and Show HRTEM Image opens the slab's HRTEM image in the Image room, with Defocus and Thickness that redraw it live, the Uncorrected and Cs Corrected optics, an objective aperture, the transfer function strip, a defocus by thickness table that exports as a PNG, and frozen phonons (σ per element, Simulate, Stop and Continue, with the run's plan, progress and convergence); the crystal pane shows the slab with its box and size, and Atom columns rings the slab's projected columns on the image, and Place Beside, which shows it beside an open measured image or inset in it at the measured image's nanometres per pixel, one picture that exports with one scale bar; the measured image is kept as a link to its file (name, size and fingerprint, never a path), found again where it moved, or named as not connected with Locate…. Export abTEM Script… writes the image's run as a Python script for abTEM 1.0.10, to rerun or change it there. The Specimen section's Source also takes an atom model built elsewhere (CIF, XYZ or POSCAR, up to a million atoms, from atomsk, ASE or VASP), with the beam along its c, a or b.
   Kinematic or Dynamical switches the spots to the multislice's beams at a thickness slider's thickness, with the reflections
   the crystal forbids as open rings and each spot's dynamical intensity in the Spots table. Convergent turns the beam into a
   probe: Show CBED Pattern opens its convergent-beam pattern in the Diffraction room, the semiangle set by Fit Discs to keep the
@@ -121,7 +124,7 @@ through the agent door: Settings > Agents, off by default. What it can reach is 
 
 No telemetry, no account. The app connects to one other service on its own: the
 [Materials Project](https://materialsproject.org), and only when you search for a phase or add one. It sends the
-elements or formula you type, or the entry's id, and your own API key if you saved one in Settings > Materials Project
+elements or formula you type (or that Find Phases takes from the EDS room when you press Search), or the entry's id, and your own API key if you saved one in Settings > Materials Project
 (the key is optional and stays in your login keychain). A phase once added works offline. The website download also
 fetches its update feed. Details are in [`SECURITY.md`](SECURITY.md).
 

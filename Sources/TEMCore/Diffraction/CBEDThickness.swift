@@ -7,7 +7,8 @@
 //        The discs: the transmitted disc is at the room's centre, its radius where the azimuthal mean about it falls to a quarter
 //        of its largest value (the fringes run across g, so the mean over every turn keeps the edge). The reflection is proposed
 //        from the phase: of its first `proposedFamilies` families, the turn of the ring |g| / Δq about the centre where the mean
-//        over a disc of 0.8 the radius is highest; that is the diffracted disc's centre. The profile runs along g through it over
+//        over a disc of 0.8 the radius is highest is on the diffracted disc; the middle of the turns about it above half height
+//        (halfway between the ring's median and that highest mean) is the disc's centre (#978). The profile runs along g through it over
 //        0.9 of the radius either side, every half pixel, each sample the mean of a band five pixels wide across g (bilinear).
 //
 
@@ -148,8 +149,12 @@ package nonisolated enum CBEDThickness {
         let radius = discRadius(image, centre: centre, reach: nearest / deltaQ / 2)
         // The diffracted disc: of every ring, the turn where the mean over a disc of 0.8 the radius is highest. The fringes run
         // across g, so the disc's mean, not its brightest pixel, finds its centre; |g| / Δq sets the distance. A disc of 0.8 the
-        // radius slides along the ring inside the reflection's disc with the same mean, so the highest mean is a plateau of turns:
-        // its middle is the centre (the first turn of the plateau sat up to 0.2 of the radius off).
+        // radius slides along the ring inside the reflection's disc with the same mean, so the highest mean is a plateau of turns
+        // (the first turn of the plateau sat up to 0.2 of the radius off). On a recorded pattern Poisson noise, Kikuchi lines and a
+        // sloping background break the plateau, so the centre is the middle of the turns about the highest one above half height,
+        // halfway between the ring's background (its median: the disc covers a small part of the ring) and its top (#978). The
+        // overlap of the sliding disc with the reflection's falls steeply at both half-height turns, so noise moves them little;
+        // a sloping background moves the middle by its change across the disc over that fall, about a pixel on the test's ramp.
         var best: (hkl: MillerIndex, g: Double, r: Double, steps: Int, values: [Double?], value: Double)?
         let pattern = discPattern(radius: 0.8 * radius)
         for ring in rings {
@@ -164,11 +169,13 @@ package nonisolated enum CBEDThickness {
             }
         }
         guard let found = best, let peak = found.values.firstIndex(where: { $0 == found.value }) else { throw .noDisc }
-        let near = found.value - 1e-3 * abs(found.value)
-        func onPlateau(_ k: Int) -> Bool { (found.values[(k % found.steps + found.steps) % found.steps] ?? -.infinity) >= near }
+        let ring = found.values.compactMap { $0 }.sorted()
+        let background = ring.count % 2 == 1 ? ring[ring.count / 2] : (ring[ring.count / 2 - 1] + ring[ring.count / 2]) / 2
+        let half = (background + found.value) / 2
+        func aboveHalf(_ k: Int) -> Bool { (found.values[(k % found.steps + found.steps) % found.steps] ?? -.infinity) >= half }
         var low = peak, high = peak
-        while high - low < found.steps, onPlateau(low - 1) { low -= 1 }
-        while high - low < found.steps, onPlateau(high + 1) { high += 1 }
+        while high - low < found.steps, aboveHalf(low - 1) { low -= 1 }
+        while high - low < found.steps, aboveHalf(high + 1) { high += 1 }
         let a = 2 * Double.pi * (Double(low + high) / 2) / Double(found.steps)
         let c = centre + found.r * SIMD2(cos(a), sin(a))
         let g = (c - centre) / length(c - centre), n = SIMD2(-g.y, g.x)

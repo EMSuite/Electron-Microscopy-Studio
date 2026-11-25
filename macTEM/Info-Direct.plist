@@ -226,6 +226,19 @@
 				<string>eds</string>
 			</array>
 		</dict>
+		<!-- A Simulation document's session file (#908), which this app writes and reopens: role Editor, rank Owner. -->
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Simulation document</string>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>LSHandlerRank</key>
+			<string>Owner</string>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>emsim</string>
+			</array>
+		</dict>
 		<!-- Companion files that macTEM never opens on their own: an EDAX map's .ipr (its pixel size) and a line scan's .csv
 		     (its distances). NSIsRelatedItemType lets the sandboxed app read the one beside the file the person picked
 		     (macTEM/App/RelatedFileAccess.swift). Role and rank None: this claims nothing, so macTEM stays out of the Open

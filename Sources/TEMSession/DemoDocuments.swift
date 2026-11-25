@@ -235,7 +235,19 @@ package nonisolated enum DemoDocuments {
         package static let duplexSteelMap = ShippedFile(relativePath: "sdss_ferrite_austenite.ang", bytes: 651_687,
                                                         md5: "0c45548b82445657fbd52d882a27f2fd", title: "Duplex Steel Orientation Map (orix)")
 
-        package static let all = [nickelEBSD, semEDSSpectrum, nickelMasterPattern, duplexSteelMap]
+        /// One recorded spot pattern (#804, plan row Q21): the frame at scan position (y 84, x 26) of pyxem's twinned nanowire 4D-STEM
+        /// scan (precession electron diffraction, 300 kV, 144 x 144 px, 8 bit; pyxem data 0.9.0 `twinned_nanowire.hdf5`), the frame with
+        /// the most spot pixels, written as a HyperSpy file of one 2D signal by tools/lib/extract-spot-pattern.py on GitHub's runner.
+        /// C. Francis, "Pyxem 4D STEM Demo Data", Zenodo 10.5281/zenodo.15490547, CC BY 4.0. Its axes are in pixels, as the scan's are.
+        package static let nanowirePattern = ShippedFile(relativePath: "twinned_nanowire_frame.hspy", bytes: 40_433,
+                                                         md5: "1e109a2b19e0e4cff3db9186ea37ac60", title: "Nanowire Spot Pattern (pyxem)")
+        package static let nanowirePatternSide = 144
+        /// Silicon (diamond structure, Fd-3m, a = 5.4309 Å) as CIF, the crystal of the demo simulation (#804): written by DiffractoKit's
+        /// `CIFExport` (its pin corpus's `silicon_Fd-3m.cif`), GPL-3.0-only.
+        package static let siliconCIF = ShippedFile(relativePath: "silicon_Fd-3m.cif", bytes: 4_317,
+                                                    md5: "b82db5cc152bea24a6418080a99bbd5c", title: "Silicon Simulation (CIF)")
+
+        package static let all = [nickelEBSD, semEDSSpectrum, nickelMasterPattern, duplexSteelMap, nanowirePattern, siliconCIF]
     }
 
     /// The md5 of a file, as `md5sum` prints it: how a shipped file is pinned to the copy its source publishes.

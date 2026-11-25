@@ -44,7 +44,7 @@ nonisolated enum FolderGrants {
 
     /// Whether `file` is read with the files of its folder: a NORDIF `Pattern.dat` (any `.dat`; one that is not NORDIF's has no
     /// settings file beside it, and no grant is asked for it), and a TIA `.emi` with its `.ser` files or a `.ser` with its `.emi`
-    /// (`TIAImageReader`: a `.ser` is never asked for, it opens alone; a grant made for its `.emi` reaches it).
+    /// (`TIAImageReader`: a `.ser` opens alone, and its folder is asked for when the sandbox refuses its `.emi`, #955).
     static func readsItsFolder(_ file: URL) -> Bool {
         let ext = file.pathExtension.lowercased()
         return NORDIFOpening.readableExtensions.contains(ext) || TIAImageReader.extensions.contains(ext)
@@ -59,12 +59,29 @@ nonisolated enum FolderGrants {
     }
 
     /// Whether an Open asks for the folder of `file`, by its kind: a NORDIF scan by its settings file, a TIA `.emi` by its `.ser`
-    /// files (`TIAImageReader.seriesOpenError`), each only when the routing refused the file and the sandbox is why.
+    /// files (`TIAImageReader.seriesOpenError`), each only when the routing refused the file and the sandbox is why; a TIA `.ser`
+    /// by its `.emi` (`TIAImageReader.emiOpenError`), when the sandbox refuses it, though the `.ser` routes alone (#955: alone it
+    /// opens with its units assumed and without the voltage, and spectra ask for their room). Declined, the `.ser` opens alone.
     static func asksForFolder(of file: URL, refused: Bool) -> Bool {
-        if TIAImageReader.extensions.contains(file.pathExtension.lowercased()) {
-            return asksForFolder(refused: refused, settingsError: TIAImageReader.seriesOpenError(file))
+        asksForFolder(of: file, refused: refused, openError: openError(beside: file))
+    }
+
+    /// The decision of `asksForFolder(of:refused:)` on `openError`, the `errno` of the file beside `file` it is read with
+    /// (`openError(beside:)`).
+    static func asksForFolder(of file: URL, refused: Bool, openError: Int32?) -> Bool {
+        // A .ser is routed alone, never refused for its .emi: the .emi's refusal is the reason to ask.
+        let isSeries = file.pathExtension.lowercased() == "ser"
+        return asksForFolder(refused: refused || isSeries, settingsError: openError)
+    }
+
+    /// The `errno` of the file `file` is read with that does not open: a `.ser`'s `.emi`, an `.emi`'s `.ser` files, a NORDIF
+    /// scan's settings file; nil (or 0 for a settings file that opens) otherwise.
+    static func openError(beside file: URL) -> Int32? {
+        switch file.pathExtension.lowercased() {
+        case "ser": return TIAImageReader.emiOpenError(file)
+        case "emi": return TIAImageReader.seriesOpenError(file)
+        default: return NORDIFOpening.settingsOpenError(file)
         }
-        return asksForFolder(refused: refused, settingsError: NORDIFOpening.settingsOpenError(file))
     }
 
     /// The folders whose grant reaches `file`: its own, then each one around it up to the root.
@@ -97,6 +114,10 @@ nonisolated enum FolderGrants {
     /// The panel's sentence: what is asked for and why.
     static func askSentence(for file: URL) -> String {
         let folder = file.deletingLastPathComponent().lastPathComponent
+        if file.pathExtension.lowercased() == "ser" {
+            return "\(AppName.display) reads the TIA file \(file.lastPathComponent) with the .emi beside it (its units and voltage), "
+                + "and macOS lets it open it only with the folder. Choose “\(folder)” and click Allow; \(AppName.display) remembers the folder."
+        }
         if TIAImageReader.extensions.contains(file.pathExtension.lowercased()) {
             return "\(AppName.display) reads the TIA file \(file.lastPathComponent) with the .ser series beside it, "
                 + "and macOS lets it open them only with the folder. Choose “\(folder)” and click Allow; \(AppName.display) remembers the folder."
