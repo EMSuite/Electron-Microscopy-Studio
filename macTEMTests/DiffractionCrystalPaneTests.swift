@@ -69,4 +69,21 @@ nonisolated final class DiffractionCrystalPaneTests: XCTestCase {
         a.simulation.isShown = false
         XCTAssertNil(DiffractionCrystalScenes.shown(a))
     }
+
+    /// The pane shows and hides (#789): View > Show Crystal shows and hides it, one state per document, on by
+    /// default with the unit cell drawn, it appears once simulated spots are drawn; hidden, the pattern takes the room, and the divider's place is the window's scene storage.
+    /// Red before: the pane could not be hidden and its width was fixed.
+    @MainActor func testTheCrystalPaneShowsAndHidesAndItsSplitIsStored() throws {
+        let view = DiffractionViewState()
+        XCTAssertTrue(view.showsCrystal)
+        XCTAssertTrue(view.showsUnitCell)
+        view.showsCrystal = false
+        XCTAssertFalse(view.showsCrystal)
+        let room = try FFTRoomWiringTests.squeezedUI("DiffractionRoom.swift")
+        XCTAssertTrue(room.contains("if view.showsCrystal && analysis.simulation.isShown { PaneSplit(storageKey: \"diffraction.crystalSplit\""), "the split is stored")
+        XCTAssertTrue(room.contains("DiffractionCrystalPane(analysis: analysis, showsUnitCell: view.showsUnitCell)"))
+        let inspector = try FFTRoomWiringTests.squeezedUI("DiffractionRoomInspector.swift")
+        XCTAssertFalse(inspector.contains("diffraction.crystal.show"), "showing the pane is a layout choice: View > Show Crystal")
+        XCTAssertTrue(inspector.contains(".accessibilityIdentifier(\"diffraction.crystal.unitCell\")"))
+    }
 }

@@ -237,6 +237,12 @@ private struct ImageCommands: Commands {
             }
             .keyboardShortcut("l", modifiers: [.command, .control])
             .disabled(appState?.processAreaHasDocument != true)
+            // The Diffraction room's crystal pane beside the pattern (#789); on in that room only (the bottom bar's toggle is #921).
+            let diffractionView = appState?.navigation.workspaceArea == .diffraction ? appState?.openItems.selected?.diffractionView : nil
+            Button(diffractionView?.showsCrystal == true ? "Hide Crystal" : "Show Crystal") {
+                diffractionView?.showsCrystal.toggle()
+            }
+            .disabled(diffractionView == nil)
         }
         CommandMenu("Image") {
             // The Image room's measuring tools (V1-5), ⌃⌘1…4: a Toggle each, so the chosen tool carries the menu's
