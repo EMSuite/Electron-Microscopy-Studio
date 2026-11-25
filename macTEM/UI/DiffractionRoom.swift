@@ -161,10 +161,20 @@ private struct DiffractionHeader: View {
         let volts = analysis.volts(for: image)
         HStack(spacing: 8) {
             Text(image.fileName).font(.callout.weight(.semibold)).lineLimit(1).truncationMode(.middle).layoutPriority(1)
-            Text(summary(calibration: calibration, volts: volts))
-                .font(.callout).foregroundStyle(.secondary).lineLimit(1).truncationMode(.tail)
-                .accessibilityIdentifier("diffraction.scale")
-                .accessibilityValue(DiffractionValueFormat.scale(calibration?.deltaQ))
+            // The fullest line that fits, the least needed parts dropped first (#1090), never a word cut mid-way.
+            let levels = DiffractionHeaderText.levels(width: image.width, height: image.height, volts: volts, voltsFromFile: image.voltage != nil,
+                                                      calibration: calibration)
+            ViewThatFits(in: .horizontal) {
+                ForEach(levels.indices, id: \.self) { i in
+                    Text(levels[i]).lineLimit(1).truncationMode(.tail)
+                }
+            }
+            .font(.callout).foregroundStyle(.secondary)
+            .help(levels.first ?? "")
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(levels.first ?? "")
+            .accessibilityIdentifier("diffraction.scale")
+            .accessibilityValue(DiffractionValueFormat.scale(calibration?.deltaQ))
             Spacer(minLength: 8)
             // Index's verdict in words (#783): "Al · 2.1° from [001] · 22 of 24 spots explained · misfit 0.07 %".
             if let outcome = analysis.indexOutcome, let line = analysis.indexHeaderLine(locale: .autoupdatingCurrent) {
@@ -207,18 +217,32 @@ private struct DiffractionHeader: View {
         .frame(height: LayoutPolicy.paneHeaderHeight)
     }
 
-    private func summary(calibration: DiffractionCalibration?, volts: Double?) -> String {
-        var parts = ["\(image.width) × \(image.height) px"]
-        if let volts { parts.append("\(Num.sig(volts / 1000, 4)) kV\(image.voltage != nil ? " (file)" : "")") }
-        if let calibration {
-            parts.append("scale: \(calibration.sourceText)")
-            parts.append("Δq \(Num.fixed(calibration.deltaQ, 5)) Å⁻¹/px")
-            if let l = calibration.ring?.lengthPixels { parts.append("L \(Num.fixed(l, 0)) px") }
-            if let mm = calibration.ring?.lengthMillimetres { parts.append("L \(Num.fixed(mm, 0)) mm") }
-        } else {
-            parts.append("no scale yet")
+}
+
+/// The pattern header's summary at each length (#1090): the whole line first, then the ring's camera length, the "(file)" mark, the
+/// pixel size and Δq left out in that order, so a narrow window keeps the beam energy and where the scale came from.
+nonisolated enum DiffractionHeaderText {
+    static func levels(width: Int, height: Int, volts: Double?, voltsFromFile: Bool, calibration: DiffractionCalibration?) -> [String] {
+        func line(lengths: Bool, fileMark: Bool, size: Bool, deltaQ: Bool) -> String {
+            var parts: [String] = []
+            if size { parts.append("\(width) × \(height) px") }
+            if let volts { parts.append("\(Num.sig(volts / 1000, 4)) kV\(fileMark && voltsFromFile ? " (file)" : "")") }
+            if let calibration {
+                parts.append("scale: \(calibration.sourceText)")
+                if deltaQ { parts.append("Δq \(Num.fixed(calibration.deltaQ, 5)) Å⁻¹/px") }
+                if lengths, let l = calibration.ring?.lengthPixels { parts.append("L \(Num.fixed(l, 0)) px") }
+                if lengths, let mm = calibration.ring?.lengthMillimetres { parts.append("L \(Num.fixed(mm, 0)) mm") }
+            } else {
+                parts.append("no scale yet")
+            }
+            return parts.joined(separator: " · ")
         }
-        return parts.joined(separator: " · ")
+        let all = [line(lengths: true, fileMark: true, size: true, deltaQ: true),
+                   line(lengths: false, fileMark: true, size: true, deltaQ: true),
+                   line(lengths: false, fileMark: false, size: true, deltaQ: true),
+                   line(lengths: false, fileMark: false, size: false, deltaQ: true),
+                   line(lengths: false, fileMark: false, size: false, deltaQ: false)]
+        return all.reduce(into: [String]()) { out, l in if out.last != l { out.append(l) } }
     }
 }
 
@@ -767,7 +791,7 @@ private struct DiffractionOverlay: View {
                 return (spot.id, SIMD2(Double(p.x), Double(p.y)))
             },
             selection: view.selection, pointer: pointer.map { SIMD2(Double($0.x), Double($0.y)) })
-        Canvas { ctx, _ in
+        Canvas { ctx, size in
             func point(column: Double, row: Double) -> CGPoint { layout.point(column: column, row: row) }
             let ppp = layout.pointsPerPixel
             if let centre {
@@ -796,8 +820,9 @@ private struct DiffractionOverlay: View {
                 ctx.stroke(path, with: .color(ring.isCalibrating ? .orange : .yellow), style: StrokeStyle(lineWidth: line, dash: signal.dash))
                 if shown.contains(ring.id), let text = labels[ring.id], let first = points.first {
                     let at = point(column: first.x, row: first.y)
-                    DiffractionHalo.draw(Text(text).font(.caption).foregroundStyle(.white), at: CGPoint(x: at.x + 6, y: at.y - 8),
-                                         anchor: .leading, in: ctx)
+                    let label = Text(text).font(.caption).foregroundStyle(.white)
+                    let place = DiffractionHalo.beside(at, width: ctx.resolve(label).measure(in: size).width, within: size.width)
+                    DiffractionHalo.draw(label, at: place.point, anchor: place.anchor, in: ctx)
                 }
             }
             for spot in spots {
@@ -863,7 +888,14 @@ private struct SimulatedSpotsOverlay: View {
 }
 
 /// A label on the pattern with a dark halo, so it reads over a bright spot in every colormap (#1045).
-private nonisolated enum DiffractionHalo {
+nonisolated enum DiffractionHalo {
+    /// Where a ring's label sits beside the ring's point `at` (#1090): to its right, or to its left, ending there, where a label of
+    /// `width` would run past the pattern's right edge (`limit`), so "d 2.355 Å · {111}" is never cut by the edge.
+    static func beside(_ at: CGPoint, width: CGFloat, within limit: CGFloat) -> (point: CGPoint, anchor: UnitPoint) {
+        if at.x + 6 + width <= limit { return (CGPoint(x: at.x + 6, y: at.y - 8), .leading) }
+        return (CGPoint(x: at.x - 6, y: at.y - 8), .trailing)
+    }
+
     static func draw(_ text: Text, at point: CGPoint, anchor: UnitPoint, in ctx: GraphicsContext) {
         ctx.drawLayer { layer in
             layer.addFilter(.shadow(color: .black.opacity(0.9), radius: 1.5))
