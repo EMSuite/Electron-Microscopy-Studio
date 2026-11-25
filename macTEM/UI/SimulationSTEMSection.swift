@@ -171,9 +171,7 @@ struct SimulationSTEMSection: View {
     @ViewBuilder
     private func resultRows(_ model: STEMModel) -> some View {
         if let scan = model.scan, !scan.isEmpty {
-            let profile = scan.radialProfile()
-            STEMRadialChart(angles: profile.angles, intensities: profile.intensities, band: model.band,
-                            semiangleMrad: scan.settings.semiangleMrad)
+            STEMRadialChart(model: model)
                 .frame(height: Self.chartHeight)
             if let chip = scan.notQuantitative(band: model.band) {
                 InspectorWarning(chip).accessibilityIdentifier("simulation.stem.notQuantitative")
@@ -185,10 +183,8 @@ struct SimulationSTEMSection: View {
 
 /// The scattered intensity against angle (log), mean over the positions done, with the band shaded and the probe angle marked.
 private struct STEMRadialChart: View {
-    let angles: [Double]
-    let intensities: [Double]
-    let band: STEMBand
-    let semiangleMrad: Double
+    /// The owner: the profile is read through it on each draw, never kept here.
+    let model: STEMModel
 
     private struct Sample: Identifiable {
         let id: Int
@@ -197,6 +193,9 @@ private struct STEMRadialChart: View {
     }
 
     var body: some View {
+        let profile = model.scan?.radialProfile() ?? (angles: [], intensities: [])
+        let band = model.band, semiangleMrad = model.scan?.settings.semiangleMrad ?? 0
+        let angles = profile.angles, intensities = profile.intensities
         // Log scale: zero rings (beyond the cutoff, or before the first position) are left out.
         let samples = zip(angles, intensities).enumerated().filter { $0.element.1 > 0 }
             .map { Sample(id: $0.offset, angle: $0.element.0, intensity: $0.element.1) }

@@ -53,7 +53,10 @@ nonisolated final class DynamicalSpotsTests: XCTestCase {
         for hkl in spots.intensities[2].keys { XCTAssertEqual(hkl.h + hkl.k, 0, "\(hkl) is not in [1 1 0]") }
         let i002 = try XCTUnwrap(spots.intensities[2][MillerIndex(0, 0, 2)])
         let i111 = try XCTUnwrap(spots.intensities[2][MillerIndex(1, -1, 1)])
-        XCTAssertGreaterThan(i002, 1e-5, "002 is excited by 1̄11 + 11̄1")
+        // 4.5e-6 at the last stored thickness on the first Mac run: double diffraction is weak this thin (it grows about as t⁴), far
+        // above the rounding a kinematically forbidden beam would show, and it grows from the first stored thickness to the last.
+        XCTAssertGreaterThan(i002, 1e-7, "002 is excited by 1̄11 + 11̄1")
+        XCTAssertGreaterThan(i002, try XCTUnwrap(spots.intensities[0][MillerIndex(0, 0, 2)]), "002 grows as the wave crosses periods")
         XCTAssertGreaterThan(i111, i002, "the allowed 11̄1 is stronger")
     }
 

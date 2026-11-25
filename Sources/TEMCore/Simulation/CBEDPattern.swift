@@ -107,8 +107,6 @@ package nonisolated struct CBEDPattern: Sendable, Equatable {
 }
 
 package nonisolated enum CBEDRun {
-    /// The most memory the stored exit waves may take, bytes (16 a point, complex float64): past it the step widens.
-    package static let storedWavesBudget = 512 << 20
     /// The relative mismatch of the box's two sides the repeats are chosen within (square pixels in the pattern).
     package static let squareTolerance = 0.005
     /// Under this width across, a probe overlaps its own periodic copies (the design's chip).
@@ -158,7 +156,7 @@ package nonisolated enum CBEDRun {
     }
 
     /// The plan of a run of `built`'s unit for `settings` at `volts`: repeats across to at least λ / step with square pixels,
-    /// the sampling for the edge, and a stored period every step along the beam (widened when the stored waves pass the budget).
+    /// the sampling for the edge, and a stored period every step along the beam (each a cropped pattern; `run` holds one wave).
     package static func plan(_ built: SimulationSpecimen.Built, settings: CBEDSettings, volts: Double) throws -> Plan {
         let lambda = try ElectronBeam(energy: volts).wavelength
         let unit = SIMD2(built.box.x, built.box.y)
@@ -169,8 +167,6 @@ package nonisolated enum CBEDRun {
                              SimulationPlan.fftFriendlyLength(atLeast: Int((unit.y / sampling).rounded(.up))))
         let periodNM = built.box.z / 10
         let periods = max(1, Int((settings.largestThicknessNM / periodNM).rounded()))
-        let points = repeats.x * unitGrid.x * repeats.y * unitGrid.y
-        let fit = max(1, storedWavesBudget / max(points * 16, 1))
         var planes: [Int] = []
         var t = settings.thicknessStepNM
         while t <= settings.largestThicknessNM + 1e-9 {
@@ -179,10 +175,6 @@ package nonisolated enum CBEDRun {
             t += settings.thicknessStepNM
         }
         if planes.last != periods { planes.append(periods) }
-        if planes.count > fit {   // every n-th, and the last
-            let stride = Int((Double(planes.count) / Double(fit)).rounded(.up))
-            planes = Swift.stride(from: stride - 1, to: planes.count, by: stride).map { planes[$0] } + (planes.count % stride == 0 ? [] : [periods])
-        }
         let box = SIMD2(Double(repeats.x) * unit.x, Double(repeats.y) * unit.y)
         let perPeriod = Int((built.box.z / SimulationSpecimen.sliceThickness).rounded(.up))
         return Plan(repeats: repeats, box: box, unitGrid: unitGrid, planePeriods: planes, periods: periods, slices: periods * perPeriod,
@@ -228,11 +220,15 @@ package nonisolated enum CBEDRun {
     package static func checkPlan(_ plan: Plan, built: SimulationSpecimen.Built, settings: CBEDSettings, volts: Double,
                                   limits: SimulationLimits = .thisMac) throws {
         let grid = plan.grid
-        let request = SimulationPlan.Request(extent: plan.box, thickness: Double(plan.periods) * built.box.z,
+        // One stretch between stored planes is in memory at a time (`run`), its period's slices held once.
+        let stretch = zip(plan.planePeriods, [0] + plan.planePeriods).map { $0 - $1 }.max() ?? plan.periods
+        let perPeriod = max(1, built.slab.sliceThicknesses.count / built.slab.repeats.z)
+        let request = SimulationPlan.Request(extent: plan.box, thickness: Double(stretch) * built.box.z,
                                              sliceThickness: SimulationSpecimen.sliceThickness, energy: volts, largestAngle: settings.edgeMrad,
                                              sampling: min(plan.box.x / Double(grid.x), plan.box.y / Double(grid.y)),
                                              elements: Set(built.slab.unit.structure.atoms.map(\.atomicNumber)).count,
-                                             potential: .slices, illumination: .probes(positions: 1), storedExitPlanes: plan.planePeriods.count)
+                                             potential: .slices, illumination: .probes(positions: 1), storedExitPlanes: 1,
+                                             distinctSlices: perPeriod)
         do { _ = try SimulationPlan(request, limits: limits) }
         catch let refusal as SimulationPlanError {
             switch refusal {
@@ -260,24 +256,27 @@ package nonisolated enum CBEDRun {
         let box = built.box
         let perPeriod = slab.sliceThicknesses.count / slab.repeats.z
         let unit = try AtomicStructure(box: box, atoms: slab.structure.atoms.filter { $0.position.z < box.z })
-        let onePeriod = try Potential(structure: unit, nx: plan.unitGrid.x, ny: plan.unitGrid.y,
-                                      sliceThicknesses: Array(slab.sliceThicknesses.prefix(perPeriod))).build()
-        try Task.checkCancellation()
-        let potential = try onePeriod.tiled(repetitionsX: plan.repeats.x, repetitionsY: plan.repeats.y, repetitionsZ: plan.periods)
+        let across = try unit.repeated(plan.repeats.x, plan.repeats.y, 1)
+        let periodSlices = Array(slab.sliceThicknesses.prefix(perPeriod))
+        let grid = plan.grid
         let beam = try ElectronBeam(energy: volts)
-        let probe = try Probe(beam: beam, grid: potential.grid, aperture: Aperture(semiangleCutoff: semiangleMrad))
-            .build(at: plan.box / 2)
         let onMetal = !reference && Multislice.metalIsAvailable
-        let report: SimulationProgressHandler? = progress.map { handler -> SimulationProgressHandler in
-            { (step: SimulationProgress) in handler(step.fraction) }
+        // The probe crosses the slab one stored plane at a time, each stretch's exit wave the next one's incident wave, so only
+        // one wave is held and each stretch's potential holds its distinct slices once (`Potential.build` shares a repeated
+        // slice's values; a stretch of k periods repeats one period's slices k times).
+        var stretches: [Int: ProjectedPotential] = [:]
+        func potential(periods k: Int) throws -> ProjectedPotential {
+            if let cached = stretches[k] { return cached }
+            let made = try Potential(structure: try across.repeated(1, 1, k), nx: grid.x, ny: grid.y,
+                                     sliceThicknesses: Array([[Double]](repeating: periodSlices, count: k).joined())).build()
+            stretches[k] = made
+            return made
         }
-        let waves = try Multislice.run(probe, through: potential, exitPlanes: .afterSlices(plan.planePeriods.map { $0 * perPeriod - 1 }),
-                                       backend: onMetal ? .metal : .cpu, progress: report)
         var patterns: [[Float]] = []
         var rows = 0, columns = 0, rowDeltaQ = 0.0, columnDeltaQ = 0.0
         let edgeRad = settings.edgeMrad / 1000
-        for wave in waves {
-            try Task.checkCancellation()
+        /// The pattern of `wave`, cropped about the direct beam to the edge asked, when it is inside the cutoff.
+        func keep(_ wave: Waves) throws {
             let field = try wave.diffractionPattern(maxAngle: .cutoff)
             rowDeltaQ = field.samplingX; columnDeltaQ = field.samplingY
             // Cropped about the direct beam to the edge asked, when it is inside the cutoff; values[ix · ny + iy]: row = lab x.
@@ -293,14 +292,28 @@ package nonisolated enum CBEDRun {
             }
             patterns.append(cropped)
         }
-        let grid = potential.grid
+        var wave = try Probe(beam: beam, grid: try potential(periods: plan.planePeriods.first ?? plan.periods).grid, aperture: Aperture(semiangleCutoff: semiangleMrad))
+            .build(at: plan.box / 2)
+        var done = 0
+        for plane in plan.planePeriods {
+            try Task.checkCancellation()
+            let k = plane - done, start = Double(done) / Double(plan.periods), share = Double(k) / Double(plan.periods)
+            let report: SimulationProgressHandler? = progress.map { handler -> SimulationProgressHandler in
+                { (step: SimulationProgress) in handler(step.fraction.map { start + share * $0 }) }
+            }
+            guard let out = try Multislice.run(wave, through: try potential(periods: k), exitPlanes: .last,
+                                               backend: onMetal ? .metal : .cpu, progress: report).last else { break }
+            wave = out
+            try keep(out)
+            done = plane
+        }
         let slices = plan.periods * perPeriod
         return CBEDPattern(patterns: patterns, rows: rows, columns: columns,
                            thicknessesNM: plan.planePeriods.map { Double($0) * box.z / 10 },
                            rowStepMrad: rowDeltaQ * beam.wavelength * 1000, columnStepMrad: columnDeltaQ * beam.wavelength * 1000,
                            rowDeltaQ: rowDeltaQ, columnDeltaQ: columnDeltaQ, semiangleMrad: semiangleMrad, volts: volts, specimen: specimen,
                            box: plan.box, slices: slices, onMetal: onMetal,
-                           beyondRegisteredDepth: onMetal && !MetalAccuracy.registered.covers(nx: grid.nx, ny: grid.ny, slices: slices))
+                           beyondRegisteredDepth: onMetal && !MetalAccuracy.registered.covers(nx: grid.x, ny: grid.y, slices: slices))
     }
 
     /// The chip past the registered depth.

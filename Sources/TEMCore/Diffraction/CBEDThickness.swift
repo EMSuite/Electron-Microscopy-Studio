@@ -147,21 +147,30 @@ package nonisolated enum CBEDThickness {
         guard let nearest = rings.map(\.g).min() else { throw .noDisc }
         let radius = discRadius(image, centre: centre, reach: nearest / deltaQ / 2)
         // The diffracted disc: of every ring, the turn where the mean over a disc of 0.8 the radius is highest. The fringes run
-        // across g, so the disc's mean, not its brightest pixel, finds its centre; |g| / Δq sets the distance.
-        var best: (hkl: MillerIndex, g: Double, at: SIMD2<Double>, value: Double)?
+        // across g, so the disc's mean, not its brightest pixel, finds its centre; |g| / Δq sets the distance. A disc of 0.8 the
+        // radius slides along the ring inside the reflection's disc with the same mean, so the highest mean is a plateau of turns:
+        // its middle is the centre (the first turn of the plateau sat up to 0.2 of the radius off).
+        var best: (hkl: MillerIndex, g: Double, r: Double, steps: Int, values: [Double?], value: Double)?
         let pattern = discPattern(radius: 0.8 * radius)
         for ring in rings {
             let r = ring.g / deltaQ
             let steps = max(360, Int(4 * Double.pi * r))
-            for k in 0 ..< steps {
+            let values = (0 ..< steps).map { k -> Double? in
                 let a = 2 * Double.pi * Double(k) / Double(steps)
-                let p = centre + r * SIMD2(cos(a), sin(a))
-                guard let v = mean(image, at: p, pattern: pattern) else { continue }
-                if best == nil || v > best!.value { best = (ring.hkl, ring.g, p, v) }
+                return mean(image, at: centre + r * SIMD2(cos(a), sin(a)), pattern: pattern)
+            }
+            if let top = values.compactMap({ $0 }).max(), best == nil || top > best!.value {
+                best = (ring.hkl, ring.g, r, steps, values, top)
             }
         }
-        guard let found = best else { throw .noDisc }
-        let c = found.at
+        guard let found = best, let peak = found.values.firstIndex(where: { $0 == found.value }) else { throw .noDisc }
+        let near = found.value - 1e-3 * abs(found.value)
+        func onPlateau(_ k: Int) -> Bool { (found.values[(k % found.steps + found.steps) % found.steps] ?? -.infinity) >= near }
+        var low = peak, high = peak
+        while high - low < found.steps, onPlateau(low - 1) { low -= 1 }
+        while high - low < found.steps, onPlateau(high + 1) { high += 1 }
+        let a = 2 * Double.pi * (Double(low + high) / 2) / Double(found.steps)
+        let c = centre + found.r * SIMD2(cos(a), sin(a))
         let g = (c - centre) / length(c - centre), n = SIMD2(-g.y, g.x)
         var offsets: [Double] = [], intensities: [Double] = []
         var x = -0.9 * radius

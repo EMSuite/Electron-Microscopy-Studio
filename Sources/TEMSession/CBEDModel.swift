@@ -168,11 +168,14 @@ package final class CBEDModel {
 }
 
 extension DiffractionAnalysis {
-    /// The shortest reflection of the zero-order zone the kinematic pattern draws at the overlay's zone axis, 1/Å: what Fit Discs
-    /// keeps apart. Nil without a simulated pattern or a phase.
+    /// The shortest reflection of the zero-order zone at the overlay's zone axis, 1/Å: the kinematic list's shortest family with a
+    /// member on the zone (h u + k v + l w = 0), what Fit Discs keeps apart. Read from the list, not the drawn overlay, so it holds
+    /// with the simulated spots hidden. Nil without a phase or a reflection on the zone.
     package func shortestZeroOrderG(image: CalibratedImage) -> Double? {
-        guard let phase = simulatedPhase, case .success(let spots)? = simulatedSpots(image: image) else { return nil }
-        let cell = phase.structure.cell
-        return spots.filter { !$0.isDoubleDiffraction }.map { cell.gLength($0.hkl) }.filter { $0 > 0 }.min()
+        guard simulatedPhase != nil, let list = list() else { return nil }
+        let axis = simulation.zoneAxis
+        return list.families.map(\.family)
+            .filter { $0.g > 0 && $0.members.contains { $0.h * axis.x + $0.k * axis.y + $0.l * axis.z == 0 } }
+            .map(\.g).min()
     }
 }
