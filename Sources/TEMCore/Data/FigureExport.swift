@@ -32,6 +32,7 @@ package nonisolated enum FigureExport {
 
     /// The marks' yellow, as the Image room draws them (`ImageExport.drawMarks`).
     package static let markColor = FigureColor(red: 1, green: 0.8, blue: 0)
+    static let simulatedColor = FigureColor(red: 0, green: 0.85, blue: 1)
     /// The plate under the scale bar, as the PNG's.
     static let plateColor = FigureColor(gray: 0, alpha: 0.45)
     /// The bar's thickness, the plate's padding and its distance from the picture's edges, in points.
@@ -88,6 +89,10 @@ package nonisolated enum FigureExport {
             case .spot:
                 layers.append(.markers(FigureMarkers(shape: .circle, centers: points, size: spotRing, stroke: markColor,
                                                      lineWidth: markLineWidth)))
+            case .simulatedSpot:
+                // A smaller cyan ring, as the room and the PNG draw a simulated spot.
+                layers.append(.markers(FigureMarkers(shape: .circle, centers: points, size: spotRing * 5 / 7, stroke: simulatedColor,
+                                                     lineWidth: markLineWidth)))
             case .profile where mark.width > 1:
                 let dx = points[1].x - points[0].x, dy = points[1].y - points[0].y, length = (dx * dx + dy * dy).squareRoot()
                 if length > 0 {
@@ -106,7 +111,7 @@ package nonisolated enum FigureExport {
             let at: FigurePoint
             switch mark.kind {
             case .angle where points.count >= 3: at = points[1]
-            case .spot: at = FigurePoint(x: points[0].x + spotRing / 2, y: points[0].y - spotRing / 2)
+            case .spot, .simulatedSpot: at = FigurePoint(x: points[0].x + spotRing / 2, y: points[0].y - spotRing / 2)
             default: at = FigurePoint(x: (points[0].x + points[1].x) / 2, y: (points[0].y + points[1].y) / 2)
             }
             layers.append(.text(FigureText(mark.label, at: FigurePoint(x: at.x + 2, y: at.y - 2), color: markColor)))
