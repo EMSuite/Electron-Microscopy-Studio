@@ -102,6 +102,8 @@ extension AppState {
         held.state.openItems.showComputed(held.item, OpenedImage(image: image, canvas: canvas, metadata: AcquisitionMetadata(), url: url,
                                                                  thumbnail: canvas.thumbnail(maxSide: Thumbnail.defaultMaxSide),
                                                                  bookmark: nil))
+        // The open's line was written for the placeholder (64 × 64 px): say the image's size and scale (#1005).
+        if !(simulation.stem.scan?.isEmpty ?? true) { held.state.restateOpenedLine(of: held.item, image: image) }
     }
 }
 
