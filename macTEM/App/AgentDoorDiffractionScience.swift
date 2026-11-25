@@ -3,7 +3,7 @@
 //  Role: the agent door's tools for the Diffraction room's 2.4 science (plan row R17, #816): `set_relationship` (the Precipitate
 //        section: the precipitate, its two parallel pairs, which variants are shown, double diffraction with the matrix),
 //        `powder_pattern` (the Powder section, and its CSV or .xy written into the Agent folder), `find_phases` (the Find Phases
-//        sheet: Rank, Fit scale, Use in Room) and `plan_tilt` (the Holder section and its map: the tilts now, the limits, the
+//        sheet: Rank, Fit scale, Use Phase) and `plan_tilt` (the Holder section and its map: the tilts now, the limits, the
 //        axis typed or calibrated, a zone axis picked, the Tilt List CSV into the Agent folder).
 //
 //        ONE SOURCE PER FACT: each tool goes through the intents the section's controls call (`DiffractionVariants`,
@@ -82,7 +82,7 @@ extension MacTEMAgentDoor {
                            + "searching until it lands; ask again), stop_search stops it. fit_scale; rank true ranks My Phases (the room's crystal, the library, "
                            + "the standards, the open crystals) and the Materials Project's candidates against the measured rings (or the "
                            + "marked spots) and answers at once (running true until it lands); use a phase's name makes it the room's "
-                           + "crystal as Use in Room does. Answers the rows in the kit's order (explains, strong rings not seen, misfit, "
+                           + "crystal as Use Phase does. Answers the rows in the kit's order (explains, strong rings not seen, misfit, "
                            + "scale, tie, source), each row's sentence, the ties and the notes, how many candidates came from each source "
                            + "and which search limits applied, never a verdict the sheet does not show.",
                        input: .window,

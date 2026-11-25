@@ -43,6 +43,7 @@ struct ExportCommands: Commands {
         let methods = appState.map(MethodsRecordExport.isAvailable(in:))
         let hyperSpy = appState.map { HyperSpyExportPanel.isAvailable(in: $0) }
         let diffractionFigure = appState.map { ExportSnapshot.diffractionFigureAvailable(in: $0) }
+        let shownPhase = appState.flatMap(PhaseCIF.shownPhase(in:))
         CommandGroup(after: .saveItem) {
             // Export Figure…: the Image room's picture, or the Diffraction room's figure of the pattern on screen (#822). One item on
             // one key, as one room is on screen at a time.
@@ -55,6 +56,13 @@ struct ExportCommands: Commands {
                 }
                 .keyboardShortcut("e", modifiers: [.command, .shift])
                 .disabled(inDiffraction ? diffractionFigure != true : availability?.image != true)
+            }
+            // The phase the Diffraction room shows, as CIF (#821); a phase row's context menu saves any phase of the library.
+            if inDiffraction {
+                Button("Save Phase as CIF…") {
+                    if let appState, let phase = PhaseCIF.shownPhase(in: appState) { PhaseCIF.save(phase, appState: appState) }
+                }
+                .disabled(shownPhase == nil)
             }
             // The Image room's profile.
             if fixed.contains(.image) {

@@ -215,7 +215,17 @@ nonisolated enum ResultsFormat {
     static func session(firstLine: String?) -> String { firstLine ?? "No marks in this file's session record." }
 
     static let emptyTitle = "No results yet"
-    static let emptyDetail = "Measure in the Image or FFT room; the numbers appear here."
+    /// Every room that sends rows here, from the groups' own owners (`owner`), in the groups' order (#1031): "Measure in the Image,
+    /// FFT, Diffraction, EDS or EELS room; the numbers appear here."
+    static let emptyDetail: String = {
+        var rooms: [String] = []
+        for group in ResultRow.Group.allCases {
+            let room = owner(group).replacingOccurrences(of: "the ", with: "").replacingOccurrences(of: " room", with: "")
+            if !rooms.contains(room) { rooms.append(room) }
+        }
+        let named = rooms.count > 1 ? rooms.dropLast().joined(separator: ", ") + " or " + rooms[rooms.count - 1] : rooms.joined()
+        return "Measure in the \(named) room; the numbers appear here."
+    }()
     static let allHiddenTitle = "All results are hidden"
     static let allHiddenDetail = "Switch a group on in the inspector's Show section."
     static let noSelection = "Select a result to see its numbers and how far it is trusted."

@@ -62,6 +62,9 @@ package final class DiffractionViewState {
     }
     /// The crystal pane draws the unit cell's edges.
     package var showsUnitCell = true
+    /// The Add Phase sheet is in front (#788): Add Phase… in the Phases section or on a Simulation document's empty pattern, and
+    /// File > New Simulation, which opens the document with the sheet up. Cancel leaves it false.
+    package var isAddingPhase = false
     package private(set) var annulusInner = 28.0
     package private(set) var annulusOuter = 40.0
     /// The ring or spot the readout highlights (and the ⌫ key removes).
@@ -112,7 +115,9 @@ package final class DiffractionViewState {
 
     /// What the canvas was drawn from: the image session's generation (`ImageSession.generation`) and the Log switch.
     package struct CanvasSource: Equatable, Sendable {
+        // periphery:ignore - read by the synthesized ==
         package let generation: Int
+        // periphery:ignore - read by the synthesized ==
         package let log: Bool
 
         package init(generation: Int, log: Bool) {

@@ -82,7 +82,8 @@ The rooms:
   EDS room) also the Materials Project's most stable phases of every combination of them, saying how many came from each.
   The crystal pane beside the pattern appears with the simulated spots and shows the phase in 3D down the same beam; turning it
   turns the spots, and View > Hide Crystal hides it.
-  File > New Simulation (⇧⌘N) opens the simulated spots with no measured pattern under them: its Microscope section sets the
+  File > New Simulation (⇧⌘N) opens the simulated spots with no measured pattern under them, with the Add Phase sheet in front
+  (Cancel leaves the empty pattern with its one button, Add Phase…): its Microscope section sets the
   voltage and camera length, its Orientation section the zone axis and turn, and its Spots table lists each spot's hkl, R in px and
   in mm (R = λ L |g|), q and d, and exports as a Spots CSV. ⌘S (File > Save Simulation) saves the document as a small `.emsim`
   session file holding its phase and settings; opening that file brings back the same pattern and spot list.

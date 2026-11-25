@@ -139,6 +139,21 @@ nonisolated final class STEMImageTests: XCTestCase {
         XCTAssertEqual(a.values, b.values)
     }
 
+    /// The kit's count of positions in the configuration under way starts again at 0 when a configuration ends, the last included:
+    /// a finished run, however it was stopped and continued, reports every position done, not 0 (#1005). Mutation: `positionsDone`
+    /// back to the kit's count - red.
+    func testAFinishedRunReportsEveryPositionDone() async throws {
+        let fresh = try smallScan()
+        XCTAssertEqual(fresh.positionsDone, 0)
+        let count = fresh.positionCount
+        XCTAssertGreaterThan(count, 1)
+        // Stop, Continue, ...: slices grown as the model grows them, so a slice shorter than a resume's setup cannot loop forever.
+        let sliced = try await finish(fresh, slice: .milliseconds(20))
+        XCTAssertTrue(sliced.isComplete)
+        XCTAssertEqual(sliced.completedPositions, 0, "the kit's own count restarts when the last configuration ends")
+        XCTAssertEqual(sliced.positionsDone, count)
+    }
+
     /// The model keeps only valid settings and bands; Custom keeps the band shown; a preset band follows the semiangle. Mutation: a
     /// band past the collection angle kept; Custom resetting the band.
     @MainActor func testTheModelKeepsValidSettingsAndBands() {

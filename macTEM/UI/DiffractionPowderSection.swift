@@ -4,7 +4,7 @@
 //        to compare with, as rings against q at the pattern's beam energy or as an X-ray pattern against 2θ at a chosen line. The
 //        section holds the settings; the stick chart (one colour a phase, the strongest peak of a phase at 100) with the headline of
 //        each phase and the overlap and diagnostic marks is the Powder Pattern pane, the peaks the Peaks table under the pattern
-//        (#921, `DiffractionSidePane`). Presentation only: every number is `PowderTable`'s over
+//        (#921, `DiffractionSidePane`); its two files are the Export section's (#922). Presentation only: every number is `PowderTable`'s over
 //        DiffractoKit's `PowderPattern`. The Simulation document (R6, #788) takes the same table when it lands.
 //
 
@@ -16,15 +16,10 @@ import DiffractoCore
 import DiffractoScattering
 import TEMCore
 import TEMSession
-import UniformTypeIdentifiers
 
 struct DiffractionPowderSection: View {
     let item: OpenItem
     @Environment(AppState.self) private var appState
-    @State private var exporting = false
-    @State private var document = RoomExportFile(text: "")
-    @State private var exportType: UTType = .commaSeparatedText
-    @State private var exportName = ""
 
     private static let degrees = FloatingPointFormatStyle<Double>.number.precision(.fractionLength(0...2))
     private static let reach = FloatingPointFormatStyle<Double>.number.precision(.fractionLength(0...3))
@@ -102,46 +97,7 @@ struct DiffractionPowderSection: View {
             } else if table.patterns.contains(where: { $0 == nil }) {
                 InspectorWarning("The kit drew no pattern for a phase: the pane says why.")
             }
-            InspectorActionRow {
-                Button("Export Powder CSV…") { exportCSV(table) }
-                    .disabled(table.rows.isEmpty)
-                    .help("The peak table of the shown phases, with how it was computed")
-                    .accessibilityIdentifier("diffraction.powder.exportCSV")
-                Button("Export .xy…") { exportXY(table) }
-                    .disabled((table.patterns.first ?? nil) == nil)
-                    .help("This crystal's drawn profile: two columns, position and intensity, a tenth of the peak width apart")
-                    .accessibilityIdentifier("diffraction.powder.exportXY")
-            }
-        }
-        .fileExporter(isPresented: $exporting, document: document, contentType: exportType, defaultFilename: exportName) { result in
-            if case .failure(let error) = result { appState.present(error) }
-        }
-    }
-
-    private var imageName: String { item.session.imageOrBlank.fileName }
-
-    private func exportCSV(_ table: PowderTable) {
-        let text = ExportSnapshot.powderCSV(table, image: item.session.imageOrBlank, openItems: appState.openItems)
-        save(text, name: DiffractionPowderExport.baseName(of: imageName), extension: "csv", type: .commaSeparatedText)
-    }
-
-    private func exportXY(_ table: PowderTable) {
-        guard let text = table.xy(phase: 0) else { return }
-        save(text, name: DiffractionPowderExport.baseName(of: imageName, phase: table.phases[0].name), extension: "xy",
-             type: DiffractionPowderExport.xyType)
-    }
-
-    private func save(_ text: String, name: String, extension ext: String, type: UTType) {
-        if let directory = appState.exportDirectory {
-            do {
-                let url = try DiffractionPowderExport.write(text, named: name + "." + ext, into: directory)
-                appState.statusText = "Exported \(url.lastPathComponent)"
-            } catch { appState.present(error) }
-        } else {
-            document = RoomExportFile(text: text)
-            exportType = type
-            exportName = name
-            exporting = true
+            InspectorNote("A line pattern for planning and comparison: no instrument profile, no texture, no absorption, no thermal motion.")
         }
     }
 

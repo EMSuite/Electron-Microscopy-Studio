@@ -2,7 +2,7 @@
 //  DiffractionHolderSection.swift
 //  Role: the Diffraction room's Holder section (plan row R16, #815; mockup brief 6 of the 2.4 design), after Index: α and β now
 //        (from the file's stage tilts when it has both, else typed), the limits, the tilt axis (typed, or calibrated from another
-//        open indexed pattern of the same crystal), a zone axis near the beam and the sentence for it, and the Tilt List CSV.
+//        open indexed pattern of the same crystal), a zone axis near the beam and the sentence for it. The Tilt List CSV is the Export section's (#922).
 //        Presentation only: the numbers are `TiltPlanning`'s over DiffractoKit's holder and zone-axis map. Uncalibrated it says so
 //        and shows no α or β for a zone axis. The zone-axis map (#814), the calibration's sentence and the tilts to the picked zone
 //        axis are the Zone-axis Map pane beside the pattern (#921, `DiffractionZoneAxisPane`); its click picks the same `selected`.
@@ -10,15 +10,12 @@
 
 import ShellInspector
 import SwiftUI
-import UniformTypeIdentifiers
 import TEMCore
 import TEMSession
 
 struct DiffractionHolderSection: View {
     let item: OpenItem
     @Environment(AppState.self) private var appState
-    @State private var exporting = false
-    @State private var document = RoomExportFile(text: "")
     /// The other pattern the tilt axis is calibrated from.
     @State private var partner: UUID?
 
@@ -118,17 +115,9 @@ struct DiffractionHolderSection: View {
                 if !item.diffractionView.isShowing(.zoneAxisMap) {
                     InspectorNote("View › Show Zone-axis Map draws the zone axes and the tilts to the picked one beside the pattern.")
                 }
-                InspectorActionRow {
-                    Button("Export Tilt List CSV…") { export(plan, image: image) }
-                        .accessibilityIdentifier("diffraction.holder.export")
-                }
             } else {
                 InspectorNote("Index the pattern first: the zone axes and the tilts to them are placed from its orientation.")
             }
-        }
-        .fileExporter(isPresented: $exporting, document: document, contentType: .commaSeparatedText,
-                      defaultFilename: DiffractionTiltListExport.baseName(of: image.fileName)) { result in
-            if case .failure(let error) = result { appState.present(error) }
         }
     }
 
@@ -137,19 +126,6 @@ struct DiffractionHolderSection: View {
     private func partners(of analysis: DiffractionAnalysis) -> [OpenItem] {
         appState.openItems.items.filter { other in
             other.id != item.id && other.diffraction.indexOutcome?.orientation != nil && other.diffraction.crystal.name == analysis.crystal.name
-        }
-    }
-
-    private func export(_ plan: TiltPlan, image: CalibratedImage) {
-        let text = ExportSnapshot.tiltListCSV(plan, image: image, openItems: appState.openItems)
-        if let directory = appState.exportDirectory {
-            do {
-                let url = try DiffractionTiltListExport.write(text, imageFileName: image.fileName, into: directory)
-                appState.statusText = "Exported \(url.lastPathComponent)"
-            } catch { appState.present(error) }
-        } else {
-            document = RoomExportFile(text: text)
-            exporting = true
         }
     }
 }

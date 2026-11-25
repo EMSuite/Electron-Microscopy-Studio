@@ -175,6 +175,7 @@ extension AppState {
             if landing == .image, [.edx, .eels, .patterns, .indexing, .maps].contains(navigation.workspaceArea) { selectWorkspace(.image) }
             await openItems.settled()
             landSimulation(made)
+            landDemoPattern(made)
             await landHRTEM(made)?.value
             // Not awaited: the probe's run can take minutes, and the Open (its status line, Recents, the door's folder tool) ends
             // when the files are in. The pattern lands when its run does.
@@ -608,6 +609,22 @@ extension AppState {
 }
 
 extension AppState {
+    /// The "Opened …" line of a computed document (a simulated CBED pattern or STEM image) once its real image has replaced the
+    /// placeholder the open showed: nil when `current` is not that open's line any more (another event wrote after it), so a later
+    /// message is never overwritten. The line names the real size and scale (#1005).
+    nonisolated static func openedLine(replacing current: String, with image: CalibratedImage, suffix: String = "") -> String? {
+        guard current.hasPrefix("Opened \(image.fileName) — ") else { return nil }
+        return openedLine(image) + suffix
+    }
+
+    /// Writes the real image's "Opened …" line over the placeholder's, when `item` is the selected one and the status line still is
+    /// its open's.
+    func restateOpenedLine(of item: OpenItem, image: CalibratedImage) {
+        guard openItems.selected?.id == item.id,
+              let line = Self.openedLine(replacing: statusText, with: image, suffix: Self.sessionSuffix(of: item)) else { return }
+        statusText = line
+    }
+
     /// The EDS room's finished fit, when it is `item`'s file's (`edsFitBelongs`) and settled: while a region, pick or setting change is
     /// being fitted again the old fit would be shown under the new region's name, so nothing is listed until it lands.
     func edsResults(for item: OpenItem) -> ResultsLedger.EDSResults? {

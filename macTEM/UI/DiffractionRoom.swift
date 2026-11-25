@@ -40,7 +40,12 @@ struct DiffractionRoom: View {
 
     /// The pattern's display is built again for another item, a Log switch, or new pixels (`ImageSession.generation`: a frame, a CBED
     /// pattern at another thickness, #1003), whatever their size.
-    private struct DisplayKey: Equatable { var id: OpenItem.ID; var log: Bool; var generation: Int }
+    private struct DisplayKey: Equatable {
+        var id: OpenItem.ID
+        var log: Bool
+        // periphery:ignore - read by the synthesized ==
+        var generation: Int
+    }
 
     var body: some View {
         // The root reads only what a change of the RESULTS (or the log toggle) must redraw: the pointer, the zoom and the annulus drag live in
@@ -92,7 +97,7 @@ struct DiffractionRoom: View {
                 switch shown {
                 case .spots:
                     if isSimulation {
-                        DiffractionSpotTable(view: view, rows: item.simulatedSpotRows(image: image),
+                        DiffractionSpotTable(view: view, rows: SimulationEmptyState.spotRows(of: item, image: image),
                                              empty: "Add a phase and show the simulated spots to list them.", selectsMarks: false,
                                              showsDynamical: item.dynamicalBeams != nil)
                     } else {
@@ -116,6 +121,8 @@ struct DiffractionRoom: View {
         // The room's display canvas (the pattern, log or linear, 4 B/px) goes when the room does; the task above builds it again on
         // return, keeping the window. 12 Nov: the room held 1.4 GB more than the Image room on the 187 MP alite image for as long as it was open.
         .onDisappear { view.presentation.releaseCanvas() }
+        // The Add Phase sheet is the room's (#788): Add Phase… in the Phases section or on the empty state, and New Simulation.
+        .modifier(DiffractionAddPhaseSheet(item: item))
     }
 }
 
@@ -464,6 +471,10 @@ private struct DiffractionPatternPane: View {
                         .accessibilityIdentifier("diffraction.zoomBadge")
                 }
             }
+            // A Simulation document with no phase shown (#907): the empty state covers the pattern, where Cancel in Add Phase leaves it.
+            .overlay {
+                if SimulationEmptyState.isShown(for: item) { SimulationEmptyStateView(view: view) }
+            }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .padding(8)
@@ -571,7 +582,7 @@ struct SpotCursorActions {
     static func announcement(_ row: DiffractionReadoutRow) -> String {
         var parts = ["Added " + DiffractionReadoutFormat.spokenName(row)]
         if row.d != nil { parts.append("d " + DiffractionReadoutFormat.cell(.d, row) + " ångströms") }
-        parts.append(row.family ?? row.verdict)
+        parts.append(row.family ?? row.verdictWords)
         return parts.joined(separator: ", ")
     }
 }
@@ -875,8 +886,9 @@ private struct DiffractionReadoutTable: View {
             TableColumn(header(.odds)) { row in Text(DiffractionReadoutFormat.cell(.odds, row)).monospacedDigit() }.width(min: 60, ideal: 68)
             TableColumn(header(.verdict)) { row in
                 Text(DiffractionReadoutFormat.cell(.verdict, row)).lineLimit(1)
+                    .help(row.verdictDetail ?? row.verdictWords)
                     .accessibilityIdentifier("diffraction.row.\(row.kind.rawValue)\(row.number).verdict")
-                    .accessibilityValue(row.verdict)
+                    .accessibilityValue(row.verdictWords)
             }.width(min: 70, ideal: 90)
         }
         .onDeleteCommand { if let id = view.selection { DiffractionUndo.remove(id, in: analysis, undoManager: undoManager); view.selection = nil } }
