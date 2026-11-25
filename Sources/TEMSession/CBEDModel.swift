@@ -39,7 +39,6 @@ package final class CBEDModel {
         /// The specimen: `SimulationModel.sourceIdentity`, the phase's or the atom model's with its beam axis (#953).
         // periphery:ignore - read by the synthesized == (and hash)
         let source: String
-        // periphery:ignore - read by the synthesized == (and hash)
         let zoneAxis: SIMD3<Int>
         // periphery:ignore - read by the synthesized == (and hash)
         let maximumStrain: Double
