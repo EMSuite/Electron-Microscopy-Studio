@@ -106,6 +106,8 @@ nonisolated enum PaneKeyAction: Equatable {
     case moveCursor(MoveCommandDirection, fine: Bool)
     /// A point set at the cursor (the Image room), a spot added there (the Diffraction room).
     case setPoint
+    /// The Tilt tool's keyboard twin (#787): the simulated spots tilted that way by a fine step, or a coarse one.
+    case tilt(MoveCommandDirection, coarse: Bool)
 }
 
 /// The FFT room's two panes: the keys are for the one pressed last.
@@ -141,6 +143,8 @@ nonisolated struct DiffractionKeyState: Equatable {
     var stack: Bool
     /// The Spot tool is chosen: a click adds a spot, so ⌥ and an arrow move the spot cursor and Return adds one there.
     var addsSpots: Bool
+    /// The Tilt tool is chosen and an orientation is drawn: ⌥ and an arrow tilt it (⌥⇧ the coarse step).
+    var tilts = false
 }
 
 nonisolated enum PaneKeyRouter {
@@ -178,13 +182,15 @@ nonisolated enum PaneKeyRouter {
     }
 
     /// The Diffraction pattern's keys: a stack's frames as in the Image room; in the Spot tool, ⌥ and an arrow move the spot cursor
-    /// (⌥⇧ the coarse step) and Return adds a spot there. Nothing else is the pattern's (⌫ is the readout table's).
+    /// (⌥⇧ the coarse step) and Return adds a spot there; in the Tilt tool, ⌥ and an arrow tilt the simulated spots as a drag that
+    /// way would (⌥⇧ the coarse step). Nothing else is the pattern's (⌫ is the readout table's).
     static func diffraction(_ key: PaneKey, shift: Bool = false, state: DiffractionKeyState) -> PaneKeyAction? {
         switch key {
         case .arrow(let direction): frameStep(direction, stack: state.stack)
         case .home: state.stack ? .firstFrame : nil
         case .end: state.stack ? .lastFrame : nil
-        case .cursorArrow(let direction): state.addsSpots ? .moveCursor(direction, fine: !shift) : nil
+        case .cursorArrow(let direction):
+            state.addsSpots ? .moveCursor(direction, fine: !shift) : state.tilts ? .tilt(direction, coarse: shift) : nil
         case .enter: state.addsSpots ? .setPoint : nil
         case .delete, .copy, .escape: nil
         }
@@ -277,7 +283,7 @@ struct FFTRoomKeys {
             if let id = analysis.selection { FFTSpotUndo.remove([id], in: analysis, undoManager: undoManager) }
         case .copySpot:
             if let text = copyText() { writer.write(text) }
-        case .deleteMark, .copyMark, .cancelAngle, .stepFrame, .firstFrame, .lastFrame, .moveCursor, .setPoint:
+        case .deleteMark, .copyMark, .cancelAngle, .stepFrame, .firstFrame, .lastFrame, .moveCursor, .setPoint, .tilt:
             break
         }
     }
@@ -404,7 +410,7 @@ struct ImageRoomKeys {
             cursor?.move(direction, fine)
         case .setPoint:
             cursor?.set()
-        case .nudgeRegion, .clearRegion, .deleteSpot, .copySpot:
+        case .nudgeRegion, .clearRegion, .deleteSpot, .copySpot, .tilt:
             break
         }
     }
@@ -545,8 +551,10 @@ struct DiffractionPatternKeys {
     var frames: StackFrameKeys?
     /// The spot cursor's keys while a click adds a spot; nil otherwise.
     var cursor: CursorKeys?
+    /// The Tilt tool's keys while it is chosen and an orientation is drawn: a direction and whether the step is the coarse one.
+    var tilt: ((MoveCommandDirection, Bool) -> Void)?
 
-    var state: DiffractionKeyState { DiffractionKeyState(stack: frames != nil, addsSpots: cursor != nil) }
+    var state: DiffractionKeyState { DiffractionKeyState(stack: frames != nil, addsSpots: cursor != nil, tilts: tilt != nil) }
 
     @discardableResult
     func handle(_ key: PaneKey, shift: Bool = false) -> Bool {
@@ -557,6 +565,7 @@ struct DiffractionPatternKeys {
         case .lastFrame: frames?.last()
         case .moveCursor(let direction, let fine): cursor?.move(direction, fine)
         case .setPoint: cursor?.set()
+        case .tilt(let direction, let coarse): tilt?(direction, coarse)
         default: return false
         }
         return true

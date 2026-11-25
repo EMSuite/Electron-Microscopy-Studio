@@ -93,6 +93,10 @@ nonisolated final class FFTRoomWiringTests: XCTestCase {
             Entry(view: .maskedInverse, title: "Masked Inverse (no spot)", isEnabled: false),
             Entry(view: .absf, title: "ABSF (filter first)", isEnabled: false),
             Entry(view: .wiener, title: "Wiener (filter first)", isEnabled: false),
+            Entry(view: .strainXX, title: "Strain εxx (map strain first)", isEnabled: false),
+            Entry(view: .strainYY, title: "Strain εyy (map strain first)", isEnabled: false),
+            Entry(view: .strainXY, title: "Strain εxy (map strain first)", isEnabled: false),
+            Entry(view: .rotation, title: "Rotation (map strain first)", isEnabled: false),
         ], "nothing transformed")
 
         let refusing = ownerRefusingSomeSpots()
@@ -116,6 +120,10 @@ nonisolated final class FFTRoomWiringTests: XCTestCase {
             Entry(view: .maskedInverse, title: "Masked Inverse", isEnabled: true),
             Entry(view: .absf, title: "ABSF (filter first)", isEnabled: false),
             Entry(view: .wiener, title: "Wiener (filter first)", isEnabled: false),
+            Entry(view: .strainXX, title: "Strain εxx (map strain first)", isEnabled: false),
+            Entry(view: .strainYY, title: "Strain εyy (map strain first)", isEnabled: false),
+            Entry(view: .strainXY, title: "Strain εxy (map strain first)", isEnabled: false),
+            Entry(view: .rotation, title: "Rotation (map strain first)", isEnabled: false),
         ], "a spot in the mask")
 
         analysis.setInMask(spot, false)
@@ -470,8 +478,8 @@ nonisolated final class FFTRoomWiringTests: XCTestCase {
         XCTAssertEqual(withSpot.count, FFTRoomSections.Section.allCases.count)
         XCTAssertEqual(Set(withSpot), Set(FFTRoomSections.Section.allCases))
         let without = FFTRoomSections.order(hasMeasuredSpot: false)
-        XCTAssertEqual(Set(without), Set(FFTRoomSections.Section.allCases).subtracting([.maskedInverse]))
-        XCTAssertEqual(without.count, withSpot.count - 1)
+        XCTAssertEqual(Set(without), Set(FFTRoomSections.Section.allCases).subtracting([.maskedInverse, .strain]))
+        XCTAssertEqual(without.count, withSpot.count - 2)
         XCTAssertEqual(withSpot.last, .export)
         XCTAssertEqual(withSpot[1], .display, "Display is second (control placement §2)")
         XCTAssertLessThan(try XCTUnwrap(withSpot.firstIndex(of: .spots)), try XCTUnwrap(withSpot.firstIndex(of: .maskedInverse)))
@@ -493,6 +501,7 @@ nonisolated final class FFTRoomWiringTests: XCTestCase {
             .spots: "FFTSpotsSection(session: session, analysis: analysis)",
             .radialProfile: "FFTRadialProfileSection(session: session, analysis: analysis)",
             .maskedInverse: "FFTMaskSection(analysis: analysis)",
+            .strain: "FFTStrainSection(analysis: analysis)",
             .filters: "FFTFiltersSection(session: session, analysis: analysis)",
             .display: "FFTDisplaySection(analysis: analysis)",
         ]

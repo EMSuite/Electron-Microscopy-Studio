@@ -21,6 +21,8 @@ package nonisolated struct DiffractionReadoutRow: Sendable, Equatable, Identifia
     package var d: Double?
     package var family: String?
     package var dListed: Double?
+    /// The listed family's kinematic intensity, of 100 for the list's strongest family (#811).
+    package var listedIntensity: Double?
     package var deltaPercent: Double?
     package var oddsText: String?
     package var verdict: String
@@ -28,10 +30,12 @@ package nonisolated struct DiffractionReadoutRow: Sendable, Equatable, Identifia
     package var isCalibrating: Bool
 
     package init(id: UUID, kind: Kind, number: Int, radiusPx: Double?, q: Double?, d: Double?, family: String?, dListed: Double?,
-                 deltaPercent: Double?, oddsText: String?, verdict: String, validation: String, isCalibrating: Bool = false) {
+                 deltaPercent: Double?, oddsText: String?, verdict: String, validation: String, isCalibrating: Bool = false,
+                 listedIntensity: Double? = nil) {
         self.id = id; self.kind = kind; self.number = number; self.radiusPx = radiusPx; self.q = q; self.d = d
         self.family = family; self.dListed = dListed; self.deltaPercent = deltaPercent; self.oddsText = oddsText
         self.verdict = verdict; self.validation = validation; self.isCalibrating = isCalibrating
+        self.listedIntensity = listedIntensity
     }
 }
 
@@ -50,9 +54,14 @@ package nonisolated struct DiffractionExportHeader: Sendable, Equatable {
     package var crystalSHA256: String?
     package var kMax: Double
     package var tolerancePercent: Double
+    /// The lattice the rows were indexed with, in one line (#780); nil leaves it off.
+    package var crystalLattice: String?
+    /// A library phase's id and fingerprint (#780); nil for a standard or a loose CIF.
+    package var crystalPhase: String?
     package init(fileName: String, centreRow: Double, centreColumn: Double, centreSource: String, calibration: String, deltaQ: Double?,
                  wavelengthAngstroms: Double?, lengthPixels: Double?, lengthMM: Double?, fitVersusFilePercent: Double?, crystal: String,
-                 crystalSHA256: String?, kMax: Double, tolerancePercent: Double) {
+                 crystalSHA256: String?, kMax: Double, tolerancePercent: Double, crystalLattice: String? = nil, crystalPhase: String? = nil) {
+        self.crystalLattice = crystalLattice; self.crystalPhase = crystalPhase
         self.fileName = fileName; self.centreRow = centreRow; self.centreColumn = centreColumn; self.centreSource = centreSource
         self.calibration = calibration; self.deltaQ = deltaQ; self.wavelengthAngstroms = wavelengthAngstroms
         self.lengthPixels = lengthPixels; self.lengthMM = lengthMM; self.fitVersusFilePercent = fitVersusFilePercent
@@ -67,6 +76,8 @@ package nonisolated enum DiffractionExport {
         func g(_ v: Double?) -> String { v.map { String(format: "%.9g", $0) } ?? "" }
         // A CIF whose data block names nothing, or only a VESTA placeholder, gives the crystal its file's base name, which may hold a line break.
         let crystal = CSVText.headerValue(h.crystal) + (h.crystalSHA256.map { " sha256 \($0)" } ?? "")
+            + (h.crystalPhase.map { " (\(CSVText.headerValue($0)))" } ?? "")
+            + (h.crystalLattice.map { "; lattice \(CSVText.headerValue($0))" } ?? "")
         var lines = [
             "# \(AppName.writer) diffraction readout",
             "# file: \(CSVText.headerValue(h.fileName))",

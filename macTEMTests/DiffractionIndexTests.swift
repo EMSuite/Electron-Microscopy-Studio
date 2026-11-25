@@ -231,6 +231,107 @@ nonisolated final class DiffractionIndexTests: XCTestCase {
         XCTAssertTrue(DiffractionIndexText.note(spots: [clicked], outcome: nil, indexed: false).hasPrefix("Index (⌘R) reads the marked spots"))
     }
 
+    // MARK: The Spots table and its CSV (#785)
+
+    /// A spot Index leaves unexplained that sits on a spot double diffraction adds is named in the Spots table (#786): silicon down
+    /// [1 1 0] forbids 002, 1̄11 + 11̄1 lands there; a measured spot at 1.01 times its q (Index's fitted scale 1.01) reads 002, d expected
+    /// a/2 = 2.71545 Å, phase "Si · double diffraction". Off the added spot, or with no added spots, it stays unexplained. Red before:
+    /// the table named no spot of double diffraction.
+    func testTheSpotsTableNamesASpotOfDoubleDiffraction() throws {
+        let si = try XCTUnwrap(StandardCrystals.named("Si"))
+        let o = try CrystalOrientation(zoneAxis: SIMD3(1, 1, 0), cell: si.structure.cell)
+        let added = try PatternIndexing.addedSpots(structure: si.structure, orientation: o, volts: 200_000, sigma: 0.02)
+        let s002 = try XCTUnwrap(added.first { $0.hkl == MillerIndex(0, 0, 2) }, "\(added.map(\.hkl))")
+        let on = PatternIndexing.Spot(id: UUID(), row: 0, column: 0, intensity: 1, radiusPx: 40, q: 1.01 * s002.q, hkl: nil, dListed: nil)
+        let off = PatternIndexing.Spot(id: UUID(), row: 0, column: 0, intensity: 1, radiusPx: 40, q: 1.2 * s002.q, hkl: nil, dListed: nil)
+        let outcome = PatternIndexing.Outcome(phase: "Si", verdict: .found, spots: [on, off], explained: 0, indexed: 2, orientation: o,
+                                              alternatives: [], zoneAxis: SIMD3(1, 1, 0), zoneAxisAngle: 0, scale: 1.01, misfitPercent: nil)
+        let numbers = [on.id: 1, off.id: 2]
+        let rows = PatternIndexing.rows(outcome, numbers: numbers, added: added, cell: si.structure.cell)
+        XCTAssertEqual(rows[0].hkl, MillerIndex(0, 0, 2))
+        XCTAssertEqual(rows[0].phase, "Si · double diffraction")
+        XCTAssertEqual(try XCTUnwrap(rows[0].dExpected), 5.4309 / 2, accuracy: 1e-9)
+        XCTAssertEqual(try XCTUnwrap(rows[0].deltaPercent), 100 * (on.d - 5.4309 / 2) / (5.4309 / 2), accuracy: 1e-9)
+        XCTAssertNil(rows[1].hkl, "20 % off: not the added spot")
+        XCTAssertEqual(rows[1].phase, "")
+        XCTAssertNil(PatternIndexing.rows(outcome, numbers: numbers).first?.hkl, "no added spots: unexplained")
+    }
+
+    /// The Spots table lists Index's spots still marked, numbered as the readout numbers them, each with its hkl, R, q, d, the
+    /// expected d of its hkl, Δd/d and its phase; a row's id is its mark's (selecting it selects the spot); the CSV has the same
+    /// columns. Red before: the room had no Spots table and no Spots CSV.
+    @MainActor func testTheSpotsTableListsIndexsSpotsAndItsCSVHasItsColumns() async throws {
+        let al = try XCTUnwrap(StandardCrystals.named("Al"))
+        let truth = try CrystalOrientation(zoneAxis: SIMD3(0, 0, 1), inPlaneAngle: 0.2, cell: al.structure.cell)
+        let image = try planted(truth, crystal: al)
+        let a = analysis(for: image, crystal: al)
+        XCTAssertEqual(a.indexSpotRows, [], "no rows before an answer")
+        await a.index(image: image)?.value
+        let rows = a.indexSpotRows
+        XCTAssertEqual(rows.count, a.spots.count)
+        XCTAssertEqual(rows.map(\.number), Array(1...a.spots.count))
+        XCTAssertEqual(rows.map(\.id), a.spots.map(\.id), "a row is its mark: selecting it selects the spot")
+        let explained = rows.filter { $0.hkl != nil }
+        XCTAssertGreaterThanOrEqual(explained.count, 8)
+        for (row, mark) in zip(rows, a.spots) {
+            let r = try XCTUnwrap(mark.row), c = try XCTUnwrap(mark.column)
+            XCTAssertEqual(row.radiusPx, hypot(r - 256, c - 256), accuracy: 1e-9)
+            XCTAssertEqual(row.q, row.radiusPx * Self.deltaQ, accuracy: 1e-9, "q is R times the typed Δq")
+            XCTAssertEqual(row.d, 1 / row.q, accuracy: 1e-12)
+            guard let hkl = row.hkl else { XCTAssertEqual(row.phase, ""); continue }
+            XCTAssertEqual(row.phase, "Al")
+            XCTAssertEqual(row.hklText, ZoneAxisText.label(hkl))
+            XCTAssertEqual(try XCTUnwrap(row.dExpected), al.structure.cell.d(hkl), accuracy: 1e-12)
+            XCTAssertEqual(try XCTUnwrap(row.deltaPercent), 100 * (row.d - al.structure.cell.d(hkl)) / al.structure.cell.d(hkl), accuracy: 1e-9)
+            XCTAssertEqual(hkl.l, 0, "every explained spot of [0 0 1] is in its zero layer")
+        }
+
+        // Sorted by a column, rows that tie keep the order of their numbers (all explained rows share the phase).
+        let byPhase = DiffractionSpotFormat.sorted(explained, by: [KeyPathComparator(\PatternIndexing.SpotRow.phase)])
+        XCTAssertEqual(byPhase.map(\.number), explained.map(\.number))
+        let byMisfit = DiffractionSpotFormat.sorted(rows, by: [KeyPathComparator(\PatternIndexing.SpotRow.deltaKey, order: .reverse)])
+        XCTAssertEqual(byMisfit.count, rows.count)
+        XCTAssertTrue(zip(byMisfit, byMisfit.dropFirst()).allSatisfy { $0.deltaKey >= $1.deltaKey })
+
+        // The CSV: Index's line above the table's columns, one line per row.
+        let csv = a.spotsExportText(image: image).split(separator: "\n").map(String.init)
+        XCTAssertEqual(csv[0], "# \(AppName.writer) diffraction spots")
+        XCTAssertEqual(csv[1], "# file: planted Al")
+        XCTAssertEqual(csv[2], "# index: \(try XCTUnwrap(a.indexLine))")
+        XCTAssertEqual(csv[3], "spot,hkl,R_px,q_per_A,d_A,d_expected_A,delta_percent,phase")
+        XCTAssertEqual(csv.count, 4 + rows.count)
+        let first = try XCTUnwrap(explained.first)
+        let line = csv[3 + first.number].split(separator: ",", omittingEmptySubsequences: false).map(String.init)
+        XCTAssertEqual(line.count, 8)
+        XCTAssertEqual(line[0], "\(first.number)")
+        let hkl = try XCTUnwrap(first.hkl)
+        XCTAssertEqual(line[1], "\(hkl.h) \(hkl.k) \(hkl.l)")
+        XCTAssertEqual(try XCTUnwrap(Double(line[4])), first.d, accuracy: 1e-8 * first.d)
+        XCTAssertEqual(line[7], "Al")
+
+        // A spot removed leaves the table; the rest are numbered again as the readout numbers them.
+        a.remove(rows[0].id)
+        XCTAssertEqual(a.indexSpotRows.map(\.number), Array(1...a.spots.count))
+        XCTAssertEqual(a.indexSpotRows.map(\.id), a.spots.map(\.id))
+    }
+
+    func testTheSpotsTableCellsAndWords() {
+        let row = PatternIndexing.SpotRow(id: UUID(), number: 3, hkl: MillerIndex(1, -1, 1), radiusPx: 42.4709, q: 0.4247, d: 2.354567,
+                                          dExpected: 2.338, deltaPercent: 0.7086, phase: "Au")
+        let en = Locale(identifier: "en_US")
+        XCTAssertEqual(DiffractionSpotFormat.Column.allCases.map { DiffractionSpotFormat.cell($0, row, locale: en) },
+                       ["3", "11\u{0304}1", "42.47", "0.42470", "2.3546", "2.3380", "+0.71", "Au"])
+        XCTAssertEqual(DiffractionSpotFormat.Column.allCases.map(\.title), ["Spot", "hkl", "R px", "q Å⁻¹", "d Å", "d expected", "Δd/d %", "Phase"])
+        XCTAssertEqual(DiffractionSpotFormat.spokenHKL(row), "1, minus 1, 1")
+        let unexplained = PatternIndexing.SpotRow(id: UUID(), number: 4, hkl: nil, radiusPx: 80, q: 0.8, d: 1.25, dExpected: nil,
+                                                  deltaPercent: nil, phase: "")
+        XCTAssertEqual(DiffractionSpotFormat.cell(.hkl, unexplained), UnitDisplay.noValue)
+        XCTAssertEqual(DiffractionSpotFormat.cell(.phase, unexplained), UnitDisplay.noValue)
+        XCTAssertEqual(DiffractionSpotFormat.spokenHKL(unexplained), "not explained")
+        XCTAssertEqual(DiffractionIndexText.spoken(nil, rows: 0), "")
+        XCTAssertEqual(DiffractionIndexText.spoken("Al [001]", rows: 12), ", Index: Al [001]; 12 spots in the Spots table")
+    }
+
     @MainActor func testIndexNamesWhatItNeeds() throws {
         let al = try XCTUnwrap(StandardCrystals.named("Al"))
         let image = try planted(try CrystalOrientation(zoneAxis: SIMD3(0, 0, 1), cell: al.structure.cell), crystal: al)

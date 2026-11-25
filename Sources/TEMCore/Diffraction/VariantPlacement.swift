@@ -37,6 +37,16 @@ package nonisolated struct RelationshipVector: Sendable, Codable, Equatable, Has
         return kind == .plane ? "(\(body))" : "[\(body)]"
     }
 
+    /// A vector as a paper writes it: "(h k l)" a plane, "[u v w]" a direction; the indices as a zone axis is typed
+    /// (`ZoneAxisText.parse`: spaces or commas, a minus or an overbar). nil for anything else.
+    package static func parse(_ text: String) -> RelationshipVector? {
+        let s = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let kind: Kind
+        if s.hasPrefix("("), s.hasSuffix(")") { kind = .plane } else if s.hasPrefix("["), s.hasSuffix("]") { kind = .direction } else { return nil }
+        guard let v = ZoneAxisText.parse(String(s.dropFirst().dropLast())) else { return nil }
+        return RelationshipVector(kind, v.x, v.y, v.z)
+    }
+
     /// The text of a kit vector.
     package static func describe(_ v: LatticeVector) -> String {
         switch v {
@@ -157,6 +167,11 @@ package nonisolated enum VariantRefusal: Error, Sendable, Equatable {
 }
 
 package nonisolated enum VariantPlacement {
+
+    /// β″ (Mg5Si6) in Al as Andersen et al. (1998) state it: [1 0 0] ∥ [3 2 0] Al, kept exact, and [0 0 1] ∥ [1 -3 0] Al.
+    package static let betaDoublePrimeInAluminium = PrecipitateRelationship(
+        first: (RelationshipVector(.direction, 1, 0, 0), RelationshipVector(.direction, 3, 2, 0)),
+        second: (RelationshipVector(.direction, 0, 0, 1), RelationshipVector(.direction, 1, -3, 0)))
 
     /// Spots under this fraction of their variant's strongest are not drawn, counted or compared (the design's display cut).
     package static let displayCut = 0.01

@@ -71,7 +71,8 @@ nonisolated final class TableCopyFormatTests: XCTestCase {
 
     private static func readout() -> [DiffractionReadoutRow] {
         [DiffractionReadoutRow(id: UUID(), kind: .ring, number: 1, radiusPx: 33.982, q: 0.424771, d: 2.35419, family: "{111}", dListed: 2.3546,
-                               deltaPercent: -0.0127, oddsText: "12:1", verdict: "matches {111}", validation: "", isCalibrating: true),
+                               deltaPercent: -0.0127, oddsText: "12:1", verdict: "matches {111}", validation: "", isCalibrating: true,
+                               listedIntensity: 100),
          DiffractionReadoutRow(id: UUID(), kind: .spot, number: 2, radiusPx: 55.48, q: nil, d: nil, family: nil, dListed: nil,
                                deltaPercent: nil, oddsText: nil, verdict: "two\tfamilies\nin reach", validation: "")]
     }
@@ -81,20 +82,20 @@ nonisolated final class TableCopyFormatTests: XCTestCase {
     /// Red under: a column dropped or out of the table's order, d at the CSV's precision, a verdict's line break kept.
     func testAReadoutRowCopiesAsTheTableShowsIt() {
         let rows = Self.readout()
-        let header = "Ring or spot\tR px\tq \u{00C5}\u{207B}\u{00B9}\td \u{00C5}\tfamily\td listed\t\u{0394}d/d %\todds\tverdict"
+        let header = "Ring or spot\tR px\tq \u{00C5}\u{207B}\u{00B9}\td \u{00C5}\tfamily\td listed\t\u{03A3}|F|\u{00B2} listed\t\u{0394}d/d %\todds\tverdict"
         XCTAssertEqual(DiffractionReadoutFormat.copyText(rows, locale: Self.en),
                        [header,
-                        "Ring 1 \u{25CF}\t33.98\t0.42477\t2.3542\t{111}\t2.3546\t-0.01\t12:1\tmatches {111}",
-                        "Spot 2\t55.48\t\u{2014}\t\u{2014}\t\u{2014}\t\u{2014}\t\u{2014}\t\u{2014}\ttwo families in reach"].joined(separator: "\n"))
+                        "Ring 1 \u{25CF}\t33.98\t0.42477\t2.3542\t{111}\t2.3546\t100\t-0.01\t12:1\tmatches {111}",
+                        "Spot 2\t55.48\t\u{2014}\t\u{2014}\t\u{2014}\t\u{2014}\t\u{2014}\t\u{2014}\t\u{2014}\ttwo families in reach"].joined(separator: "\n"))
         XCTAssertEqual(DiffractionReadoutFormat.copyText([rows[0]], locale: Self.de),
-                       header + "\nRing 1 \u{25CF}\t33,98\t0,42477\t2,3542\t{111}\t2,3546\t-0,01\t12:1\tmatches {111}")
+                       header + "\nRing 1 \u{25CF}\t33,98\t0,42477\t2,3542\t{111}\t2,3546\t100\t-0,01\t12:1\tmatches {111}")
         XCTAssertEqual(DiffractionReadoutFormat.copyText([], locale: Self.en), "")
     }
 
     /// The columns are the table's nine, in its order; only the first is drawn without a title, and it is named in the copied text.
-    func testTheReadoutsColumnsAreTheTablesNine() {
+    func testTheReadoutsColumnsAreTheTablesTen() {
         let columns = DiffractionReadoutFormat.Column.allCases
-        XCTAssertEqual(columns, [.name, .radius, .q, .d, .family, .dListed, .delta, .odds, .verdict])
+        XCTAssertEqual(columns, [.name, .radius, .q, .d, .family, .dListed, .intensity, .delta, .odds, .verdict])
         XCTAssertEqual(columns.filter { $0.title.isEmpty }, [.name])
         XCTAssertEqual(columns.map(\.copiedTitle).filter(\.isEmpty), [], "every copied column has a title")
         XCTAssertEqual(DiffractionReadoutFormat.cells(Self.readout()[0], locale: Self.en).count, columns.count)
@@ -107,7 +108,7 @@ nonisolated final class TableCopyFormatTests: XCTestCase {
         let table = try ui("DiffractionRoom.swift")
         XCTAssertTrue(table.contains(".onCopyCommand(perform: rows.contains(where: { $0.id == selected }) ? { copied(selected) } : nil)"))
         XCTAssertTrue(table.contains("return [NSItemProvider(object: DiffractionReadoutFormat.copyText(picked) as NSString)]"))
-        for column in ["name", "radius", "q", "d", "family", "dListed", "delta", "odds", "verdict"] {
+        for column in ["name", "radius", "q", "d", "family", "dListed", "intensity", "delta", "odds", "verdict"] {
             XCTAssertTrue(table.contains("TableColumn(header(.\(column))) { row in Text(DiffractionReadoutFormat.cell(.\(column), row))"),
                           "the \(column) column is the format's title and cell")
         }

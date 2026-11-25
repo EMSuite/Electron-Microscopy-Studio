@@ -157,7 +157,7 @@ enum SessionPanels {
     /// sheet takes the sheet with it and never calls the completion handler (`ExportPanels.present`), so the await would hang for
     /// the life of the process, holding the save that asked and its file's place in `panelItems`: the sheet is ended as `.cancel`
     /// when the window is about to close, an index outside the buttons, and the observer goes when the sheet is over.
-    private static func sheetButton(_ alert: NSAlert, on window: NSWindow) async -> Int {
+    static func sheetButton(_ alert: NSAlert, on window: NSWindow) async -> Int {
         let observer = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: window,
                                                               queue: .main) { _ in
             MainActor.assumeIsolated {

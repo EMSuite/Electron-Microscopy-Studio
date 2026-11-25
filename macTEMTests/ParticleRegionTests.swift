@@ -32,6 +32,14 @@ nonisolated final class ParticleRegionTests: XCTestCase {
         XCTAssertNil(ParticleRegion.clamped(PixelCrop(row: 20, col: 20, height: 5, width: 5), width: 10, height: 10))
         XCTAssertEqual(ParticleRegion.clamped(PixelCrop(row: 6, col: -2, height: 8, width: 5), width: 10, height: 10),
                        PixelCrop(row: 6, col: 0, height: 4, width: 3))
+        // Numbers at Int's ends (an agent's set_particles region) are held to the image or refused, never a trap (#924).
+        XCTAssertEqual(ParticleRegion.clamped(PixelCrop(row: 1, col: 1, height: 10, width: .max), width: 10, height: 10),
+                       PixelCrop(row: 1, col: 1, height: 9, width: 9))
+        XCTAssertEqual(ParticleRegion.clamped(PixelCrop(row: 1, col: 1, height: .max, width: 4), width: 10, height: 10),
+                       PixelCrop(row: 1, col: 1, height: 9, width: 4))
+        XCTAssertNil(ParticleRegion.clamped(PixelCrop(row: .max, col: .max, height: .max, width: .max), width: 10, height: 10))
+        XCTAssertNil(ParticleRegion.clamped(PixelCrop(row: .min, col: .min, height: 5, width: 5), width: 10, height: 10))
+        XCTAssertNil(ParticleRegion.clamped(PixelCrop(row: 0, col: 0, height: .min, width: .min), width: 10, height: 10))
         XCTAssertEqual(ParticleRegion.text(nil), "Whole image")
         XCTAssertEqual(ParticleRegion.text(PixelCrop(row: 20, col: 10, height: 400, width: 500)), "x 10, y 20 · 500 × 400 px")
     }

@@ -78,52 +78,24 @@ package nonisolated enum TIFFImageReader {
         package static let veloxUnvalidated = TIFFAppImage.Note.veloxUnvalidated
         package static let veloxDisagree = TIFFAppImage.Note.veloxDisagree
         /// A colour TIFF opened as grey (#541): what is on screen is the file's picture, not its data.
-        package static let colourRender = "Colour render (the file's colour table and any annotations burnt in), shown as grey: "
-            + "each pixel is the brightest of its red, green and blue, not counts"
+        package static let colourRender = TIFFAppImage.Note.colourRender
     }
 
     // MARK: - Reading
 
+    /// A file's image. An 8-bit RGB TIFF whose channels differ, as Gatan DigitalMicrograph exports a displayed image (its colour
+    /// table and annotations burnt in; real-file sweep, #541), opens as grey: each pixel the brightest of its three channels
+    /// (the kit's `ColourReading.brightestChannel`, FormatoKit 0.19.0), one byte a pixel (#566), in one decode of the file (#934).
     package static func read(path: String) throws -> CalibratedImage {
         let data = try Data(contentsOf: URL(fileURLWithPath: path), options: .alwaysMapped)
-        let fileName = formatoDisplayFileName(path)
         do {
-            return try read(data: data, fileName: fileName)
-        } catch Refusal.unequalChannels {
-            return try colourRender(path: path, data: data, fileName: fileName)
-        }
-    }
-
-    /// An 8-bit RGB TIFF whose channels differ, as Gatan DigitalMicrograph exports a displayed image (its colour table and
-    /// annotations burnt in; real-file sweep, #541), opens as grey: each pixel the brightest of its three channels (HSV value),
-    /// which keeps a one-colour table's ramp exact and leaves annotations visible. The calibration is the kit's for the file.
-    /// App-side until FormatoKit's `TIFFAppImage` reads it: delete at FormatoKit 0.16.0.
-    static func colourRender(path: String, data: Data, fileName: String) throws -> CalibratedImage {
-        let calibrated: TIFFAppImage.Image
-        do {
-            calibrated = try TIFFAppImage.read(data: data, fileName: fileName, acceptUnequalChannels: true)
+            return CalibratedImage(try TIFFAppImage.readStored(data: data, fileName: formatoDisplayFileName(path), colour: .brightestChannel))
         } catch let refusal as TIFFAppImage.Refusal {
             throw Refusal(refusal)
         }
-        let rgb = try TIFFSignals(path: path).signal(series: 0).load().data
-        let count = calibrated.width * calibrated.height
-        guard rgb.dataType == .rgb8, rgb.shape == [calibrated.height, calibrated.width], rgb.bytes.count == 3 * count else {
-            throw Refusal.unequalChannels(row: 0, column: 0)
-        }
-        // The brightest of three bytes is a byte: the render stays one byte a pixel (#566).
-        var pixels = [UInt8](repeating: 0, count: count)
-        rgb.bytes.withUnsafeBytes { (p: UnsafeRawBufferPointer) in
-            for i in 0..<count { pixels[i] = max(p[3 * i], p[3 * i + 1], p[3 * i + 2]) }
-        }
-        let notes = calibrated.notes.filter { $0 != Note.render } + [Note.colourRender]
-        let axes = CalibratedImage(calibrated)   // the kit's calibration, as every TIFF reading gets it
-        return CalibratedImage(width: calibrated.width, height: calibrated.height, stored: .uint8(pixels),
-                               x: axes.x, y: axes.y,
-                               fileName: calibrated.fileName,
-                               source: calibrated.source.replacingOccurrences(of: Note.render, with: "colour render shown as grey, not counts"),
-                               voltage: nil, notes: notes)
     }
 
+    /// An image from bytes alone; a colour image whose channels differ is refused by name.
     package static func read(data: Data, fileName: String) throws -> CalibratedImage {
         do {
             return CalibratedImage(try TIFFAppImage.readStored(data: data, fileName: fileName))

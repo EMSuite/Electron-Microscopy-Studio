@@ -35,7 +35,8 @@ package nonisolated enum ZoneAxisText {
         } else {
             return nil
         }
-        guard values.count == 3, values.contains(where: { $0 != 0 }), values.allSatisfy({ abs($0) <= 99 }) else { return nil }
+        // A range test, not abs: abs(Int.min) traps, and Int reads "-9223372036854775808" (#933).
+        guard values.count == 3, values.contains(where: { $0 != 0 }), values.allSatisfy({ (-99...99).contains($0) }) else { return nil }
         return SIMD3(values[0], values[1], values[2])
     }
 

@@ -110,6 +110,29 @@ nonisolated final class AgentDoorPatternsTests: XCTestCase {
         XCTAssertEqual(state.ebsd.pipeline.intensity.lowPercentile, before.intensity.lowPercentile)
     }
 
+    /// A refused set_patterns call changes nothing (#927): a grid with a tile that is not of it, or with a pick that needs the new
+    /// grid's pass, leaves the grid, the map and the status line as they were. Mutation: the grid set before the checks - red.
+    @MainActor func testARefusedSetPatternsCallChangesNothing() async throws {
+        let state = try await nickelWindow()
+        try await waitUntil("the first pass to land", seconds: 60) { state.ebsd.virtualImages != nil && !state.ebsd.isBusy }
+        let (grid, map, status) = (state.ebsd.virtualGrid, state.ebsd.mapChoice, state.statusText)
+        XCTAssertNotEqual(grid.rows, 3)
+
+        let noTile = try await call("set_patterns", ["grid": "3", "mix_red": "r7 c7"])
+        XCTAssertTrue(noTile.refused, noTile.text)
+        XCTAssertTrue(noTile.text.contains("is not a tile of the 3 × 3 grid"), noTile.text)
+        let newPass = try await call("set_patterns", ["grid": "3", "map": "tile", "tile": "r1 c1"])
+        XCTAssertTrue(newPass.refused, newPass.text)
+        XCTAssertTrue(newPass.text.contains("set grid alone"), newPass.text)
+        let noMix = try await call("set_patterns", ["grid": "3", "map": "mix"])
+        XCTAssertTrue(noMix.refused, noMix.text)
+
+        XCTAssertEqual(state.ebsd.virtualGrid, grid, "the grid did not move under a refused call")
+        XCTAssertTrue(state.ebsd.mapChoice == map)
+        XCTAssertNotNil(state.ebsd.virtualImages, "nor did a new pass start")
+        XCTAssertEqual(state.statusText, status)
+    }
+
     /// Mutation: set_patterns' grid or tile map not reaching the session, a moved map going unsaid, or the pictures not drawn - red.
     @MainActor func testSetPatternsAndThePictures() async throws {
         let state = try await nickelWindow()

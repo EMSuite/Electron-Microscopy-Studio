@@ -305,6 +305,14 @@ package final class OpenItem: Identifiable {
     /// The Diffraction room's tool, annulus, selection and zoom for this file: view state, apart from the results above. Its canvas (the
     /// pattern as drawn, full size) goes with the item's pixels (`releasePixels`); the room builds it again when it shows the file.
     package let diffractionView = DiffractionViewState()
+    /// The Diffraction room's double-tilt holder for this file (#815): the stage tilts, limits and tilt axis. Numbers, no pixels.
+    package let diffractionHolder = DiffractionHolder()
+    /// The Diffraction room's powder pattern for this file (#810): rings or X-rays, the range, and a phase to compare with.
+    package let diffractionPowder = DiffractionPowder()
+    /// The Diffraction room's Find Phases for this file (#812): Fit scale and the last ranking.
+    package let diffractionPhases = DiffractionPhaseFinder()
+    /// The Diffraction room's precipitate for this file (#808): which, its relationship, the hidden variants.
+    package let diffractionVariants = DiffractionVariants()
     /// The committed zoom and pan; kept per item, through eviction and re-read. Not observed: the pane reads it once,
     /// when it is made, and writes it at the end of every gesture — observing it would re-evaluate the pane's parent
     /// on each write for nothing.
@@ -472,6 +480,7 @@ package final class OpenItem: Identifiable {
     fileprivate func publish(_ opened: OpenedImage, movedTo: FileIdentity?) {
         endOpening()
         guard session.finishOpen(sessionToken, image: opened.image, url: opened.url, metadata: opened.metadata, sem: opened.sem) else { return }
+        diffractionHolder.bindStage(opened.metadata)
         // Whether this is the file's first read, asked before `summary` is set below; a re-read of a cold item is not.
         let first = !hasBeenRead
         if let movedTo {

@@ -2,8 +2,8 @@
 //  SettingsWindow.swift
 //  Role: the Settings scene (⌘,), built as mac4DSTEM's `SettingsWindow` is (control-placement §10): a `NavigationSplitView` with a
 //        sidebar of sections and a grouped `Form` beside it. A choice lives here, not in a room, when it changes no number in an open
-//        document and outlives the document: the scroll wheel and the SEM databar (Images, #626), the agent door (Agents) and, in the website download,
-//        Software Update. Every value is a UserDefaults key read through `@AppStorage`, so each open window follows a change at once;
+//        document and outlives the document: the scroll wheel and the SEM databar (Images, #626), the agent door (Agents), the
+//        Materials Project key (#778, EMSuiteUI's pane, kept in the login keychain) and, in the website download, Software Update. Every value is a UserDefaults key read through `@AppStorage`, so each open window follows a change at once;
 //        this scene has no window's `AppState`.
 //
 //  `NavigationSplitView`, never `HSplitView`/`NSSplitView`, as the workspace split.
@@ -11,10 +11,12 @@
 
 import ShellControls
 import ShellLayout
+import ShellPhaseLibrary
+import ShellPhaseViews
 import SwiftUI
 
 nonisolated enum SettingsSection: String, CaseIterable, Identifiable {
-    case images, agents
+    case images, agents, materialsProject
     #if SPARKLE
     case softwareUpdate
     #endif
@@ -25,6 +27,7 @@ nonisolated enum SettingsSection: String, CaseIterable, Identifiable {
         switch self {
         case .images: "Images"
         case .agents: "Agents"
+        case .materialsProject: "Materials Project"
         #if SPARKLE
         case .softwareUpdate: "Software Update"
         #endif
@@ -35,6 +38,7 @@ nonisolated enum SettingsSection: String, CaseIterable, Identifiable {
         switch self {
         case .images: "photo"
         case .agents: "door.left.hand.open"
+        case .materialsProject: "atom"
         #if SPARKLE
         case .softwareUpdate: "arrow.down.circle"
         #endif
@@ -44,6 +48,8 @@ nonisolated enum SettingsSection: String, CaseIterable, Identifiable {
 
 struct SettingsWindow: View {
     @State private var selection: SettingsSection? = .images
+    @State private var materialsProject = MaterialsProjectSettingsModel(keyStore: PhaseServices.keyStore,
+                                                                         client: PhaseServices.client)
 
     var body: some View {
         NavigationSplitView {
@@ -59,6 +65,7 @@ struct SettingsWindow: View {
                 switch selection ?? .images {
                 case .images: ImageSettingsSection()
                 case .agents: AgentSettingsView()
+                case .materialsProject: MaterialsProjectSettingsSections(model: materialsProject)
                 #if SPARKLE
                 case .softwareUpdate: SoftwareUpdateSettingsSection()   // the website download only (#583)
                 #endif

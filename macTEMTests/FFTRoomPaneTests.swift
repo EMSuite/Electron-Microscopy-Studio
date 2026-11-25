@@ -495,7 +495,11 @@ nonisolated final class FFTRoomPaneTests: XCTestCase {
         XCTAssertEqual(FFTPaneFormat.menuTitle(.region, reason: "no transform yet", isSelected: false), "Region (no transform yet)")
         XCTAssertEqual(FFTPaneFormat.menuTitle(.absf, reason: nil, isSelected: false), "ABSF")
         XCTAssertEqual(FFTAnalysis.SourceView.allCases.map { FFTPaneFormat.title(of: $0) },
-                       ["Original", "Region", "Masked Inverse", "ABSF", "Wiener"])
+                       ["Original", "Region", "Masked Inverse", "ABSF", "Wiener", "Strain εxx", "Strain εyy", "Strain εxy", "Rotation"])
+        XCTAssertEqual(FFTPaneFormat.unavailableReason(.strainXY, hasSpectrum: true, hasMeasuredSpot: true, hasMaskSpot: true,
+                                                       hasFilterResult: true), "map strain first")
+        XCTAssertNil(FFTPaneFormat.unavailableReason(.rotation, hasSpectrum: true, hasMeasuredSpot: true, hasMaskSpot: true,
+                                                     hasFilterResult: false, hasStrainResult: true))
     }
 
     /// The View control is the one thing the narrowest header never gives up, so its FACE — the title of the view the pane

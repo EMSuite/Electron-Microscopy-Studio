@@ -465,6 +465,14 @@ nonisolated enum FFTRoomFormat {
         return "\(n) × \(n) px · \(passes) \(passes == 1 ? "pass" : "passes") · \(share) % flagged"
     }
 
+    /// The last strain run: the spots it took, the reference window, and the pixels with no phase (drawn masked) when there are any.
+    static func strainStatus(_ product: FFTStrainProduct) -> String {
+        let key = product.key
+        let line = "spots \(key.g1.spot) and \(key.g2.spot) · \(key.reference.title.lowercased())"
+        guard product.unmeasured > 0 else { return line }
+        return "\(line) · \(product.unmeasured) px without phase"
+    }
+
     /// The method and its reference, shown once at the top of the HRTEM Filters section.
     static let filterMethodNote = "A re-implementation of D. R. G. Mitchell's HRTEM filter script for Digital Micrograph (ABSF and Wiener)."
     static let offBinNote = "On synthetic lattices, a lattice half a bin off a Fourier bin keeps 5–57 % of its amplitude in a 128 px region and 77–97 % at 256 px; other sizes are not measured. The Nyquist wave is cut to 1.6 × 10⁻⁴. Intensities are not preserved: the output's mean is below the input's."
@@ -483,12 +491,12 @@ nonisolated enum FFTRoomFormat {
 /// order is Calibration · Display · the job · Export (control placement §2).
 nonisolated enum FFTRoomSections {
     enum Section: CaseIterable, Sendable {
-        case calibration, display, region, spots, radialProfile, maskedInverse, filters, export
+        case calibration, display, region, spots, radialProfile, maskedInverse, strain, filters, export
     }
 
-    /// Every section once; Masked Inverse only once a spot is measured (a refused spot has no centroid).
+    /// Every section once; Masked Inverse and Strain only once a spot is measured (a refused spot has no centroid).
     static func order(hasMeasuredSpot: Bool) -> [Section] {
-        [.calibration, .display, .region, .spots, .radialProfile] + (hasMeasuredSpot ? [.maskedInverse] : [])
+        [.calibration, .display, .region, .spots, .radialProfile] + (hasMeasuredSpot ? [.maskedInverse, .strain] : [])
             + [.filters, .export]
     }
 }

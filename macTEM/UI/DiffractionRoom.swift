@@ -47,11 +47,39 @@ struct DiffractionRoom: View {
         let rows = analysis.readout(image: image)
         VStack(spacing: 0) {
             DiffractionHeader(item: item, analysis: analysis, view: view)
-            DiffractionPatternPane(item: item, analysis: analysis, view: view, rows: rows)
-                .modifier(DiffractionZoomCommands(item: item, view: view))
+            // The crystal beside the pattern (#790), down the same beam: one orientation drives both.
+            HStack(spacing: 0) {
+                DiffractionCrystalPane(analysis: analysis)
+                    .frame(width: LayoutPolicy.diffractionCrystalWidth)
+                Divider()
+                DiffractionPatternPane(item: item, analysis: analysis, view: view, rows: rows)
+                    .modifier(DiffractionZoomCommands(item: item, view: view))
+            }
             Divider()
-            DiffractionReadoutTable(analysis: analysis, view: view, rows: rows)
-                .frame(height: LayoutPolicy.diffractionReadoutHeight)
+            // One table under the pattern: the readout, or once Index has an answer, its Spots table (#785: hkl, expected d and
+            // misfit per spot), picked in the strip's header. Never both side by side: they share R, q, d and Δd/d and do not fit a
+            // small window.
+            VStack(spacing: 0) {
+                if analysis.indexOutcome != nil {
+                    HStack {
+                        SegmentedPicker(label: "Table", items: [(DiffractionViewState.LowerTable.readout, .title("Readout")),
+                                                                (.spots, .title("Spots"))],
+                                        selection: Binding(get: { view.lowerTable }, set: { view.lowerTable = $0 }))
+                            .fixedSize()
+                            .accessibilityIdentifier("diffraction.lowerTable")
+                        Spacer()
+                    }
+                    .padding(.horizontal, LayoutPolicy.infobarHorizontalPadding)
+                    .frame(height: LayoutPolicy.paneHeaderHeight)
+                    Divider()
+                }
+                if analysis.indexOutcome != nil && view.lowerTable == .spots {
+                    DiffractionSpotTable(view: view, rows: analysis.indexSpotRows)
+                } else {
+                    DiffractionReadoutTable(analysis: analysis, view: view, rows: rows)
+                }
+            }
+            .frame(height: LayoutPolicy.diffractionReadoutHeight)
         }
         // The pattern is shown by its owner (the bind, the extent and the canvas, off the main actor); a quick Log toggle or another
         // file cancels the pass in flight.
@@ -207,7 +235,25 @@ private struct DiffractionPatternPane: View {
                                      },
                                      set: { addSpotAtCursor() })
         }
+        if view.tool == .tilt, analysis.drawnOrientation != nil {
+            keys.tilt = { direction, coarse in tilt(direction, degrees: coarse ? Self.coarseTiltDegrees : Self.fineTiltDegrees) }
+        }
         return keys
+    }
+
+    /// The Tilt tool's key steps (#787): ⌥ and an arrow tilt 0.1°, ⌥⇧ 1°; VoiceOver's Tilt actions take the coarse step.
+    private static let fineTiltDegrees = 0.1
+    private static let coarseTiltDegrees = 1.0
+
+    /// Tilts the simulated spots as a drag that way would: ↑ and ↓ up and down the rows, ← and → along the columns.
+    private func tilt(_ direction: MoveCommandDirection, degrees: Double) {
+        switch direction {
+        case .up: analysis.tilt(down: -degrees, across: 0)
+        case .down: analysis.tilt(down: degrees, across: 0)
+        case .left: analysis.tilt(down: 0, across: -degrees)
+        case .right: analysis.tilt(down: 0, across: degrees)
+        @unknown default: break
+        }
     }
 
     private func moveSpotCursor(_ step: MarkCursor.Move, fine: Bool) {
@@ -250,6 +296,24 @@ private struct DiffractionPatternPane: View {
                 if let simulated = try? analysis.simulatedSpots(image: image)?.get() {
                     SimulatedSpotsOverlay(spots: simulated, showsLabels: analysis.simulation.showsLabels, layout: layout)
                         .allowsHitTesting(false)
+                }
+                // The shown variants of a precipitate (#808), magenta, under the measured marks; placed off the main actor, the last
+                // placement drawn until the next lands.
+                if item.diffractionVariants.isShown {
+                    let variants = item.diffractionVariants
+                    Group {
+                        if case .success(let set)? = variants.variants(analysis: analysis, image: image) {
+                            VariantSpotsOverlay(pixels: variants.pixels(of: set, analysis: analysis, image: image), layout: layout)
+                            if case .success(let added)? = variants.addedSpots(analysis: analysis, image: image) {
+                                VariantSpotsOverlay(pixels: variants.pixels(of: added, analysis: analysis, image: image), layout: layout,
+                                                    dashed: true)
+                            }
+                        }
+                    }
+                    .allowsHitTesting(false)
+                    .task(id: variants.inputs(analysis: analysis, image: image)) {
+                        if let inputs = variants.inputs(analysis: analysis, image: image) { await variants.place(inputs) }
+                    }
                 }
                 DiffractionOverlay(analysis: analysis, view: view, rows: rows, layout: layout, drag: drag.flatMap { radii(from: $0.start, to: $0.end, layout: layout) })
                     .allowsHitTesting(false)
@@ -320,10 +384,19 @@ private struct DiffractionPatternPane: View {
             .accessibilityLabel("Diffraction pattern")
             // q and d under the pointer, as the status line reads them; else the pattern's size, rings and spots. This pane is the readout's one writer.
             .modifier(ReadoutAccessibilityValue(readout: { appState.diffractionRoom.readout },
-                                                fallback: "\(image.width) by \(image.height) pixels, \(UnitDisplay.count(analysis.rings.count, "ring", "rings")), \(UnitDisplay.count(analysis.spots.count, "spot", "spots"))" + DiffractionSimulationText.spoken(analysis.simulatedSpots(image: image), zoneAxis: analysis.simulation.zoneAxis)))
+                                                fallback: "\(image.width) by \(image.height) pixels, \(UnitDisplay.count(analysis.rings.count, "ring", "rings")), \(UnitDisplay.count(analysis.spots.count, "spot", "spots"))" + DiffractionSimulationText.spoken(analysis.simulatedSpots(image: image), zoneAxis: analysis.simulation.zoneAxis) + DiffractionIndexText.spoken(analysis.indexLine, rows: analysis.indexSpotRows.count)))
             .accessibilityAction(named: "Zoom in") { view.zoom(by: 2, image: image) }
             .accessibilityAction(named: "Zoom out") { view.zoom(by: 0.5, image: image) }
             .accessibilityAction(named: "Reset zoom") { view.fitView() }
+            // The Tilt tool's drag for VoiceOver (#787): one coarse step each way, as ⌥⇧ and an arrow.
+            .accessibilityActions {
+                if view.tool == .tilt, analysis.drawnOrientation != nil {
+                    Button("Tilt up") { tilt(.up, degrees: Self.coarseTiltDegrees) }
+                    Button("Tilt down") { tilt(.down, degrees: Self.coarseTiltDegrees) }
+                    Button("Tilt left") { tilt(.left, degrees: Self.coarseTiltDegrees) }
+                    Button("Tilt right") { tilt(.right, degrees: Self.coarseTiltDegrees) }
+                }
+            }
             // The click's twin while a click adds a spot: an element of its own at the cursor, beside the pattern's (whose children
             // are ignored), so the pattern keeps its label, its readout value and its zoom actions.
             .modifier(SpotCursorAccessibility(active: SpotCursorActions.addsSpots(view), layout: layout,
@@ -688,6 +761,27 @@ private struct SimulatedSpotsOverlay: View {
     }
 }
 
+/// The shown variants' spots (#808): a magenta ring per merged spot, its size growing with the square root of its intensity against
+/// the strongest, as the simulated spots are drawn; a spot several variants predict is one ring.
+private struct VariantSpotsOverlay: View {
+    let pixels: [VariantPixel]
+    let layout: DiffractionLayout
+    /// Spots double diffraction adds (#809): dashed rings of the smallest size.
+    var dashed = false
+
+    var body: some View {
+        Canvas { ctx, _ in
+            for spot in pixels {
+                let p = layout.point(column: spot.column, row: spot.row)
+                let r = 3 + 6 * CGFloat(spot.relative.squareRoot())
+                ctx.stroke(Path(ellipseIn: CGRect(x: p.x - r, y: p.y - r, width: 2 * r, height: 2 * r)), with: .color(.pink),
+                           style: StrokeStyle(lineWidth: 1.5, dash: dashed ? [2, 2] : []))
+            }
+        }
+        .accessibilityHidden(true)
+    }
+}
+
 // MARK: - The readout
 
 /// The rings and spots as a system `Table` with a selection: arrow keys, ⌫ (removes the selected row), ⌘C (copies it, tab-separated under
@@ -727,6 +821,7 @@ private struct DiffractionReadoutTable: View {
                     .accessibilityValue(row.family ?? "")
             }.width(min: 46, ideal: 52)
             TableColumn(header(.dListed)) { row in Text(DiffractionReadoutFormat.cell(.dListed, row)).monospacedDigit() }.width(min: 52, ideal: 58)
+            TableColumn(header(.intensity)) { row in Text(DiffractionReadoutFormat.cell(.intensity, row)).monospacedDigit() }.width(min: 40, ideal: 46)
             TableColumn(header(.delta)) { row in Text(DiffractionReadoutFormat.cell(.delta, row)).monospacedDigit() }.width(min: 48, ideal: 54)
             TableColumn(header(.odds)) { row in Text(DiffractionReadoutFormat.cell(.odds, row)).monospacedDigit() }.width(min: 60, ideal: 68)
             TableColumn(header(.verdict)) { row in
@@ -758,6 +853,56 @@ private struct DiffractionReadoutTable: View {
         guard !picked.isEmpty else { return [] }
         return [NSItemProvider(object: DiffractionReadoutFormat.copyText(picked) as NSString)]
     }
+}
+
+// MARK: - The Spots table
+
+/// Index's spots (#785): Spot, hkl, R px, q, d, d expected, Δd/d % and Phase, sortable by any column (ties by the spot's number, so
+/// the rows keep their order). A row's selection is the mark's: selecting it selects the spot on the pattern and in the readout.
+/// The table is the pattern's text alternative: VoiceOver reads each row's cells, and the pane says the spots are listed here.
+private struct DiffractionSpotTable: View {
+    let view: DiffractionViewState
+    let rows: [PatternIndexing.SpotRow]
+    @State private var sortOrder = [KeyPathComparator(\PatternIndexing.SpotRow.number)]
+
+    private typealias Column = DiffractionSpotFormat.Column
+
+    var body: some View {
+        let selection = Binding<UUID?>(get: { view.selection }, set: { view.selection = $0 })
+        let sorted = DiffractionSpotFormat.sorted(rows, by: sortOrder)
+        Table(sorted, selection: selection, sortOrder: $sortOrder) {
+            TableColumn(header(.spot), value: \.number) { row in
+                Text(DiffractionSpotFormat.cell(.spot, row)).accessibilityIdentifier("diffraction.spots.\(row.number).spot")
+            }.width(min: 44, ideal: 52)
+            TableColumn(header(.hkl), value: \.hklText) { row in
+                Text(DiffractionSpotFormat.cell(.hkl, row)).monospacedDigit()
+                    .accessibilityIdentifier("diffraction.spots.\(row.number).hkl")
+                    .accessibilityValue(DiffractionSpotFormat.spokenHKL(row))
+            }.width(min: 44, ideal: 52)
+            TableColumn(header(.radius), value: \.radiusPx) { row in Text(DiffractionSpotFormat.cell(.radius, row)).monospacedDigit() }
+                .width(min: 44, ideal: 50)
+            TableColumn(header(.q), value: \.q) { row in Text(DiffractionSpotFormat.cell(.q, row)).monospacedDigit() }.width(min: 56, ideal: 62)
+            TableColumn(header(.d), value: \.d) { row in Text(DiffractionSpotFormat.cell(.d, row)).monospacedDigit() }.width(min: 52, ideal: 56)
+            TableColumn(header(.dExpected), value: \.dExpectedKey) { row in
+                Text(DiffractionSpotFormat.cell(.dExpected, row)).monospacedDigit()
+            }.width(min: 56, ideal: 64)
+            TableColumn(header(.delta), value: \.deltaKey) { row in
+                Text(DiffractionSpotFormat.cell(.delta, row)).monospacedDigit()
+                    .accessibilityIdentifier("diffraction.spots.\(row.number).delta")
+            }.width(min: 48, ideal: 54)
+            TableColumn(header(.phase), value: \.phase) { row in Text(DiffractionSpotFormat.cell(.phase, row)) }.width(min: 44, ideal: 60)
+        }
+        .overlay {
+            if rows.isEmpty {
+                Text("Index found no spot still marked: Index again.")
+                    .font(.callout).foregroundStyle(.secondary).padding(10).allowsHitTesting(false)
+            }
+        }
+        .accessibilityIdentifier("diffraction.spots")
+        .accessibilityLabel("Spots")
+    }
+
+    private func header(_ column: Column) -> Text { Text(column.title).accessibilityLabel(column.spoken) }
 }
 
 // MARK: - The values beside the words

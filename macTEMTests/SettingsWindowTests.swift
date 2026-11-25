@@ -6,6 +6,7 @@
 //  each window's `AppState`.
 //
 
+import ShellPhaseLibrary
 import XCTest
 @testable import macTEM
 
@@ -22,6 +23,19 @@ nonisolated final class SettingsWindowTests: XCTestCase {
         XCTAssertEqual(Array(SettingsSection.allCases.prefix(2)), [.images, .agents])
         XCTAssertEqual(SettingsSection.images.title, "Images")
         XCTAssertEqual(Set(SettingsSection.allCases.map(\.id)).count, SettingsSection.allCases.count, "one id each")
+    }
+
+    /// Settings > Materials Project is EMSuiteUI's pane (#778): its sections on the app's one key store and client, which are
+    /// EMSuiteUI's keychain store, the same item in both builds. Red before: no section.
+    @MainActor func testMaterialsProjectIsASectionOnTheSharedKeyStore() throws {
+        XCTAssertTrue(SettingsSection.allCases.contains(.materialsProject))
+        XCTAssertEqual(SettingsSection.materialsProject.title, "Materials Project")
+        let window = squeezed(try source("macTEM/UI/SettingsWindow.swift"))
+        XCTAssertTrue(window.contains("case .materialsProject: MaterialsProjectSettingsSections(model: materialsProject)"))
+        XCTAssertTrue(window.contains("MaterialsProjectSettingsModel(keyStore: PhaseServices.keyStore, client: PhaseServices.client)"))
+        XCTAssertTrue(PhaseServices.keyStore is KeychainAPIKeyStore, "the key lives in the login keychain")
+        let services = try source("macTEM/App/PhaseServices.swift")
+        XCTAssertFalse(services.contains("#if"), "one key store for the store build and the download")
     }
 
     /// The scene shows the window; the Images section holds the databar's toggle on the one key.
