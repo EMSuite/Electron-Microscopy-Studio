@@ -85,9 +85,10 @@ package final class SimulationModel {
         }
     }
 
-    // periphery:ignore - its fields are read by the synthesized == and hash, which Periphery does not see
     package nonisolated struct GridSize: Hashable, Sendable {
+        // periphery:ignore - read by the synthesized == (and hash)
         package let nx: Int
+        // periphery:ignore - read by the synthesized == (and hash)
         package let ny: Int
     }
 
@@ -101,22 +102,31 @@ package final class SimulationModel {
     /// What the stored exit waves were computed for: the specimen as built (its periods, not the thickness typed, so 10.0 and
     /// 10.1 nm, the same 13 periods, keep the waves), the voltage, the aperture and the thermal vibrations (their σ, not the
     /// number of configurations, so asking for more continues the run).
-    // periphery:ignore - its fields are read by the synthesized == and hash, which Periphery does not see
     private struct ExitKey: Equatable {
+        // periphery:ignore - read by the synthesized == (and hash)
         let crystal: String
+        // periphery:ignore - read by the synthesized == (and hash)
         let zoneAxis: SIMD3<Int>
+        // periphery:ignore - read by the synthesized == (and hash)
         let periods: Int?
+        // periphery:ignore - read by the synthesized == (and hash)
         let maximumStrain: Double
+        // periphery:ignore - read by the synthesized == (and hash)
         let volts: Double
+        // periphery:ignore - read by the synthesized == (and hash)
         let apertureMrad: Double?
+        // periphery:ignore - read by the synthesized == (and hash)
         let sigmas: [Int: Double]?
     }
 
-    // periphery:ignore - its fields are read by the synthesized == and hash, which Periphery does not see
     private struct Key: Equatable {
+        // periphery:ignore - read by the synthesized == (and hash)
         let crystal: String
+        // periphery:ignore - read by the synthesized == (and hash)
         let zoneAxis: SIMD3<Int>
+        // periphery:ignore - read by the synthesized == (and hash)
         let thicknessNM: Double
+        // periphery:ignore - read by the synthesized == (and hash)
         let maximumStrain: Double
     }
     @ObservationIgnored private var cache: (key: Key, result: Result<SimulationSpecimen.Built, SimulationSpecimen.Refusal>)?

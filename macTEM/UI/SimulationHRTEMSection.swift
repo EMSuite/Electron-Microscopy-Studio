@@ -150,15 +150,21 @@ struct SimulationHRTEMSection: View {
     }
 
     /// What a change of re-runs the multislice; every other setting only re-images the stored waves.
-    // periphery:ignore - its fields are read by the synthesized == and hash, which Periphery does not see
     private struct RunKey: Equatable {
+        // periphery:ignore - read by the synthesized == (and hash)
         let crystal: String?
+        // periphery:ignore - read by the synthesized == (and hash)
         let zoneAxis: SIMD3<Int>
+        // periphery:ignore - read by the synthesized == (and hash)
         let thicknessNM: Double
+        // periphery:ignore - read by the synthesized == (and hash)
         let beamKV: Double?
+        // periphery:ignore - read by the synthesized == (and hash)
         let apertureMrad: Double?
+        // periphery:ignore - read by the synthesized == (and hash)
         let strain: Double?
         /// Frozen phonons off again: the static lattice runs (on, Simulate runs).
+        // periphery:ignore - read by the synthesized == (and hash)
         let thermal: Bool
     }
 

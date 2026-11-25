@@ -105,13 +105,18 @@ struct SimulationThermalSection: View {
     }
 
     /// What changes the grid the plan line's time is measured on.
-    // periphery:ignore - its fields are read by the synthesized == and hash, which Periphery does not see
     private struct RateKey: Equatable {
+        // periphery:ignore - read by the synthesized == (and hash)
         let crystal: String?
+        // periphery:ignore - read by the synthesized == (and hash)
         let zoneAxis: SIMD3<Int>
+        // periphery:ignore - read by the synthesized == (and hash)
         let thicknessNM: Double
+        // periphery:ignore - read by the synthesized == (and hash)
         let volts: Double
+        // periphery:ignore - read by the synthesized == (and hash)
         let apertureMrad: Double?
+        // periphery:ignore - read by the synthesized == (and hash)
         let on: Bool
     }
 }

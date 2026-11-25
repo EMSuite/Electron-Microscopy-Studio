@@ -43,8 +43,8 @@ struct SimulationHRTEMTableSheet: View {
 
     /// What the table is made for: a change of any of these makes it again. The optics are the cells' (the document's at the
     /// cells' fixed field), so the document's field of view does not remake the table.
-    // periphery:ignore - its fields are read by the synthesized == and hash, which Periphery does not see
     private struct Key: Equatable {
+        // periphery:ignore - read by the synthesized == (and hash)
         let waves: Int
         let optics: HRTEMOptics
         let centreNM: Double
