@@ -4,7 +4,8 @@
 //        settings: the convergence semiangle with Fit Discs (the largest that keeps the discs apart), the largest thickness, the
 //        angular step (it sets the box, which the plan names), the pattern's edge; Show CBED Pattern opens the pattern as its own item
 //        in the Diffraction room and runs the probe (Stop ends it); the thickness slider steps through the stored patterns. The
-//        overlap sentence, the small-box chip and the beyond-the-validated-depth chip are the design's. Presentation only: the state
+//        overlap sentence, the small-box chip and the beyond-the-validated-depth chip are the design's; a tilt drawn by hand is named
+//        as the run's beam tilt (#1013). Presentation only: the state
 //        is `CBEDModel`, every number SimulatoKit's.
 //
 
@@ -75,6 +76,9 @@ struct SimulationCBEDRows: View {
             }
             let blocker = appState.cbedBlocker(of: item)
             planRows()
+            if let tilt = appState.cbedTilt(of: item), let note = CBEDTilt.note(tilt, zoneAxis: analysis.simulation.zoneAxis) {
+                InspectorNote(note).accessibilityIdentifier("diffraction.simulation.cbed.tilt")
+            }
             if let blocker, !model.isComputing { InspectorWarning(blocker) }
             InspectorActionRow {
                 if model.isComputing {
