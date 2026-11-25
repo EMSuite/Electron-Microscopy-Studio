@@ -59,9 +59,8 @@ package nonisolated struct CBEDPattern: Sendable, Equatable {
     package let columns: Int
     /// The thickness of each stored pattern, nm, ascending.
     package let thicknessesNM: [Double]
-    /// The angular step along rows and along columns, mrad per pixel; the reciprocal steps are these over λ.
+    /// The angular step along rows, mrad per pixel; the reciprocal step is this over λ.
     package let rowStepMrad: Double
-    package let columnStepMrad: Double
     /// The reciprocal step along rows and columns, 1/Å per pixel.
     package let rowDeltaQ: Double
     package let columnDeltaQ: Double
@@ -71,8 +70,7 @@ package nonisolated struct CBEDPattern: Sendable, Equatable {
     package let volts: Double
     /// "Si [1 1 1]".
     package let specimen: String
-    /// The box across, Å, and the slices along the beam to the thickest pattern.
-    package let box: SIMD2<Double>
+    /// The slices along the beam to the thickest pattern.
     package let slices: Int
     /// The run was on Metal float32; false is the CPU float64 reference.
     package let onMetal: Bool
@@ -143,7 +141,6 @@ package nonisolated enum CBEDRun {
         /// The periods each pattern is stored at, ascending.
         package let planePeriods: [Int]
         package let periods: Int
-        package let slices: Int
         /// The angular step the box gives along rows and columns, mrad per pixel.
         package let stepMrad: SIMD2<Double>
 
@@ -183,8 +180,7 @@ package nonisolated enum CBEDRun {
         }
         if planes.last != periods { planes.append(periods) }
         let box = SIMD2(Double(repeats.x) * unit.x, Double(repeats.y) * unit.y)
-        let perPeriod = Int((built.box.z / SimulationSpecimen.sliceThickness).rounded(.up))
-        return Plan(repeats: repeats, box: box, unitGrid: unitGrid, planePeriods: planes, periods: periods, slices: periods * perPeriod,
+        return Plan(repeats: repeats, box: box, unitGrid: unitGrid, planePeriods: planes, periods: periods,
                     stepMrad: SIMD2(lambda / box.x * 1000, lambda / box.y * 1000))
     }
 
@@ -322,10 +318,9 @@ package nonisolated enum CBEDRun {
         let slices = plan.periods * perPeriod
         return CBEDPattern(patterns: patterns, rows: rows, columns: columns,
                            thicknessesNM: plan.planePeriods.map { Double($0) * box.z / 10 },
-                           rowStepMrad: rowDeltaQ * beam.wavelength * 1000, columnStepMrad: columnDeltaQ * beam.wavelength * 1000,
+                           rowStepMrad: rowDeltaQ * beam.wavelength * 1000,
                            rowDeltaQ: rowDeltaQ, columnDeltaQ: columnDeltaQ, semiangleMrad: semiangleMrad, tiltMrad: tiltMrad, volts: volts,
-                           specimen: specimen,
-                           box: plan.box, slices: slices, onMetal: onMetal,
+                           specimen: specimen, slices: slices, onMetal: onMetal,
                            beyondRegisteredDepth: onMetal && !MetalAccuracy.registered.covers(nx: grid.x, ny: grid.y, slices: slices))
     }
 

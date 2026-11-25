@@ -37,7 +37,9 @@ struct DiffractionRoom: View {
     /// image kept its pixels alive after its tab closed (macTEM#574, `ImagePane.image`).
     private var image: CalibratedImage { item.session.image ?? ImagePane.blankImage }
 
-    private struct DisplayKey: Equatable { var id: OpenItem.ID; var log: Bool; var width: Int; var height: Int }
+    /// The pattern's display is built again for another item, a Log switch, or new pixels (`ImageSession.generation`: a frame, a CBED
+    /// pattern at another thickness, #1003), whatever their size.
+    private struct DisplayKey: Equatable { var id: OpenItem.ID; var log: Bool; var generation: Int }
 
     var body: some View {
         // The root reads only what a change of the RESULTS (or the log toggle) must redraw: the pointer, the zoom and the annulus drag live in
@@ -100,8 +102,8 @@ struct DiffractionRoom: View {
         }
         // The pattern is shown by its owner (the bind, the extent and the canvas, off the main actor); a quick Log toggle or another
         // file cancels the pass in flight.
-        .task(id: DisplayKey(id: item.id, log: view.useLog, width: image.width, height: image.height)) {
-            await view.show(image: image, analysis: analysis)
+        .task(id: DisplayKey(id: item.id, log: view.useLog, generation: item.session.generation)) {
+            await view.show(image: image, generation: item.session.generation, analysis: analysis)
         }
         // The ring or spot just added is the selected row.
         .onChange(of: analysis.lastAdded) { if let id = analysis.lastAdded { view.selection = id } }
