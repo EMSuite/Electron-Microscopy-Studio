@@ -1,4 +1,4 @@
-"""The 2.3 demo spot pattern (#804, plan row Q21): one frame of pyxem's twinned GaAs nanowire 4D-STEM scan (pyxem data 0.9.0,
+"""The 2.3 demo spot pattern (#804, plan row Q21): one frame of pyxem's twinned nanowire 4D-STEM scan (precession, 300 kV, 144 x 144 px, uint8) (pyxem data 0.9.0,
 `twinned_nanowire.hdf5`, CC BY 4.0, DOI 10.5281/zenodo.15490547), written as a HyperSpy file of one 2D signal with the scan's own
 signal axes and metadata. Run by .github/workflows/public-data.yml (workflow_dispatch, input extract_demo_frame) on GitHub's runner,
 which reaches Zenodo; the file is printed to the log as base64 between markers, with its sha256, so a session can take it from the
@@ -81,7 +81,7 @@ with h5py.File(source, 'r') as f:
             if key in ('data',) or key.startswith('axis-'):
                 continue
             exp.copy(key, gexp)
-        title = f'GaAs nanowire, frame (y {int(iy)}, x {int(ix)}) of pyxem twinned_nanowire (CC BY 4.0, doi:10.5281/zenodo.15490547)'
+        title = f'Twinned nanowire, frame (y {int(iy)}, x {int(ix)}) of pyxem twinned_nanowire (CC BY 4.0, doi:10.5281/zenodo.15490547)'
         general = gexp.require_group('metadata').require_group('General')
         general.attrs['title'] = title
         print('written', out)
