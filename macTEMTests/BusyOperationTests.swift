@@ -354,6 +354,23 @@ nonisolated final class BusyOperationTests: XCTestCase {
     /// `testAnIndexRunningBehindTheMapsRoomShowsAndStops`). This stays a pin: the item is built in the app's menu commands, a view no
     /// test calls. The toolbar's line for that run is held by `ToolbarDisplayTests.testARunInAnotherRoomShowsUnderItsRoomsName`. Red
     /// under: the item titled "Stop" whatever it stops.
+    /// A CBED run of the shown pattern's Simulation document is the Diffraction room's work (#1021): the toolbar names it before Index
+    /// and the ring fit, shows its fraction, and its Stop and ⌘. end it. The pattern opens in a tab of its own, where the document's
+    /// Stop and progress sit far down the inspector. Red before: the room named only Index and the ring fit, and Stop reached neither
+    /// the run nor its progress.
+    func testACBEDRunIsTheDiffractionRoomsWorkWithItsStop() throws {
+        XCTAssertEqual(BusyOperation.diffraction(computingCBED: true, indexing: true, fitting: false), BusyOperation.cbedSentence)
+        XCTAssertEqual(BusyOperation.diffraction(computingCBED: false, indexing: true, fitting: false), "Indexing the pattern…")
+        XCTAssertEqual(BusyOperation.diffraction(computingCBED: false, indexing: false, fitting: true), "Fitting the ring…")
+        XCTAssertNil(BusyOperation.diffraction(computingCBED: false, indexing: false, fitting: false))
+        let action = squeezed(try source("macTEM/UI/RoomPrimaryAction.swift"))
+        XCTAssertTrue(action.contains("case .diffraction: appState.runningCBEDDocument?.cbed.progress"), "the toolbar's fraction")
+        XCTAssertTrue(action.contains("stop: { if let cbed { cbed.stop() } else { analysis.stop() } }"), "the room's Stop button")
+        XCTAssertTrue(action.contains("if let cbed = appState.runningCBEDDocument?.cbed { cbed.stop() }"), "⌘.")
+        let toolbar = squeezed(try source("macTEM/UI/ToolbarDisplay.swift"))
+        XCTAssertTrue(toolbar.contains("if room == .diffraction, let operation = BusyOperation.toolbarOperation(room: room, appState: appState)"))
+    }
+
     func testTheStopItemTakesTheTitleOfTheRunItStops() throws {
         let menu = squeezed(try source("macTEM/App/macTEMApp.swift"))
         XCTAssertTrue(menu.contains("Button(appState.map { RoomPrimaryAction.stopTitle($0) } ?? \"Stop\") { if let appState { RoomPrimaryAction.stopActive(appState) } }"))

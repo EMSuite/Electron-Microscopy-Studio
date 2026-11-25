@@ -269,6 +269,28 @@ nonisolated final class DiffractionSimulationTests: XCTestCase {
         XCTAssertEqual(PatternIndexing.solutions(outcome(2)).first, o, "the best first")
     }
 
+    /// A label is drawn only where it clears every stronger spot's label and every other ring (#1030): strongest first, a label on a
+    /// stronger one's is left out, one over a neighbour's ring is left out, and one in the clear is kept. Red before: every one of the
+    /// 60 strongest was drawn, so the inner labels of Si [1 1 0] sat on each other and on the rings round the direct beam.
+    func testOnlyReadableLabelsAreDrawn() {
+        func spot(_ h: Int, row: Double, column: Double, relative: Double) -> ZoneAxisOverlay.Spot {
+            ZoneAxisOverlay.Spot(hkl: MillerIndex(h, 0, 0), row: row, column: column, intensity: relative, relative: relative)
+        }
+        let strong = spot(1, row: 100, column: 100, relative: 1)       // its label: x 105...126.5, y 105...119
+        let onTop = spot(2, row: 102, column: 104, relative: 0.9)      // its label starts inside the strong one's
+        let underRing = spot(3, row: 60, column: 100, relative: 0.8)   // its label (y 65...79) crosses the ring at (70, 112)
+        let ringed = spot(4, row: 70, column: 112, relative: 0.01)
+        let clear = spot(5, row: 200, column: 200, relative: 0.5)
+        let drawn = [strong, onTop, underRing, clear, ringed]
+        let kept = ZoneAxisOverlay.readable(drawn, among: drawn, point: { SIMD2($0.column, $0.row) }, radius: { _ in 3 },
+                                            labelSize: { _ in SIMD2(21.5, 14) })
+        XCTAssertEqual(kept.map(\.hkl), [strong.hkl, clear.hkl, ringed.hkl])
+        XCTAssertEqual(ZoneAxisOverlay.readable(drawn, among: [], point: { SIMD2($0.column, $0.row) }, radius: { _ in 3 },
+                                                labelSize: { _ in SIMD2(21.5, 14) }).map(\.hkl),
+                       [strong.hkl, underRing.hkl, clear.hkl], "with no rings only the labels' overlap counts: 4's sits on 3's")
+        XCTAssertEqual(ZoneAxisOverlay.estimatedLabelSize("1̄11"), SIMD2(21.5, 14), "three characters, the bar on its digit")
+    }
+
     @MainActor func testTheFitScaleIsOnByDefault() {
         XCTAssertTrue(DiffractionAnalysis().fitScale)
     }

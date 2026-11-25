@@ -65,6 +65,18 @@ enum BusyOperation {
         return nil
     }
 
+    /// The Diffraction room's running work: the CBED run of the shown pattern's Simulation document (#1021), else Index, else the
+    /// ring fit.
+    nonisolated static func diffraction(computingCBED: Bool, indexing: Bool, fitting: Bool) -> String? {
+        if computingCBED { return cbedSentence }
+        if indexing { return "Indexing the pattern…" }
+        if fitting { return "Fitting the ring…" }
+        return nil
+    }
+
+    /// The busy line of a CBED run (#1021).
+    nonisolated static let cbedSentence = "Computing the CBED patterns…"
+
     /// What `room` is running now, or nil when it is idle.
     @MainActor
     static func name(room: WorkspaceArea, appState: AppState) -> String? {
@@ -91,10 +103,9 @@ enum BusyOperation {
             let s = appState.maps
             return maps(opening: s.isOpening, segmenting: s.isSegmenting, texturing: s.isTexturing, drawing: s.isDrawing)
         case .diffraction:
-            guard let analysis = appState.openItems.selected?.diffraction else { return nil }
-            if analysis.isIndexing { return "Indexing the pattern…" }
-            if analysis.isFitting { return "Fitting the ring…" }
-            return nil
+            let analysis = appState.openItems.selected?.diffraction
+            return diffraction(computingCBED: appState.runningCBEDDocument != nil, indexing: analysis?.isIndexing == true,
+                               fitting: analysis?.isFitting == true)
         case .image:
             return appState.simulatingDocument?.multislice.thermalProgress.map(simulating)
         default:
@@ -113,7 +124,9 @@ enum BusyOperation {
         case .indexing: appState.indexing.isBusy
         case .maps: appState.maps.isBusy
         case .image: appState.simulatingDocument != nil
-        case .fft, .diffraction, .results: false
+        // The CBED run only: Index and the ring fit show on the room's own button, as before (#1021).
+        case .diffraction: appState.runningCBEDDocument != nil
+        case .fft, .results: false
         }
         guard busy else { return nil }
         return name(room: room, appState: appState) ?? room.title
@@ -170,6 +183,7 @@ enum BusyOperation {
         case .indexing: appState.indexing.isBusy || appState.ebsd.isOpening
         case .maps: appState.maps.isOpening || appState.maps.isSegmenting || appState.maps.isTexturing
         case .diffraction: appState.openItems.selected.map { $0.diffraction.isFitting || $0.diffraction.isIndexing } ?? false
+            || appState.runningCBEDDocument != nil
         case .image: appState.simulatingDocument != nil
         case .fft, .results: false
         }
@@ -194,5 +208,16 @@ enum BusyOperation {
             return "\(room.title) · \(indexingLine(appState.indexing, dataset: dataset))"
         }
         return toolbarOperation(room: room, appState: appState).map { "\(room.title) · \($0)" }
+    }
+}
+
+extension AppState {
+    /// The Simulation document whose CBED run the selected item shows, while that run goes (#1021): the selected Simulation document,
+    /// or the document of the selected CBED pattern. The CBED pattern opens in a tab of its own, where the document's Stop and progress
+    /// sit far down the inspector; the toolbar's busy line, its Stop and ⌘. read this one, as the Image room's do for a simulation.
+    var runningCBEDDocument: OpenItem? {
+        guard let item = openItems.selected else { return nil }
+        let document = DemoDocuments.isSimulation(item.url) ? item : simulationDocument(ofCBED: item)
+        return document?.cbed.isComputing == true ? document : nil
     }
 }

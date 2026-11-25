@@ -193,14 +193,16 @@ package nonisolated struct PowderTable: Sendable, Equatable {
         return "\(element) \(line)"
     }
 
-    /// A position in the pattern's unit: "38.51°" or "0.428 Å⁻¹".
-    package func positionText(_ position: Double) -> String {
-        settings.kind == .xray ? String(format: "%.2f°", position) : String(format: "%.3f Å⁻¹", position)
+    /// A position in the pattern's unit: "38.51°" or "0.428 Å⁻¹". `locale`: the point (the default) for the door, the reader's for
+    /// the room's peak list and notes (#1039).
+    package func positionText(_ position: Double, locale: Locale = UnitDisplay.point) -> String {
+        settings.kind == .xray ? UnitDisplay.fixed(position, places: 2, locale: locale) + "°"
+            : UnitDisplay.fixed(position, places: 3, locale: locale) + " Å⁻¹"
     }
 
     /// The phase's headline: "Al · Cu Kα · 5 peaks from 10° to 90° · strongest 111 at 38.51°", or for rings
     /// "Al · 200 kV · 7 rings to 1.5 Å⁻¹ · strongest 111 at 0.428 Å⁻¹". A refused phase gives the kit's reason.
-    package func headline(phase i: Int) -> String {
+    package func headline(phase i: Int, locale: Locale = UnitDisplay.point) -> String {
         let name = phases[i].name
         guard let pattern = patterns[i] else {
             return "\(name): " + (refusals.first { $0.index == i }?.reason ?? "no pattern")
@@ -211,21 +213,21 @@ package nonisolated struct PowderTable: Sendable, Equatable {
         switch settings.kind {
         case .xray:
             source = Self.radiationName(settings.radiation)
-            extent = String(format: "from %g° to %g°", range.lowerBound, range.upperBound)
+            extent = "from \(UnitDisplay.number(range.lowerBound, locale: locale))° to \(UnitDisplay.number(range.upperBound, locale: locale))°"
             noun = shown == 1 ? "peak" : "peaks"
         case .rings:
-            source = String(format: "%g kV", settings.volts / 1000)
-            extent = String(format: "to %g Å⁻¹", range.upperBound)
+            source = "\(UnitDisplay.number(settings.volts / 1000, locale: locale)) kV"
+            extent = "to \(UnitDisplay.number(range.upperBound, locale: locale)) Å⁻¹"
             noun = shown == 1 ? "ring" : "rings"
         }
         var parts = [name, source, "\(shown) \(noun) \(extent)"]
-        if let strongest = pattern.strongest { parts.append("strongest \(Self.label(strongest)) at \(positionText(strongest.position))") }
+        if let strongest = pattern.strongest { parts.append("strongest \(Self.label(strongest)) at \(positionText(strongest.position, locale: locale))") }
         return parts.joined(separator: " · ")
     }
 
     /// With two or more shown phases and Mark overlaps on: "Al: 1 of 5 peaks overlapped. Diagnostic peak 111 at 38.51°", or
     /// "Al: every peak is overlapped; no peak tells it apart". nil for one phase, marks off, or a refused phase.
-    package func marksSentence(phase i: Int) -> String? {
+    package func marksSentence(phase i: Int, locale: Locale = UnitDisplay.point) -> String? {
         guard settings.markOverlaps, patterns.compactMap({ $0 }).count >= 2, patterns[i] != nil else { return nil }
         let own = rows.filter { $0.phaseIndex == i }
         let overlapped = own.filter(\.isOverlapped).count
@@ -235,7 +237,7 @@ package nonisolated struct PowderTable: Sendable, Equatable {
             return head + " No \(settings.kind == .xray ? "peak" : "ring") tells it apart."
         }
         let word = settings.kind == .xray ? "peak" : "ring"
-        return head + " Diagnostic \(word) \(diagnostic.hkl) at \(positionText(diagnostic.position))"
+        return head + " Diagnostic \(word) \(diagnostic.hkl) at \(positionText(diagnostic.position, locale: locale))"
     }
 
     /// For a phase with a calculated lattice: what a cell error does to its peaks. 1 % in every length moves a peak by

@@ -79,6 +79,6 @@ nonisolated final class SimulationSpotsTableTests: XCTestCase {
                                            deltaPercent: nil, phase: "")
         XCTAssertEqual(DiffractionSpotFormat.cell(.radiusMM, none), UnitDisplay.noValue)
         XCTAssertEqual(DiffractionSpotFormat.Column.radiusMM.spoken, "radius, millimetres")
-        XCTAssertEqual(DiffractionSpotFormat.Column.radiusMM.title, "R mm")
+        XCTAssertEqual(DiffractionSpotFormat.Column.radiusMM.title, "R (mm)")
     }
 }
