@@ -170,7 +170,7 @@ nonisolated final class CBEDTiltTests: XCTestCase {
     }
 
     /// Measure Thickness closes on a simulated pattern (#916, #1013): Si [1 1 0] tilted (45, 6.53) mrad, so 2 2̄ 0 is the one strong
-    /// reflection, stored every 50 nm to 250 nm; on the pattern of 250 nm (not the first stored) the room's measurement finds the
+    /// reflection, stored every 25 nm to 250 nm; on the pattern of 250 nm (not the first stored) the room's measurement finds the
     /// 2 2̄ 0 disc and gives 250 nm within the method's 3 % (docs/parity.md). The run is the app's, on Metal where this Mac has it
     /// (2604 slices on a 1200 × 1120 grid). In abTEM 1.0.10 (float32, tools/parity/cbed-tilt/cbed_tilt.py's slab, this measurement
     /// ported to NumPy with DiffractoKit's twin of the fit) the same run measured 247.1 nm (−1.2 %), and 150.4 and 197.0 nm at
@@ -184,7 +184,9 @@ nonisolated final class CBEDTiltTests: XCTestCase {
         settings.angularStepMrad = 1
         settings.edgeMrad = 20
         settings.largestThicknessNM = 250
-        settings.thicknessStepNM = 50
+        // Stored every 25 nm: a run holds one stretch between stored planes, so the shorter stretch fits GitHub's macos-26 runner's
+        // budget (about 1.8 GB); the 250 nm pattern is the same wave whichever planes are stored on the way.
+        settings.thicknessStepNM = 25
         let pattern = try CBEDRun.run(built, settings: settings, semiangleMrad: 3.9, volts: Self.volts, specimen: "Si [1 1 0]",
                                       shortestG: si.cell.gLength(MillerIndex(1, 1, 1)), tiltMrad: SIMD2(45, 6.53),
                                       zoneAxis: SIMD3(1, 1, 0))
