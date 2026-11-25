@@ -28,11 +28,10 @@ struct SimulationBesideSection: View {
         InspectorSection("Beside Measured") {
             InspectorRow("Place Beside") {
                 Picker("Place Beside", selection: Binding(get: { beside?.measured },
-                                                          set: { url in set(url.map { url in
-                                                              var new = beside ?? HRTEMBeside(measured: url)
-                                                              new.measured = url
-                                                              return new
-                                                          }) })) {
+                                                          set: { url in
+                                                              set(url.flatMap { url in candidates.first { $0.url == url } }
+                                                                  .map { appState.besideNaming($0, in: beside) })
+                                                          })) {
                     Text("None").tag(URL?.none)
                     ForEach(candidates, id: \.id) { item in
                         Text(item.url.lastPathComponent).tag(Optional(item.url))
@@ -91,6 +90,14 @@ struct SimulationBesideSection: View {
         }
         // The measured image opened, closed or read again: the picture follows it.
         .task(id: appState.besideKey(of: simulation)) { appState.refreshHRTEMImage(of: simulation) }
+        // Closed: where its file is now, through the app's bookmark (#824).
+        .task(id: linkKey) { await appState.resolveBesideLink(of: simulation) }
+    }
+
+    /// What the link's resolution reads: the link, and whether the measured image is open.
+    private var linkKey: String? {
+        guard let link = simulation.multislice.beside?.link else { return nil }
+        return "\(link.id) \(link.fingerprint) \(appState.besideMeasuredItem(of: simulation) == nil)"
     }
 
     /// The readout under the controls: the scale both share, or the sentence when the pair cannot be drawn.
@@ -102,6 +109,25 @@ struct SimulationBesideSection: View {
             InspectorNote(scale).accessibilityIdentifier("simulation.beside.scale")
             if coarser { InspectorNote(HRTEMBeside.coarser) }
             InspectorNote(HRTEMBeside.pairNote)
+        case .closed(let name, let file?):
+            InspectorNote(AppState.BesideStatus.closed(name, file: file).lines.joined(separator: " "))
+            InspectorActionRow {
+                Button("Open \(file.lastPathComponent)") { Task { await appState.openBeside(of: simulation, at: file) } }
+                    .help("Opens the measured image's file again, where its link found it")
+                    .accessibilityIdentifier("simulation.beside.open")
+            }
+        case .unlinked(let line, let different):
+            InspectorWarning(line).accessibilityIdentifier("simulation.beside.refusal")
+            InspectorActionRow {
+                if different {
+                    Button("Link Anyway") { Task { await appState.linkBesideAnyway(of: simulation) } }
+                        .help("Names this file as the measured image from now on")
+                        .accessibilityIdentifier("simulation.beside.linkAnyway")
+                }
+                Button("Locate…") { Task { await appState.locateBesideLink(of: simulation) } }
+                    .help("Pick the measured image's file; a file with other contents is named as different")
+                    .accessibilityIdentifier("simulation.beside.locate")
+            }
         case let status:
             InspectorWarning(status.lines.joined(separator: " ")).accessibilityIdentifier("simulation.beside.refusal")
         }

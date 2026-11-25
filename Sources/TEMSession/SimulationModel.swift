@@ -59,6 +59,8 @@ package final class SimulationModel {
     package private(set) var convergence: Convergence?
     /// Place Beside: the measured image the HRTEM image is shown beside, and how; nil shows the simulation alone (#898).
     package private(set) var beside: HRTEMBeside?
+    /// What Place Beside's link to its measured file is now, while the measured image is not open (#824); nil before it is resolved.
+    package private(set) var besideLinkState: LinkedFileState?
 
     package nonisolated struct Convergence: Sendable, Equatable {
         /// RMS of the change over RMS of the image.
@@ -365,8 +367,15 @@ package final class SimulationModel {
             guard new.rotationDegrees.isFinite, HRTEMBeside.insetCellRange.contains(new.insetCells.x),
                   HRTEMBeside.insetCellRange.contains(new.insetCells.y) else { return false }
         }
+        if new?.link != beside?.link { besideLinkState = nil }
         beside = new
         return true
+    }
+
+    /// What resolving or locating Place Beside's link found; dropped when it is not about the link Place Beside holds now.
+    package func setBesideLinkState(_ state: LinkedFileState?, for link: LinkedFile) {
+        guard beside?.link == link else { return }
+        besideLinkState = state
     }
 
     /// Every value of `optics` valid, as `changeOptics` keeps them.

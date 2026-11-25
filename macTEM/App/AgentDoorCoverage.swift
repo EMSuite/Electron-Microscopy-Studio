@@ -43,6 +43,8 @@ nonisolated enum AgentDoorCoverage {
     static let crashReportReason = "the person's report of a crash, which only they may send or dismiss"
     /// Help > How to Cite (#828): the app's citation, copied to the person's clipboard.
     static let citeReason = "copies the app's citation to the person's clipboard; CITATION.cff in the repository holds the same"
+    /// Link Anyway (#824): names the file the person picked with Locate… although its contents differ, which only they can vouch for.
+    static let linkAnywayReason = "links a file the person picked with Locate… whose contents differ; only the person can say it is the same data"
     static let resultsFilterReason = "filters what the person's results table shows; get_results gives every row whatever the filter"
 
     static let controls: [String: Reach] = [
@@ -498,7 +500,10 @@ nonisolated enum AgentDoorCoverage {
         "simulation.beside.insetAcross": .tool("set_simulation"),
         "simulation.beside.insetDown": .tool("set_simulation"),
         "simulation.beside.layout": .tool("set_simulation"),
+        "simulation.beside.linkAnyway": .personOnly(linkAnywayReason),
+        "simulation.beside.locate": .personOnly(openReason),
         "simulation.beside.measured": .tool("set_simulation"),
+        "simulation.beside.open": .personOnly(openCloseReason),
         "simulation.beside.refusal": .tool("read_simulation"),
         "simulation.beside.rotation": .tool("set_simulation"),
         "simulation.beside.scale": .tool("read_simulation"),
