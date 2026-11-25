@@ -88,7 +88,7 @@ nonisolated final class SlabDrawingTests: XCTestCase {
     /// box frame drawn as the crystal's (the third axis along z), the rotation's transpose, the cap applied to a small slab.
     func testTheDrawnSlabIsTheSlabInTheCrystalsFrame() throws {
         let built = try silicon(nm: 10)
-        let drawn = SlabDrawing.drawn(built)
+        let drawn = SlabDrawing.drawn(built, fitsAcross: false)
         XCTAssertFalse(drawn.isCapped)
         XCTAssertEqual(drawn.atoms.count, 16 * 13)
         XCTAssertEqual(drawn.total, 16 * 13)
@@ -134,7 +134,7 @@ nonisolated final class SlabDrawingTests: XCTestCase {
     /// how deep. Mutation: the cap ignored, a period cut in half, the count not named.
     func testALargeSlabIsCappedAtWholePeriodsAndSaysSo() throws {
         let built = try silicon(nm: 10)
-        let drawn = SlabDrawing.drawn(built, limit: 50)
+        let drawn = SlabDrawing.drawn(built, limit: 50, fitsAcross: false)
         XCTAssertTrue(drawn.isCapped)
         XCTAssertEqual(drawn.atoms.count, 48, "three whole periods of 16")
         XCTAssertEqual(drawn.drawnDepth, 3 * built.box.z, accuracy: 1e-9)
@@ -142,6 +142,21 @@ nonisolated final class SlabDrawingTests: XCTestCase {
         XCTAssertTrue(drawn.caption.hasSuffix("48 of 208 atoms drawn, the first \(UnitDisplay.number(3 * built.box.z / 10, digits: 3)) nm"),
                       drawn.caption)
         XCTAssertEqual(SlabDrawing.drawnAtomLimit, 20_000)
+    }
+
+    /// The pane fits what it draws (#1020): a slab is drawn no deeper than its widest side across, in whole periods and at least one,
+    /// so a 10 nm slab one unit across fills the pane down the beam instead of a speck in a sphere 10 nm wide; the caption names the
+    /// depth drawn. A slab no deeper than it is wide is drawn whole. Red before: the whole 10 nm was drawn, 13 times deeper than wide.
+    func testTheDrawnSlabIsNoDeeperThanItIsWide() throws {
+        let built = try silicon(nm: 10)
+        let drawn = SlabDrawing.drawn(built)
+        XCTAssertTrue(drawn.isCapped)
+        XCTAssertEqual(drawn.atoms.count, 16, "one period of Si [1 1 0], 7.68 Å deep, as wide as its widest side")
+        XCTAssertEqual(drawn.drawnDepth, built.box.z, accuracy: 1e-9)
+        XCTAssertLessThanOrEqual(length(drawn.cell.columns.2), max(length(drawn.cell.columns.0), length(drawn.cell.columns.1)) + 1e-9)
+        XCTAssertTrue(drawn.caption.hasSuffix("16 of 208 atoms drawn, the first \(UnitDisplay.number(built.box.z / 10, digits: 3)) nm"),
+                      drawn.caption)
+        XCTAssertEqual(SlabDrawing.drawn(built, fitsAcross: false).atoms.count, 208, "the whole slab without the fit")
     }
 
     /// The document's model: Atom columns starts off, its switch turns it on, and the columns it gives are the drawing's for the
