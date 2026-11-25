@@ -867,7 +867,9 @@ nonisolated final class EELSRoomTests: XCTestCase {
         XCTAssertTrue(room.contains("EELSRoomFormat.leftMargin(labels:"), "the margin is measured from the labels")
         XCTAssertTrue(room.contains("hatch(band"), "the gap is a hatched band"); XCTAssertTrue(room.contains("axis.gapLabel"))
         XCTAssertTrue(room.contains("dash: [3, 3]"))
-        XCTAssertTrue(room.contains("at: CGPoint(x: 4, y: area.minY - 8), anchor: .leading"), "the counts axis's title starts at the view's left edge")
+        // #1062: the title hangs from the layout's origin, its leading edge 4 pt from the view's left, above the top tick label.
+        XCTAssertTrue(room.contains("at: EELSSpectrumLayout.axisTitleOrigin, anchor: .topLeading)"), "the counts axis's title starts at the view's left edge")
+        XCTAssertEqual(EELSSpectrumLayout.axisTitleOrigin.x, 4)
     }
 
     /// The spectrum zooms and pans as the EDS one does (Paul, 2026-10-23): the window cuts the low loss and the core loss, the gap stays between them, a window on the

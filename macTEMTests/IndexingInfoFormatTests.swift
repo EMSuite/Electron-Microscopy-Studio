@@ -98,18 +98,21 @@ nonisolated final class IndexingInfoFormatTests: XCTestCase {
         XCTAssertEqual(IndexingInfoFormat.points(1, locale: Self.german), "1 point")
     }
 
-    /// The Results table's header names the run, its counts never grouped and its PC as the Calibration row writes it. Red before: the
-    /// view wrote "4.125 of 4.125 indexed · PC (0,4215, 0,2163, 0,5323)" in German, a decimal comma and the list's one mark.
+    /// The Results table's heading names the run; the line under it carries its phases and its PC as the Calibration row writes it, and
+    /// the map's line its counts, never grouped (#1061 split the one heading in two). Red before (#1061): one heading "Results · Hough ·
+    /// Ni · 4125 of 4125 indexed · PC (…)"; before that the view wrote "4.125 of 4.125 indexed · PC (0,4215, 0,2163, 0,5323)" in German.
     func testTheResultsHeaderWritesItsNumbersOneWay() throws {
         let result = try everyPointIndexed()
-        XCTAssertEqual(IndexingInfoFormat.resultsHeader(result, run: "Hough", projectionCentre: Self.pc, locale: Self.german),
-                       "Results · Hough · Ni · 4125 of 4125 indexed · PC (0,4215; 0,2163; 0,5323)")
-        XCTAssertEqual(IndexingInfoFormat.resultsHeader(result, run: "Hough", projectionCentre: Self.pc, locale: Self.us),
-                       "Results · Hough · Ni · 4125 of 4125 indexed · PC (0.4215, 0.2163, 0.5323)")
-        XCTAssertEqual(IndexingInfoFormat.resultsHeader(result, run: "Dictionary · Refined", projectionCentre: nil, locale: Self.german),
-                       "Results · Dictionary · Refined · Ni · 4125 of 4125 indexed")
+        XCTAssertEqual(IndexingInfoFormat.resultsHeading(run: "Hough"), "Results · Hough")
+        XCTAssertEqual(IndexingInfoFormat.resultsHeading(run: "Dictionary · Refined"), "Results · Dictionary · Refined")
+        XCTAssertEqual(IndexingInfoFormat.resultsDetail(result, projectionCentre: Self.pc, locale: Self.german), "Ni · PC (0,4215; 0,2163; 0,5323)")
+        XCTAssertEqual(IndexingInfoFormat.resultsDetail(result, projectionCentre: Self.pc, locale: Self.us), "Ni · PC (0.4215, 0.2163, 0.5323)")
+        XCTAssertEqual(IndexingInfoFormat.resultsDetail(result, projectionCentre: nil, locale: Self.german), "Ni")
+        XCTAssertEqual(IndexingInfoFormat.mapCount(result, stopped: false, locale: Self.german), "4125 of 4125 indexed")
+        XCTAssertTrue(IndexingInfoFormat.mapCount(result, stopped: true, locale: Self.german).hasSuffix("· 4125 indexed"))
         let room = try ui("IndexingRoom.swift")
-        XCTAssertTrue(room.contains("return IndexingInfoFormat.resultsHeader(result, run: session.shownRun?.title ?? result.method.title,"))
+        XCTAssertTrue(room.contains("return IndexingInfoFormat.resultsHeading(run: session.shownRun?.title ?? result.method.title)"))
+        XCTAssertTrue(room.contains("IndexingInfoFormat.resultsDetail($0, projectionCentre: session.resultProjectionCenter)"))
         XCTAssertFalse(room.contains(".formatted()"), "the map's count line and the best match's header write their counts one way")
     }
 

@@ -107,15 +107,9 @@ nonisolated enum OpenItemRowFormat {
     /// "Open a .dm4, .dm3, .tif, .tiff or .mrc image".
     static var openPrompt: String { "Open a \(extensionList(ImageOpening.readableExtensions)) image" }
 
-    /// U+2060 WORD JOINER: no line break on either side, nothing drawn and nothing spoken.
-    static let wordJoiner = "\u{2060}"
-
-    /// The prompt for wrapped text (the welcome inspector's empty state): each extension is one unbreakable run, so a line breaks only
-    /// between extensions; the inspector's narrow column broke ".emi" as ".e / mi" (#1024). Without the joiners it is `openPrompt`.
-    static var wrappingOpenPrompt: String {
-        let unbroken = ImageOpening.readableExtensions.map { ext in ext.map(String.init).joined(separator: wordJoiner) }
-        return "Open a \(extensionList(unbroken).replacingOccurrences(of: ".", with: "." + wordJoiner)) image"
-    }
+    /// The welcome inspector's empty state: one sentence without the extension list, which the Open panel knows (#1062). The list with
+    /// word joiners between its letters still broke ".emi" as ".e / mi" in the inspector's narrow column (the pass of 25 Nov).
+    static let welcomeInspectorPrompt = "Open an image, a spectrum or an EBSD file; each room's controls appear here."
 }
 
 /// The colormapped pixels of a thumbnail, pure so a test pins the mapping.

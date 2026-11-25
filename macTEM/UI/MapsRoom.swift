@@ -1,15 +1,15 @@
 //
 //  MapsRoom.swift
-//  Role: the Maps room's first slice (docs/sem/design/orientation-maps-room.md §3, §6; brief P3-04): the map on the left (the layer the
+//  Role: the Maps room (docs/sem/design/orientation-maps-room.md §3, §6; brief P3-04; #1064): the map in the leading pane (the layer the
 //        inspector's Maps section picks: IPF-Z, IPF-X, IPF-Y, Phase or a property of the file, one pixel per scan point, the marker at the
-//        picked point, the scale bar from the step), on the right the live pattern pane when the map came with its patterns (the Patterns
-//        room's own pane, following the same point) or the orientation pane when it did not (the point's unit cell in the sample frame, its
-//        IPF colour and Euler angles), and the colour key in the bottom pane (each phase's TSL key for an IPF layer, the phase legend for
-//        Phase, the colour bar's range for a property). Presentation only: the pictures and words are `OrientationMaps`' (TEMCore), the
-//        state `OrientationMapSession`'s (TEMSession).
+//        picked point, the scale bar from the step) with the picked point as a small inset in its top-trailing corner, opposite the scale
+//        bar (the Patterns room's pattern there when the map came with its patterns, else the point's unit cell in the sample frame with
+//        its Euler angles; Display › Pattern inset hides it), and the results in the trailing pane at full height (`MapsResultsPane`:
+//        the colour key, Grains, Pole figures, ODF, Histogram). Presentation only: the pictures and words are `OrientationMaps`'
+//        (TEMCore), the state `OrientationMapSession`'s (TEMSession).
 //
 //  P5-04 completes it: Segment (the toolbar's verb) adds the grain analysis' layers (Grains, KAM, GOS, GND, Schmid factor), the boundaries
-//  and the selected grain's outline and slip traces over the map, and the bottom pane's Grains, Pole figures and ODF tabs beside the key
+//  and the selected grain's outline and slip traces over the map, and the Grains, Pole figures and ODF tabs beside the key
 //  (`MapsRoomAnalysis.swift`).
 //
 //  ⌘-click on the map adds the grain under the pointer to the selection, or takes it out (macTEM#239).
@@ -41,17 +41,10 @@ struct MapsRoom: View {
         return dataset
     }
 
+    /// The map with the picked point's inset: the pane the keys live on.
     private func upper(_ document: OrientationMapSession.Document) -> some View {
-        PaneSplit(storageKey: "maps.split", resizeLabel: "Resize the map and the pattern", leadingName: "Map") {
-            MapPane(session: appState.maps, state: appState.mapsRoom, patterns: patternsDataset.map { _ in appState.ebsd }, map: document.map,
-                    staleness: appState.mapsStaleness)
-        } trailing: {
-            if let dataset = patternsDataset {
-                LivePatternPane(session: appState.ebsd, state: appState.patternsRoom, dataset: dataset)
-            } else {
-                OrientationPane(session: appState.maps)
-            }
-        }
+        MapPane(session: appState.maps, state: appState.mapsRoom, patterns: patternsDataset.map { _ in appState.ebsd }, map: document.map,
+                staleness: appState.mapsStaleness)
     }
 
     var body: some View {
@@ -70,14 +63,15 @@ struct MapsRoom: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .accessibilityIdentifier("maps.opening")
             } else if let document = session.document {
-                VerticalPaneSplit(storageKey: "maps.lowerSplit", defaultFraction: 0.72, resizeLabel: "Resize the map and the colour key",
-                                  topName: "Map and pattern", minimumTop: 160, minimumBottom: LayoutPolicy.mapsKeyPaneMinimum) {
+                // The map leads; the results take the trailing pane at full height (#1064: in a strip under the map and the pattern they
+                // were cut). No bottom strip.
+                PaneSplit(storageKey: MapsRoomLayout.splitKey, resizeLabel: "Resize the map and the results", leadingName: "Map") {
                     upper(document)
-                        // The keys live on the map and the pattern; the Grains table below sits outside this focusable container,
-                        // so a click in it keeps the keyboard there (blue rows, ⌘C), as in the EELS room (#353).
+                        // The keys live on the map; the results beside it sit outside this focusable container, so a click in the Grains
+                        // table keeps the keyboard there (blue rows, ⌘C), as in the EELS room (#353).
                         .modifier(MapsKeyedRoom(session: session, patterns: patternsDataset.map { _ in appState.ebsd }))
-                } bottom: {
-                    MapsBottomPane(session: session, state: state)
+                } trailing: {
+                    MapsResultsPane(session: session, state: state)
                 }
                 .id(document.id)
             } else {
@@ -99,6 +93,28 @@ struct MapsRoom: View {
                       didWrite: { state.didWrite(to: $0) }, didFinish: { state.didFinishExport() })
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("maps.room")
+    }
+}
+
+// MARK: - The layout
+
+/// Where the Maps room puts what (#1064): the map in the leading pane, the results in the trailing pane at full height, nothing in a
+/// strip under them; the picked point's inset in the map's top-trailing corner, opposite the scale bar in the footer's leading corner.
+enum MapsRoomLayout {
+    /// What a place of the room holds.
+    enum Content: Equatable { case map, results }
+    static let leading = Content.map
+    static let trailing = Content.results
+    /// The strip under the panes: none.
+    static let bottom: Content? = nil
+    /// The split's stored fraction: its own key, so the old map | pattern fraction does not size the results.
+    static let splitKey = "maps.resultsSplit"
+    static let insetAlignment = Alignment.topTrailing
+    static let insetMargin: CGFloat = 6
+    /// Whether the map's box holds the inset with room to spare: at least twice its side each way, else the inset would hide the map.
+    static func fitsInset(in box: CGSize) -> Bool {
+        let side = LayoutPolicy.mapsInsetSide + 2 * insetMargin + 8
+        return box.width >= 2 * side && box.height >= 2 * side
     }
 }
 
@@ -160,10 +176,27 @@ struct MapPane: View {
     private var header: some View {
         let shape = session.gridShape
         return HStack(spacing: 8) {
-            Text(MapsRoomFormat.mapTitle(session.layer, stale: staleness != nil))
-                .font(.headline).lineLimit(1)
-                .help(staleness ?? "")
-                .accessibilityIdentifier("maps.map.title")
+            // DEPARTURE from control-placement §1 (#1065, approved by Paul 25 Nov 2026): the heading is the map picker, a menu of the
+            // map kinds on the same property the inspector's Map row set; the heading names what the pane shows, and choosing it there
+            // keeps the inspector to settings.
+            Menu {
+                Picker("Map", selection: Binding(get: { session.layer }, set: { session.setLayer($0) })) {
+                    ForEach(session.layers) { layer in
+                        Text(layer.title).tag(layer)
+                    }
+                }
+                .pickerStyle(.inline)
+                .labelsHidden()
+            } label: {
+                Text(MapsRoomFormat.mapTitle(session.layer, stale: staleness != nil))
+                    .font(.headline).lineLimit(1)
+            }
+            .menuStyle(.button)
+            .buttonStyle(.borderless)
+            .menuIndicator(.visible)
+            .fixedSize()
+            .help(staleness ?? "What the map draws: the IPF colours along a sample axis, the phases, a property of the file, or after Segment a grain map")
+            .accessibilityIdentifier("maps.layer")
             Spacer(minLength: 8)
             if session.isDrawing {
                 ProgressView().controlSize(.small).accessibilityLabel("Drawing the map")
@@ -232,13 +265,24 @@ struct MapPane: View {
             .zoomPanWheel(zoomModel, box: box)
             .zoomCommandTarget(zoomModel, isTarget: true)
 
+            // The picked point beside the data it belongs to, opposite the scale bar (#1064); it takes no clicks, so the map under it
+            // still picks.
+            if state.showsPointInset, MapsRoomLayout.fitsInset(in: box) {
+                MapsPointInset(session: session, patterns: patterns)
+                    .padding(MapsRoomLayout.insetMargin)
+                    .frame(width: box.width, height: box.height, alignment: MapsRoomLayout.insetAlignment)
+                    .allowsHitTesting(false)
+            }
+
             PaneFooter {
                 if map.dx > 0 {
                     ScaleBar(unitsPerPoint: ImageScaleBar.unitsPerPoint(perPixel: map.dx, imageWidth: shape.columns, boxWidth: box.width, zoom: zp.drawZoom),
                              unitLabel: EBSDBrowsing.unitLabel(map.scanUnit))
                 }
             } trailing: {
-                HStack(spacing: 8) {
+                HStack(alignment: .bottom, spacing: 8) {
+                    // What the colours mean, always on the map (#1065), as the Indexing room's legend.
+                    MapsKeyInset(session: session)
                     if notIndexed > 0 {
                         Text(verbatim: "\(notIndexed) not indexed").font(.caption.monospacedDigit()).foregroundStyle(.secondary).fixedSize()
                             .accessibilityIdentifier("maps.map.notIndexed")
@@ -283,64 +327,92 @@ struct MapPane: View {
     }
 }
 
-// MARK: - The orientation pane
+// MARK: - The picked point's inset
 
-/// For a map without patterns (design §3): the picked point's unit cell in the sample frame seen down z (x to the right, y down, as the
-/// map), its IPF colour, phase and Euler angles.
-struct OrientationPane: View {
+/// The picked point as a small inset on the map (#1064; before, half the room): the pattern there as the Patterns room shows it when the
+/// map came with its patterns, else (design §3) the point's unit cell in the sample frame seen down z (x to the right, y down, as the
+/// map) with its IPF colour, phase and Euler angles.
+struct MapsPointInset: View {
+    /// What `OrientationMapSession.orientation(at:)` gives for an indexed point.
+    typealias PointOrientation = (phase: CrystalPhase, euler: SIMD3<Double>, rotation: SIMD4<Double>, rgb: SIMD3<Double>, direction: SampleDirection)
+
     let session: OrientationMapSession
+    /// The Patterns room's session when the map is on its scan.
+    let patterns: EBSDSession?
 
     var body: some View {
         let point = session.pinned
-        let found = session.orientation(at: point)
-        VStack(spacing: 6) {
-            HStack(spacing: 8) {
-                Text(verbatim: "Orientation · row \(point.row) col \(point.column)")
-                    .font(.headline).lineLimit(1)
-                    .accessibilityIdentifier("maps.orientation.title")
-                Spacer(minLength: 8)
-            }
-            .frame(height: LayoutPolicy.paneHeaderHeight)
-            if let found {
-                let edges = OrientationMaps.unitCellEdges(phase: found.phase, rotation: found.rotation)
-                Canvas { context, size in
-                    let side = min(size.width, size.height) * 0.42
-                    let centre = CGPoint(x: size.width / 2, y: size.height / 2)
-                    // Far edges first and fainter, so the cell reads in depth (z into the sample is away from the viewer).
-                    for (a, b) in edges.sorted(by: { $0.0.z + $0.1.z > $1.0.z + $1.1.z }) {
-                        var path = Path()
-                        path.move(to: CGPoint(x: centre.x + a.x * side, y: centre.y + a.y * side))
-                        path.addLine(to: CGPoint(x: centre.x + b.x * side, y: centre.y + b.y * side))
-                        let depth = (a.z + b.z) / 2
-                        context.stroke(path, with: .color(.primary.opacity(depth > 0 ? 0.35 : 0.9)), lineWidth: depth > 0 ? 1 : 2)
-                    }
-                }
-                .accessibilityLabel("Unit cell of \(found.phase.name) in the sample frame")
-                .accessibilityIdentifier("maps.orientation.cell")
-                HStack(spacing: 10) {
-                    RoundedRectangle(cornerRadius: 3)
-                        .fill(Color(red: found.rgb.x, green: found.rgb.y, blue: found.rgb.z))
-                        .frame(width: LayoutPolicy.mapsColourSwatchSize, height: LayoutPolicy.mapsColourSwatchSize)
-                        .accessibilityHidden(true)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(verbatim: "\(found.phase.name) · \(found.phase.pointGroupName ?? "no point group") · IPF-\(found.direction.rawValue.uppercased())")
-                            .font(.callout)
-                        // The angles' symbols are said in words (`SEMColumnSpeech`, #320); what is drawn is unchanged.
-                        let euler = MapsRoomFormat.eulerValues(found.euler)
-                        Text(verbatim: MapsRoomFormat.eulerLine(euler)).font(.callout.monospacedDigit()).foregroundStyle(.secondary)
-                            .accessibilityLabel(SEMColumnSpeech.spokenEuler(euler))
-                    }
-                    Spacer(minLength: 0)
-                }
-                .accessibilityElement(children: .combine)
-                .accessibilityIdentifier("maps.orientation.values")
+        let side = LayoutPolicy.mapsInsetSide
+        VStack(alignment: .leading, spacing: 3) {
+            if let patterns {
+                pattern(patterns, side: side)
+                Text(verbatim: "row \(point.row) · col \(point.column)").font(.caption2.monospacedDigit()).foregroundStyle(.secondary)
             } else {
-                Text("No indexed point here").foregroundStyle(.secondary).frame(maxWidth: .infinity, maxHeight: .infinity)
+                Text(verbatim: "row \(point.row) col \(point.column)").font(.caption2.monospacedDigit()).foregroundStyle(.secondary)
+                    .accessibilityIdentifier("maps.orientation.title")
+                if let found = session.orientation(at: point) {
+                    cell(found, side: side)
+                    // The angles' symbols are said in words (`SEMColumnSpeech`, #320); what is drawn is unchanged.
+                    let euler = MapsRoomFormat.eulerValues(found.euler)
+                    Text(verbatim: MapsRoomFormat.eulerLine(euler)).font(.caption2.monospacedDigit()).foregroundStyle(.secondary)
+                        .lineLimit(1).minimumScaleFactor(0.8)
+                        .accessibilityLabel(SEMColumnSpeech.spokenEuler(euler))
+                        .accessibilityIdentifier("maps.orientation.values")
+                } else {
+                    Text("No indexed point here").font(.caption2).foregroundStyle(.secondary)
+                        .frame(width: side, height: side)
+                }
             }
         }
-        .padding(8)
+        .frame(width: side, alignment: .leading)
+        .padding(4)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 4))
         .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("maps.orientation")
+        .accessibilityLabel(patterns == nil ? "Orientation at the picked point" : "Pattern at the picked point")
+        .accessibilityIdentifier("maps.inset")
+    }
+
+    /// The Patterns room's pattern at the point, through its own Display (colormap, window, gamma).
+    @ViewBuilder private func pattern(_ patterns: EBSDSession, side: CGFloat) -> some View {
+        let presentation = patterns.patternPresentation
+        if let canvas = presentation.canvas, canvas.width > 0, canvas.height > 0 {
+            let box = LayoutPolicy.fitted(in: CGSize(width: side, height: side), aspect: CGFloat(canvas.width) / CGFloat(canvas.height))
+            MetalImageView(pixels: canvas.values, width: canvas.width, height: canvas.height, contentVersion: canvas.contentVersion,
+                           colormap: presentation.colormap, displayLo: presentation.displayFractions.low,
+                           displayHi: presentation.displayFractions.high, gamma: Float(presentation.gamma), pixelScale: canvas.scale)
+                .displayTransform(.identity(box))
+                .frame(width: box.width, height: box.height)
+                .frame(width: side, height: side)
+                .accessibilityIdentifier("maps.inset.pattern")
+        } else {
+            Rectangle().fill(.quaternary).frame(width: side, height: side)
+        }
+    }
+
+    /// The unit cell of the point's phase in the sample frame, far edges first and fainter, beside its IPF colour.
+    private func cell(_ found: PointOrientation, side: CGFloat) -> some View {
+        let edges = OrientationMaps.unitCellEdges(phase: found.phase, rotation: found.rotation)
+        return Canvas { context, size in
+            let scale = min(size.width, size.height) * 0.42
+            let centre = CGPoint(x: size.width / 2, y: size.height / 2)
+            // Far edges first and fainter, so the cell reads in depth (z into the sample is away from the viewer).
+            for (a, b) in edges.sorted(by: { $0.0.z + $0.1.z > $1.0.z + $1.1.z }) {
+                var path = Path()
+                path.move(to: CGPoint(x: centre.x + a.x * scale, y: centre.y + a.y * scale))
+                path.addLine(to: CGPoint(x: centre.x + b.x * scale, y: centre.y + b.y * scale))
+                let depth = (a.z + b.z) / 2
+                context.stroke(path, with: .color(.primary.opacity(depth > 0 ? 0.35 : 0.9)), lineWidth: depth > 0 ? 1 : 2)
+            }
+        }
+        .frame(width: side, height: side)
+        .overlay(alignment: .topLeading) {
+            RoundedRectangle(cornerRadius: 2)
+                .fill(Color(red: found.rgb.x, green: found.rgb.y, blue: found.rgb.z))
+                .frame(width: LayoutPolicy.mapsPhaseSwatchSize, height: LayoutPolicy.mapsPhaseSwatchSize)
+                .accessibilityHidden(true)
+        }
+        .accessibilityLabel("Unit cell of \(found.phase.name) in the sample frame, IPF-\(found.direction.rawValue.uppercased())")
+        .accessibilityIdentifier("maps.orientation.cell")
     }
 }
 
@@ -348,17 +420,18 @@ struct OrientationPane: View {
 
 /// Where an IPF key and its corner labels sit in the key cell (#725): the key between two label bands, a corner in the key's upper
 /// half labelled in the band above it, one in the lower half in the band below, so no label covers the key ("[1̄11]" sat on the
-/// triangle's top), and a margin either side for the corners on the key's left and right edges.
+/// triangle's top), and a margin either side for the corners on the key's left and right edges. The key on the map (#1065) is
+/// `LayoutPolicy.mapsKeyInsetWidth` wide.
 struct MapsKeyLayout {
     let imageWidth: Int
     let imageHeight: Int
+    var width: CGFloat = LayoutPolicy.mapsKeyWidth
 
     /// A label line's height (caption2) plus a gap: the band above and below the key.
     static let band: CGFloat = 16
 
     var keySize: CGSize {
-        CGSize(width: LayoutPolicy.mapsKeyWidth,
-               height: LayoutPolicy.mapsKeyWidth * CGFloat(imageHeight) / CGFloat(max(imageWidth, 1)))
+        CGSize(width: width, height: width * CGFloat(imageHeight) / CGFloat(max(imageWidth, 1)))
     }
     var keyOrigin: CGPoint { CGPoint(x: LayoutPolicy.mapsKeyLabelInset, y: Self.band) }
     var cellSize: CGSize {
@@ -374,64 +447,58 @@ struct MapsKeyLayout {
     }
 }
 
-/// The bottom pane: what the colours mean. An IPF layer: each indexed phase's TSL key in the stereographic projection with its corners
-/// labelled; Phase: each phase's colour, name and point count; a property: its name and range.
-struct MapsKeyPane: View {
+/// The colour key of the map in front, on the map's footer beside the zoom badge (#1065; it was a bottom tab that the strip cut): an
+/// IPF layer's TSL key of each indexed phase with its corners labelled, Phase's colours with names and point counts, the grain map's
+/// one line, or a value layer's colour bar over its window in the Display section's colormap.
+struct MapsKeyInset: View {
     let session: OrientationMapSession
 
     var body: some View {
-        // Both axes: at the pane's smallest height a key and its labels scroll rather than being cut (#725).
-        ScrollView([.horizontal, .vertical]) {
-            HStack(alignment: .top, spacing: 20) {
-                switch session.layer {
-                case .ipf(let direction):
-                    if session.keys.isEmpty {
-                        Text(session.hasMap ? "No indexed phase with a point group: no colour key" : "")
-                            .foregroundStyle(.secondary)
+        Group {
+            switch MapsKeyKind.of(session.layer) {
+            case .ipf(let direction):
+                HStack(alignment: .bottom, spacing: 6) {
+                    if session.keys.isEmpty, session.hasMap {
+                        Text("No indexed phase with a point group: no colour key").font(.caption2).foregroundStyle(.secondary)
                     }
                     ForEach(session.keys) { key in
                         keyCell(key, direction: direction)
                     }
-                case .phase:
-                    phaseLegend
-                case .property(let name):
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(name).font(.headline)
-                        if let range = session.raster?.valueRange {
-                            Text(verbatim: "\(UnitDisplay.number(range.lowerBound, digits: 4)) to \(UnitDisplay.number(range.upperBound, digits: 4))")
-                                .font(.callout.monospacedDigit()).foregroundStyle(.secondary)
-                        }
-                        Text("Its colormap and window are the Display section's.").font(.caption).foregroundStyle(.secondary)
-                    }
-                case .derived(.grains):
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Grains").font(.headline)
-                        Text(verbatim: session.analysis.map { MapsRoomFormat.grainSummary($0) } ?? "")
-                            .font(.callout.monospacedDigit()).foregroundStyle(.secondary)
-                        Text("Each grain its own colour; grey: regions below the smallest grain; black: not indexed.")
-                            .font(.caption).foregroundStyle(.secondary)
-                    }
-                case .derived(let derived):
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(verbatim: derived.unit.isEmpty ? derived.title : "\(derived.title) (\(derived.unit))").font(.headline)
-                        if let range = session.raster?.valueRange {
-                            Text(verbatim: "\(UnitDisplay.number(range.lowerBound, digits: 4)) to \(UnitDisplay.number(range.upperBound, digits: 4))")
-                                .font(.callout.monospacedDigit()).foregroundStyle(.secondary)
-                        }
-                        Text(MapsRoomFormat.derivedNote(derived, load: session.loadDirection)).font(.caption).foregroundStyle(.secondary)
-                    }
                 }
+                .plate()
+            case .phases:
+                phaseLegend.plate()
+            case .grains:
+                Text(verbatim: "Grains · " + (session.analysis.map { "\($0.table.count)" } ?? UnitDisplay.noValue)
+                     + " · each its own colour, grey below the smallest, black not indexed")
+                    .font(.caption2).foregroundStyle(.secondary).lineLimit(2)
+                    .frame(maxWidth: LayoutPolicy.mapsKeyInsetWidth * 2, alignment: .leading)
+                    .plate()
+            case .colourBar:
+                colourBar
             }
-            .padding(10)
         }
         .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("maps.key.pane")
+        .accessibilityIdentifier("maps.map.key")
+    }
+
+    /// The value layer's colour bar (ShellControls', on its own plate) over the window's two ends in the layer's own values.
+    @ViewBuilder private var colourBar: some View {
+        let presentation = session.propertyPresentation
+        if let range = presentation.canvas?.rawRange {
+            let span = Double(range.upperBound - range.lowerBound)
+            let fractions = presentation.displayFractions
+            Colorbar(colormap: presentation.colormap, low: Double(range.lowerBound) + Double(fractions.low) * span,
+                     high: Double(range.lowerBound) + Double(fractions.high) * span, unitLabel: MapsRoomFormat.keyUnit(session.layer),
+                     gamma: Float(presentation.gamma))
+                .allowsHitTesting(false)
+                .accessibilityIdentifier("maps.map.colourBar")
+        }
     }
 
     private func keyCell(_ key: OrientationMapSession.PhaseKey, direction: SampleDirection) -> some View {
-        let layout = MapsKeyLayout(imageWidth: key.image.width, imageHeight: key.image.height)
-        return VStack(alignment: .leading, spacing: 4) {
-            Text(verbatim: "\(key.name) · \(key.pointGroup) · IPF-\(direction.rawValue.uppercased())").font(.caption).lineLimit(1)
+        let layout = MapsKeyLayout(imageWidth: key.image.width, imageHeight: key.image.height, width: LayoutPolicy.mapsKeyInsetWidth)
+        return VStack(alignment: .leading, spacing: 0) {
             ZStack(alignment: .topLeading) {
                 if let image = MapsFigure.keyPicture(key) {
                     Image(decorative: image, scale: 1)
@@ -448,6 +515,9 @@ struct MapsKeyPane: View {
                 }
             }
             .frame(width: layout.cellSize.width, height: layout.cellSize.height, alignment: .topLeading)
+            Text(verbatim: session.keys.count > 1 ? "\(key.name) · IPF-\(direction.rawValue.uppercased())" : "IPF-\(direction.rawValue.uppercased())")
+                .font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                .frame(width: layout.cellSize.width)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(IPFKeySpeech.label(title: "Colour key of \(key.name), IPF-\(direction.rawValue.uppercased())",
@@ -458,20 +528,27 @@ struct MapsKeyPane: View {
     private var phaseLegend: some View {
         let map = session.map
         let counts = session.phasePointCounts
-        return VStack(alignment: .leading, spacing: 6) {
+        return VStack(alignment: .leading, spacing: 3) {
             ForEach(map?.phasesInData.entries ?? [], id: \.id) { entry in
                 let rgb = entry.phase.colorRGB ?? .zero
-                HStack(spacing: 8) {
+                HStack(spacing: 6) {
                     Rectangle().fill(Color(red: rgb.x, green: rgb.y, blue: rgb.z))
                         .frame(width: LayoutPolicy.mapsPhaseSwatchSize, height: LayoutPolicy.mapsPhaseSwatchSize)
                         .overlay(Rectangle().stroke(Color.secondary.opacity(0.5), lineWidth: 0.5))
                     Text(verbatim: "\(MapsRoomFormat.phaseName(entry.phase, id: entry.id)) · "
                          + MapsRoomFormat.phasePoints(entry.phase, count: counts[entry.id] ?? 0, missing: UnitDisplay.noValue))
-                        .font(.callout.monospacedDigit())
+                        .font(.caption2.monospacedDigit())
                 }
                 .accessibilityElement(children: .combine)
                 .accessibilityIdentifier("maps.legend.\(entry.id)")
             }
         }
+    }
+}
+
+private extension View {
+    /// The key's plate on the map, as the Indexing room's legend.
+    func plate() -> some View {
+        padding(4).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 4))
     }
 }

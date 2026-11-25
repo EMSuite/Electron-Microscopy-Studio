@@ -60,6 +60,9 @@ struct SettingsWindow: View {
             }
             .navigationSplitViewColumnWidth(min: LayoutPolicy.sidebarWidth.min, ideal: LayoutPolicy.sidebarWidth.ideal,
                                             max: LayoutPolicy.sidebarWidth.max)
+            // The category list stands; there is nothing to toggle in a settings window (System Settings' own shape). On the sidebar
+            // column itself: on the split view it left the Hide Sidebar button under the traffic lights (#1062, the pass of 25 Nov).
+            .toolbar(removing: .sidebarToggle)
         } detail: {
             Form {
                 switch selection ?? .images {
@@ -74,8 +77,6 @@ struct SettingsWindow: View {
             .formStyle(.grouped)
             .navigationTitle((selection ?? .images).title)
         }
-        // The category list stands; there is nothing to toggle in a settings window (System Settings' own shape).
-        .toolbar(removing: .sidebarToggle)
         .frame(minWidth: LayoutPolicy.settingsWindow.min.width, idealWidth: LayoutPolicy.settingsWindow.ideal.width,
                minHeight: LayoutPolicy.settingsWindow.min.height, idealHeight: LayoutPolicy.settingsWindow.ideal.height)
     }

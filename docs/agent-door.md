@@ -81,7 +81,7 @@ Behind "Let agents run analyses". Each goes through the entry point its control 
 | `set_indexing` | the Indexing room's Display (layer, detected bands, simulation, Compare A and B), Method, Hough, Dictionary and Refine settings, only those given; `reset` goes back to a section's defaults first |
 | `set_indexing_phase` | adds a built-in phase; turns a phase on or off, sets its reflector list or its master pattern, or removes it |
 | `open_in_maps` | Open in Maps: the run on screen goes to the Maps room |
-| `set_maps` | the Maps room's source, layer, Segment settings (boundary angle, minimum size, KAM maximum), boundaries, load axis and slip systems, texture phase, and the bottom pane's tab and histogram |
+| `set_maps` | the Maps room's source, layer, Segment settings (boundary angle, minimum size, KAM maximum), boundaries, load axis and slip systems, texture phase, the results pane's tab and histogram, and the picked point's inset on the map |
 | `set_eels` | the EELS room's Processing (alignment, threshold, deconvolution, mean free path; `align` runs Align alone), Fitting (model, fit end, background, convolution, E₀, α, β) and Maps (segment, display filter) settings |
 | `set_eels_edges` | the periodic table: adds an element's default edge, removes an element, picks single edges, fit only or quantify, resets the windows, MLLS references |
 | `set_eels_region` | the EELS region: whole map, a rectangle or ellipse, a kept region by name, or removes one |

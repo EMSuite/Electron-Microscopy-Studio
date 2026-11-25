@@ -52,6 +52,8 @@ nonisolated final class SEMOverlayStyleTests: XCTestCase {
         XCTAssertEqual(halos.count, 2, "a track for the matched and one for the unmatched bands")
         XCTAssertEqual(lines.count, 2, "a line for the matched and one for the unmatched bands")
         XCTAssertLessThan(try XCTUnwrap(halos.last).lowerBound, try XCTUnwrap(lines.first).lowerBound, "every track before any line")
-        XCTAssertTrue(overlay.contains(".background(Color.black.opacity(SEMOverlayStyle.plateOpacity), in: Capsule()) // science"))
+        // The plate is a capsule at the style's opacity, drawn where `EBSDOverlayLabels` places it (#1059).
+        XCTAssertTrue(overlay.contains("context.fill(Path(roundedRect: placed.frame, cornerRadius: placed.frame.height / 2),"))
+        XCTAssertTrue(overlay.contains("with: .color(Color.black.opacity(SEMOverlayStyle.plateOpacity)))   // science"))
     }
 }

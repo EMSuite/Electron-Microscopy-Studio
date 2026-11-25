@@ -211,7 +211,7 @@ struct SimulationOverlayControls: View {
             }
             InspectorRow("Band width") {
                 Toggle("Draw the band edges", isOn: Binding(get: { settings.bandWidth }, set: { v in var s = settings; s.bandWidth = v; setSettings(s) }))
-                    .labelsHidden().toggleStyle(.switch).controlSize(.small)
+                    .toggleStyle(.switch).labelsHidden()
                     .disabled(!isOn || !canDrawBandWidth)
                     .help(canDrawBandWidth ? "The two edges of each band, at the Bragg angle for the file's beam energy"
                                            : "The file states no beam energy, so the Bragg angles are unknown")
@@ -219,13 +219,13 @@ struct SimulationOverlayControls: View {
             }
             InspectorRow("Zone axes") {
                 Toggle("Draw the zone axes", isOn: Binding(get: { settings.zoneAxes }, set: { v in var s = settings; s.zoneAxes = v; setSettings(s) }))
-                    .labelsHidden().toggleStyle(.switch).controlSize(.small)
+                    .toggleStyle(.switch).labelsHidden()
                     .disabled(!isOn)
                     .accessibilityIdentifier(ids.zoneAxes)
             }
             InspectorRow("Labels") {
                 Toggle("Label the bands and zone axes", isOn: Binding(get: { settings.labels }, set: { v in var s = settings; s.labels = v; setSettings(s) }))
-                    .labelsHidden().toggleStyle(.switch).controlSize(.small)
+                    .toggleStyle(.switch).labelsHidden()
                     .disabled(!isOn)
                     .accessibilityIdentifier(ids.labels)
             }

@@ -71,6 +71,15 @@ nonisolated final class SettingsWindowTests: XCTestCase {
         XCTAssertTrue(try source("macTEM/UI/ImagePane.swift").contains("@AppStorage(SEMImageSettings.cropDatabarKey)"))
     }
 
+    /// A settings window's sidebar does not collapse (System Settings has no such button): the toggle is removed on the sidebar column,
+    /// where SwiftUI reads it (#1062). Red before: the removal sat on the split view, and Hide Sidebar showed under the traffic lights.
+    func testTheSidebarHasNoToggle() throws {
+        let window = squeezed(try source("macTEM/UI/SettingsWindow.swift"))
+        let sidebar = try XCTUnwrap(window.components(separatedBy: "NavigationSplitView {").last?.components(separatedBy: "} detail: {").first)
+        XCTAssertTrue(sidebar.contains(".toolbar(removing: .sidebarToggle)"), "removed on the sidebar column")
+        XCTAssertEqual(window.components(separatedBy: ".toolbar(removing: .sidebarToggle)").count, 2, "once")
+    }
+
     /// The Display section's note says which, and where to change it.
     func testTheDisplayNoteNamesSettings() {
         XCTAssertEqual(SEMDatabarNote.note(rows: 29, hidden: true),

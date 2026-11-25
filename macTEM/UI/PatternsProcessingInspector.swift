@@ -55,7 +55,7 @@ struct PatternsProcessingSections: View {
         return InspectorSection("FFT filter", status: s.word, statusGlyph: s.glyph, startsExpanded: false) {
             InspectorRow("Filter") {
                 Toggle("FFT filter", isOn: Binding(get: { f.isOn }, set: { v in session.editPipeline { $0.fftFilter.isOn = v } }))
-                    .labelsHidden().toggleStyle(.switch).controlSize(.small)
+                    .toggleStyle(.switch).labelsHidden()
                     .help("Multiply each pattern's centred spectrum by a transfer function (kikuchipy fft_filter, frequency domain, shift)")
                     .accessibilityIdentifier("patterns.fft.on")
             }
@@ -112,7 +112,7 @@ struct PatternsProcessingSections: View {
         return InspectorSection("Average neighbours", status: s.word, statusGlyph: s.glyph, startsExpanded: false) {
             InspectorRow("Average") {
                 Toggle("Average neighbour patterns", isOn: Binding(get: { a.isOn }, set: { v in session.editPipeline { $0.averaging.isOn = v } }))
-                    .labelsHidden().toggleStyle(.switch).controlSize(.small)
+                    .toggleStyle(.switch).labelsHidden()
                     .help("Average each pattern with its neighbours in the scan, weighted by the window (kikuchipy average_neighbour_patterns)")
                     .accessibilityIdentifier("patterns.average.on")
             }
@@ -131,7 +131,7 @@ struct PatternsProcessingSections: View {
         return InspectorSection("NLPAR", status: s.word, statusGlyph: s.glyph, startsExpanded: false) {
             InspectorRow("Average") {
                 Toggle("Non-local pattern averaging", isOn: Binding(get: { pipeline.nlpar.isOn }, set: { v in session.editPipeline { $0.nlpar.isOn = v } }))
-                    .labelsHidden().toggleStyle(.switch).controlSize(.small)
+                    .toggleStyle(.switch).labelsHidden()
                     .help("Average each pattern with its similar neighbours, weighted by their noise-normalised distance (pyebsdindex NLPAR)")
                     .accessibilityIdentifier("patterns.nlpar.on")
             }
@@ -161,7 +161,7 @@ struct PatternsProcessingSections: View {
                 .accessibilityIdentifier("patterns.display")
             InspectorRow("Remove") {
                 Toggle("Remove the static background", isOn: Binding(get: { pipeline.staticStage.isOn }, set: { v in session.editPipeline { $0.staticStage.isOn = v } }))
-                    .labelsHidden().toggleStyle(.switch).controlSize(.small)
+                    .toggleStyle(.switch).labelsHidden()
                     .help("The detector's shading, the same in every pattern (kikuchipy remove_static_background)")
                     .accessibilityIdentifier("patterns.static.on")
             }
@@ -183,7 +183,7 @@ struct PatternsProcessingSections: View {
                 .accessibilityIdentifier("patterns.static.operation")
             InspectorRow("Scale") {
                 Toggle("Scale the background", isOn: Binding(get: { pipeline.staticStage.scaleBackground }, set: { v in session.editPipeline { $0.staticStage.scaleBackground = v } }))
-                    .labelsHidden().toggleStyle(.switch).controlSize(.small)
+                    .toggleStyle(.switch).labelsHidden()
                     .disabled(!pipeline.staticStage.isOn)
                     .help("Stretch the background to each pattern's own range first (kikuchipy scale_bg)")
                     .accessibilityIdentifier("patterns.static.scale")
@@ -203,7 +203,7 @@ struct PatternsProcessingSections: View {
         return InspectorSection("Dynamic background", status: s.word, statusGlyph: s.glyph, startsExpanded: false) {
             InspectorRow("Remove") {
                 Toggle("Remove the dynamic background", isOn: Binding(get: { pipeline.dynamicStage.isOn }, set: { v in session.editPipeline { $0.dynamicStage.isOn = v } }))
-                    .labelsHidden().toggleStyle(.switch).controlSize(.small)
+                    .toggleStyle(.switch).labelsHidden()
                     .help("Each pattern's own low-frequency intensity, a Gaussian blur of it (kikuchipy remove_dynamic_background)")
                     .accessibilityIdentifier("patterns.dynamic.on")
             }
@@ -246,7 +246,7 @@ struct PatternsProcessingSections: View {
             if mode == .rescale {
                 InspectorRow("Percentiles") {
                     Toggle("Clip to percentiles", isOn: Binding(get: { pipeline.intensity.usesPercentiles }, set: { v in session.editPipeline { $0.intensity.usesPercentiles = v } }))
-                        .labelsHidden().toggleStyle(.switch).controlSize(.small)
+                        .toggleStyle(.switch).labelsHidden()
                         .help("Stretch between two percentiles of each pattern instead of its minimum and maximum, clipping beyond them")
                         .accessibilityIdentifier("patterns.intensity.percentiles")
                 }
@@ -273,14 +273,14 @@ struct PatternsProcessingSections: View {
                 InspectorRow("÷ √n") {
                     Toggle("Divide by the square root of the pixel count", isOn: Binding(get: { pipeline.intensity.divideBySquareRoot },
                                                                                          set: { v in session.editPipeline { $0.intensity.divideBySquareRoot = v } }))
-                        .labelsHidden().toggleStyle(.switch).controlSize(.small)
+                        .toggleStyle(.switch).labelsHidden()
                         .help("Also divide by the square root of the pattern's pixel count (kikuchipy divide_by_square_root)")
                         .accessibilityIdentifier("patterns.intensity.sqrt")
                 }
             }
             InspectorRow("Equalise") {
                 Toggle("Equalise", isOn: Binding(get: { pipeline.intensity.equalize }, set: { v in session.editPipeline { $0.intensity.equalize = v } }))
-                    .labelsHidden().toggleStyle(.switch).controlSize(.small)
+                    .toggleStyle(.switch).labelsHidden()
                     .help("Contrast-limited adaptive histogram equalisation of each pattern (kikuchipy adaptive_histogram_equalization)")
                     .accessibilityIdentifier("patterns.intensity.equalize")
             }

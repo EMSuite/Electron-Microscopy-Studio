@@ -42,8 +42,12 @@ nonisolated enum EELSSpectrumLayout {
     /// The legend's offset from the spectrum's top-left corner: in the band above the plot as in the EDS room, 6 pt further right than the EDS room's 56 so
     /// it clears "log counts" (52 pt wide from x = 4), which is longer than the EDS room's "counts".
     static let legendLeading: CGFloat = 62, legendInset: CGFloat = 2
-    /// The bands around the plot: the titles above, the energy ticks and title below, a margin on the right.
-    static let top: CGFloat = 20, bottom: CGFloat = 36, right: CGFloat = 8
+    /// The bands around the plot: the titles above, the energy ticks and title below, a margin on the right. The band above is tall
+    /// enough for the counts axis title over the top tick label, which is centred on the plot's top edge (#1062: at 20 pt "log counts"
+    /// sat on "1e7").
+    static let top: CGFloat = 26, bottom: CGFloat = 36, right: CGFloat = 8
+    /// The counts axis title's top-left corner, in the band above the plot.
+    static let axisTitleOrigin = CGPoint(x: 4, y: 2)
 
     /// The plot inside a spectrum of `size` whose counts labels take `left`.
     static func plotArea(in size: CGSize, left: CGFloat) -> CGRect {

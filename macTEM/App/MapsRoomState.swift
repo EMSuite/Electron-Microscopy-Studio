@@ -3,7 +3,7 @@
 //  Role: the Maps room's own view state (the import request, the status line's readout, the export in flight) and its words
 //        (`MapsRoomFormat`) and figure (`MapsFigure`: the map with its colour key or phase legend and a scale bar, as one PNG). The room's
 //        facts are `OrientationMapSession`'s (TEMSession); the pictures and the hover's words `OrientationMaps`' (TEMCore). Window-wide,
-//        not saved; composed by `AppState` as `PatternsRoomState` is. P5-04 adds the bottom pane's tab, the grain table as CSV and the
+//        not saved; composed by `AppState` as `PatternsRoomState` is. P5-04 adds the results pane's tab, the grain table as CSV and the
 //        texture figures as one PNG.
 //
 
@@ -30,8 +30,10 @@ final class MapsRoomState {
     private(set) var exportName = ""
     /// What the save panel writes: the map figure or the texture figure (PNG) or the grain table (CSV).
     private(set) var exportType = UTType.png
-    /// The bottom pane's tab.
-    var bottomTab = MapsBottomTab.key
+    /// The results pane's tab (the trailing pane, #1064).
+    var resultsTab = MapsResultsTab.grains
+    /// Whether the map carries the picked point's inset (Display › Pattern inset, #1064).
+    var showsPointInset = true
     /// What the Histogram tab counts.
     var histogramKind = MapAnalysis.HistogramKind.kam
     /// The export the save panel is writing, as the session record keeps it once the panel says where (`didWrite`).
@@ -198,6 +200,24 @@ nonisolated enum IPFKeySpeech {
     }
 }
 
+/// Which colour key the map in front carries on its footer (#1065): each phase's IPF key along the layer's axis, the phases' colours,
+/// the grain map's line, or a value layer's colour bar.
+nonisolated enum MapsKeyKind: Equatable {
+    case ipf(SampleDirection)
+    case phases
+    case grains
+    case colourBar
+
+    static func of(_ layer: OrientationMapLayer) -> MapsKeyKind {
+        switch layer {
+        case .ipf(let direction): .ipf(direction)
+        case .phase: .phases
+        case .derived(.grains): .grains
+        case .property, .derived: .colourBar
+        }
+    }
+}
+
 nonisolated enum MapsRoomFormat {
     /// The methods a map figure of `layer` rests on, for the session report (D-SEM-104).
     static func methods(of layer: OrientationMapLayer) -> [SEMMethod] {
@@ -243,6 +263,14 @@ nonisolated enum MapsRoomFormat {
 
     /// "Map · IPF-Z", "Map · Phase", "Map · iq"; "Map · IPF-Z · stale" for an Indexing run the room has moved on from (D-SEM-99).
     static func mapTitle(_ layer: OrientationMapLayer, stale: Bool = false) -> String { "Map · " + layer.title + (stale ? " · stale" : "") }
+
+    /// A value layer's colour bar title: the property's name, or a derived layer's with its unit, "KAM (°)".
+    static func keyUnit(_ layer: OrientationMapLayer) -> String {
+        switch layer {
+        case .derived(let derived): derived.unit.isEmpty ? derived.title : "\(derived.title) (\(derived.unit))"
+        default: layer.title
+        }
+    }
 
     /// A held map's name in the Source pop-up (design §4: the result, then where it is from): "File · sdss.ang",
     /// "Hough · Indexing room".
@@ -375,11 +403,10 @@ nonisolated enum MapsRoomFormat {
         return parts.joined(separator: " · ")
     }
 
-    /// The Grains section's summary rows; the lengths at the grain table's decimals (`lengthPlaces`).
+    /// The grain statistics as rows, for the session ledger; the lengths at the grain table's decimals (`lengthPlaces`).
     static func grainRows(_ analysis: MapAnalysis, locale: Locale = .autoupdatingCurrent) -> [EBSDBrowsing.Row] {
         let unit = EBSDBrowsing.unitLabel(analysis.scanUnit)
         let places = lengthPlaces(analysis)
-        let n = { (v: Double) in Self.number(v, locale: locale) }
         let l = { (v: Double) in Self.length(v, places: places, locale: locale) }
         var out = [EBSDBrowsing.Row("Grains", "\(analysis.table.count)")]
         if let mean = analysis.meanDiameter {
@@ -388,9 +415,31 @@ nonisolated enum MapsRoomFormat {
         }
         if let intercept = analysis.meanLinealIntercept { out.append(EBSDBrowsing.Row("Mean intercept", "\(l(intercept)) \(unit)")) }
         if let g = analysis.astmGrainSizeNumber { out.append(EBSDBrowsing.Row("ASTM E112", angle(g, locale: locale))) }
-        let s = analysis.settings
-        out.append(EBSDBrowsing.Row("Made with", "\(n(s.boundaryDegrees))° · ≥ \(UnitDisplay.count(s.minimumSize, "point", "points")) · KAM ≤ \(n(s.kamMaxDegrees))°"))
+        out.append(EBSDBrowsing.Row("Made with", madeWith(analysis.settings, locale: locale)))
         return out
+    }
+
+    /// The Grains tab's heading line (#1066): the five statistics the inspector listed, "102 grains · mean ECD 3.14 µm · area-weighted
+    /// 4.20 µm · mean intercept 2.90 µm · ASTM E112 14.2", the lengths at the grain table's decimals; a statistic the analysis has not is
+    /// left out.
+    static func grainHeadline(_ analysis: MapAnalysis, locale: Locale = .autoupdatingCurrent) -> String {
+        let unit = EBSDBrowsing.unitLabel(analysis.scanUnit)
+        let places = lengthPlaces(analysis)
+        let l = { (v: Double) in "\(Self.length(v, places: places, locale: locale)) \(unit)" }
+        var parts = [UnitDisplay.count(analysis.table.count, "grain", "grains")]
+        if let mean = analysis.meanDiameter {
+            parts.append("mean ECD \(l(mean.byNumber))")
+            parts.append("area-weighted \(l(mean.byArea))")
+        }
+        if let intercept = analysis.meanLinealIntercept { parts.append("mean intercept \(l(intercept))") }
+        if let g = analysis.astmGrainSizeNumber { parts.append("ASTM E112 \(angle(g, locale: locale))") }
+        return parts.joined(separator: " · ")
+    }
+
+    /// "5° · ≥ 10 points · KAM ≤ 2°": the settings a Segment ran with, the Grains tab's secondary line and the ledger's "Made with".
+    static func madeWith(_ s: MapAnalysisSettings, locale: Locale = .autoupdatingCurrent) -> String {
+        let n = { (v: Double) in Self.number(v, locale: locale) }
+        return "\(n(s.boundaryDegrees))° · ≥ \(UnitDisplay.count(s.minimumSize, "point", "points")) · KAM ≤ \(n(s.kamMaxDegrees))°"
     }
 
     /// The slip-system files that fit a phase's crystal structure.

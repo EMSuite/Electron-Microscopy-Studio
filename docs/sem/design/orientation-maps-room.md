@@ -33,6 +33,10 @@ an `.ang`/`.ctf` alone opens straight here, `RoomHoldings.orientations`), or fro
 
 ## 3. Layout
 
+Since #1064 (approved 25 Nov 2026, decisions.md): the map leads, the results take the trailing pane at full height (no bottom pane),
+and the live pattern pane is a small inset on the map, opposite the scale bar, hidden from Display › Pattern inset. The sketch below
+is the first design.
+
 ```
 ┌──────────────────────────────┬───────────────────────────────┐
 │ Maps block (main pane)       │ Live pattern pane (open by    │

@@ -1,8 +1,8 @@
 //
 //  MapsRoomAnalysis.swift
 //  Role: what the Maps room shows of its grain analysis and texture (docs/sem/design/orientation-maps-room.md §3-§4, brief P5-04): the
-//        boundaries, the selected grain's outline and its slip traces over the map; the bottom pane's tabs (Key, Grains, Pole figures,
-//        ODF); and the inspector's Misorientation, Grains, Slip and Texture sections. Presentation only: the numbers are `MapAnalysis` and
+//        boundaries, the selected grain's outline and its slip traces over the map; the results pane's tabs beside the map (Grains,
+//        Pole figures, ODF, Histogram; #1064, #1065); and the inspector's Misorientation, Grains, Slip and Texture sections. Presentation only: the numbers are `MapAnalysis` and
 //        `MapTexture`'s (TEMCore), the state `OrientationMapSession`'s (TEMSession), the words `MapsRoomFormat`'s.
 //
 
@@ -27,7 +27,7 @@ struct MapsAnalysisOverlay: View {
     var body: some View {
         let high = contrast == .increased
         let boundary = OverlaySignal.width(LayoutPolicy.mapsBoundaryLineWidth, increasedContrast: high)
-        Canvas { context, _ in
+        Canvas { context, size in
             if session.showsBoundaries {
                 // A phase boundary is wider as well as black (#799).
                 context.stroke(path(session.grainBoundaryEdges), with: .color(.white.opacity(0.9)),
@@ -41,20 +41,34 @@ struct MapsAnalysisOverlay: View {
             }
             if session.showsSlipTraces, let row = session.selectedRow, let slip = session.selectedSlip {
                 let half = max(3, (Double(row.points)).squareRoot() / 2)
-                for plane in slip.planes where plane.traceAngle.isFinite {
+                let planes = slip.planes.filter { $0.traceAngle.isFinite }
+                var ends: [(CGPoint, CGPoint)] = []
+                for plane in planes {
                     let d = MapsRoomFormat.traceDirection(plane.traceAngle) * half
+                    let start = geometry.panePoint(of: ImagePoint(x: row.centroid.x - d.x, y: row.centroid.y - d.y))
                     let end = geometry.panePoint(of: ImagePoint(x: row.centroid.x + d.x, y: row.centroid.y + d.y))
+                    ends.append((start, end))
                     var p = Path()
-                    p.move(to: geometry.panePoint(of: ImagePoint(x: row.centroid.x - d.x, y: row.centroid.y - d.y)))
+                    p.move(to: start)
                     p.addLine(to: end)
                     context.stroke(p, with: .color(Self.traceColour(plane.colour)),
                                    lineWidth: OverlaySignal.width(LayoutPolicy.mapsTraceLineWidth, increasedContrast: high))
-                    // Each trace names its plane at its end, so the traces are told apart without their colours (#799).
-                    let word = context.resolve(Text(plane.label).font(.caption.monospacedDigit()).foregroundStyle(.white))
-                    let size = word.measure(in: CGSize(width: 200, height: 40))
-                    let plate = CGRect(x: end.x + 3, y: end.y - size.height / 2 - 1, width: size.width + 6, height: size.height + 2)
-                    context.fill(Path(roundedRect: plate, cornerRadius: 3), with: .color(.black.opacity(0.65)))
-                    context.draw(word, at: CGPoint(x: plate.midX, y: plate.midY))
+                }
+                // Each trace names its plane beside it, so the traces are told apart without their colours (#799); the plates are
+                // placed one by one inside the map, clear of each other and of the picked point's marker (#1059: a grain in the
+                // corner piled them on one point).
+                let words = planes.map { context.resolve(Text($0.label).font(.caption.monospacedDigit()).foregroundStyle(.white)) }
+                let plates = words.map { word -> CGSize in
+                    let measured = word.measure(in: CGSize(width: 200, height: 40))
+                    return CGSize(width: measured.width + 6, height: measured.height + 2)
+                }
+                let spots = zip(ends, plates).map { EBSDOverlayLabels.traceSpots(from: $0.0.0, to: $0.0.1, size: $0.1) }
+                let marker = geometry.panePoint(of: ImagePoint(x: Double(session.pinned.column), y: Double(session.pinned.row)))
+                let side = SEMScanMarker.handleDiameter
+                let clear = CGRect(x: marker.x - side / 2, y: marker.y - side / 2, width: side, height: side)
+                for placed in EBSDOverlayLabels.place(sizes: plates, spots: spots, in: CGRect(origin: .zero, size: size), avoiding: [clear]) {
+                    context.fill(Path(roundedRect: placed.frame, cornerRadius: 3), with: .color(.black.opacity(0.65)))
+                    context.draw(words[placed.index], at: CGPoint(x: placed.frame.midX, y: placed.frame.midY))
                 }
             }
         }
@@ -108,11 +122,11 @@ struct MapsAnalysisOverlay: View {
     }
 }
 
-// MARK: - The bottom pane
+// MARK: - The results pane
 
-/// The bottom pane's tabs (design §3): the colour key, the grain table, the pole figures with the IPF density, the ODF sections.
-enum MapsBottomTab: String, CaseIterable, Identifiable {
-    case key = "Key"
+/// The results pane's tabs (design §3; the trailing pane at full height since #1064): the grain table, the pole figures with the IPF
+/// density, the ODF sections, the histogram. The colour key is on the map (#1065).
+enum MapsResultsTab: String, CaseIterable, Identifiable {
     case grains = "Grains"
     case poleFigures = "Pole figures"
     case odf = "ODF"
@@ -120,7 +134,7 @@ enum MapsBottomTab: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
-struct MapsBottomPane: View {
+struct MapsResultsPane: View {
     let session: OrientationMapSession
     @Bindable var state: MapsRoomState
 
@@ -129,41 +143,30 @@ struct MapsBottomPane: View {
             HStack {
                 // Full width, as every segmented control (control-placement §3, #629): MacEMUI's `SegmentedControl`, because a
                 // segmented `Picker` keeps its own width whatever frame it is given (the drive of 16 Nov saw it stay 480 pt and centred).
-                // Beside it only the tab's one choice.
-                SegmentedControl(label: "Bottom pane", segments: MapsBottomTab.allCases.map { .title($0.rawValue) },
-                                 selection: Binding(get: { MapsBottomTab.allCases.firstIndex(of: state.bottomTab) ?? 0 },
-                                                    set: { if MapsBottomTab.allCases.indices.contains($0) { state.bottomTab = MapsBottomTab.allCases[$0] } }))
+                // Alone in its row, so the tabs keep their width whichever is chosen (#1060): a tab's one choice (the histogram's
+                // kind, the texture's phase) is on that tab's own header line.
+                SegmentedControl(label: "Results", segments: MapsResultsTab.allCases.map { .title($0.rawValue) },
+                                 selection: Binding(get: { MapsResultsTab.allCases.firstIndex(of: state.resultsTab) ?? 0 },
+                                                    set: { if MapsResultsTab.allCases.indices.contains($0) { state.resultsTab = MapsResultsTab.allCases[$0] } }))
                     .frame(maxWidth: .infinity)
-                    .accessibilityIdentifier("maps.bottom.tabs")
-                if state.bottomTab == .poleFigures || state.bottomTab == .odf {
-                    MapsTexturePhasePicker(session: session)
-                }
-                if state.bottomTab == .histogram {
-                    Picker("Histogram of", selection: $state.histogramKind) {
-                        ForEach(MapAnalysis.HistogramKind.allCases, id: \.self) { Text($0.rawValue).tag($0) }
-                    }
-                    .fixedSize()
-                    .help("KAM of every point, or GOS or the equivalent circle diameter of every grain")
-                    .accessibilityIdentifier("maps.histogram.kind")
-                }
+                    .accessibilityIdentifier("maps.results.tabs")
             }
             .padding(.horizontal, 10)
             .padding(.top, 6)
             .fixedSize(horizontal: false, vertical: true)
             Group {
-                switch state.bottomTab {
-                case .key: MapsKeyPane(session: session)
+                switch state.resultsTab {
                 case .grains: MapsGrainsTable(session: session)
                 case .poleFigures: MapsTextureFigures(session: session, odf: false)
                 case .odf: MapsTextureFigures(session: session, odf: true)
                 case .histogram: MapsHistogramPane(session: session, state: state)
                 }
             }
-            .frame(maxWidth: .infinity, minHeight: 0, maxHeight: .infinity, alignment: .topLeading)   // science: the figures may be cut
+            .frame(maxWidth: .infinity, minHeight: 0, maxHeight: .infinity, alignment: .topLeading)   // science: the figures fit (#1060)
         }
         // The tabs stay at the top of the pane whatever its height: centred, they moved with each tab's content and, with the Output pane
         // open, a figure taller than the pane pushed them out of view (drive 2026-11-08). The minimum height of 0 keeps a tall figure from
-        // moving the split; it is cut at its foot instead.
+        // moving the split; the texture figures size themselves to the pane (`MapsTextureLayout`, #1060).
         .frame(maxWidth: .infinity, minHeight: 0, maxHeight: .infinity, alignment: .top)   // science: no minimum, never a size
         .clipped()
     }
@@ -203,9 +206,16 @@ struct MapsGrainsTable: View {
                 let unit = EBSDBrowsing.unitLabel(analysis.scanUnit)
                 let places = MapsRoomFormat.lengthPlaces(analysis)
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(verbatim: MapsRoomFormat.grainSummary(analysis))
-                        .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                    // The grain statistics and the settings they were made with: results in the room, not the inspector (#1066).
+                    Text(verbatim: MapsRoomFormat.grainHeadline(analysis))
+                        .font(.callout.monospacedDigit())
+                        .lineLimit(2)
+                        .textSelection(.enabled)
                         .accessibilityIdentifier("maps.grains.summary")
+                    Text(verbatim: "Made with " + MapsRoomFormat.madeWith(analysis.settings))
+                        .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                        .lineLimit(1).truncationMode(.middle)
+                        .accessibilityIdentifier("maps.grains.madeWith")
                     // The person's selection takes the keyboard for the table (#353); a ⌘-click on the map selects grains through the
                     // session and leaves the keys with the map.
                     Table(rows, selection: Binding(get: { session.selectedGrains }, set: { picked in
@@ -236,6 +246,7 @@ struct MapsGrainsTable: View {
                         personPicked = false
                     }
                     .accessibilityIdentifier("maps.grains.table")
+                    MapsGrainSlipRows(session: session)
                 }
                 .padding(10)
             } else {
@@ -263,6 +274,36 @@ struct MapsGrainsTable: View {
     }
 }
 
+/// The picked grain's slip planes under the Grains table (#1066: results in the room, not the inspector): each plane's Schmid factor,
+/// trace and inclination, beside a swatch in its trace's colour on the map. Nothing while no grain is picked.
+struct MapsGrainSlipRows: View {
+    let session: OrientationMapSession
+
+    var body: some View {
+        if let row = session.selectedRow, let slip = session.selectedSlip {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(verbatim: "Slip in grain \(row.id) · \(row.phaseName)")
+                    .font(.caption).foregroundStyle(.secondary)
+                ForEach(Array(slip.planes.enumerated()), id: \.offset) { index, plane in
+                    HStack(spacing: 6) {
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(MapsAnalysisOverlay.traceColour(plane.colour))
+                            .frame(width: LayoutPolicy.regionSwatchSize, height: LayoutPolicy.regionSwatchSize)
+                            .accessibilityHidden(true)
+                        Text(verbatim: plane.label).font(.caption.monospaced())
+                        Text(verbatim: MapsRoomFormat.planeText(plane)).font(.caption.monospacedDigit())
+                            .lineLimit(1).truncationMode(.tail)
+                    }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityIdentifier("maps.grains.slip.\(index)")
+                }
+            }
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("maps.grains.slip")
+        }
+    }
+}
+
 extension GrainRow {
     var phi1: Double { euler.x }
     var capitalPhi: Double { euler.y }
@@ -281,20 +322,39 @@ struct MapsTextureFigures: View {
         Group {
             if let texture = session.texture {
                 let figures = odf ? texture.odfSections : texture.poleFigures + (texture.inversePoleFigure.map { [$0] } ?? [])
-                ScrollView(.horizontal) {
-                    HStack(alignment: .top, spacing: 16) {
-                        let selected = session.selectedRows.filter { $0.phaseID == texture.phaseID }.map(\.orientation)
-                        ForEach(Array(figures.enumerated()), id: \.offset) { index, figure in
-                            MapsTextureFigureCell(figure: figure, odf: odf, markers: MapTexture.poleMarkers(figure, orientations: selected))
-                                .accessibilityIdentifier("maps.\(odf ? "odf" : "pole").\(index)")
+                let selected = session.selectedRows.filter { $0.phaseID == texture.phaseID }.map(\.orientation)
+                let aspect = figures.map { CGFloat($0.raster.height) / CGFloat(max($0.raster.width, 1)) }.max() ?? 1
+                VStack(alignment: .leading, spacing: 0) {
+                    // The tab's own header line (#1060): the phase, when the map has more than one.
+                    MapsTexturePhasePicker(session: session)
+                        .padding(.horizontal, MapsTextureLayout.padding).padding(.top, 6)
+                    // The figures take the pane's size, aspect kept, in as many columns as make them largest; the caption wraps under
+                    // them (#1060: at a fixed 150 pt the strip cut their lower third and the caption mid-word).
+                    GeometryReader { proxy in
+                        let arrangement = MapsTextureLayout.arrangement(count: figures.count, aspect: aspect, in: proxy.size)
+                        ScrollView(.vertical) {
+                            VStack(alignment: .leading, spacing: MapsTextureLayout.spacing) {
+                                Grid(alignment: .topLeading, horizontalSpacing: MapsTextureLayout.spacing, verticalSpacing: MapsTextureLayout.spacing) {
+                                    ForEach(Array(stride(from: 0, to: figures.count, by: arrangement.columns)), id: \.self) { start in
+                                        GridRow {
+                                            ForEach(start..<min(start + arrangement.columns, figures.count), id: \.self) { index in
+                                                MapsTextureFigureCell(figure: figures[index], odf: odf, side: arrangement.side,
+                                                                      markers: MapTexture.poleMarkers(figures[index], orientations: selected))
+                                                    .accessibilityIdentifier("maps.\(odf ? "odf" : "pole").\(index)")
+                                            }
+                                        }
+                                    }
+                                }
+                                Text(verbatim: MapsRoomFormat.textureCaption(texture, odf: odf))
+                                    .font(.caption).foregroundStyle(.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .accessibilityIdentifier("maps.texture.caption")
+                            }
+                            .padding(MapsTextureLayout.padding)
                         }
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(verbatim: MapsRoomFormat.textureCaption(texture, odf: odf))
-                                .font(.caption).foregroundStyle(.secondary)
-                                .frame(width: LayoutPolicy.mapsTextureFigureSide, alignment: .leading)
-                        }
+                        .scrollBounceBehavior(.basedOnSize)
                     }
-                    .padding(10)
                 }
             } else if session.isTexturing {
                 ProgressView("Computing the texture…").controlSize(.small).frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -316,17 +376,68 @@ struct MapsTextureFigures: View {
     }
 }
 
+/// How the Pole figures and ODF tabs fit their figures to the pane (#1060): every figure the same width, aspect kept, in the number of
+/// columns that makes them largest while all of them, each with its title, colour bar and maximum, and the caption under them fit the
+/// pane. Below `minimumSide` they keep that width and the pane scrolls. Pure, so a test pins it.
+nonisolated enum MapsTextureLayout {
+    /// Between two figures, and around them.
+    static let spacing: CGFloat = 16
+    static let padding: CGFloat = 10
+    /// A figure's lines besides its picture: the title, the colour bar and the maximum, with the gaps between them.
+    static let cellChrome: CGFloat = 16 + 4 + 8 + 4 + 14
+    /// The caption under the figures: three lines of caption text.
+    static let captionReserve: CGFloat = 48
+    /// A figure narrower than this is not read; the pane scrolls instead.
+    static let minimumSide: CGFloat = 64
+    /// A figure wider than this gains nothing.
+    static let maximumSide: CGFloat = 360
+
+    struct Arrangement: Equatable {
+        let columns: Int
+        /// Each figure's width; its picture is `side × aspect` tall.
+        let side: CGFloat
+    }
+
+    /// The largest arrangement of `count` figures, each `aspect` times as tall as wide, that fits `size`.
+    static func arrangement(count: Int, aspect: CGFloat, in size: CGSize) -> Arrangement {
+        guard count > 0 else { return Arrangement(columns: 1, side: minimumSide) }
+        var best = Arrangement(columns: 1, side: 0)
+        for columns in 1...count {
+            let rows = rowCount(count, columns: columns)
+            let byWidth = (size.width - 2 * padding - CGFloat(columns - 1) * spacing) / CGFloat(columns)
+            let pictures = size.height - 2 * padding - captionReserve - spacing - CGFloat(rows - 1) * spacing - CGFloat(rows) * cellChrome
+            let byHeight = pictures / CGFloat(rows) / max(aspect, 0.01)
+            let side = min(byWidth, byHeight, maximumSide)
+            if side > best.side { best = Arrangement(columns: columns, side: side) }
+        }
+        return best.side >= minimumSide ? best : Arrangement(columns: best.columns, side: minimumSide)
+    }
+
+    /// The size the figures and the caption take in `arrangement`, padding included.
+    static func contentSize(count: Int, aspect: CGFloat, arrangement: Arrangement) -> CGSize {
+        let rows = rowCount(count, columns: arrangement.columns)
+        let columns = min(arrangement.columns, max(count, 1))
+        return CGSize(width: 2 * padding + CGFloat(columns) * arrangement.side + CGFloat(columns - 1) * spacing,
+                      height: 2 * padding + CGFloat(rows) * (arrangement.side * aspect + cellChrome) + CGFloat(rows - 1) * spacing
+                          + spacing + captionReserve)
+    }
+
+    private static func rowCount(_ count: Int, columns: Int) -> Int { (max(count, 1) + columns - 1) / columns }
+}
+
 struct MapsTextureFigureCell: View {
     let figure: MapTexture.Figure
     let odf: Bool
+    /// The figure's width, from `MapsTextureLayout` (#1060).
+    let side: CGFloat
     /// The selected grains' poles in the figure's unit square (macTEM#239), drawn as rings over the density.
     var markers: [SIMD2<Double>] = []
 
     var body: some View {
-        let side = odf ? LayoutPolicy.mapsODFSectionWidth : LayoutPolicy.mapsTextureFigureSide
         let aspect = CGFloat(figure.raster.height) / CGFloat(max(figure.raster.width, 1))
         VStack(alignment: .leading, spacing: 4) {
             Text(verbatim: figure.title).font(.caption).lineLimit(1)
+                .frame(width: side, alignment: .leading)
             if let image = MapsFigure.textureImage(figure.raster) {
                 Image(decorative: image, scale: 1)
                     .resizable()
@@ -354,6 +465,8 @@ struct MapsTextureFigureCell: View {
             MapsColourBar()
                 .frame(width: side, height: LayoutPolicy.mapsColourBarHeight)
             Text(verbatim: "0 to \(MapsRoomFormat.number(figure.maximum)) MRD").font(.caption2.monospacedDigit()).foregroundStyle(.secondary)
+                .lineLimit(1)
+                .frame(width: side, alignment: .leading)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(figure.title), maximum \(MapsRoomFormat.number(figure.maximum)) multiples of random"
@@ -367,7 +480,7 @@ struct MapsTextureFigureCell: View {
 /// with each selected grain's value ticked under the bars. Bars in the accent colour, counts on the left, the range under them.
 struct MapsHistogramPane: View {
     let session: OrientationMapSession
-    let state: MapsRoomState
+    @Bindable var state: MapsRoomState
 
     var body: some View {
         Group {
@@ -377,9 +490,19 @@ struct MapsHistogramPane: View {
                 let ticks = session.selectedRows.compactMap { analysis.histogramValue(kind, of: $0) }
                 let unit = kind == .grainSize ? EBSDBrowsing.unitLabel(analysis.scanUnit) : "°"
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(verbatim: MapsRoomFormat.histogramCaption(kind, histogram: histogram, unit: unit))
-                        .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
-                        .accessibilityIdentifier("maps.histogram.caption")
+                    // The tab's own header line (#1060): what the bars count, then their caption; in the tab row it changed the tabs' width.
+                    HStack(spacing: 8) {
+                        Picker("Histogram of", selection: $state.histogramKind) {
+                            ForEach(MapAnalysis.HistogramKind.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                        }
+                        .fixedSize()
+                        .help("KAM of every point, or GOS or the equivalent circle diameter of every grain")
+                        .accessibilityIdentifier("maps.histogram.kind")
+                        Text(verbatim: MapsRoomFormat.histogramCaption(kind, histogram: histogram, unit: unit))
+                            .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                            .lineLimit(1).truncationMode(.tail)
+                            .accessibilityIdentifier("maps.histogram.caption")
+                    }
                     Canvas { context, size in
                         let counts = histogram.counts
                         guard let top = counts.max(), top > 0, let low = histogram.edges.first, let high = histogram.edges.last, high > low else { return }
@@ -446,12 +569,12 @@ struct MapsMisorientationSection: View {
                 .help("Kernel average misorientation over the first neighbours of the same phase; a neighbour more misoriented than this is left out")
                 .accessibilityIdentifier("maps.kamMax")
             }
-            InspectorNote("KAM, GOS and GND appear in the Map picker after Segment. GND is DefDAP's Nye-tensor density from the primary phase's structure.")
+            InspectorNote("KAM, GOS and GND appear in the map heading's menu after Segment. GND is DefDAP's Nye-tensor density from the primary phase's structure.")
         }
     }
 }
 
-/// Grains (design §4): the boundary angle and the smallest grain, whether the boundaries show, and the summary of the last Segment.
+/// Grains (design §4): the boundary angle and the smallest grain, and whether the boundaries show; the statistics are the Grains tab's.
 struct MapsGrainsSection: View {
     let session: OrientationMapSession
 
@@ -481,10 +604,8 @@ struct MapsGrainsSection: View {
                     .help("Grain boundaries white, phase boundaries black, over the map")
                     .accessibilityIdentifier("maps.showBoundaries")
             }
-            if let analysis = session.analysis {
-                ForEach(MapsRoomFormat.grainRows(analysis)) { row in
-                    InspectorValueRow(row.label, row.value)
-                }
+            // The statistics of the last Segment are the Grains tab's heading (#1066); the inspector keeps the settings.
+            if session.analysis != nil {
                 if session.analysisIsStale {
                     InspectorWarning("The settings changed: Segment again to apply them.")
                 }
@@ -495,7 +616,7 @@ struct MapsGrainsSection: View {
     }
 }
 
-/// Slip: the load axis and each phase's slip systems; the selected grain's Schmid factors and trace angles.
+/// Slip: the load axis, each phase's slip systems and whether the traces show; the picked grain's planes are under the Grains table.
 struct MapsSlipSection: View {
     let session: OrientationMapSession
 
@@ -529,13 +650,9 @@ struct MapsSlipSection: View {
                     .help("The selected grain's slip-plane traces through its centroid, in DefDAP's colours")
                     .accessibilityIdentifier("maps.slip.traces")
             }
-            if let row = session.selectedRow, let slip = session.selectedSlip {
-                InspectorValueRow("Grain", "\(row.id) · \(row.phaseName)")
-                ForEach(Array(slip.planes.enumerated()), id: \.offset) { _, plane in
-                    InspectorValueRow(plane.label, MapsRoomFormat.planeText(plane))
-                }
-            } else if session.analysis != nil {
-                InspectorNote("Pin a point in a grain, or pick a row of the Grains tab, for its Schmid factors and traces.")
+            // The picked grain's planes are listed under the Grains table (#1066); the inspector keeps the settings.
+            if session.analysis != nil, session.selectedSlip == nil {
+                InspectorNote("Pin a point in a grain, or pick a row of the Grains tab, for its Schmid factors and traces under the table.")
             }
         }
     }
