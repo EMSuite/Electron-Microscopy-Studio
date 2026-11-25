@@ -82,7 +82,7 @@ extension AppState {
     /// while an atom model is the source: it has no reflection list, so Fit Discs refuses and the semiangle is the typed one (#953).
     func cbedShortestG(of simulation: OpenItem) -> Double? {
         guard simulation.multislice.atomModel == nil else { return nil }
-        return simulation.diffraction.shortestZeroOrderG(image: simulation.session.imageOrBlank)
+        return simulation.diffraction.shortestZeroOrderG()
     }
 
     /// Why Show CBED Pattern cannot run for `simulation`: `cbedRun`'s refusal, an edge that cuts the discs off, another document's

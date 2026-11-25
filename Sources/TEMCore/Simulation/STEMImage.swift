@@ -105,7 +105,6 @@ package nonisolated struct STEMScan: Sendable {
     /// "Si [1 1 0]".
     package let specimen: String
     package let thicknessNM: Double
-    package let slices: Int
     package let thermal: HRTEMThermal?
     package let onMetal: Bool
 
@@ -118,7 +117,6 @@ package nonisolated struct STEMScan: Sendable {
     /// Positions finished in the configuration under way, and every position once the run is complete: the kit's own count starts
     /// again at 0 when a configuration ends, the last one included, so a finished run would read 0 (#1005).
     package var positionsDone: Int { run.isComplete ? run.positionCount : run.completedPositions }
-    package var configurations: Int { run.configurationCount }
     /// No position has any configuration yet.
     package var isEmpty: Bool { run.completedConfigurations == 0 && run.completedPositions == 0 }
     package var isComplete: Bool { run.isComplete }
@@ -296,7 +294,7 @@ package nonisolated enum STEMImage {
         let unit = SIMD2(built.box.x, built.box.y)
         return STEMScan(run: run, rings: rings, step: SIMD2(unit.x / Double(scan.nx), unit.y / Double(scan.ny)), unit: unit,
                         settings: settings, defocusNM: defocus, volts: volts, csMM: csMM, specimen: specimen,
-                        thicknessNM: built.slabBox.z / 10, slices: slab.sliceThicknesses.count, thermal: thermal, onMetal: onMetal)
+                        thicknessNM: built.slabBox.z / 10, thermal: thermal, onMetal: onMetal)
     }
 
     /// Runs `scan` off the calling actor for about `slice`, then hands it back with every finished position kept (the kit's run
