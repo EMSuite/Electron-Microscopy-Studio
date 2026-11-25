@@ -96,6 +96,7 @@ EBSD patterns, orientation maps and SEM-EDS files take their own path into their
 | Opening an EDS spectrum image (the room itself is MacEMUI's); exspy's SEM-EDS line intensities (`SEMEDSLines`, `XrayLineDatabase`) | `Sources/TEMCore/EDX/` |
 | The EELS room's compute: SpectroKit called with the room's choices (stages, windows, fits, regions, exports) | `Sources/TEMCore/EELS/` |
 | The seam between the app's `ImagePoint` and ImagoKit's `PixelPoint` | `Sources/TEMCore/Analysis/` |
+| The Simulation document's specimen, HRTEM image, optics, frozen phonons and Place Beside, over SimulatoKit | `Sources/TEMCore/Simulation/` |
 | The SEM program's ports: EBSD and TKD readers, pattern processing, orientations, indexing, maps, grains, texture, Kikuchi simulation, the SEM-EDS map readers, the session report ("The SEM program") | `Sources/TEMCore/SEM/` and its subfolders |
 | Session owners (`@Observable`), no SwiftUI, the SEM rooms' `EBSDSession`, `IndexingSession` and `OrientationMapSession` among them | `Sources/TEMSession/` |
 | Unit tests; committed fixtures (≤ 1 MiB) in `Fixtures/` | `macTEMTests/` |

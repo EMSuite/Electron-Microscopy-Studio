@@ -111,6 +111,24 @@ package nonisolated enum DemoDocuments {
                                source: "simulation", voltage: nil, notes: ["simulation, no measured pattern"])
     }
 
+    /// A Simulation document's HRTEM image (#894): its own item of Open Files ("HRTEM of Simulation 1"), so the Image, FFT and Profile
+    /// tools and the scale bar work on it as on any image. The app replaces its pixels as Defocus and Thickness move; the read answers
+    /// a placeholder only, `hrtemPlaceholder`.
+    package static func hrtemURL(of simulation: URL) -> URL { URL(fileURLWithPath: "/macTEM-demo/HRTEM of " + simulation.lastPathComponent) }
+    package static func isHRTEM(_ url: URL) -> Bool { url.path.hasPrefix("/macTEM-demo/HRTEM of ") }
+    /// The Simulation document an HRTEM image belongs to.
+    package static func simulationURL(ofHRTEM url: URL) -> URL {
+        URL(fileURLWithPath: "/macTEM-demo/" + url.lastPathComponent.replacingOccurrences(of: "HRTEM of ", with: ""))
+    }
+
+    /// What an HRTEM item holds before its first image lands: 64 pixels of 0 a side at 0.05 nm, said in its note.
+    package static func hrtemPlaceholder(name: String) -> CalibratedImage {
+        let axis = AxisCalibration(scale: 0.05, unit: "nm")
+        return CalibratedImage(width: 64, height: 64, stored: .uint8([UInt8](repeating: 0, count: 64 * 64)), x: axis, y: axis,
+                               fileName: name, source: "simulation", voltage: nil,
+                               notes: ["simulated image, no measured data", "computing"])
+    }
+
     /// The folders in the app's temporary folder that Help > Open Demo Data writes its on-disk demos to (the stack, the SEM image, the
     /// spectrum): opened through the File menu's own path, but scratch, never a folder to save into (#507).
     package static let writtenFolders = ["Electron-Microscopy-Studio-demo-stack", "Electron-Microscopy-Studio-demo-sem",

@@ -75,6 +75,8 @@ The rooms:
   File > New Simulation (⇧⌘N) opens the simulated spots with no measured pattern under them: its Microscope section sets the
   voltage and camera length, its Orientation section the zone axis and turn, and its Spots table lists each spot's hkl, R in px and
   in mm (R = λ L |g|), q and d, and exports as a Spots CSV.
+  Its Specimen section builds the phase along that axis into the slab a simulation computes, with its box, atoms and strain,
+  and Show HRTEM Image opens the slab's HRTEM image in the Image room, with Defocus and Thickness that redraw it live, the Uncorrected and Cs Corrected optics, an objective aperture, the transfer function strip, a defocus by thickness table that exports as a PNG, and frozen phonons (σ per element, Simulate, Stop and Continue, with the run's plan, progress and convergence), and Place Beside, which shows it beside an open measured image or inset in it at the measured image's nanometres per pixel, one picture that exports with one scale bar.
 - **Patterns**: the EBSD or TKD scan beside the live pattern, with mean intensity, virtual BSE, image quality and
   average dot product maps. Remove the static and dynamic backgrounds, rescale or normalise, equalise, filter, bin,
   average neighbouring patterns and denoise with NLPAR. Draw the Kikuchi bands of the file's stored orientations over
@@ -107,8 +109,10 @@ fetches its update feed. Details are in [`SECURITY.md`](SECURITY.md).
 The TEM methods compute with the suite's Swift kits, each checked against the Python package it ports, within that
 package's own tolerance: [FormatoKit](https://github.com/EMSuite/FormatoKit) (file readers),
 [ImagoKit](https://github.com/EMSuite/ImagoKit) (FFT and image maths),
-[DiffractoKit](https://github.com/EMSuite/DiffractoKit) (crystallography) and
-[SpectroKit](https://github.com/EMSuite/SpectroKit) (EDS and EELS). The SEM methods are ported into the app itself and
+[DiffractoKit](https://github.com/EMSuite/DiffractoKit) (crystallography),
+[SpectroKit](https://github.com/EMSuite/SpectroKit) (EDS and EELS) and
+[SimulatoKit](https://github.com/EMSuite/SimulatoKit) (the simulation's slab, multislice and HRTEM image, after abTEM). The SEM
+methods are ported into the app itself and
 checked the same way, against pinned versions of [kikuchipy](https://github.com/pyxem/kikuchipy) (pattern files,
 processing and dictionary indexing), [PyEBSDIndex](https://github.com/USNavalResearchLaboratory/PyEBSDIndex) (Hough
 indexing and NLPAR), [orix](https://github.com/pyxem/orix) (orientations, colour keys, texture, and .ang and .ctf

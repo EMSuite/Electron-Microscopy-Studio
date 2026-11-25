@@ -94,6 +94,8 @@ enum BusyOperation {
             if analysis.isIndexing { return "Indexing the pattern…" }
             if analysis.isFitting { return "Fitting the ring…" }
             return nil
+        case .image:
+            return appState.simulatingDocument?.multislice.thermalProgress.map(simulating)
         default:
             return nil
         }
@@ -109,7 +111,8 @@ enum BusyOperation {
         case .patterns: appState.ebsd.isBusy
         case .indexing: appState.indexing.isBusy
         case .maps: appState.maps.isBusy
-        case .image, .fft, .diffraction, .results: false
+        case .image: appState.simulatingDocument != nil
+        case .fft, .diffraction, .results: false
         }
         guard busy else { return nil }
         return name(room: room, appState: appState) ?? room.title
@@ -135,7 +138,7 @@ enum BusyOperation {
     // MARK: A run in another room
 
     /// The rooms whose runs go on while another room is shown, in the Workspace menu's order.
-    nonisolated static let runningRooms: [WorkspaceArea] = [.edx, .eels, .patterns, .indexing, .maps]
+    nonisolated static let runningRooms: [WorkspaceArea] = [.image, .edx, .eels, .patterns, .indexing, .maps]
 
     /// The room whose run the toolbar shows and ⌘. stops in place of the shown room's: the first busy room of `runningRooms`; nil while
     /// the shown room is busy itself (it keeps its own) or nothing else runs.
@@ -166,8 +169,20 @@ enum BusyOperation {
         case .indexing: appState.indexing.isBusy || appState.ebsd.isOpening
         case .maps: appState.maps.isOpening || appState.maps.isSegmenting || appState.maps.isTexturing
         case .diffraction: appState.openItems.selected.map { $0.diffraction.isFitting || $0.diffraction.isIndexing } ?? false
-        case .image, .fft, .results: false
+        case .image: appState.simulatingDocument != nil
+        case .fft, .results: false
         }
+    }
+
+    /// "Simulating: configuration 3 of 10": the Image room's frozen-phonon run (#896).
+    nonisolated static func simulating(_ progress: SimulationModel.ThermalProgress) -> String {
+        "Simulating: configuration \(progress.configuration) of \(progress.configurations)"
+    }
+
+    /// The run's fraction done: the configurations finished and the part of the one running.
+    nonisolated static func simulationFraction(_ progress: SimulationModel.ThermalProgress) -> Double {
+        let n = Double(max(progress.configurations, 1))
+        return min(max((Double(progress.configuration - 1) + (progress.fraction ?? 0)) / n, 0), 1)
     }
 
     /// The toolbar's busy line for `room`'s run while another room is shown: the room, then the line it shows itself ("Maps · Segmenting
