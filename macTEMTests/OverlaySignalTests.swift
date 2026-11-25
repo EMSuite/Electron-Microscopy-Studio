@@ -86,7 +86,7 @@ nonisolated final class OverlaySignalTests: XCTestCase {
         XCTAssertFalse(powder.contains(".foregroundStyle(by:"), "the chart's own legend is colour swatches only")
         let transfer = try FFTRoomWiringTests.squeezedUI("SimulationHRTEMOptics.swift")
         XCTAssertTrue(transfer.contains("RuleMark(x: .value(\"Aperture\", edge)).foregroundStyle(.red).lineStyle(StrokeStyle(dash: [2, 2])) .annotation(position: .top, alignment: .trailing) { Text(\"aperture\")"))
-        XCTAssertTrue(transfer.contains("yEnd: .value(\"Transfer\", -0.8)) .foregroundStyle(.secondary) .annotation(position: .bottom) { Text(spacings[i].label)"))
+        XCTAssertTrue(transfer.contains("yEnd: .value(\"Transfer\", -0.8)) .foregroundStyle(.secondary) .annotation(position: .bottom) { Text(labelled.contains(i) ? spacings[i].label : \"\")"))
         let sheet = try FFTRoomWiringTests.squeezedUI("DiffractionFindPhasesSheet.swift")
         XCTAssertTrue(sheet.contains("if let refusal = finder.refusal { InspectorWarning(refusal, font: .callout) }"))
         XCTAssertTrue(sheet.contains("if let weak = result.weakSentence { InspectorWarning(weak, font: .callout) }"))

@@ -132,10 +132,13 @@ struct SimulationTransferChart: View {
                     RuleMark(x: .value("Aperture", edge)).foregroundStyle(.red).lineStyle(StrokeStyle(dash: [2, 2]))
                         .annotation(position: .top, alignment: .trailing) { Text("aperture").font(.caption) }
                 }
+                let labelled = TransferSpacingLabels.labelled(spacings.map { 10 / $0.d }, across: curve.frequencies.last ?? 0)
                 ForEach(spacings.indices, id: \.self) { i in
+                    // Every spacing keeps its tick; a label that would overlap a stronger one's is left out (#1085), as the pattern's
+                    // hkl labels are (#1045). The spoken value names them all.
                     RuleMark(x: .value("Spacing", 10 / spacings[i].d), yStart: .value("Transfer", -1), yEnd: .value("Transfer", -0.8))
                         .foregroundStyle(.secondary)
-                        .annotation(position: .bottom) { Text(spacings[i].label).font(.caption) }
+                        .annotation(position: .bottom) { Text(labelled.contains(i) ? spacings[i].label : "").font(.caption) }
                 }
             }
             .chartXAxisLabel("Spatial frequency (1/nm)")
@@ -153,6 +156,24 @@ struct SimulationTransferChart: View {
         if let edge = curve.apertureFrequency { parts.append("aperture at \(UnitDisplay.number(edge, digits: 3)) per nanometre") }
         parts += spacings.map { "\($0.label) at \(UnitDisplay.number($0.d, digits: 3)) ångström" }
         return parts.joined(separator: ", ")
+    }
+}
+
+/// Which spacings under the transfer function carry their hkl (#1085): strongest first, a label only where it is at least `gap` of the
+/// axis from every label already kept, so {220} is never drawn over {311}'s.
+nonisolated enum TransferSpacingLabels {
+    /// The share of the axis one caption label needs ("{220}" at caption size on the inspector's chart).
+    static let gap = 0.12
+
+    /// The indices of `frequencies` (1/nm, strongest first) whose labels are drawn, on an axis from 0 to `across` 1/nm.
+    static func labelled(_ frequencies: [Double], across: Double) -> Set<Int> {
+        guard across > 0 else { return Set(frequencies.indices) }
+        var kept: [Double] = [], out = Set<Int>()
+        for (i, f) in frequencies.enumerated() where kept.allSatisfy({ abs($0 - f) >= gap * across }) {
+            kept.append(f)
+            out.insert(i)
+        }
+        return out
     }
 }
 
