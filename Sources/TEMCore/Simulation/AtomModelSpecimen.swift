@@ -249,11 +249,11 @@ package nonisolated struct AtomModelSpecimen: Sendable, Equatable {
         return "the cell is skewed"
     }
 
-    /// Atoms whose fractional coordinates lie outside [0, 1) along a periodic axis: the slab builder wraps them.
+    /// Atoms whose fractional coordinates lie outside [0, 1) along a periodic axis: the slab builder wraps them (within 1e-9 of 1 counts as 1, as the kit wraps it to 0).
     static func outsideCount(_ cell: CrystalCell) -> Int {
         cell.sites.reduce(0) { n, site in
             let f = site.fractional
-            return n + ((0 ..< 3).contains { f[$0] < -1e-9 || f[$0] >= 1 + 1e-9 } ? 1 : 0)
+            return n + ((0 ..< 3).contains { f[$0] < -1e-9 || f[$0] >= 1 - 1e-9 } ? 1 : 0)
         }
     }
 
