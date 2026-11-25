@@ -13,6 +13,7 @@ import DiffractoCore
 import ImagoCore
 import SimulatoCore
 import SimulatoMultislice
+import simd
 import TEMCore
 import TEMSession
 @testable import macTEM

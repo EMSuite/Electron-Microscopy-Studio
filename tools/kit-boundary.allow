@@ -20,3 +20,4 @@ Sources/TEMCore/Diffraction/CrystalPaneModel.swift	simd	the crystal pane hands S
 Sources/TEMCore/Simulation/SimulationSpecimen.swift	simd	the slab's orientation as DiffractoKit gives it (simd_double3x3), read to name its in-plane angle; the numbers are the kits'
 macTEMTests/SimulationSpecimenTests.swift	simd	compares the slab's orientation columns with the pattern's (simd_length)
 Sources/TEMCore/Simulation/SlabDrawing.swift	simd	the crystal pane draws the slab in the crystal frame: the slab builder's rotation applied to its atoms for display, no science (#897)
+macTEMTests/SlabDrawingTests.swift	simd	reads the slab's orientation columns to check the drawn slab's third axis is the zone axis (#897)
