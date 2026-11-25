@@ -83,7 +83,7 @@ struct DiffractionPowderSection: View {
                 .help("A second phase drawn beside this crystal: a standard, or the crystal of another open pattern")
                 .accessibilityIdentifier("diffraction.powder.compare")
             }
-            if phases.count > 1 {
+            if table.phases.count > 1 {
                 InspectorRow("Mark overlaps") {
                     Toggle("Mark overlaps", isOn: Binding(get: { settings.markOverlaps }, set: { powder.setMarkOverlaps($0) }))
                         .toggleStyle(.switch).labelsHidden()
