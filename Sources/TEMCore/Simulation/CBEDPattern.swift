@@ -223,14 +223,15 @@ package nonisolated enum CBEDRun {
     }
 
     /// The units across (x, y), each side at least `reach` Å, whose two sides agree within `squareTolerance`, the smallest box of
-    /// those; the closest pair when none does. Both counts run to twice their least; any whole number is taken (the kit's FFT takes
+    /// those; the closest pair when none does. Both counts run to three times their least (twice is too few for a √3 cell at a
+    /// coarse step: Si [1 1 1] to 50 Å has 12 × 7 at 1 % and needs 19 × 11, 0.3 %); any whole number is taken (the kit's FFT takes
     /// every length), so a √2 or √3 cell finds a square box (Si [1 1 0]: 17 × 12, 0.17 %).
     package static func squareRepeats(unit: SIMD2<Double>, reach: Double) -> SIMD2<Int> {
         let lowX = max(1, Int((reach / unit.x - 1e-9).rounded(.up))), lowY = max(1, Int((reach / unit.y - 1e-9).rounded(.up)))
         var square: (repeats: SIMD2<Int>, area: Double)?
         var closest = (repeats: SIMD2(lowX, lowY), mismatch: Double.infinity)
-        for nx in lowX ... 2 * lowX {
-            for ny in lowY ... 2 * lowY {
+        for nx in lowX ... 3 * lowX {
+            for ny in lowY ... 3 * lowY {
                 let a = Double(nx) * unit.x, b = Double(ny) * unit.y
                 let mismatch = abs(a - b) / max(a, b)
                 if mismatch <= squareTolerance, a * b < square?.area ?? .infinity { square = (SIMD2(nx, ny), a * b) }
