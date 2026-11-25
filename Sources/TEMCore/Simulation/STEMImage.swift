@@ -16,6 +16,7 @@
 //
 
 import Foundation
+import ImagoCore
 import SimulatoCore
 import SimulatoDetector
 import SimulatoMultislice
