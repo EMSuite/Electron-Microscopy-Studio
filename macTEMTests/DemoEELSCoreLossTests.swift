@@ -34,4 +34,12 @@ nonisolated final class DemoEELSCoreLossTests: XCTestCase {
         let carbonCorner = try value("edge-C-K1", x: 0, y: 15), carbonCentre = try value("edge-C-K1", x: 8, y: 8)
         XCTAssertEqual(carbonCorner, carbonCentre, accuracy: 0.05 * carbonCentre, "carbon everywhere alike")
     }
+
+    /// The energy axis never prints "-0": the first tick of a window just below zero is +0. Red before: -0.0, read "-0".
+    func testTheEnergyAxisHasNoNegativeZero() {
+        let ticks = EELSOneAxis.ticks(in: -2.5 ... 20)
+        let zero = ticks.first { $0 == 0 }
+        XCTAssertEqual(zero?.sign, .plus, "\(ticks)")
+        XCTAssertFalse(ticks.map { EELSRoomFormat.sig($0, 5) }.contains("-0"))
+    }
 }
