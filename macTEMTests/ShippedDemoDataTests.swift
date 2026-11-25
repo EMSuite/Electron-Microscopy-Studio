@@ -11,6 +11,7 @@ import XCTest
 import DiffractoCore
 import FormatoCore
 import FormatoHDF5
+import FormatoHSPY
 import SpectroCore
 import TEMCore
 import TEMSession
