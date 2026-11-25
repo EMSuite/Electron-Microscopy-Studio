@@ -59,9 +59,10 @@ extension MacTEMAgentDoor {
             an EBSD pattern scan in Patterns, an orientation map in Maps.
 
             1. Look. `list_windows` names the windows; `get_window` says the room, the open files with their size, calibration and \
-            voltage, the status line and any error. `get_image` draws the shown image as Export Image… draws it; `get_results` gives \
+            voltage, the status line and any error. `get_image` draws the shown image as Export Figure… draws its PNG; `get_results` gives \
             the finished numbers as Export Results… writes them; `get_session` gives the SEM session's rows as the Results room's \
-            session table lists them; `get_log` gives the Output lines.
+            session table lists them; `get_methods_record` gives the room's methods record and paragraph as Export Methods Record… and \
+            Copy Methods Paragraph give them; `get_log` gives the Output lines.
             2. Open. `list_agent_folder` lists the Agent folder the person chose in Settings > Agents; `open_file` opens one of its \
             files as File > Open does, in the room that fits it. Files elsewhere stay the person's to open. `open_demo` opens one of \
             the shipped demo documents in its room, as Help > Open Demo Data does, for trying a room.
@@ -325,6 +326,8 @@ extension MacTEMAgentDoor {
             After Index found an orientation, `plan_tilt` gives the zone axes around the beam and, once the tilt axis is typed or \
             calibrated from a second indexed pattern, the α and β that bring one on; `set_relationship` places a precipitate's \
             variants in the crystal from the two parallel pairs a paper states.
+            8. Look. `get_diffraction_figure` draws the figure Export Figure… writes: the pattern with its marks, labels, scale \
+            bar, legend and spot table.
 
             What to check:
             - fit_versus_file_percent compares the ring's Δq with the file's axis: a few % says the file's camera length is off; \

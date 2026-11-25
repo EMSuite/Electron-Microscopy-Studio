@@ -47,7 +47,7 @@ resolve_mactem_developer_dir
 # Every tools/ directory is in exactly one array; `inventory` fails on one that is not.
 scientific=(metadata-parity profile-parity export-parity fft-export-parity sidecar-parity diffraction-room-parity)   # gated: compares Core against a pinned reference
 diagnostic=()                    # never gated
-owner_only=()                    # the owner's own runs
+owner_only=(size-table)          # the owner's own runs
 retired=()                       # kept for history, not run
 support=(crystal-structures sem-readers picture-parity)     # not harnesses
 references=(sem)                 # emits committed reference bundles (Python, Linux CI: .github/workflows/sem-parity.yml); macTEMTests compares
@@ -163,6 +163,7 @@ unit_tests() (
       -configuration Debug -destination 'platform=macOS' \
       -derivedDataPath "${MACTEM_DERIVED_DATA:-$work/DerivedData}" -resultBundlePath "$work/unit.xcresult" \
       "${only[@]}" "${par[@]}" -testLanguage en -testRegion US \
+      -IDEBuildingContinueBuildingAfterErrors=YES \
       SWIFT_OPTIMIZATION_LEVEL=-O \
       CODE_SIGNING_ALLOWED=NO > "$work/unit.log" 2>&1 && rc=0 || rc=$?
   grep -E "error:|: error|\) failed |TEST (SUCCEEDED|FAILED)" "$work/unit.log" | tail -40 || true
@@ -299,9 +300,12 @@ ui_build() (
   local work rc
   work="$(mktemp -d "${TMPDIR:-/tmp}/mactem-ui-build.XXXXXX")"
   trap 'rm -rf "$work"' EXIT
+  # -IDEBuildingContinueBuildingAfterErrors=YES (an Xcode user default, as xcodebuild takes them): one run names every file that fails, not the first batch's errors alone.
   xcodebuild build-for-testing -project "$ROOT/macTEM.xcodeproj" -scheme macTEMUI -configuration Debug -destination 'platform=macOS' \
+    -IDEBuildingContinueBuildingAfterErrors=YES \
     -derivedDataPath "$work/DerivedData" SWIFT_OPTIMIZATION_LEVEL=-O CODE_SIGNING_ALLOWED=NO > "$work/ui-build.log" 2>&1 && rc=0 || rc=$?
-  grep -E "error:|: error|BUILD (SUCCEEDED|FAILED)" "$work/ui-build.log" | tail -40 || true
+  grep -E "error:|: error" "$work/ui-build.log" | sort -u | head -200 || true
+  grep -E "BUILD (SUCCEEDED|FAILED)" "$work/ui-build.log" | tail -1 || true
   grep -A12 "^The following build commands failed:" "$work/ui-build.log" | head -30 || true
   # A compiler crash prints no `error:`: its signal and stack dump are the reason.
   grep -E -A8 "Stack dump|PLEASE submit|Segmentation fault|Assertion failed|terminated due to signal|Illegal instruction" "$work/ui-build.log" | head -40 || true

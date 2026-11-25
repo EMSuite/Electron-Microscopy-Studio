@@ -1,7 +1,7 @@
 //
 //  MapsExportMenuTests.swift
 //  The Maps room's exports in the File menu (#259): `ExportSnapshot.mapsAvailability` lists them only while the Maps room shows a
-//  map and enables each by the rule of its button in the room's inspector; the menu lists the room's four files, each named as its
+//  map and enables each by the rule of its button in the room's inspector; the menu lists the room's six files, each named as its
 //  button; and an item writes through the room's own export (`RoomExports.maps`), the call the button makes. Run on the generated
 //  demo scan's own crystal map, which the Maps room shows beside the patterns.
 //
@@ -41,7 +41,7 @@ nonisolated final class MapsExportMenuTests: XCTestCase {
     /// Red under: a file on another's flag.
     func testEachFileReadsItsOwnFlag() {
         let map = MapsExportAvailability(map: true, grains: false, texture: false)
-        XCTAssertEqual(MapsExportKind.allCases.filter { map.isEnabled($0) }, [.map])
+        XCTAssertEqual(MapsExportKind.allCases.filter { map.isEnabled($0) }, [.map, .mapPDF, .mapSVG])
         let grains = MapsExportAvailability(map: false, grains: true, texture: false)
         XCTAssertEqual(MapsExportKind.allCases.filter { grains.isEnabled($0) }, [.grains, .histogram])
         let texture = MapsExportAvailability(map: false, grains: false, texture: true)
@@ -76,15 +76,15 @@ nonisolated final class MapsExportMenuTests: XCTestCase {
         XCTAssertEqual(ExportSnapshot.mapsAvailability(of: state)?.grains, state.maps.analysis != nil, "the grain files follow Segment")
     }
 
-    /// The File menu draws the room's four behind the rule, each named as its inspector button and calling the room's export.
+    /// The File menu draws the room's six behind the rule, each named as its inspector button and calling the room's export.
     /// Red under: the condition dropped (the items listed in every room); a title drifting from the inspector's button.
-    func testTheFileMenuDrawsTheFourBehindTheRule() throws {
+    func testTheFileMenuDrawsTheSixBehindTheRule() throws {
         let commands = squeezed(try source("macTEM/App/ExportCommands.swift"))
         XCTAssertTrue(commands.contains("let maps = appState.flatMap(ExportSnapshot.mapsAvailability(of:))"))
         XCTAssertTrue(commands.contains("if let appState, let maps { mapsItems(maps, appState: appState) }"), "listed only while the rule has them")
         XCTAssertTrue(commands.contains("Divider() ForEach(MapsExportKind.allCases) { kind in"))
         XCTAssertTrue(commands.contains("{ RoomExports.maps(kind, appState: appState) } .disabled(!maps.isEnabled(kind))"))
-        XCTAssertEqual(MapsExportKind.allCases.map(\.title), ["Map PNG…", "Grains CSV…", "Histogram CSV…", "Texture PNG…"])
+        XCTAssertEqual(MapsExportKind.allCases.map(\.title), ["Map PNG…", "Map PDF…", "Map SVG…", "Grains CSV…", "Histogram CSV…", "Texture PNG…"])
         let inspector = try source("macTEM/UI/MapsRoomInspector.swift")
         for kind in MapsExportKind.allCases {
             XCTAssertTrue(inspector.contains("Button(\"\(kind.title)\")"), "\(kind.title) is the inspector button's own title")

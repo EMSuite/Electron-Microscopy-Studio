@@ -49,7 +49,9 @@ nonisolated struct ExportTransformSnapshot: Sendable {
 
     /// What the panel's OK does: this snapshot's own source, display and spots, to the chosen file; with `asShown`, the picture
     /// resampled to the shape the pane draws (`FFTExport.asShown`), else one pixel per bin.
-    nonisolated func write(to url: URL, options: ImageExport.Options, asShown: Bool = false) async throws -> ImageExport.Rendered {
+    nonisolated func write(to url: URL, options: ImageExport.Options, asShown: Bool = false,
+                           leaveOutFileNames: Bool = false) async throws -> ImageExport.Rendered {
+        let (header, methods) = ExportSnapshot.named(header: header, methods: methods, leaveOutFileNames: leaveOutFileNames)
         let spotsDrawn = options.marks ? marks.count : 0
         var drawn: [String] = ["the transform, log₁₀|F|² in the window shown, grey"]
         if options.scaleBar { drawn.append("a scale bar") }
@@ -72,6 +74,25 @@ nonisolated struct ExportTransformSnapshot: Sendable {
     }
 }
 
+extension ExportTransformSnapshot {
+    /// The transform as a vector figure (#902, plan row X10): the picture at its own bins (or as shown), the spots and their
+    /// labels and the reciprocal scale bar as vectors and text, through the Image room's figure (`FigureExport.export`).
+    nonisolated func writeFigure(to url: URL, options: ImageExport.Options, asShown: Bool, width: FigureStyle.Width,
+                                 format: FigureExport.Format, leaveOutFileNames: Bool = false) async throws
+        -> (scene: FigureScene, barLeftOut: Bool) {
+        let (header, methods) = ExportSnapshot.named(header: header, methods: methods, leaveOutFileNames: leaveOutFileNames)
+        var drawn: [String] = ["the transform, log₁₀|F|² in the window shown, grey", "as a vector figure"]
+        if options.scaleBar { drawn.append("a scale bar") }
+        if options.marks, !marks.isEmpty { drawn.append("the measured spots") }
+        if asShown { drawn.append("resampled to the shape the room shows") }
+        var record = methods
+        record?.drawn = drawn
+        let shown = asShown ? FFTExport.asShown(display: display, marks: marks, header: header) : (display: display, marks: marks, header: header)
+        return try await FigureExport.export(source: FFTExport.transformSource(shown.header), display: shown.display, marks: shown.marks,
+                                             options: options, width: width, format: format, methods: record, to: url)
+    }
+}
+
 /// Everything Export Radial Profile… needs.
 nonisolated struct ExportRadialProfileSnapshot: Sendable {
     let header: FFTExportHeader
@@ -84,7 +105,9 @@ nonisolated struct ExportRadialProfileSnapshot: Sendable {
     /// The methods record the CSV carries (#817); nil for an image read from no file.
     var methods: MethodsRecord?
 
-    nonisolated func write(to url: URL) async throws {
+    /// `leaveOutFileNames` names the image "source 1" in the CSV's header and in its record (the panel's "Leave out file names").
+    nonisolated func write(to url: URL, leaveOutFileNames: Bool = false) async throws {
+        let (header, methods) = ExportSnapshot.named(header: header, methods: methods, leaveOutFileNames: leaveOutFileNames)
         try await RadialProfileCSV.export(profile, header: header, methods: methods, to: url)
     }
 }
@@ -103,7 +126,9 @@ nonisolated struct ExportSpotsSnapshot: Sendable {
     /// The methods record the CSV carries (#817); nil for an image read from no file.
     var methods: MethodsRecord?
 
-    nonisolated func write(to url: URL) async throws {
+    /// `leaveOutFileNames` names the image "source 1" in the CSV's header and in its record (the panel's "Leave out file names").
+    nonisolated func write(to url: URL, leaveOutFileNames: Bool = false) async throws {
+        let (header, methods) = ExportSnapshot.named(header: header, methods: methods, leaveOutFileNames: leaveOutFileNames)
         try await SpotsCSV.export(rows: rows, omitted: omitted, maskRadius: maskRadius, maskEdge: maskEdge, notes: notes,
                                   header: header, methods: methods, to: url)
     }
@@ -112,6 +137,15 @@ nonisolated struct ExportSpotsSnapshot: Sendable {
 // MARK: - The rules
 
 extension ExportSnapshot {
+
+    /// An FFT export's header and record as written: unchanged, or with the image's file name left out of both ("source 1").
+    nonisolated static func named(header: FFTExportHeader, methods: MethodsRecord?, leaveOutFileNames: Bool)
+        -> (header: FFTExportHeader, methods: MethodsRecord?) {
+        guard leaveOutFileNames else { return (header, methods) }
+        var header = header
+        header.fileName = ExportMethods.anonymousName(0)
+        return (header, methods?.withoutFileNames())
+    }
 
     // MARK: Enabled
 
@@ -159,7 +193,7 @@ extension ExportSnapshot {
             + aspectSentence(width: width, height: height, spacingX: spacingX, spacingY: spacingY, locale: locale)
     }
 
-    /// The PNG is one square pixel per bin (width : height); the room draws the box at width·Δq_x : height·Δq_y. When the two
+    /// The PNG, PDF and SVG draw one square pixel per bin (width : height); the room draws the box at width·Δq_x : height·Δq_y. When the two
     /// differ the panel says so, in words (the file is not resampled), the ratios to three significant digits in `locale`. Empty when they agree.
     nonisolated static func aspectSentence(width: Int, height: Int, spacingX: Double, spacingY: Double,
                                            locale: Locale = .autoupdatingCurrent) -> String {
@@ -171,7 +205,7 @@ extension ExportSnapshot {
             func g(_ v: Double) -> String { Num.sig(v, 3, locale: locale) }
             return r >= 1 ? "\(g(r)) : 1" : "1 : \(g(1 / r))"
         }
-        return " This region is \(width) × \(height) bins: the PNG has one pixel per bin, so it is \(ratio(file)) where the room shows it \(ratio(room))."
+        return " This region is \(width) × \(height) bins: the file has one pixel per bin, so it is \(ratio(file)) where the room shows it \(ratio(room))."
     }
 
     nonisolated static func radialProfileMessage(bins: Int, reciprocalLabel: String, nativeUnit: String) -> String {

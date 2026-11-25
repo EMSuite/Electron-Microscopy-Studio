@@ -87,11 +87,11 @@ nonisolated final class NumberFormatTests: XCTestCase {
         }
         XCTAssertEqual(FFTRoomFormat.accuracyNote(width: 64, height: 64, locale: de), "With noise, d is good to 1–5 % at 64 px and 0,5–3 % at 128 px.")
         XCTAssertEqual(FFTRoomFormat.accuracyNote(width: 64, height: 64, locale: en), "With noise, d is good to 1–5 % at 64 px and 0.5–3 % at 128 px.")
-        // 3 x 2 bins drawn at 3·Δq : 2·1.5Δq, a square box: the PNG is 1.5 : 1.
+        // 3 x 2 bins drawn at 3·Δq : 2·1.5Δq, a square box: the file is 1.5 : 1.
         let dq = 0.0390625
         XCTAssertEqual(ExportSnapshot.aspectSentence(width: 3, height: 2, spacingX: dq, spacingY: dq * 1.5, locale: de),
-                       " This region is 3 × 2 bins: the PNG has one pixel per bin, so it is 1,5 : 1 where the room shows it 1 : 1.")
+                       " This region is 3 × 2 bins: the file has one pixel per bin, so it is 1,5 : 1 where the room shows it 1 : 1.")
         XCTAssertEqual(ExportSnapshot.aspectSentence(width: 3, height: 2, spacingX: dq, spacingY: dq * 1.5, locale: en),
-                       " This region is 3 × 2 bins: the PNG has one pixel per bin, so it is 1.5 : 1 where the room shows it 1 : 1.")
+                       " This region is 3 × 2 bins: the file has one pixel per bin, so it is 1.5 : 1 where the room shows it 1 : 1.")
     }
 }

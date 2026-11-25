@@ -9,6 +9,7 @@ import Foundation
 import FormatoCore
 import FormatoDM
 import FormatoEMD
+import FormatoHSPY
 import FormatoMSA
 import SpectroEELS
 
@@ -103,7 +104,7 @@ package enum EELSOpeningError: Error, Equatable, LocalizedError {
 }
 
 package enum EELSOpening {
-    package static let readableExtensions = ["dm4", "emd", "msa", "ser"]
+    package static let readableExtensions = ["dm4", "emd", "msa", "hspy", "ser"]
 
     /// The bytes `cubes` EELS cubes of `nx` x `ny` pixels and `channels` channels take as the room holds them: every count a Double, 8 bytes. In
     /// Double, so no file's size overflows it.
@@ -192,6 +193,37 @@ package enum EELSOpening {
                 if pixel == nil, signal.axes[1].scale > 0, !signal.axes[1].units.isEmpty { pixel = (signal.axes[1].scale, signal.axes[1].units) }
                 cubes.append(EELSCube(nx: signal.data.shape[1], ny: signal.data.shape[0], channels: signal.data.shape[2], counts: EELSCounts(stored: signal.data),
                                       offsetEV: axis.offset, scaleEV: axis.scale, origin: "Velox EMD (EELS stream \(i + 1) of \(count))"))
+            }
+        case "hspy", "h5", "hdf5":
+            // A HyperSpy file (#820): its EELS experiments, each a spectrum image [y, x, energy] or one spectrum, through FormatoKit's reader.
+            guard HyperSpySpectrumFile.isHyperSpyFile(path: url.path) else { throw EELSOpeningError.notEELS(name) }
+            let experiments = try HyperSpyOpening.experiments(path: url.path)
+            let names = HyperSpyOpening.contents(of: experiments).eels
+            guard !names.isEmpty else { throw EELSOpeningError.notEELS(name) }
+            let shapes = experiments.filter { names.contains($0.name) }.map(\.shape)
+            let bytes = shapes.reduce(0.0) { total, shape in
+                let cube = shape.count == 3 ? shape : [1, 1] + shape
+                return total + Self.estimatedBytes(nx: cube[1], ny: cube[0], channels: cube[2])
+            }
+            if let refusal = memoryRefusal(name: name, cubes: shapes.count, bytes: bytes, physicalMemory: physicalMemory) { throw refusal }
+            for (i, experiment) in names.enumerated() {
+                let signal = try HSPYReader.readStored(url: url, experiment: experiment)
+                guard let axis = signal.axes.last, axis.units == "eV" else {
+                    throw EELSOpeningError.unsupportedShape("\(name): the energy axis is in \"\(signal.axes.last?.units ?? "")\", not eV.")
+                }
+                func number(_ key: String) -> Double? { signal.metadata[key]?.value.number }
+                if beam == nil, let kv = number("Acquisition_instrument.TEM.beam_energy"), kv > 0 {
+                    beam = kv
+                    convergence = number("Acquisition_instrument.TEM.convergence_angle")
+                    collection = number("Acquisition_instrument.TEM.Detector.EELS.collection_angle")
+                }
+                let shape = signal.data.shape.count == 3 ? signal.data.shape : [1, 1] + signal.data.shape
+                if signal.data.shape.count == 3, pixel == nil, signal.axes[1].scale > 0, !signal.axes[1].units.isEmpty {
+                    pixel = (signal.axes[1].scale, signal.axes[1].units)
+                }
+                cubes.append(EELSCube(nx: shape[1], ny: shape[0], channels: shape[2], counts: EELSCounts(stored: signal.data),
+                                      offsetEV: axis.offset, scaleEV: axis.scale,
+                                      origin: "HyperSpy file (EELS experiment \(i + 1) of \(names.count))"))
             }
         case "msa":
             // An EMSA/MSA file holds one spectrum; FormatoKit's reader names its signal (`#SIGNALTYPE ELS` is EELS) and its axis.

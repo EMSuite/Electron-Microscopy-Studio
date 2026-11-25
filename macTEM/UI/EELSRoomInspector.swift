@@ -562,6 +562,18 @@ struct EELSExportSection: View {
                 exportButton(.regions, "Regions CSV…", "square.dashed", enabled: !session.pinRows.isEmpty, help: "Each kept region's pixels, I total, t/λ and the edges' I and at%")
                 exportButton(.mapsPNG, "Maps…", "photo", enabled: hasMap, help: "The colour mix and the maps as one PNG")
             }
+            // The figures for a paper (#902): live text, the spectrum one path, the maps at their own pixels.
+            InspectorActionRow {
+                exportButton(.spectrumPDF, "Spectrum PDF…", "doc.richtext", enabled: session.plot != nil,
+                             help: "The core loss with its edges marked (else the low loss) as a 90 mm vector figure")
+                exportButton(.spectrumSVG, "Spectrum SVG…", "doc.richtext", enabled: session.plot != nil,
+                             help: "The same spectrum figure as SVG, for Illustrator or Inkscape")
+            }
+            InspectorActionRow {
+                exportButton(.mapsPDF, "Maps PDF…", "doc.richtext", enabled: hasMap,
+                             help: "The colour mix and the maps as a 190 mm vector figure, each map at its own pixels with its colour bar")
+                exportButton(.mapsSVG, "Maps SVG…", "doc.richtext", enabled: hasMap, help: "The same maps figure as SVG, for Illustrator or Inkscape")
+            }
             InspectorActionRow {
                 exportButton(.diagnostics, "Per-pixel CSV…", "tablecells.badge.ellipsis", enabled: hasMap,
                              help: "Every pixel: t/λ, its counting σ, I₀, I total, the zero-loss centre, the threshold, t and the kit's reason where there is none")

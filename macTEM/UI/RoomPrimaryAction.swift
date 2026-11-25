@@ -23,7 +23,7 @@ enum RoomProgress {
     static func fraction(room: WorkspaceArea, appState: AppState) -> Double? {
         switch room {
         case .edx: appState.edx.isOpening ? appState.edx.openProgress : nil
-        case .eels: appState.eels.isComputing ? min(max(appState.eels.progress, 0), 1) : nil
+        case .eels: appState.eels.isComputing ? min(max(appState.eels.progress, 0), 1) : appState.hyperSpyWrite.map { min(max($0.fraction, 0), 1) }
         case .patterns: patternsFraction(appState.ebsd)
         case .indexing: appState.indexing.isIndexing ? min(max(appState.indexing.progress, 0), 1) : nil
         case .image: appState.simulatingDocument?.multislice.thermalProgress.map(BusyOperation.simulationFraction)
@@ -81,9 +81,9 @@ enum RoomPrimaryAction {
                 isEnabled: session.canRun,
                 help: next.map { "Run the stages that are not current, starting with \($0.stage.title)" } ?? "Every stage is current",
                 hint: "Aligns the zero-loss peak, maps the thickness and fits the picked edges",
-                isRunning: session.isBusy,
+                isRunning: appState.isEELSRoomBusy,
                 operationName: BusyOperation.name(room: .eels, appState: appState),
-                stop: { session.stop() },
+                stop: { appState.stopEELSRoom() },
                 run: { session.run() })
         case .patterns:
             // Process (pattern-processing design §4): the stages that are not current, over the whole scan, into memory.
@@ -226,7 +226,7 @@ enum RoomPrimaryAction {
     static func stopActive(_ appState: AppState) {
         switch stopTarget(appState) {
         case .edx: appState.edx.stop()
-        case .eels: appState.eels.stop()
+        case .eels: appState.stopEELSRoom()
         case .patterns: appState.ebsd.stop()
         case .indexing:
             // The room's own run first; else the open of the scan, which this room shows and draws with a Stop of its own (`canStop`).
@@ -260,7 +260,7 @@ enum RoomPrimaryAction {
     static func canStop(room: WorkspaceArea, appState: AppState) -> Bool {
         switch room {
         case .edx: appState.edx.isBusy
-        case .eels: appState.eels.isBusy
+        case .eels: appState.isEELSRoomBusy
         case .patterns: appState.ebsd.isBusy
         case .indexing: appState.indexing.isBusy || appState.ebsd.isOpening
         case .maps: appState.maps.isOpening || appState.maps.isSegmenting || appState.maps.isTexturing

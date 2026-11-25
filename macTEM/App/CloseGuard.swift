@@ -165,7 +165,7 @@ extension AppState {
     private func isWorking(_ area: WorkspaceArea) -> Bool {
         switch area {
         case .edx: edx.isBusy
-        case .eels: eels.isBusy
+        case .eels: isEELSRoomBusy
         case .diffraction: openItems.items.contains(where: { $0.diffraction.isFitting || $0.diffraction.isIndexing })
         case .patterns: ebsd.isBusy
         case .indexing: indexing.isBusy

@@ -55,11 +55,23 @@ nonisolated final class AgentDoorToolsTests: XCTestCase {
         XCTAssertEqual(window["room"] as? String, "Image")
         XCTAssertTrue(window["shown_file"] is NSNull)
         XCTAssertEqual((window["files"] as? [[String: Any]])?.count, 0)
+        XCTAssertEqual(window["opening"] as? Bool, false)
+        XCTAssertEqual(window["busy_rooms"] as? [String], [])
+        XCTAssertEqual(window["room_files"] as? [String], [])
         guard case .refusal(let status, let message) = MacTEMAgentDoor.image(state, scale: 1) else { return XCTFail("a picture of nothing") }
         XCTAssertEqual(status, 404)
         XCTAssertTrue(message.contains("No image is shown"))
         guard case .refusal(let none, _) = MacTEMAgentDoor.results(state) else { return XCTFail("results of nothing") }
         XCTAssertEqual(none, 404)
+    }
+
+    /// The window reports the app's footprint and its peak since launch, so the size table reads what an open cost (#904). Red before:
+    /// get_window had no memory.
+    @MainActor func testTheWindowReportsTheAppsMemory() throws {
+        let memory = try XCTUnwrap(MacTEMAgentDoor.window(AppState())["memory"] as? [String: Int])
+        let now = try XCTUnwrap(memory["footprint_bytes"]), peak = try XCTUnwrap(memory["peak_footprint_bytes"])
+        XCTAssertGreaterThan(now, 1 << 20, "a running app has more than a megabyte")
+        XCTAssertGreaterThanOrEqual(peak, now)
     }
 
     /// A window showing a file: the file's line names it with its size, and the picture is Export Image…'s at the image's own size.

@@ -197,13 +197,13 @@ nonisolated final class TIASpectraTests: XCTestCase {
         let emi = dir.appendingPathComponent("run.emi")
         XCTAssertEqual(TIASpectra.seriesFiles(of: emi).map(\.lastPathComponent), ["run_1.ser", "run_2.ser"])
         XCTAssertEqual(TIASpectra.seriesFiles(of: dir.appendingPathComponent("run_1.ser")), [], "a .ser stands for itself")
-        let routed = await AppState.inventories([emi])
+        let routed = await AppState.inventories([emi], memory: ProcessInfo.processInfo.physicalMemory)
         XCTAssertEqual(routed.map { $0.url.lastPathComponent }, ["run_1.ser", "run_2.ser"])
         XCTAssertEqual(routed.map { $0.inventory }, [FileInventory(edsSpectrumImage: true), FileInventory(edsSpectrumImage: true)])
         // Picked with one of its own series, the .emi opens it once.
         let both = [emi, dir.appendingPathComponent("run_1.ser")]
         XCTAssertEqual(TIASpectra.withoutSeriesOfPickedEMI(both), [emi])
-        let routedBoth = await AppState.inventories(both)
+        let routedBoth = await AppState.inventories(both, memory: ProcessInfo.processInfo.physicalMemory)
         XCTAssertEqual(routedBoth.map { $0.url.lastPathComponent }, ["run_1.ser", "run_2.ser"])
     }
 
