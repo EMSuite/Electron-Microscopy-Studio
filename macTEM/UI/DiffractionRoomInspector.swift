@@ -256,6 +256,7 @@ private struct DiffractionPhaseRow: View {
     let phase: Phase
     let index: Int
     let analysis: DiffractionAnalysis
+    @Environment(AppState.self) private var appState
 
     var body: some View {
         let style = DiffractionPhases.style(at: index)
@@ -296,6 +297,12 @@ private struct DiffractionPhaseRow: View {
             }
         }
         .padding(.vertical, 2)
+        // Save as CIF… (#821): the phase as the kit writes it, with where it came from; File > Save Phase as CIF… saves the shown one.
+        .contextMenu {
+            Button("Save as CIF…") { PhaseCIF.save(phase, appState: appState) }
+                .help("Save \(phase.name) as a CIF file, with its symmetry and where it came from")
+                .accessibilityIdentifier("diffraction.phases.saveCIF.\(phase.id)")
+        }
     }
 }
 
