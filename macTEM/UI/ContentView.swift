@@ -36,7 +36,7 @@ struct ContentView: View {
         .onChange(of: appState.openImageRequest) { showImporter = true }
         // The busy clock's start: each spectrum room's busy edge, whichever room is shown.
         .onChange(of: appState.edx.isBusy, initial: true) { appState.markBusy(.edx, appState.edx.isBusy) }
-        .onChange(of: appState.eels.isBusy, initial: true) { appState.markBusy(.eels, appState.eels.isBusy) }
+        .onChange(of: appState.isEELSRoomBusy, initial: true) { appState.markBusy(.eels, appState.isEELSRoomBusy) }
         .onChange(of: appState.ebsd.isBusy, initial: true) { appState.markBusy(.patterns, appState.ebsd.isBusy) }
         .onChange(of: appState.indexing.isBusy, initial: true) { appState.markBusy(.indexing, appState.indexing.isBusy) }
         .onChange(of: appState.maps.isBusy, initial: true) { appState.markBusy(.maps, appState.maps.isBusy) }

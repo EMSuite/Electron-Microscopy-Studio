@@ -58,11 +58,15 @@ extension AppState {
         opensInFlight += 1
         statusText = urls.count == 1 ? "Opening \(urls[0].lastPathComponent)…" : "Opening \(urls.count) files…"
         let task = Task {
-            defer { opensInFlight -= 1; recordLastSession() }
+            // A window closed while this Open ran lets go of what the Open still brought in, and writes no record from this state alone (#925).
+            defer {
+                opensInFlight -= 1
+                if windowClosed { releaseFiles() } else { recordLastSession() }
+            }
             // By content (FormatoKit's sniff), off the main actor: an HDF5 file is opened under the HDF5 lock. The sniff runs inside the
             // security scope the panel, a drop or Finder granted. The FILE decides, not the room the person is in: a file is opened into
             // every room that has data in it (`FileInventory`), and the window lands in the room of the richest dataset.
-            var inventories = await Self.inventories(urls)
+            var inventories = await Self.inventories(urls, memory: physicalMemory)
             // A NORDIF scan whose settings file the sandbox refused asks for its folder, once per folder in an Open (`FolderPanels`): the
             // grant is kept (`FolderGrants`) and the scan is routed again inside it. Declined, the scan keeps its refusal. A folder
             // granted for an earlier scan of this Open that is around this one too (their common parent) reaches it: nothing is asked.
@@ -82,7 +86,7 @@ extension AppState {
                     }
                     answered[folder] = chosen != nil
                 }
-                if answered[folder] == true { regranted[index] = await Self.inventories([url]) }
+                if answered[folder] == true { regranted[index] = await Self.inventories([url], memory: physicalMemory) }
             }
             // An .emi routed again inside its new grant stands for its series (`inventories`): each takes the .emi's place.
             for index in regranted.keys.sorted(by: >) { inventories.replaceSubrange(index...index, with: regranted[index] ?? []) }
@@ -97,6 +101,7 @@ extension AppState {
                     inventories[index].inventory = TIASpectraRooms.routed(inventories[index].inventory, url: url)
                 }
             }
+            guard !windowClosed else { return }
             var images: [URL] = []
             var landing: FileInventory.Landing?
             var edsBatch: [URL] = [], eelsBatch: [URL] = [], ebsdBatch: [URL] = [], mapBatch: [URL] = []
@@ -189,7 +194,7 @@ extension AppState {
     /// so no empty tab is left behind. A NORDIF scan that asks for its folder is not refused here: its own tab asks. Returns the
     /// refused files' sentences.
     private func tabsChecked(_ urls: [URL], windows: AppWindows) async -> [String] {
-        let looked = await Self.inventories(urls)
+        let looked = await Self.inventories(urls, memory: physicalMemory)
         // TIA spectra no .emi places are asked about once here for every tab (`TIASpectraRooms`); those left unanswered get no tab.
         let unsure = looked.filter { $0.inventory.asksForSpectraRoom }.map(\.url)
         var answered: TIASpectra.Room?
@@ -240,9 +245,11 @@ extension AppState {
     /// remembered). The generated demo image is an image, in memory, with no bookmark. The file a vendor file is read with (an EBSD
     /// scan's `.ang` or `.ctf` beside its patterns, and back) is granted first, inside that scope: the sandbox grants the picked file
     /// only, and the routing already reads the other (`RelatedFileAccess`). A NORDIF scan's folder granted at an earlier Open is held
-    /// for its routing (`FolderGrants`); `asksForFolder` is set for one whose settings file the sandbox refused without a grant.
+    /// for its routing (`FolderGrants`); `asksForFolder` is set for one whose settings file the sandbox refused without a grant. A file
+    /// a room would read whole and a Mac of `memory` bytes cannot hold is refused here, before a pixel is read (`RoomSizeRule`, #905).
     @concurrent
-    nonisolated static func inventories(_ urls: [URL]) async -> [(url: URL, inventory: FileInventory, bookmark: Data?, asksForFolder: Bool)] {
+    nonisolated static func inventories(_ urls: [URL], memory: UInt64)
+        async -> [(url: URL, inventory: FileInventory, bookmark: Data?, asksForFolder: Bool)] {
         var seen = Set<String>()
         return urls.flatMap { url -> [(url: URL, inventory: FileInventory, bookmark: Data?, asksForFolder: Bool)] in
             if DemoDocuments.isDemo(url) { return [(url: url, inventory: FileInventory(image: true), bookmark: nil, asksForFolder: false)] }
@@ -255,7 +262,11 @@ extension AppState {
             // room. One that opens none keeps its own routing, which says why (the folder, or no series beside it).
             let series = TIAImageReader.seriesOpenError(url) == nil ? TIASpectra.seriesFiles(of: url) : []
             return (series.isEmpty ? [url] : series).map { file in
-                let inventory = TIASpectraRooms.routed(FileRouting.inventory(path: file.path), url: file)
+                var inventory = TIASpectraRooms.routed(FileRouting.inventory(path: file.path), url: file)
+                if inventory.refusal == nil, let tooLarge = RoomSizeRule.refusal(fileName: file.lastPathComponent, inventory: inventory,
+                                                                                 storedBytes: RoomSizeRule.readBytes(path: file.path), memory: memory) {
+                    inventory = FileInventory(refusal: tooLarge)
+                }
                 let bookmark = inventory.refusal == nil ? (try? SecurityScopedBookmark.make(for: file)) : nil
                 let asks = FolderGrants.asksForFolder(of: file, refused: inventory.refusal != nil)
                 return (url: file, inventory: inventory, bookmark: bookmark, asksForFolder: asks)
@@ -292,7 +303,7 @@ extension AppState {
 
     /// The files the one-document rooms hold now, each by the path its reader states (every reader states the one it was given): the
     /// Patterns room's dataset, the Maps room's maps, then the EDS and EELS rooms' spectrum images.
-    private var roomDocuments: [URL] {
+    var roomDocuments: [URL] {
         var urls: [URL] = []
         if let url = ebsd.document?.url { urls.append(url) }
         urls.append(contentsOf: maps.sources.compactMap(\.url))

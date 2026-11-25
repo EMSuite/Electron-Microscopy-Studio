@@ -55,3 +55,29 @@ pass, #594); the demo scan (55 x 75 patterns) is too small to say anything about
 
 Memory over a scan is a unit test, not a row here: `SEMMemoryTests` writes a 72 MB record file and checks that the map pass, the mean pass
 and the Hough row loop each grow the process footprint by a few scan rows, never by the scan.
+
+## Size table (2.5, #904)
+
+What each room needs to open a large file: the app's peak memory footprint and its footprint at rest after the open, over the
+file's stored bytes, each counted above the empty app's footprint. These factors are what the size rule (#905, `RoomSizeRule`) uses to
+refuse a file this Mac cannot hold before it reads it: the room's peak factor times the bytes it reads whole (a TIFF stack's one
+frame) against this Mac's memory minus 4 GB, in a sentence that names the file, what the room needs, what the Mac has and what works
+instead. The Patterns, Indexing and Maps rooms stream their scans and are not refused. A room's factor in the rule is never below its
+measured peak (`RoomSizeRuleTests`); until a room is measured it is 3. Quality bar 3 sets the targets: 3 at the peak and 2 at rest.
+
+The files are generated, a 1, 4 and 16 GB one of each kind, with random values (`tools/parity/size-table/make_files.py`): a 16-bit TIFF
+image, a 16-bit MRC image and a TIFF stack of 4096 x 4096 frames for the Image room, a float32 EELS and a uint16 EDS spectrum image
+as HyperSpy files, and a kikuchipy h5ebsd scan of 60 x 60 patterns for the Patterns room. `tools/parity/size-table/size_table.py` launches
+the app once per file, opens it through the agent door's `open_file` (the File > Open path), waits until every room is idle and reads
+the footprint from `get_window` (`ProcessMemory`: the kernel's `phys_footprint` and its peak since launch). `tools/parity/size-table/measure.sh`
+runs it all, one size at a time; the harness ends the app by its pid when its footprint passes this Mac's memory minus 4 GB and
+writes that row, under the suite's memory cap as a looser outer guard. The rule counts stored bytes: a compressed HyperSpy cube or
+a sparse Velox EDS stream holds more once read, so its row in this table is what to trust for it. It is a step of the release plan,
+once per feature release.
+
+| Room | File | Stored | Time to open | Peak | At rest | Peak factor | Rest factor | Note |
+|---|---|---|---|---|---|---|---|---|
+| Image | image-tiff, image-mrc, stack-tiff | 1, 4, 16 GB | to come | | | | | |
+| EELS | eels-hspy | 1, 4, 16 GB | to come | | | | | |
+| EDS | eds-hspy | 1, 4, 16 GB | to come | | | | | |
+| Patterns | patterns-h5 | 1, 4, 16 GB | to come | | | | | |

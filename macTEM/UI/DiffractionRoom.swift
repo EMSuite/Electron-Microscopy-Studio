@@ -121,6 +121,7 @@ extension DiffractionRoom {
 // MARK: - Header
 
 private struct DiffractionHeader: View {
+    @Environment(AppState.self) private var appState
     let item: OpenItem
     /// Read from the item, never stored: SwiftUI keeps a view's closures (hover, gestures, commands) after the view is gone, and a stored
     /// image kept its pixels alive after its tab closed (macTEM#574, `ImagePane.image`).
@@ -166,6 +167,14 @@ private struct DiffractionHeader: View {
                 .font(.callout.monospacedDigit()).foregroundStyle(.secondary).lineLimit(1).fixedSize()
                 .accessibilityIdentifier("diffraction.view")
                 .accessibilityValue(DiffractionValueFormat.halfSide(half))
+            // The figure handle (#823): dragged out, the figure as a PDF file; the pattern's own drags are the Ring tool's annulus.
+            Image(systemName: "photo.on.rectangle")
+                .foregroundStyle(.secondary)
+                .onDrag { ExportPanels.diffractionFigureDrag(appState: appState) }
+                .help("Drag the figure out as a PDF file; Edit > Copy Figure puts it on the clipboard")
+                .accessibilityLabel("Figure")
+                .accessibilityIdentifier("diffraction.figureDrag")
+                .accessibilityAction(named: "Copy Figure") { ExportPanels.copyDiffractionFigure(appState: appState) }
         }
         .padding(.horizontal, LayoutPolicy.infobarHorizontalPadding)
         .frame(height: LayoutPolicy.paneHeaderHeight)
@@ -413,6 +422,7 @@ private struct DiffractionPatternPane: View {
             .accessibilityAction(named: "Zoom in") { view.zoom(by: 2, image: image) }
             .accessibilityAction(named: "Zoom out") { view.zoom(by: 0.5, image: image) }
             .accessibilityAction(named: "Reset zoom") { view.fitView() }
+            .accessibilityAction(named: "Copy Figure") { ExportPanels.copyDiffractionFigure(appState: appState) }
             // The Tilt tool's drag for VoiceOver (#787): one coarse step each way, as ⌥⇧ and an arrow.
             .accessibilityActions {
                 if view.tool == .tilt, analysis.drawnOrientation != nil {
@@ -421,6 +431,9 @@ private struct DiffractionPatternPane: View {
                     Button("Tilt left") { tilt(.left, degrees: Self.coarseTiltDegrees) }
                     Button("Tilt right") { tilt(.right, degrees: Self.coarseTiltDegrees) }
                 }
+            }
+            .contextMenu {
+                Button("Copy Figure") { ExportPanels.copyDiffractionFigure(appState: appState) }
             }
             // The click's twin while a click adds a spot: an element of its own at the cursor, beside the pattern's (whose children
             // are ignored), so the pattern keeps its label, its readout value and its zoom actions.

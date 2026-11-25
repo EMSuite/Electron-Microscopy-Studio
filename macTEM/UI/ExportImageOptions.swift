@@ -11,7 +11,9 @@
 //        `fittingSize`, so the panel never changes height after it is up.
 //
 
+import ShellExport
 import SwiftUI
+import TEMCore
 
 /// What the panel's checkboxes are now. Lives as long as the panel does (`ExportPanels` holds it across the await).
 @Observable
@@ -27,29 +29,60 @@ final class ExportImageChoices {
     var asShown = false
     /// "Leave out file names" (#817): offered by the Image room's panel, whose PNG carries a methods record; nil elsewhere.
     var fileNames: ExportFileNameChoice?
+    /// Export Figure…'s Format and Width (#822): offered by the Image room's panel only; PNG is the image's own pixels as before,
+    /// PDF and SVG a vector figure `width` wide. `formatChanged` lets the panel follow the format with its file type.
+    let offersFigure: Bool
+    /// Whether a PNG is a figure too, `width` wide at 300 dpi (the Diffraction room's, which has no PNG of its own pixels).
+    var pngIsFigure = false
+    /// The Diffraction figure's Legend and Spot table (#823): offered when the figure has marks to key, or a readout row.
+    var offersLegend = false
+    var legend = true
+    var offersTable = false
+    var table = true
+    var format: FigureExport.Format = .png
+    var width: FigureStyle.Width = .mm90
+    @ObservationIgnored var formatChanged: ((FigureExport.Format) -> Void)?
 
     enum Kind: Sendable {
         case marks, spots
+        /// The Diffraction room's figure (#822): the d of each ring and spot and the hkl of the simulated spots.
+        case labels
 
-        var title: String { self == .marks ? "Marks" : "Spots" }
-        var help: String {
-            self == .marks ? "Draw this file's distances, angles and profiles on the image"
-                           : "Draw a ring and the number of each measured spot on the transform"
+        var title: String {
+            switch self {
+            case .marks: "Marks"
+            case .spots: "Spots"
+            case .labels: "Labels"
+            }
         }
-        var identifier: String { self == .marks ? "export.marksToggle" : "export.spotsToggle" }
+        var help: String {
+            switch self {
+            case .marks: "Draw this file's distances, angles and profiles on the image"
+            case .spots: "Draw a ring and the number of each measured spot on the transform"
+            case .labels: "Write the d of each ring and spot and the hkl of the simulated spots"
+            }
+        }
+        var identifier: String {
+            switch self {
+            case .marks: "export.marksToggle"
+            case .spots: "export.spotsToggle"
+            case .labels: "export.labelsToggle"
+            }
+        }
     }
 
-    init(scaleBar: Bool, marks: Bool, offersMarks: Bool, kind: Kind = .marks, offersAsShown: Bool = false) {
+    init(scaleBar: Bool, marks: Bool, offersMarks: Bool, kind: Kind = .marks, offersAsShown: Bool = false, offersFigure: Bool = false) {
         self.scaleBar = scaleBar
         self.marks = marks
         self.offersMarks = offersMarks
         self.kind = kind
         self.offersAsShown = offersAsShown
+        self.offersFigure = offersFigure
     }
 
-    convenience init(_ defaults: ExportImageDefaults, kind: Kind = .marks, offersAsShown: Bool = false) {
+    convenience init(_ defaults: ExportImageDefaults, kind: Kind = .marks, offersAsShown: Bool = false, offersFigure: Bool = false) {
         self.init(scaleBar: defaults.scaleBar, marks: defaults.marks, offersMarks: defaults.offersMarks, kind: kind,
-                  offersAsShown: offersAsShown)
+                  offersAsShown: offersAsShown, offersFigure: offersFigure)
     }
 }
 
@@ -62,16 +95,52 @@ struct ExportImageOptions: View {
     private static let spacing: CGFloat = 16
     private static let padding: CGFloat = 8
 
+    /// A journal's column widths, named as journals name them.
+    static func widthTitle(_ width: FigureStyle.Width) -> String {
+        switch width {
+        case .mm90: "One column (90 mm)"
+        case .mm140: "1.5 columns (140 mm)"
+        case .mm190: "Two columns (190 mm)"
+        }
+    }
+
     var body: some View {
         HStack(spacing: Self.spacing) {
+            if choices.offersFigure {
+                Picker("Format", selection: $choices.format) {
+                    ForEach(FigureExport.Format.allCases, id: \.self) { Text($0.title).tag($0) }
+                }
+                .fixedSize()
+                .onChange(of: choices.format) { _, format in choices.formatChanged?(format) }
+                .help("PDF and SVG keep the scale bar, the marks and their labels as lines and text; PNG is the image's own pixels")
+                .accessibilityIdentifier("export.formatPicker")
+                // Left out, never dimmed, for PNG: the PNG has the image's own pixels, not a width.
+                if choices.format.isVector || choices.pngIsFigure {
+                    Picker("Width", selection: $choices.width) {
+                        ForEach(FigureStyle.Width.allCases, id: \.self) { Text(Self.widthTitle($0)).tag($0) }
+                    }
+                    .fixedSize()
+                    .help("The figure's width on the page: one column (90 mm), one and a half (140 mm) or two (190 mm)")
+                    .accessibilityIdentifier("export.widthPicker")
+                }
+            }
             Toggle("Scale bar", isOn: $choices.scaleBar)
-                .help(choices.kind == .marks ? "Draw the scale bar at the bottom left of the image"
-                                             : "Draw the scale bar at the bottom left of the transform")
+                .help("Draw the scale bar at the bottom left of the " + (choices.kind == .spots ? "transform" : choices.kind == .labels ? "pattern" : "image"))
                 .accessibilityIdentifier("export.scaleBarToggle")
             if choices.offersMarks {
                 Toggle(choices.kind.title, isOn: $choices.marks)
                     .help(choices.kind.help)
                     .accessibilityIdentifier(choices.kind.identifier)
+            }
+            if choices.offersLegend {
+                Toggle("Legend", isOn: $choices.legend)
+                    .help("Draw a key under the pattern: one row for the measured rings, the measured spots and the simulated spots")
+                    .accessibilityIdentifier("export.legendToggle")
+            }
+            if choices.offersTable {
+                Toggle("Spot table", isOn: $choices.table)
+                    .help("Draw the readout under the pattern: each ring and spot with its family, d, listed d and Δd/d")
+                    .accessibilityIdentifier("export.tableToggle")
             }
             if choices.offersAsShown {
                 Toggle("As shown", isOn: $choices.asShown)
@@ -86,6 +155,6 @@ struct ExportImageOptions: View {
         .padding(Self.padding)
         // One group for VoiceOver, so the two checkboxes are read as the panel's drawing options.
         .accessibilityElement(children: .contain)
-        .accessibilityLabel(choices.kind == .marks ? "Drawn on the image" : "Drawn on the transform")
+        .accessibilityLabel(choices.kind == .spots ? "Drawn on the transform" : choices.kind == .labels ? "Drawn on the pattern" : "Drawn on the image")
     }
 }

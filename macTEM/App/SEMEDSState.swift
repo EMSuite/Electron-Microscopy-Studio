@@ -42,6 +42,9 @@ final class SEMEDSState {
             guard path == newPath else { return }
             spectrum = read.isSEM ? read : nil
             recompute()
+        } catch is HyperSpySpectrumFile.Refusal {
+            // A HyperSpy file of no spectrum (an EDS spectrum image, #820): nothing SEM to show; the room says what it opened.
+            return
         } catch {
             guard path == newPath else { return }
             failure = error.localizedDescription

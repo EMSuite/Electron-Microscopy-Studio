@@ -51,6 +51,7 @@ final class AppWindows {
         parked.removeAll { $0 === state }
         if !onScreen.contains(where: { $0 === state }) { onScreen.append(state) }
         state.windows = self
+        state.windowClosed = false
         front = state
     }
 
@@ -80,6 +81,7 @@ final class AppWindows {
     /// what it would lose keeps everything; nothing is released while the app quits.
     func windowWillClose(_ state: AppState) {
         guard !isTerminating, state.quitQuestion == nil else { return }
+        state.windowClosed = true
         state.releaseFiles()
     }
 
@@ -147,6 +149,7 @@ extension AppState {
     /// Closes every file this window holds (images, the spectrum images, the EBSD dataset, the orientation maps), letting go of their pixels: its window closed
     /// with nothing to lose (`AppWindows.windowWillClose`).
     func releaseFiles() {
+        hyperSpyWrite?.task.cancel() // a HyperSpy file half written from the cube is left out, as Stop leaves it
         for id in openItems.items.map(\.id) { openItems.close(id) }
         eels.close()
         edx.close()

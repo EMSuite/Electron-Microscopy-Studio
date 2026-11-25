@@ -4,11 +4,13 @@
 //  512 × 512, centre (256, 256), Δq 0.0125 Å⁻¹/px at 200 kV, {111} at R 33.98, {200} at 39.24, {220} as six spots at R 55.48, the
 //  file's axis written 1 % large): set_diffraction calibrates on the Au {111} ring and get_diffraction reads the planted scale back,
 //  set_diffraction_marks adds a {220} spot that the readout indexes, removes it, and the settings the file states are refused.
+//  get_diffraction_figure draws the figure Copy Figure copies (#823).
 //  The tolerances are DiffractionAnalysisTests' (the kit's): the door adds none of its own.
 //
 
 import Foundation
 import ShellAgentDoor
+import ShellExport
 import ShellLayout
 import TEMCore
 import TEMSession
@@ -131,8 +133,8 @@ nonisolated final class AgentDoorDiffractionTests: XCTestCase {
         XCTAssertFalse(item.diffraction.ringCalibrationExists, "removing the calibrating ring drops its scale")
     }
 
-    /// Mutation: a typed Δq or beam energy taken over the file's own, a refused call changing a setting given beside the refused one,
-    /// or a setting not reaching the analysis' intent - red.
+    /// Mutation: a typed Δq or beam energy taken over the file's own, a refused call changing a setting given beside the refused one
+    /// (the centre and the standard before a ring the new standard lacks, #927), or a setting not reaching the analysis' intent - red.
     @MainActor func testSettingsAndTheirRefusals() async throws {
         let (_, item) = try await diffractionWindow()
         let typed = try await call("set_diffraction", ["delta_q": 0.02, "k_max": 2])
@@ -165,7 +167,70 @@ nonisolated final class AgentDoorDiffractionTests: XCTestCase {
         XCTAssertFalse(standard.refused, standard.text)
         XCTAssertEqual(item.diffraction.standard.name, "Al")
         XCTAssertNil(item.diffraction.pitchMM)
+        // A ring the new standard does not list is refused before the centre or the standard moves (#927).
+        let family = try await call("set_diffraction", ["standard": "Si", "family": 6, "centre_row": 10, "centre_column": 10])
+        XCTAssertTrue(family.refused, "the standards list at most six rings")
+        XCTAssertEqual(item.diffraction.standard.name, "Al", "a refused call keeps the standard")
+        XCTAssertEqual(item.diffraction.centre?.row, 255, "a refused call keeps the centre")
+        XCTAssertEqual(item.diffraction.centre?.column, 257)
         let noRing = try await call("set_diffraction", ["use_ring_centre": 1])
         XCTAssertTrue(noRing.refused, "no ring is fitted")
     }
+
+    /// The methods record of the Au pattern (#818): refused before a ring or spot is measured, then the record and paragraph File >
+    /// Export Methods Record… and Edit > Copy Methods Paragraph give, the ring fit's calibration among its steps, and the file's name
+    /// left out on request. Mutation: the tool or the menu reading another record than `MethodsRecordExport.record(of:)`, the
+    /// availability ignoring the readout, or leave_out_file_names not reaching the record - red.
+    @MainActor func testTheMethodsRecordOfTheAuPattern() async throws {
+        let (state, item) = try await diffractionWindow()
+        XCTAssertFalse(MethodsRecordExport.isAvailable(in: state), "nothing measured yet")
+        let none = try await call("get_methods_record")
+        XCTAssertTrue(none.refused, "no result to record")
+
+        let calibrate = try await call("set_diffraction", ["inner": 29, "outer": 37, "family": 0, "calibrate": true])
+        XCTAssertFalse(calibrate.refused, calibrate.text)
+        try await waitUntil("the ring fit to land", seconds: 60) { !item.diffraction.isFitting && !item.diffraction.rings.isEmpty }
+        XCTAssertTrue(MethodsRecordExport.isAvailable(in: state))
+
+        let answer = try json(try await call("get_methods_record").text)
+        let record = try MethodsRecord.decode(try XCTUnwrap(answer["record"] as? String))
+        XCTAssertEqual(record, MethodsRecordExport.record(of: state), "the menu's record")
+        XCTAssertEqual(record.room, "diffraction")
+        XCTAssertEqual(record.exportKind, "methods-record")
+        XCTAssertEqual(record.steps.map(\.name), ["Centring", "Calibration", "Indexing"])
+        XCTAssertTrue(record.steps[1].method.hasPrefix("a ring fit to the Au {"), record.steps[1].method)
+        let name = DemoDocuments.patternURL.lastPathComponent
+        XCTAssertEqual(record.sources.first?.fileName, name)
+        let paragraph = try XCTUnwrap(answer["paragraph"] as? String)
+        XCTAssertEqual(paragraph, record.paragraph)
+        XCTAssertTrue(paragraph.contains("Calibration used a ring fit to the Au {"), paragraph)
+        // The paragraph in the CI log, for reading it as a methods section.
+        print("MACEM_METHODS_PARAGRAPH \(paragraph)")
+
+        let copied = CopiedText()
+        await MethodsRecordExport.copyParagraph(appState: state, writer: copied)?.value
+        XCTAssertEqual(copied.texts, [paragraph], "Copy Methods Paragraph copies the same paragraph")
+
+        let anonymous = try json(try await call("get_methods_record", ["leave_out_file_names": true]).text)
+        let left = try MethodsRecord.decode(try XCTUnwrap(anonymous["record"] as? String))
+        XCTAssertEqual(left.sources.first?.fileName, "source 1")
+        XCTAssertFalse(try XCTUnwrap(anonymous["paragraph"] as? String).contains(name))
+    }
+
+    /// get_diffraction_figure (#823) answers the figure Copy Figure copies, as an image, once the pattern's display is built.
+    /// Mutation: the tool missing, or answering text - red.
+    @MainActor func testTheFigureToolDrawsThePattern() async throws {
+        let (_, item) = try await diffractionWindow()
+        let image = try XCTUnwrap(item.session.image)
+        await item.diffractionView.show(image: image, analysis: item.diffraction)
+        let figure = try await call("get_diffraction_figure")
+        XCTAssertFalse(figure.refused, figure.text)
+        XCTAssertTrue(figure.image, "the figure is a picture")
+    }
+}
+
+/// A pasteboard that keeps what it is given.
+@MainActor private final class CopiedText: PaneTextWriter {
+    var texts: [String] = []
+    func write(_ text: String) { texts.append(text) }
 }
