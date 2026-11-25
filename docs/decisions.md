@@ -590,3 +590,20 @@ the pair into that picture gives Export Image, the scale bar and the agent door'
 
 **What would reverse it.** Measuring on the simulation alone (FFT, Profile) while the pair is shown; then the pair would become
 an item of its own beside the HRTEM image.
+
+## 2026-11-25 — A document names an outside file by name, size and fingerprint; the app keeps the bookmark (#824)
+
+**What.** A document names each outside file as a `LinkedFile`: its name, its size and a fingerprint (the SHA-256 of the size,
+the first MiB and the last MiB), never a path. The permission is the app's own security-scoped bookmark, kept in its defaults
+under the link's id. A link resolves off the main actor, without interface and without mounting, within 5 seconds: found where
+it moved or under a new name, a stale bookmark renewed; otherwise one line says the file is not connected, on a server that is
+not connected, or different, with Locate…, and a file with other contents is linked only with Link Anyway. Place Beside's
+measured image is the first link; the Simulation document's session file (#908) will save it as it is.
+
+**Why.** The suite's files-exports design, "The sandbox rule for documents that point at other files": a path does not travel to
+another Mac and tells a reader the user's folders, and a bookmark inside the document needs a second entitlement and fights the
+write-then-rename save. Departure: the line sits in Place Beside's section, where the measured image is named, not in a window
+header; a server that is not connected gets Locate… only (Connect, which mounts, is not offered).
+
+**What would reverse it.** Two files that share their size and both ends taken for one (then the whole file is hashed, at the
+cost of a pass over a gigabyte scan).

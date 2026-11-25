@@ -231,24 +231,40 @@ extension ImageExport {
 
             context.setLineCap(.round)
             context.setLineJoin(.round)
-            // (A spot has one point: `addLines` makes a lone move-to, which strokes nothing.)
-            for (colour, lineWidth) in [(underStroke, 3.5 * scale), (yellow, 1.5 * scale)] {
-                context.setStrokeColor(colour)
-                context.setLineWidth(lineWidth)
-                context.beginPath()
-                context.addLines(between: points)
-                context.strokePath()
-            }
-            // A spot is one ring of the FFT pane's radius (7 points, `FFTSpotMarkers.ringRadius`); a simulated spot a smaller cyan one,
-            // as the Diffraction room draws it; the others have a small ring per point.
-            let ringRadius = (mark.kind == .spot ? 7.0 : mark.kind == .simulatedSpot ? 5.0 : 3.0) * scale
-            let ringColour = mark.kind == .simulatedSpot ? cyan : yellow
-            for point in points {
-                let ring = CGRect(x: point.x - ringRadius, y: point.y - ringRadius, width: 2 * ringRadius, height: 2 * ringRadius)
-                for (colour, lineWidth) in [(underStroke, 3 * scale), (ringColour, 1.5 * scale)] {
+            // A fitted ring (yellow) or an annulus edge (dashed white) is a closed outline with no ring at its points, as the
+            // Diffraction room draws them.
+            if mark.kind == .ring || mark.kind == .annulus {
+                let outline = mark.kind == .annulus ? CGColor(srgbRed: 1, green: 1, blue: 1, alpha: 0.8) : yellow
+                for (colour, lineWidth) in [(underStroke, 3 * scale), (outline, 1.5 * scale)] {
                     context.setStrokeColor(colour)
                     context.setLineWidth(lineWidth)
-                    context.strokeEllipse(in: ring)
+                    context.setLineDash(phase: 0, lengths: mark.kind == .annulus ? [4 * scale, 3 * scale] : [])
+                    context.beginPath()
+                    context.addLines(between: points)
+                    context.closePath()
+                    context.strokePath()
+                }
+                context.setLineDash(phase: 0, lengths: [])
+            } else {
+                // (A spot has one point: `addLines` makes a lone move-to, which strokes nothing.)
+                for (colour, lineWidth) in [(underStroke, 3.5 * scale), (yellow, 1.5 * scale)] {
+                    context.setStrokeColor(colour)
+                    context.setLineWidth(lineWidth)
+                    context.beginPath()
+                    context.addLines(between: points)
+                    context.strokePath()
+                }
+                // A spot is one ring of the FFT pane's radius (7 points, `FFTSpotMarkers.ringRadius`); a simulated spot a smaller cyan one,
+                // as the Diffraction room draws it; the others have a small ring per point.
+                let ringRadius = (mark.kind == .spot ? 7.0 : mark.kind == .simulatedSpot ? 5.0 : 3.0) * scale
+                let ringColour = mark.kind == .simulatedSpot ? cyan : yellow
+                for point in points {
+                    let ring = CGRect(x: point.x - ringRadius, y: point.y - ringRadius, width: 2 * ringRadius, height: 2 * ringRadius)
+                    for (colour, lineWidth) in [(underStroke, 3 * scale), (ringColour, 1.5 * scale)] {
+                        context.setStrokeColor(colour)
+                        context.setLineWidth(lineWidth)
+                        context.strokeEllipse(in: ring)
+                    }
                 }
             }
 
@@ -260,6 +276,10 @@ extension ImageExport {
                 anchor = points.count == 3 ? points[1] : nil
             case .spot, .simulatedSpot:
                 anchor = points.count == 1 ? CGPoint(x: points[0].x + 4 * scale, y: points[0].y - 4 * scale) : nil
+            case .ring:
+                anchor = points[0]
+            case .annulus:
+                anchor = nil
             case .distance, .profile:
                 anchor = points.count == 2 ? CGPoint(x: (points[0].x + points[1].x) / 2, y: (points[0].y + points[1].y) / 2) : nil
             }

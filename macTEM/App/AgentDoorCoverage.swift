@@ -43,6 +43,8 @@ nonisolated enum AgentDoorCoverage {
     static let crashReportReason = "the person's report of a crash, which only they may send or dismiss"
     /// Help > How to Cite (#828): the app's citation, copied to the person's clipboard.
     static let citeReason = "copies the app's citation to the person's clipboard; CITATION.cff in the repository holds the same"
+    /// Link Anyway (#824): names the file the person picked with Locate… although its contents differ, which only they can vouch for.
+    static let linkAnywayReason = "links a file the person picked with Locate… whose contents differ; only the person can say it is the same data"
     static let resultsFilterReason = "filters what the person's results table shows; get_results gives every row whatever the filter"
 
     static let controls: [String: Reach] = [
@@ -60,8 +62,12 @@ nonisolated enum AgentDoorCoverage {
         "diffraction.figureDrag": .tool("get_diffraction_figure"),
         "diffraction.fitRing": .tool("set_diffraction"),
         "diffraction.findPhases": .tool("find_phases"),
+        "diffraction.findPhases.elements": .tool("find_phases"),
         "diffraction.findPhases.fitScale": .tool("find_phases"),
+        "diffraction.findPhases.fromEDS": .tool("find_phases"),
         "diffraction.findPhases.rank": .tool("find_phases"),
+        "diffraction.findPhases.search": .tool("find_phases"),
+        "diffraction.findPhases.searchStop": .tool("find_phases"),
         "diffraction.findPhases.stop": .tool("find_phases"),
         "diffraction.findPhases.table": .tool("find_phases"),
         "diffraction.findPhases.use": .tool("find_phases"),
@@ -499,7 +505,10 @@ nonisolated enum AgentDoorCoverage {
         "simulation.beside.insetAcross": .tool("set_simulation"),
         "simulation.beside.insetDown": .tool("set_simulation"),
         "simulation.beside.layout": .tool("set_simulation"),
+        "simulation.beside.linkAnyway": .personOnly(linkAnywayReason),
+        "simulation.beside.locate": .personOnly(openReason),
         "simulation.beside.measured": .tool("set_simulation"),
+        "simulation.beside.open": .personOnly(openCloseReason),
         "simulation.beside.refusal": .tool("read_simulation"),
         "simulation.beside.rotation": .tool("set_simulation"),
         "simulation.beside.scale": .tool("read_simulation"),
@@ -511,7 +520,7 @@ nonisolated enum AgentDoorCoverage {
         "simulation.hrtem.fieldOfView": .tool("set_simulation"),
         "simulation.hrtem.method": .tool("read_simulation"),
         "simulation.hrtem.potential": .tool("read_simulation"),
-        "simulation.hrtem.saveScript": .gap(918),
+        "simulation.hrtem.saveScript": .tool("get_abtem_script"),
         "simulation.hrtem.scherzer": .tool("set_simulation"),
         "simulation.hrtem.table": .personOnly(hrtemTableReason),
         "simulation.hrtem.table.cell.\\(r).\\(c)": .tool("set_simulation"),
@@ -529,12 +538,12 @@ nonisolated enum AgentDoorCoverage {
         "simulation.microscope.focalSpread": .tool("set_simulation"),
         "simulation.microscope.optics": .tool("set_simulation"),
         "simulation.microscope.voltage": .tool("set_simulation"),
-        "simulation.specimen.beamAxis": .gap(918),
+        "simulation.specimen.beamAxis": .tool("set_atom_model"),
         "simulation.specimen.box": .tool("read_simulation"),
         "simulation.specimen.hrtem": .tool("run_simulation"),
-        "simulation.specimen.modelThickness": .gap(918),
-        "simulation.specimen.openModel": .gap(918),
-        "simulation.specimen.source": .gap(918),
+        "simulation.specimen.modelThickness": .tool("read_atom_model"),
+        "simulation.specimen.openModel": .tool("set_atom_model"),
+        "simulation.specimen.source": .tool("set_atom_model"),
         "simulation.specimen.thickness": .tool("set_simulation"),
         "simulation.specimen.stem": .tool("run_stem"),
         "simulation.specimen.useAnyway": .tool("set_simulation"),

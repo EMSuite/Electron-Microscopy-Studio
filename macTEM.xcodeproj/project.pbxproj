@@ -226,6 +226,7 @@
 				B00000000000000000000007 /* Resources */,
 				B00000000000000000000903 /* Embed Foundation Extensions */,
 				B00000000000000000000190 /* Leave Sparkle out of the store build */,
+				B00000000000000000001001 /* Sign the HDF5 frameworks with the app's identity */,
 			);
 			buildRules = (
 			);
@@ -456,6 +457,25 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "# The App Store build (MACEM_STORE_BUILD=YES) carries no updater (#583): its code is compiled out (no SPARKLE condition),\n# -dead_strip_dylibs drops the unused load command (the HDF5 frameworks, loaded by path, are kept as needed), and this removes the framework Xcode embedded for the package.\nif [ \"${MACEM_STORE_BUILD}\" = YES ]; then\n  rm -rf \"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/Sparkle.framework\"\nfi\n# The menu bar's name (CFBundleName, Config/Version.xcconfig MACEM_MENU_NAME): the generated Info.plist writes PRODUCT_NAME over\n# the file's $(MACEM_MENU_NAME), so the store build's menu read \"Electron Microscopy Studio\". Set after the plist is processed,\n# before signing.\n/usr/libexec/PlistBuddy -c \"Set :CFBundleName ${MACEM_MENU_NAME}\" \"${TARGET_BUILD_DIR}/${INFOPLIST_PATH}\"\n";
+		};
+		B00000000000000000001001 /* Sign the HDF5 frameworks with the app's identity */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Sign the HDF5 frameworks with the app's identity";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# FormatoKit's binary frameworks come signed by their publisher; Xcode copies them into the app unchanged. A Release build has the\n# hardened runtime, whose library validation refuses a framework of another Team ID, so dyld killed the launch (#1001). Sign each\n# copy with the app's own identity before the app is sealed. An unsigned build (CI, no identity) leaves them as they are.\n# OTHER_CODE_SIGN_FLAGS carries tools/release.sh's --timestamp.\nif [ \"${CODE_SIGNING_ALLOWED}\" = YES ] && [ -n \"${EXPANDED_CODE_SIGN_IDENTITY}\" ]; then\n  for library in FormatoLibHDF5 FormatoLibSZ FormatoLibAEC; do\n    framework=\"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/${library}.framework\"\n    if [ -d \"${framework}\" ]; then\n      /usr/bin/codesign --force --sign \"${EXPANDED_CODE_SIGN_IDENTITY}\" --options runtime ${OTHER_CODE_SIGN_FLAGS:---timestamp=none} \"${framework}\" || exit 1\n    fi\n  done\nfi\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
