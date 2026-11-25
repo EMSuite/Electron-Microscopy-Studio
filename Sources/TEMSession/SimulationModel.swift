@@ -603,7 +603,7 @@ package final class SimulationModel {
                     Result { try HRTEMImage.addingConfiguration(to: before, built: built, optics: optics, thermal: thermal, index: index,
                                                                 progress: progress) }
                 }
-                let now = current?() ?? (crystal, zoneAxis)
+                let now = current?() ?? (crystal: crystal, zoneAxis: zoneAxis)
                 guard !Task.isCancelled, let nowSource = model.source(crystal: now.crystal, zoneAxis: now.zoneAxis), model.exitKeyFor(nowSource) == key
                 else { break }
                 switch made {
