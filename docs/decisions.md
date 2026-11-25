@@ -680,3 +680,16 @@ explains, not in a tab beside it.
 
 **What would reverse it.** A map kind list too long for a menu, or a key too large for the footer on a small map.
 
+## 2026-11-25 — The Maps room: grain statistics and slip results leave the inspector (#1066)
+
+**What.** After Segment the Grains tab's heading carries the five statistics (grains, mean ECD, area-weighted, mean intercept,
+ASTM E112) and its secondary line the settings they were made with; the picked grain's slip planes (Schmid factor, trace and
+inclination, a swatch in the trace's colour) are listed under the Grains table. The inspector's Grains and Slip sections keep the
+settings (Boundary, Smallest, Boundaries; Load, the systems, Traces), the stale warning and the notes. The Slip section of D-SEM-106
+shows its grain under the table now. The door reads the same model (`get_maps` segment and slip).
+
+**Why.** Approved by Paul in the design review of 25 Nov 2026 (proposal C): settings in the inspector, results in the room (design
+DNA). The statistics were half repeated in the tab's line already.
+
+**What would reverse it.** A grain table too short at the opening size to show its slip rows; then they move to a detail line.
+

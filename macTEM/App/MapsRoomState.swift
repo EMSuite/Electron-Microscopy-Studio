@@ -403,11 +403,10 @@ nonisolated enum MapsRoomFormat {
         return parts.joined(separator: " · ")
     }
 
-    /// The Grains section's summary rows; the lengths at the grain table's decimals (`lengthPlaces`).
+    /// The grain statistics as rows, for the session ledger; the lengths at the grain table's decimals (`lengthPlaces`).
     static func grainRows(_ analysis: MapAnalysis, locale: Locale = .autoupdatingCurrent) -> [EBSDBrowsing.Row] {
         let unit = EBSDBrowsing.unitLabel(analysis.scanUnit)
         let places = lengthPlaces(analysis)
-        let n = { (v: Double) in Self.number(v, locale: locale) }
         let l = { (v: Double) in Self.length(v, places: places, locale: locale) }
         var out = [EBSDBrowsing.Row("Grains", "\(analysis.table.count)")]
         if let mean = analysis.meanDiameter {
@@ -416,9 +415,31 @@ nonisolated enum MapsRoomFormat {
         }
         if let intercept = analysis.meanLinealIntercept { out.append(EBSDBrowsing.Row("Mean intercept", "\(l(intercept)) \(unit)")) }
         if let g = analysis.astmGrainSizeNumber { out.append(EBSDBrowsing.Row("ASTM E112", angle(g, locale: locale))) }
-        let s = analysis.settings
-        out.append(EBSDBrowsing.Row("Made with", "\(n(s.boundaryDegrees))° · ≥ \(UnitDisplay.count(s.minimumSize, "point", "points")) · KAM ≤ \(n(s.kamMaxDegrees))°"))
+        out.append(EBSDBrowsing.Row("Made with", madeWith(analysis.settings, locale: locale)))
         return out
+    }
+
+    /// The Grains tab's heading line (#1066): the five statistics the inspector listed, "102 grains · mean ECD 3.14 µm · area-weighted
+    /// 4.20 µm · mean intercept 2.90 µm · ASTM E112 14.2", the lengths at the grain table's decimals; a statistic the analysis has not is
+    /// left out.
+    static func grainHeadline(_ analysis: MapAnalysis, locale: Locale = .autoupdatingCurrent) -> String {
+        let unit = EBSDBrowsing.unitLabel(analysis.scanUnit)
+        let places = lengthPlaces(analysis)
+        let l = { (v: Double) in "\(Self.length(v, places: places, locale: locale)) \(unit)" }
+        var parts = [UnitDisplay.count(analysis.table.count, "grain", "grains")]
+        if let mean = analysis.meanDiameter {
+            parts.append("mean ECD \(l(mean.byNumber))")
+            parts.append("area-weighted \(l(mean.byArea))")
+        }
+        if let intercept = analysis.meanLinealIntercept { parts.append("mean intercept \(l(intercept))") }
+        if let g = analysis.astmGrainSizeNumber { parts.append("ASTM E112 \(angle(g, locale: locale))") }
+        return parts.joined(separator: " · ")
+    }
+
+    /// "5° · ≥ 10 points · KAM ≤ 2°": the settings a Segment ran with, the Grains tab's secondary line and the ledger's "Made with".
+    static func madeWith(_ s: MapAnalysisSettings, locale: Locale = .autoupdatingCurrent) -> String {
+        let n = { (v: Double) in Self.number(v, locale: locale) }
+        return "\(n(s.boundaryDegrees))° · ≥ \(UnitDisplay.count(s.minimumSize, "point", "points")) · KAM ≤ \(n(s.kamMaxDegrees))°"
     }
 
     /// The slip-system files that fit a phase's crystal structure.

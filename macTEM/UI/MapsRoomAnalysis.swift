@@ -216,9 +216,16 @@ struct MapsGrainsTable: View {
                 let unit = EBSDBrowsing.unitLabel(analysis.scanUnit)
                 let places = MapsRoomFormat.lengthPlaces(analysis)
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(verbatim: MapsRoomFormat.grainSummary(analysis))
-                        .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                    // The grain statistics and the settings they were made with: results in the room, not the inspector (#1066).
+                    Text(verbatim: MapsRoomFormat.grainHeadline(analysis))
+                        .font(.callout.monospacedDigit())
+                        .lineLimit(2)
+                        .textSelection(.enabled)
                         .accessibilityIdentifier("maps.grains.summary")
+                    Text(verbatim: "Made with " + MapsRoomFormat.madeWith(analysis.settings))
+                        .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                        .lineLimit(1).truncationMode(.middle)
+                        .accessibilityIdentifier("maps.grains.madeWith")
                     // The person's selection takes the keyboard for the table (#353); a ⌘-click on the map selects grains through the
                     // session and leaves the keys with the map.
                     Table(rows, selection: Binding(get: { session.selectedGrains }, set: { picked in
@@ -249,6 +256,7 @@ struct MapsGrainsTable: View {
                         personPicked = false
                     }
                     .accessibilityIdentifier("maps.grains.table")
+                    MapsGrainSlipRows(session: session)
                 }
                 .padding(10)
             } else {
@@ -273,6 +281,36 @@ struct MapsGrainsTable: View {
         let picked = rows.filter { session.selectedGrains.contains($0.id) }
         guard !picked.isEmpty else { return [] }
         return [NSItemProvider(object: GrainTableFormat.copyText(picked, unit: unit, slip: session.slip, places: places) as NSString)]
+    }
+}
+
+/// The picked grain's slip planes under the Grains table (#1066: results in the room, not the inspector): each plane's Schmid factor,
+/// trace and inclination, beside a swatch in its trace's colour on the map. Nothing while no grain is picked.
+struct MapsGrainSlipRows: View {
+    let session: OrientationMapSession
+
+    var body: some View {
+        if let row = session.selectedRow, let slip = session.selectedSlip {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(verbatim: "Slip in grain \(row.id) · \(row.phaseName)")
+                    .font(.caption).foregroundStyle(.secondary)
+                ForEach(Array(slip.planes.enumerated()), id: \.offset) { index, plane in
+                    HStack(spacing: 6) {
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(MapsAnalysisOverlay.traceColour(plane.colour))
+                            .frame(width: 10, height: 10)
+                            .accessibilityHidden(true)
+                        Text(verbatim: plane.label).font(.caption.monospaced())
+                        Text(verbatim: MapsRoomFormat.planeText(plane)).font(.caption.monospacedDigit())
+                            .lineLimit(1).truncationMode(.tail)
+                    }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityIdentifier("maps.grains.slip.\(index)")
+                }
+            }
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("maps.grains.slip")
+        }
     }
 }
 
@@ -464,7 +502,7 @@ struct MapsMisorientationSection: View {
     }
 }
 
-/// Grains (design §4): the boundary angle and the smallest grain, whether the boundaries show, and the summary of the last Segment.
+/// Grains (design §4): the boundary angle and the smallest grain, and whether the boundaries show; the statistics are the Grains tab's.
 struct MapsGrainsSection: View {
     let session: OrientationMapSession
 
@@ -494,10 +532,8 @@ struct MapsGrainsSection: View {
                     .help("Grain boundaries white, phase boundaries black, over the map")
                     .accessibilityIdentifier("maps.showBoundaries")
             }
-            if let analysis = session.analysis {
-                ForEach(MapsRoomFormat.grainRows(analysis)) { row in
-                    InspectorValueRow(row.label, row.value)
-                }
+            // The statistics of the last Segment are the Grains tab's heading (#1066); the inspector keeps the settings.
+            if session.analysis != nil {
                 if session.analysisIsStale {
                     InspectorWarning("The settings changed: Segment again to apply them.")
                 }
@@ -508,7 +544,7 @@ struct MapsGrainsSection: View {
     }
 }
 
-/// Slip: the load axis and each phase's slip systems; the selected grain's Schmid factors and trace angles.
+/// Slip: the load axis, each phase's slip systems and whether the traces show; the picked grain's planes are under the Grains table.
 struct MapsSlipSection: View {
     let session: OrientationMapSession
 
@@ -542,13 +578,9 @@ struct MapsSlipSection: View {
                     .help("The selected grain's slip-plane traces through its centroid, in DefDAP's colours")
                     .accessibilityIdentifier("maps.slip.traces")
             }
-            if let row = session.selectedRow, let slip = session.selectedSlip {
-                InspectorValueRow("Grain", "\(row.id) · \(row.phaseName)")
-                ForEach(Array(slip.planes.enumerated()), id: \.offset) { _, plane in
-                    InspectorValueRow(plane.label, MapsRoomFormat.planeText(plane))
-                }
-            } else if session.analysis != nil {
-                InspectorNote("Pin a point in a grain, or pick a row of the Grains tab, for its Schmid factors and traces.")
+            // The picked grain's planes are listed under the Grains table (#1066); the inspector keeps the settings.
+            if session.analysis != nil, session.selectedSlip == nil {
+                InspectorNote("Pin a point in a grain, or pick a row of the Grains tab, for its Schmid factors and traces under the table.")
             }
         }
     }
