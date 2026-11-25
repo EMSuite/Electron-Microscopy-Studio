@@ -39,7 +39,12 @@ struct DiffractionRoom: View {
 
     /// The pattern's display is built again for another item, a Log switch, or new pixels (`ImageSession.generation`: a frame, a CBED
     /// pattern at another thickness, #1003), whatever their size.
-    private struct DisplayKey: Equatable { var id: OpenItem.ID; var log: Bool; var generation: Int }
+    private struct DisplayKey: Equatable {
+        var id: OpenItem.ID
+        var log: Bool
+        // periphery:ignore - read by the synthesized ==
+        var generation: Int
+    }
 
     var body: some View {
         // The root reads only what a change of the RESULTS (or the log toggle) must redraw: the pointer, the zoom and the annulus drag live in

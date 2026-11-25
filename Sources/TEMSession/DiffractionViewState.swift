@@ -77,7 +77,9 @@ package final class DiffractionViewState {
 
     /// What the canvas was drawn from: the image session's generation (`ImageSession.generation`) and the Log switch.
     package struct CanvasSource: Equatable, Sendable {
+        // periphery:ignore - read by the synthesized ==
         package let generation: Int
+        // periphery:ignore - read by the synthesized ==
         package let log: Bool
 
         package init(generation: Int, log: Bool) {
