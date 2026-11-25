@@ -95,7 +95,11 @@ nonisolated final class AgentDoorEELSTests: XCTestCase {
         XCTAssertFalse(ran.refused, ran.text)
         XCTAssertEqual(try json(ran.text)["started"] as? String, "Run")
         await state.eels.settled()
-        try await waitUntil("Run to land", seconds: 120) { !state.eels.isBusy && state.eels.map != nil }
+        // The demo's own map is already on screen (stale once λ changed), so Run has landed only when the map is current again: a
+        // wait on the map alone can return before Run's pass starts.
+        try await waitUntil("Run to land", seconds: 120) {
+            !state.eels.isBusy && state.eels.map != nil && MacTEMAgentDoor.stateWord(state.eels.thicknessState) == "current"
+        }
         XCTAssertEqual(MacTEMAgentDoor.stateWord(state.eels.thicknessState), "current")
 
         let maps = try await call("get_eels_maps")
