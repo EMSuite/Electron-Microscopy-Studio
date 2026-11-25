@@ -7,6 +7,10 @@ TEM and SEM images, EDS and EELS spectrum images, electron diffraction and EBSD,
 Electron Microscopy Studio is the companion to [4DSTEM Studio](https://github.com/EMSuite/4DSTEM-Studio). Both are free, open source and built for
 Apple silicon.
 
+**Documentation:** [mac4dstem.com/docs/electron-microscopy-studio](https://mac4dstem.com/docs/electron-microscopy-studio/), with the
+[tutorials](https://mac4dstem.com/docs/tasks/) and the [example data](https://mac4dstem.com/docs/data/). In the app, Help opens them
+(⌘? for the documentation).
+
 ## Download
 
 Get the signed and notarised DMG from the [latest release](https://github.com/EMSuite/Electron-Microscopy-Studio/releases/latest). It needs

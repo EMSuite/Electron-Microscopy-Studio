@@ -43,6 +43,9 @@ nonisolated enum AgentDoorCoverage {
     static let crashReportReason = "the person's report of a crash, which only they may send or dismiss"
     /// Help > How to Cite (#828): the app's citation, copied to the person's clipboard.
     static let citeReason = "copies the app's citation to the person's clipboard; CITATION.cff in the repository holds the same"
+    /// Help's links and the welcome canvas's Tutorials (#753, #802): a web page in the person's browser, or their mail app.
+    static let browserReason = "opens a page of the website in the person's browser or a message in their mail app; the agent reads the same pages itself"
+    static let feedbackReason = "the person's own report to the author, sent from their own mail app or browser"
     static let resultsFilterReason = "filters what the person's results table shows; get_results gives every row whatever the filter"
 
     static let controls: [String: Reach] = [
@@ -575,6 +578,8 @@ nonisolated enum AgentDoorCoverage {
         "welcome.openImage": .tool("open_file"),
         "welcome.stopOpening": .personOnly(openCloseReason),
         "welcome.tryDemo": .tool("open_demo"),
+        "welcome.newSimulation": .tool("new_simulation"),
+        "welcome.tutorials": .personOnly(browserReason),
         "welcome.unreadableStatus": .seen,
         "workspace.\\(room.id)": .tool("select_room"),
     ]
@@ -646,6 +651,9 @@ nonisolated enum AgentDoorCoverage {
         "Line Tool": .tool("set_eds"),
         "Pin Region": .tool("set_eds"),
         // Help
+        "HelpMenuLinks.help.title": .personOnly(browserReason),
+        "link.title": .personOnly(browserReason),
+        "Report a Problem…": .personOnly(feedbackReason),
         "demo.title": .tool("open_demo"),
         // The app menu and Settings > Updates.
         "Check for Updates…": .personOnly(updateReason),

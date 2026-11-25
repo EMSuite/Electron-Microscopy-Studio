@@ -3,7 +3,8 @@
 //  Role: The welcome canvas's Recent list (#802, plan row Q16 of 2.3; the welcome mockup of 23 Nov): the files File > Open Recent
 //        lists, newest first, each a row with its name as the menu shows it and the folder it sits in, opened by a click as the menu
 //        item opens it (`AppState.openRecent`). Under it, the line that says a file can be dropped on the window (ContentView takes the
-//        drop). A thin slice: New Simulation joins the buttons with #788, the Tutorials link once the documentation is live (#753).
+//        drop). New Simulation sits beside Open Image… and the demo data, and the Tutorials link under them opens the same page as
+//        Help > Tutorials (`HelpMenuLinks.tutorials`, #753).
 //
 
 import Foundation
