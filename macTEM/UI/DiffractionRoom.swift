@@ -875,6 +875,8 @@ private struct DiffractionReadoutTable: View {
                     .font(.callout).foregroundStyle(.secondary).padding(10).allowsHitTesting(false)
             }
         }
+        // Empty, the hint sits on the plain background under the header row, never across striped bars (#1041).
+        .alternatingRowBackgrounds(TableStripes.shown(rowCount: rows.count) ? .automatic : .disabled)
         .accessibilityIdentifier("diffraction.readout")
     }
 
@@ -950,6 +952,7 @@ private struct DiffractionSpotTable: View {
                     .font(.callout).foregroundStyle(.secondary).padding(10).allowsHitTesting(false)
             }
         }
+        .alternatingRowBackgrounds(TableStripes.shown(rowCount: rows.count) ? .automatic : .disabled)
         .accessibilityIdentifier("diffraction.spots")
         .accessibilityLabel("Spots")
     }
