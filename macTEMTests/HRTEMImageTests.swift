@@ -158,7 +158,7 @@ nonisolated final class HRTEMImageTests: XCTestCase {
         XCTAssertFalse(model.exitWavesAreCurrent(crystal: si, zoneAxis: axis), "the voltage runs again")
     }
 
-    /// Show HRTEM Image opens "HRTEM of Simulation 1" in the Image room and runs the multislice itself, with no inspector on screen,
+    /// Show HRTEM Image opens "HRTEM of Simulation N" in the Image room and runs the multislice itself, with no inspector on screen,
     /// and the item's pixels become the model's image. Mutation: the item not opened, the room not selected, the run left to the
     /// inspector's task, the computed image not put into the item.
     @MainActor func testShowHRTEMImageOpensTheImageAndComputesIt() async throws {
@@ -171,7 +171,7 @@ nonisolated final class HRTEMImageTests: XCTestCase {
         await state.showHRTEMImage(of: simulation)?.value
         XCTAssertEqual(state.navigation.workspaceArea, .image)
         let item = try XCTUnwrap(state.hrtemItem(of: simulation))
-        XCTAssertEqual(item.url.lastPathComponent, "HRTEM of Simulation 1")
+        XCTAssertEqual(item.url.lastPathComponent, "HRTEM of \(simulation.url.lastPathComponent)", "the launch numbers its simulations across tests")
         XCTAssertFalse(DemoDocuments.isSimulation(item.url), "the image is not a Simulation document")
         XCTAssertTrue(state.simulationDocument(ofHRTEM: item) === simulation)
         let expected = try XCTUnwrap(simulation.multislice.hrtemImage(name: item.url.lastPathComponent)).get()
