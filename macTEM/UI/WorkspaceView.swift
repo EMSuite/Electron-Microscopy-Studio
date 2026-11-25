@@ -251,7 +251,19 @@ struct WelcomeWorkspace: View {
                     .fixedSize()
                     .help("Open a demo document in its room")
                     .accessibilityIdentifier("welcome.tryDemo")
+                    // File > New Simulation (#788): a simulated pattern with no measured one, from the welcome canvas too (#802).
+                    Button("New Simulation") { appState.newSimulation() }
+                        .controlSize(.large)
+                        .help("Simulate a diffraction pattern with no measured one, in the Diffraction room (⇧⌘N)")
+                        .accessibilityIdentifier("welcome.newSimulation")
                 }
+                // The tutorials on the website, beside the demo data (#753, #802): Help > Tutorials opens the same page.
+                Link(destination: HelpMenuLinks.tutorials.url) {
+                    Label("Tutorials", systemImage: "book")
+                }
+                .help("Open the tutorials in your browser: one page per task, in three steps")
+                .accessibilityLabel("Tutorials, opens in your browser")
+                .accessibilityIdentifier("welcome.tutorials")
                 recentList
                 Text(WelcomeRecents.dropHint)
                     .font(.callout)

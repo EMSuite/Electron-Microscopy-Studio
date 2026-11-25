@@ -150,6 +150,7 @@ private struct ImageCommands: Commands {
     @FocusedValue(\.closeImageWindow) private var closeImageWindow
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismissWindow) private var dismissWindow
+    @Environment(\.openURL) private var openURL
     let menuRelay: MenuActionRelay
     /// The app's windows: a menu action with no window focused goes to a minimised one before a new one opens (#762).
     let windows: AppWindows
@@ -312,6 +313,22 @@ private struct ImageCommands: Commands {
                 Button("Pin Region") { appState.edx.pinRegion() }
                     .disabled(appState.edx.selectedPin != nil)
             }
+        }
+        // The Help menu (#753, `HelpMenuLinks`): the documentation on the website in place of the system's Help book item (which would
+        // only say help is unavailable), the tutorials, the example data and the release notes, then Support, Send Feedback… and
+        // Report a Problem… (EMSuiteUI's report window).
+        CommandGroup(replacing: .help) {
+            Button(HelpMenuLinks.help.title) { openURL(HelpMenuLinks.help.url) }
+                .keyboardShortcut("?", modifiers: .command)
+            ForEach(HelpMenuLinks.guides) { link in
+                Button(link.title) { openURL(link.url) }
+            }
+            Divider()
+            ForEach(HelpMenuLinks.contact) { link in
+                Button(link.title) { openURL(link.url) }
+            }
+            Button("Report a Problem…") { openWindow(id: FeedbackWindow.id) }
+            Divider()
         }
         // Generated documents for someone with no microscope file at hand, App Review first (macTEM#105, DemoData.swift).
         CommandGroup(after: .help) {
