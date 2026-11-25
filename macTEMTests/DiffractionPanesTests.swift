@@ -18,11 +18,14 @@ nonisolated final class DiffractionPanesTests: XCTestCase {
     private func ui(_ name: String) throws -> String { try FFTRoomWiringTests.squeezedUI(name) }
 
     /// One pane beside the pattern, three views, by the part in front (#1044): the crystal in Index and Simulate, the zone-axis map in
-    /// Tilt Plan, the powder pattern in Powder, none in Calibrate and Thickness; the peaks are Powder's table under the pattern.
+    /// Tilt Plan, the powder pattern in Powder, none in Calibrate and Thickness; the peaks are Powder's table, a pane of the bottom area
+    /// (#1094).
     @MainActor func testThePartPicksThePaneAndTheTable() {
         XCTAssertEqual(DiffractionPart.allCases.map(DiffractionPart.sidePane), [nil, .crystal, .crystal, .zoneAxisMap, .powder, nil])
-        XCTAssertEqual(DiffractionPart.tableStrip(.powder), .peaks)
-        XCTAssertEqual(DiffractionPart.tableStrip(.tiltPlan), DiffractionPart.TableStrip.none)
+        XCTAssertEqual(DiffractionPart.tables(.powder), [.peaks])
+        XCTAssertEqual(DiffractionPart.openingTable(.powder, hasSpots: false), .peaks)
+        XCTAssertEqual(DiffractionPart.tables(.tiltPlan), [])
+        XCTAssertNil(DiffractionPart.openingTable(.tiltPlan, hasSpots: true))
         let view = DiffractionViewState()
         let analysis = DiffractionAnalysis()
         analysis.simulation.isShown = false
@@ -33,7 +36,7 @@ nonisolated final class DiffractionPanesTests: XCTestCase {
         XCTAssertNil(DiffractionSidePaneView.shown(part: .calibrate, view: view, analysis: analysis))
         XCTAssertEqual(DiffractionViewState.SidePane.allCases.map(DiffractionPaneWords.title), ["Crystal", "Zone-axis Map", "Powder Pattern"])
         let room = try? ui("DiffractionRoom.swift")
-        XCTAssertTrue(room?.contains("if strip == .peaks { // The Powder part lists the powder pattern's peaks (#921), strongest first, with ⌘C. DiffractionPowderPeakTable(") == true)
+        XCTAssertTrue(room?.contains("case .peaks: // The Powder part lists the powder pattern's peaks (#921), strongest first, with ⌘C. DiffractionPowderPeakTable(") == true)
     }
 
     /// The peaks copy as the other tables do: the titles, then a row a line, tab-separated, strongest first.

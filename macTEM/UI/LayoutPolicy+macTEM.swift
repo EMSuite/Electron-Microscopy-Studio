@@ -29,14 +29,12 @@ extension LayoutPolicy {
     static let ebsdFamilyColumn: (min: CGFloat, ideal: CGFloat) = (36, 44)
     /// The HRTEM defocus by thickness table sheet's least height, with its readable width (rule 4).
     static let hrtemTableMinimumHeight: CGFloat = 480
-    /// The Diffraction room's table strip under the pattern (rule 4, #1041): the Readout · Spots switch, the table's header and
-    /// `diffractionTableRows` rows at the system table's row height, so an indexed pattern's Spots table shows eight rows, not four
-    /// and a half.
+    /// The Diffraction room's tables (#1041), panes of the shell's bottom area since #1094: the table's header and
+    /// `diffractionTableRows` rows at the system table's row height, which the bottom area at its ideal height holds in a 1400 × 876
+    /// window, so an indexed pattern's Spots table shows eight rows, not four and a half. The area's height is the person's to drag.
     static let diffractionTableRows = 8
     static let diffractionTableRowHeight: CGFloat = 24
     static let diffractionTableHeaderHeight: CGFloat = 28
-    static let diffractionReadoutHeight: CGFloat = paneHeaderHeight + 1 + diffractionTableHeaderHeight
-        + CGFloat(diffractionTableRows) * diffractionTableRowHeight
     /// The colour dot before a region's name in the Table tab.
     static let regionSwatchSize: CGFloat = 9
     /// The Indexing room's IPF colour key in the map pane's footer: legible beside the scale bar, small enough not to hide the map.
