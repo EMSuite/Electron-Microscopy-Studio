@@ -577,6 +577,10 @@ nonisolated enum AgentDoorCoverage {
         "Export Method JSON…": .personOnly(exportReason),
         "Export Regions CSV…": .personOnly(exportReason),
         "Export \\(kind.title)": .personOnly(exportReason),
+        "Export HyperSpy File…": .personOnly(exportReason),
+        "Export Core Loss HyperSpy File…": .personOnly(exportReason),
+        "Export Methods Record…": .tool("get_methods_record"),
+        "Copy Methods Paragraph": .tool("get_methods_record"),
         // Edit
         "Copy Figure": .tool("get_diffraction_figure"),
         // View
