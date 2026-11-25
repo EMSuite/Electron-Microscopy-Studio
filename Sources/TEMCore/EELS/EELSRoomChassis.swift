@@ -347,8 +347,13 @@ package nonisolated struct EELSOneAxis: Equatable, Sendable {
         let mag = pow(10, floor(log10(raw)))
         let step = [1.0, 2, 5, 10].map { $0 * mag }.first { $0 >= raw } ?? 10 * mag
         var out: [Double] = []
-        var t = (range.lowerBound / step).rounded(.up) * step
-        while t <= range.upperBound + step * 1e-9 { out.append(t); t += step }
+        // Each tick as k times the step, and zero as +0: a window from -2.5 eV began at -0.0 and the axis read "-0" (#1088).
+        var k = (range.lowerBound / step).rounded(.up)
+        while k * step <= range.upperBound + step * 1e-9 {
+            let t = k * step
+            out.append(abs(t) < step * 1e-9 ? 0 : t)
+            k += 1
+        }
         return out
     }
 

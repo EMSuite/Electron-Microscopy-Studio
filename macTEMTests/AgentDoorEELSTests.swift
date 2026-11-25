@@ -81,7 +81,7 @@ nonisolated final class AgentDoorEELSTests: XCTestCase {
         let state = try await eelsWindow()
         let room = try json(try await call("get_eels").text)
         XCTAssertEqual(room["low_loss"] as? Bool, true)
-        XCTAssertEqual(room["core_loss"] as? Bool, false, "the demo holds a low loss only")
+        XCTAssertEqual(room["core_loss"] as? Bool, true, "the demo holds a core loss beside its low loss (#1088)")
         XCTAssertEqual((room["map_size"] as? [String: Any])?["width"] as? Int, state.eels.source?.image.nx)
         XCTAssertNotNil(room["processing"] as? [String: Any])
 
@@ -124,10 +124,10 @@ nonisolated final class AgentDoorEELSTests: XCTestCase {
         XCTAssertFalse(rl.refused, rl.text)
         XCTAssertEqual(state.eels.deconvolutionChoice, .richardsonLucy(iterations: 20))
 
-        let edge = try await call("set_eels_edges", ["add": "Fe"])
-        XCTAssertTrue(edge.refused, "the demo holds no core loss")
-        XCTAssertTrue(edge.text.contains("Fe: "), edge.text)
-        if EELSEdgeChoices.live.contains("Fe") { XCTAssertTrue(edge.text.contains("no core loss"), edge.text) }
+        // The demo's core loss runs 200 to 899 eV (#1088): Au has no edge there, so it is refused by name and nothing is picked.
+        let edge = try await call("set_eels_edges", ["add": "Au"])
+        XCTAssertTrue(edge.refused, "no Au edge in the demo's window")
+        XCTAssertTrue(edge.text.contains("Au: "), edge.text)
         XCTAssertTrue(state.eels.pickedEdges.isEmpty)
     }
 

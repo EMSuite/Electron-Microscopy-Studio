@@ -45,6 +45,18 @@ package nonisolated enum DemoDocuments {
         package static let eelsOffsetEV = -10.0
         package static let eelsZeroLossCounts = 100_000.0
         package static let eelsTOverLambda = 0.5
+        /// Its core loss (#1088): 700 channels of 1 eV from 200 eV, a power-law background A E^-3 under the C, N and O K edges
+        /// (exSpy's model, `EELSEdgeQuantification`'s cross sections at 200 kV and 10 mrad), each edge's amount per pixel planted:
+        /// carbon everywhere (a support film), oxygen in a disc at the centre (a particle), nitrogen in the top half.
+        package static let eelsCoreChannels = 700
+        package static let eelsCoreOffsetEV = 200.0
+        package static let eelsCoreBackground = 1e10
+        package static let eelsOxideCentre = (x: 8.0, y: 8.0)
+        package static let eelsOxideRadius = 5.0
+        package static func eelsAmounts(x: Int, y: Int) -> [(edge: CoreLossEdge, amount: Double)] {
+            let inDisc = pow(Double(x) + 0.5 - eelsOxideCentre.x, 2) + pow(Double(y) + 0.5 - eelsOxideCentre.y, 2) <= eelsOxideRadius * eelsOxideRadius
+            return [(.carbonK, 2), (.nitrogenK, y < eelsSide / 2 ? 1 : 0), (.oxygenK, inDisc ? 1.5 : 0)]
+        }
         /// The Au diffraction pattern: 512 x 512, the centre at (256, 256), Δq 0.0125 Å⁻¹/px, 200 kV, Au at 4.0782 Å: ring N = h²+k²+l² sits at
         /// R = sqrt(N) / (a Δq) px ({111} 33.98, {200} 39.24, {220} 55.48 as six spots, {311} 65.06, {222} 67.96).
         package static let patternSide = 512
@@ -551,7 +563,36 @@ package nonisolated enum DemoDocuments {
         for _ in 0..<(n * n) { counts.append(contentsOf: spectrum) }
         let image = try LowLossSpectrumImage(nx: n, ny: n, channels: channels, counts: counts,
                                              energyOffsetEV: Truth.eelsOffsetEV, energyScaleEV: Truth.eelsDispersionEV)
-        return LoadedEELS(fileName: "Demo EELS", image: image, beamEnergyKeV: 200, convergenceMrad: 0, collectionMrad: 10, origin: "generated demo")
+        return LoadedEELS(fileName: "Demo EELS", image: image, beamEnergyKeV: 200, convergenceMrad: 0, collectionMrad: 10, origin: "generated demo",
+                          coreLoss: try eelsCoreLoss(), coreLossOrigin: "generated demo")
+    }
+
+    /// The demo's core loss (#1088): `Truth.eelsAmounts` of each edge on the power-law background, so the room's edge fit and its maps
+    /// have something to show. The scale is one for every edge: carbon K at amount 1 is 15 % of the background 16 eV above its onset.
+    package static func eelsCoreLoss() throws -> CoreLossSpectrumImage {
+        let n = Truth.eelsSide, channels = Truth.eelsCoreChannels
+        let energies = (0..<channels).map { Truth.eelsCoreOffsetEV + Double($0) }
+        let microscope = EELSMicroscope(beamEnergyKeV: 200, convergenceMrad: 0, collectionMrad: 10)
+        let background = energies.map { Truth.eelsCoreBackground * pow($0, -3) }
+        let carbonAt300 = try EELSEdgeQuantification.differentialCrossSection(edge: .carbonK, microscope: microscope, energiesEV: [300]).barnPerEV[0]
+        let scale = 0.15 * Truth.eelsCoreBackground * pow(300, -3) / carbonAt300
+        var sigma: [String: [Double]] = [:]
+        for edge in [CoreLossEdge.carbonK, .nitrogenK, .oxygenK] {
+            sigma[edge.description] = try EELSEdgeQuantification.differentialCrossSection(edge: edge, microscope: microscope, energiesEV: energies).barnPerEV
+        }
+        var counts = [Double]()
+        counts.reserveCapacity(n * n * channels)
+        for y in 0..<n {
+            for x in 0..<n {
+                var spectrum = background
+                for (edge, amount) in Truth.eelsAmounts(x: x, y: y) where amount > 0 {
+                    let s = sigma[edge.description] ?? []
+                    for c in 0..<channels { spectrum[c] += amount * scale * s[c] }
+                }
+                counts.append(contentsOf: spectrum)
+            }
+        }
+        return try CoreLossSpectrumImage(nx: n, ny: n, channels: channels, counts: counts, energyOffsetEV: Truth.eelsCoreOffsetEV, energyScaleEV: 1)
     }
 
     // MARK: The EBSD pattern dataset
