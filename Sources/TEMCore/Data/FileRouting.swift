@@ -139,13 +139,9 @@ package nonisolated enum FileRouting {
         if PictureImageReader.isPicture(path: path) { return FileInventory(image: true) }
         if SEMEDSOpening.isSingleSpectrumFile(path: path) { return FileInventory(singleSpectrum: true) }
         if SEMEDSOpening.opensInEDS(path: path) { return FileInventory(edsSpectrumImage: true) }
-        // HyperSpy's own HDF5 layout (`.hspy`, which FormatoKit's sniff does not know): one spectrum opens in the EDS room, anything else is
-        // refused in the reader's words.
-        if HyperSpySpectrumFile.isHyperSpyFile(path: path) {
-            do { _ = try HyperSpySpectrumFile.header(path: path); return FileInventory(singleSpectrum: true) } catch {
-                return FileInventory(refusal: (error as? LocalizedError)?.errorDescription ?? "\(name) is not a spectrum \(AppName.display) opens.")
-            }
-        }
+        // HyperSpy's own HDF5 layout (`.hspy`, or `.h5`/`.hdf5` when FormatoKit's sniff finds it): each experiment goes to its room (an image,
+        // an EELS or EDS spectrum image, a spectrum), as a Velox file's do; a file no room takes is refused naming what it holds (#820).
+        if HyperSpySpectrumFile.isHyperSpyFile(path: path) { return HyperSpyOpening.inventory(path: path) }
         // A vendor's EBSD file (EDAX `.up1`/`.up2`/`.ang`, Oxford `.ebsp`/`.ctf`): FormatoKit's sniff knows none of them; the pattern file's header
         // decides (a map file counts when its patterns are next to it), and a refusal is the door's sentence.
         let url = URL(fileURLWithPath: path)
@@ -218,7 +214,7 @@ package nonisolated enum FileRouting {
             return FileInventory(image: true)
         case .hyperSpy:
             // Taken above (`HyperSpySpectrumFile.isHyperSpyFile` asks the same sniff); reached only if the file changed in between.
-            return FileInventory(refusal: "\(name) is a HyperSpy file that is not one spectrum \(AppName.display) opens.")
+            return FileInventory(refusal: "\(name) is a HyperSpy file \(AppName.display) could not read again: open it once more.")
         case .empad, .merlinMIB, .hdf5:
             return FileInventory(refusal: "\(name) is a 4D dataset or an HDF5 file that is neither a Velox file nor an EBSD scan: \(AppName.display) opens images, spectra and EBSD patterns; open it in 4DSTEM Studio.")
         case .unknown:

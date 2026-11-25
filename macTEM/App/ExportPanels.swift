@@ -39,6 +39,7 @@
 import ImagoCore
 import SwiftUI
 import AppKit
+import ShellExport
 import UniformTypeIdentifiers
 import TEMCore
 import TEMSession
@@ -48,7 +49,7 @@ enum ExportPanels {
 
     // MARK: Entry points
 
-    /// File > Export Image… (⇧⌘E): the selected file's image as a PNG.
+    /// File > Export Figure… (⇧⌘E, was Export Image…): the selected file's image as a PNG, or as a vector PDF or SVG (#822).
     static func exportImage(appState: AppState) {
         guard ExportSnapshot.availability(of: appState).image else { return }
         // A side TEMCore would refuse is refused by name now, from the image's size, before the snapshot builds its full-size
@@ -60,6 +61,81 @@ enum ExportPanels {
         guard let snapshot = ExportSnapshot.imageSnapshot(in: appState.openItems) else { return }
         guard let window = hostWindowOrBeep(for: appState) else { return }
         Task.immediate { await presentImagePanel(snapshot, on: window, appState: appState) }
+    }
+
+    /// File > Export Figure… (⇧⌘E) in the Diffraction room (#822): the pattern on screen as a PDF, SVG or PNG figure.
+    static func exportDiffractionFigure(appState: AppState) {
+        guard let snapshot = ExportSnapshot.diffractionFigureSnapshot(of: appState) else { return }
+        guard let window = hostWindowOrBeep(for: appState) else { return }
+        Task.immediate {
+            let choices = ExportImageChoices(scaleBar: true, marks: true, offersMarks: snapshot.hasLabels, kind: .labels, offersFigure: true)
+            choices.pngIsFigure = true
+            choices.offersLegend = snapshot.hasLegend
+            choices.offersTable = !snapshot.table.isEmpty
+            choices.format = .pdf
+            let fileNames = rememberedFileNameChoice()
+            choices.fileNames = fileNames
+            let panel = savePanel(type: contentType(of: choices.format), name: snapshot.defaultName, directory: snapshot.directory,
+                                  message: "The pattern as a figure: PDF and SVG keep its lines and labels as vectors and text.")
+            panel.accessoryView = accessory(for: choices)
+            choices.formatChanged = { [weak panel] format in panel?.allowedContentTypes = [contentType(of: format)] }
+            guard await present(panel, on: window) == .OK, let url = panel.url else { return }
+            remember(fileNames)
+            appState.exportsWriting += 1
+            defer { appState.exportsWriting -= 1 }
+            let name = url.lastPathComponent
+            appState.statusText = ExportSnapshot.exportingLine(name: name)
+            do {
+                let made = try await snapshot.write(to: url, format: choices.format, width: choices.width, scaleBar: choices.scaleBar,
+                                                    labels: choices.offersMarks && choices.marks, legend: choices.offersLegend && choices.legend,
+                                                    table: choices.offersTable && choices.table, leaveOutFileNames: fileNames.leaveOut)
+                report(ExportSnapshot.figureDoneLine(name: name, widthMM: made.scene.widthMM, barLeftOut: made.barLeftOut), in: appState)
+            } catch {
+                appState.present(error)
+            }
+        }
+    }
+
+    /// Edit > Copy Figure (⇧⌘C), the pattern's context menu and its VoiceOver action in the Diffraction room (#823): the figure
+    /// Export Figure… writes at its defaults, on the general pasteboard as PDF and PNG. Drawn off the main actor, then written.
+    /// WHY APPKIT: `NSPasteboard` is the one way to put two types of one picture on the clipboard from a menu item; SwiftUI's
+    /// `onCopyCommand` answers ⌘C only while a view has focus, and the pattern has none (its keys are the pane's own).
+    static func copyDiffractionFigure(appState: AppState) {
+        guard appState.exportsWriting == 0, let snapshot = ExportSnapshot.diffractionFigureSnapshot(of: appState) else {
+            NSSound.beep()
+            return
+        }
+        appState.exportsWriting += 1
+        Task.immediate {
+            defer { appState.exportsWriting -= 1 }
+            do {
+                let pictures = try await snapshot.pictures()
+                let pasteboard = NSPasteboard.general
+                pasteboard.clearContents()
+                pasteboard.setData(pictures.pdf, forType: .pdf)
+                pasteboard.setData(pictures.png, forType: .png)
+                report("Copied the figure of \(snapshot.defaultName) as PDF and PNG", in: appState)
+            } catch {
+                appState.present(error)
+            }
+        }
+    }
+
+    /// The figure handle's drag (#823): the figure as a PDF file named after the pattern, drawn when the drop asks for it. The
+    /// provider's data is made off the main actor; Finder writes it as a file named `suggestedName`. The snapshot (a copy of the
+    /// display values, within the side `refusal` allows) is taken as the drag starts, so the figure is what was on screen then,
+    /// as Export Figure… takes it when its panel opens.
+    static func diffractionFigureDrag(appState: AppState) -> NSItemProvider {
+        let provider = NSItemProvider()
+        guard let snapshot = ExportSnapshot.diffractionFigureSnapshot(of: appState) else { return provider }
+        provider.suggestedName = snapshot.defaultName
+        provider.registerDataRepresentation(forTypeIdentifier: UTType.pdf.identifier, visibility: .all) { completion in
+            Task {
+                do { completion(try await snapshot.pictures().pdf, nil) } catch { completion(nil, error) }
+            }
+            return nil
+        }
+        return provider
     }
 
     /// File > Export Profile… and the selected profile's button: the CSV of its samples.
@@ -222,19 +298,36 @@ enum ExportPanels {
         return panel
     }
 
+    /// Export Figure…'s panel (#822): PNG first, as Export Image… was; Format follows with the panel's file type. The strip is sized
+    /// once with Width shown, so the panel keeps its height when Width comes and goes.
     static func imagePanel(for snapshot: ExportImageSnapshot, choices: ExportImageChoices) -> NSSavePanel {
-        pngPanel(name: snapshot.defaultName, directory: snapshot.directory, message: snapshot.message, choices: choices)
+        figurePanel(name: snapshot.defaultName, directory: snapshot.directory, message: snapshot.message, choices: choices)
     }
 
-    /// A PNG panel with the Scale bar and (Marks | Spots) accessory: the Image room's and the FFT transform's.
-    static func pngPanel(name: String, directory: URL?, message: String, choices: ExportImageChoices) -> NSSavePanel {
-        let panel = savePanel(type: .png, name: name, directory: directory, message: message)
+    /// A figure's panel, Export Figure…'s and the transform's: the format's file type, the figure strip below.
+    private static func figurePanel(name: String, directory: URL?, message: String, choices: ExportImageChoices) -> NSSavePanel {
+        let panel = savePanel(type: contentType(of: choices.format), name: name, directory: directory, message: message)
+        let chosen = choices.format
+        choices.format = .pdf
         panel.accessoryView = accessory(for: choices)
+        choices.format = chosen
+        choices.formatChanged = { [weak panel] format in panel?.allowedContentTypes = [contentType(of: format)] }
         return panel
     }
 
+    /// The file type of an Export Figure… format.
+    static func contentType(of format: FigureExport.Format) -> UTType {
+        switch format {
+        case .png: .png
+        case .pdf: .pdf
+        case .svg: .svg
+        }
+    }
+
+    /// The transform's panel: PNG first, as before; PDF and SVG write it as a vector figure (#902). Sized once with Width shown,
+    /// as Export Figure…'s is.
     static func transformPanel(for snapshot: ExportTransformSnapshot, choices: ExportImageChoices) -> NSSavePanel {
-        pngPanel(name: snapshot.defaultName, directory: snapshot.directory, message: snapshot.message, choices: choices)
+        figurePanel(name: snapshot.defaultName, directory: snapshot.directory, message: snapshot.message, choices: choices)
     }
 
     static func radialProfilePanel(for snapshot: ExportRadialProfileSnapshot) -> NSSavePanel {
@@ -297,12 +390,16 @@ enum ExportPanels {
 
     private static func presentImagePanel(_ snapshot: ExportImageSnapshot, on window: NSWindow,
                                           appState: AppState) async {
-        let choices = ExportImageChoices(snapshot.defaults)
+        let choices = ExportImageChoices(snapshot.defaults, offersFigure: true)
         let fileNames = rememberedFileNameChoice()
         choices.fileNames = fileNames
         let panel = imagePanel(for: snapshot, choices: choices)
         guard await present(panel, on: window) == .OK, let url = panel.url else { return }
         remember(fileNames)
+        if choices.format.isVector {
+            await writeFigure(snapshot, to: url, choices: choices, leaveOutFileNames: fileNames.leaveOut, appState: appState)
+            return
+        }
 
         // Counted from the panel's OK to the infobar's last line, per window (`AppState.exportsWriting`): two exports of one window
         // never interleave its status lines or write one destination twice, and another window's export is not held up (#625).
@@ -316,6 +413,23 @@ enum ExportPanels {
             let rendered = try await snapshot.write(to: url, options: options, leaveOutFileNames: fileNames.leaveOut)
             report(ExportSnapshot.imageDoneLine(name: name, width: rendered.width, height: rendered.height,
                                                 barLeftOut: rendered.barLeftOut), in: appState)
+        } catch {
+            appState.present(error)
+        }
+    }
+
+    /// The vector figure after OK, counted and reported as the PNG is.
+    private static func writeFigure(_ snapshot: ExportImageSnapshot, to url: URL, choices: ExportImageChoices, leaveOutFileNames: Bool,
+                                    appState: AppState) async {
+        appState.exportsWriting += 1
+        defer { appState.exportsWriting -= 1 }
+        let name = url.lastPathComponent
+        let options = ExportSnapshot.options(scaleBar: choices.scaleBar, marks: choices.marks, offersMarks: choices.offersMarks)
+        appState.statusText = ExportSnapshot.exportingLine(name: name)
+        do {
+            let made = try await snapshot.writeFigure(to: url, options: options, width: choices.width, format: choices.format,
+                                                      leaveOutFileNames: leaveOutFileNames)
+            report(ExportSnapshot.figureDoneLine(name: name, widthMM: made.scene.widthMM, barLeftOut: made.barLeftOut), in: appState)
         } catch {
             appState.present(error)
         }
@@ -345,9 +459,27 @@ enum ExportPanels {
 
     private static func presentTransformPanel(_ snapshot: ExportTransformSnapshot, on window: NSWindow,
                                               appState: AppState) async {
-        let choices = ExportImageChoices(snapshot.defaults, kind: .spots, offersAsShown: snapshot.offersAsShown)
+        let choices = ExportImageChoices(snapshot.defaults, kind: .spots, offersAsShown: snapshot.offersAsShown, offersFigure: true)
+        let fileNames = rememberedFileNameChoice()
+        choices.fileNames = fileNames
         let panel = transformPanel(for: snapshot, choices: choices)
         guard await present(panel, on: window) == .OK, let url = panel.url else { return }
+        remember(fileNames)
+        if choices.format.isVector {
+            appState.exportsWriting += 1
+            defer { appState.exportsWriting -= 1 }
+            let name = url.lastPathComponent
+            let options = ExportSnapshot.options(scaleBar: choices.scaleBar, marks: choices.marks, offersMarks: choices.offersMarks)
+            appState.statusText = ExportSnapshot.exportingLine(name: name)
+            do {
+                let made = try await snapshot.writeFigure(to: url, options: options, asShown: choices.asShown, width: choices.width,
+                                                          format: choices.format, leaveOutFileNames: fileNames.leaveOut)
+                report(ExportSnapshot.figureDoneLine(name: name, widthMM: made.scene.widthMM, barLeftOut: made.barLeftOut), in: appState)
+            } catch {
+                appState.present(error)
+            }
+            return
+        }
 
         // Counted from the panel's OK to the infobar's last line, per window (`AppState.exportsWriting`): two exports of one window
         // never interleave its status lines or write one destination twice, and another window's export is not held up (#625).
@@ -357,7 +489,8 @@ enum ExportPanels {
         let options = ExportSnapshot.options(scaleBar: choices.scaleBar, marks: choices.marks, offersMarks: choices.offersMarks)
         appState.statusText = ExportSnapshot.exportingLine(name: name)
         do {
-            let rendered = try await snapshot.write(to: url, options: options, asShown: choices.asShown)
+            let rendered = try await snapshot.write(to: url, options: options, asShown: choices.asShown,
+                                                    leaveOutFileNames: fileNames.leaveOut)
             report(ExportSnapshot.transformDoneLine(name: name, width: rendered.width, height: rendered.height,
                                                     spots: options.marks ? snapshot.marks.count : 0,
                                                     barLeftOut: rendered.barLeftOut, asShown: choices.asShown), in: appState)
@@ -368,8 +501,11 @@ enum ExportPanels {
 
     private static func presentRadialProfilePanel(_ snapshot: ExportRadialProfileSnapshot, on window: NSWindow,
                                                   appState: AppState) async {
+        let fileNames = rememberedFileNameChoice()
         let panel = radialProfilePanel(for: snapshot)
+        panel.accessoryView = fileNameAccessory(for: fileNames)
         guard await present(panel, on: window) == .OK, let url = panel.url else { return }
+        remember(fileNames)
 
         // Counted from the panel's OK to the infobar's last line, per window (`AppState.exportsWriting`): two exports of one window
         // never interleave its status lines or write one destination twice, and another window's export is not held up (#625).
@@ -378,7 +514,7 @@ enum ExportPanels {
         let name = url.lastPathComponent
         appState.statusText = ExportSnapshot.exportingLine(name: name)
         do {
-            try await snapshot.write(to: url)
+            try await snapshot.write(to: url, leaveOutFileNames: fileNames.leaveOut)
             report(ExportSnapshot.radialProfileDoneLine(name: name, bins: snapshot.bins), in: appState)
         } catch {
             appState.present(error)
@@ -386,8 +522,11 @@ enum ExportPanels {
     }
 
     private static func presentSpotsPanel(_ snapshot: ExportSpotsSnapshot, on window: NSWindow, appState: AppState) async {
+        let fileNames = rememberedFileNameChoice()
         let panel = spotsPanel(for: snapshot)
+        panel.accessoryView = fileNameAccessory(for: fileNames)
         guard await present(panel, on: window) == .OK, let url = panel.url else { return }
+        remember(fileNames)
 
         // Counted from the panel's OK to the infobar's last line, per window (`AppState.exportsWriting`): two exports of one window
         // never interleave its status lines or write one destination twice, and another window's export is not held up (#625).
@@ -396,7 +535,7 @@ enum ExportPanels {
         let name = url.lastPathComponent
         appState.statusText = ExportSnapshot.exportingLine(name: name)
         do {
-            try await snapshot.write(to: url)
+            try await snapshot.write(to: url, leaveOutFileNames: fileNames.leaveOut)
             report(ExportSnapshot.spotsDoneLine(name: name, spots: snapshot.rows.count), in: appState)
         } catch {
             appState.present(error)

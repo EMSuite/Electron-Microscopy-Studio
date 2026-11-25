@@ -27,7 +27,7 @@ enum ToolbarDisplay {
         switch room {
         case .edx, .eels:
             guard !appState.windowTitle.isEmpty, appState.windowTitle != AppName.display else { return nil }
-            let busy = room == .edx ? appState.edx.isBusy : appState.eels.isBusy
+            let busy = room == .edx ? appState.edx.isBusy : appState.isEELSRoomBusy
             if busy {
                 return .busy(operation: BusyOperation.name(room: room, appState: appState) ?? room.title, progress: RoomProgress.fraction(room: room, appState: appState),
                              metrics: { now in RunClock.reading(since: appState.busySince[room], progress: RoomProgress.fraction(room: room, appState: appState), now: now) })

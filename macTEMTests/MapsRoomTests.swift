@@ -271,6 +271,45 @@ nonisolated final class MapsRoomTests: XCTestCase {
         XCTAssertEqual(MapsFigure.niceLength(1000), 200)
     }
 
+    /// Map SVG… writes the same map as a 90 mm vector figure (#902): the picture first at one pixel per point, the key's text live,
+    /// the methods record in its metadata. Red under: the room writing its PNG under an .svg name, or a figure without its record.
+    @MainActor func testTheMapIsAVectorFigure() async throws {
+        let session = OrientationMapSession()
+        await session.open(url: Self.sdss).value
+        try await waitUntil("the map's colour keys", seconds: 20) { !session.keys.isEmpty }
+        let state = MapsRoomState()
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("maps-figure-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        var reports: [String] = []
+        await state.exportMap(from: session, format: .svg, directory: dir) { reports.append($0) }
+        XCTAssertEqual(reports, ["Exported ebsd-sdss-ferrite-austenite map IPF-Z.svg"])
+        let svg = try String(contentsOf: dir.appendingPathComponent("ebsd-sdss-ferrite-austenite map IPF-Z.svg"), encoding: .utf8)
+        XCTAssertTrue(svg.hasPrefix("<?xml") || svg.hasPrefix("<svg"), String(svg.prefix(40)))
+        XCTAssertTrue(svg.contains("<text"), "the scale bar and the keys' labels are text")
+        XCTAssertTrue(svg.contains("maps-map-svg"), "the figure carries its methods record")
+        let raster = try XCTUnwrap(session.raster), document = try XCTUnwrap(session.document)
+        let input = MapsFigure.MapInput(raster: raster, layer: session.layer, map: document.map, keys: session.keys, display: nil,
+                                        fileName: document.fileName)
+        let scene = try MapsFigure.scene(input, width: .mm90)
+        guard case .raster(let picture, let frame) = try XCTUnwrap(scene.layers.first) else { return XCTFail("the map first") }
+        XCTAssertEqual(picture.width, raster.columns, "one pixel per point")
+        XCTAssertEqual(frame.width, scene.widthPoints, accuracy: 1e-9)
+        XCTAssertGreaterThan(scene.heightPoints, frame.height, "the IPF keys sit below the map")
+        // Every label on the page, by a generous width estimate (0.667 em a character): the keys' corner labels are centred on their
+        // corners, so the keys are inset. Red under: a key at x = 0, half of "[001]" off the left edge.
+        for case .text(let text) in scene.layers {
+            let size = text.size ?? scene.style.typeSize, w = 0.667 * size * Double(text.string.count)
+            let start = switch text.anchor {
+            case .start: text.origin.x
+            case .middle: text.origin.x - w / 2
+            case .end: text.origin.x - w
+            }
+            XCTAssertGreaterThanOrEqual(start, 0, text.string)
+            XCTAssertLessThanOrEqual(start + w, scene.widthPoints, text.string)
+            XCTAssertLessThanOrEqual(text.origin.y, scene.heightPoints, text.string)
+        }
+    }
+
     // MARK: - The room key
 
     /// Maps is the EBSD workspace's last part, after Patterns and Indexing; EBSD is ⌘4, Results ⌘5 (2026-11-10).

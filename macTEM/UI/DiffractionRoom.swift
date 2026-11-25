@@ -121,6 +121,7 @@ extension DiffractionRoom {
 // MARK: - Header
 
 private struct DiffractionHeader: View {
+    @Environment(AppState.self) private var appState
     let item: OpenItem
     /// Read from the item, never stored: SwiftUI keeps a view's closures (hover, gestures, commands) after the view is gone, and a stored
     /// image kept its pixels alive after its tab closed (macTEM#574, `ImagePane.image`).
@@ -166,6 +167,14 @@ private struct DiffractionHeader: View {
                 .font(.callout.monospacedDigit()).foregroundStyle(.secondary).lineLimit(1).fixedSize()
                 .accessibilityIdentifier("diffraction.view")
                 .accessibilityValue(DiffractionValueFormat.halfSide(half))
+            // The figure handle (#823): dragged out, the figure as a PDF file; the pattern's own drags are the Ring tool's annulus.
+            Image(systemName: "photo.on.rectangle")
+                .foregroundStyle(.secondary)
+                .onDrag { ExportPanels.diffractionFigureDrag(appState: appState) }
+                .help("Drag the figure out as a PDF file; Edit > Copy Figure puts it on the clipboard")
+                .accessibilityLabel("Figure")
+                .accessibilityIdentifier("diffraction.figureDrag")
+                .accessibilityAction(named: "Copy Figure") { ExportPanels.copyDiffractionFigure(appState: appState) }
         }
         .padding(.horizontal, LayoutPolicy.infobarHorizontalPadding)
         .frame(height: LayoutPolicy.paneHeaderHeight)
@@ -322,7 +331,7 @@ private struct DiffractionPatternPane: View {
                     SimulatedSpotsOverlay(spots: simulated, showsLabels: analysis.simulation.showsLabels, layout: layout)
                         .allowsHitTesting(false)
                 }
-                // The shown variants of a precipitate (#808), magenta, under the measured marks; placed off the main actor, the last
+                // The shown variants of a precipitate (#808), pink diamonds, under the measured marks; placed off the main actor, the last
                 // placement drawn until the next lands.
                 if item.diffractionVariants.isShown {
                     let variants = item.diffractionVariants
@@ -413,6 +422,7 @@ private struct DiffractionPatternPane: View {
             .accessibilityAction(named: "Zoom in") { view.zoom(by: 2, image: image) }
             .accessibilityAction(named: "Zoom out") { view.zoom(by: 0.5, image: image) }
             .accessibilityAction(named: "Reset zoom") { view.fitView() }
+            .accessibilityAction(named: "Copy Figure") { ExportPanels.copyDiffractionFigure(appState: appState) }
             // The Tilt tool's drag for VoiceOver (#787): one coarse step each way, as ⌥⇧ and an arrow.
             .accessibilityActions {
                 if view.tool == .tilt, analysis.drawnOrientation != nil {
@@ -421,6 +431,9 @@ private struct DiffractionPatternPane: View {
                     Button("Tilt left") { tilt(.left, degrees: Self.coarseTiltDegrees) }
                     Button("Tilt right") { tilt(.right, degrees: Self.coarseTiltDegrees) }
                 }
+            }
+            .contextMenu {
+                Button("Copy Figure") { ExportPanels.copyDiffractionFigure(appState: appState) }
             }
             // The click's twin while a click adds a spot: an element of its own at the cursor, beside the pattern's (whose children
             // are ignored), so the pattern keeps its label, its readout value and its zoom actions.
@@ -778,21 +791,25 @@ private struct SimulatedSpotsOverlay: View {
     }
 }
 
-/// The shown variants' spots (#808): a magenta ring per merged spot, its size growing with the square root of its intensity against
-/// the strongest, as the simulated spots are drawn; a spot several variants predict is one ring.
+/// The shown variants' spots (#808): a pink diamond per merged spot, its size growing with the square root of its intensity against
+/// the strongest, as the simulated spots are drawn; a spot several variants predict is one diamond. A diamond, not the matrix's ring,
+/// so the two are told apart without colour (#923, `OverlaySignal.simulatedSpot`).
 private struct VariantSpotsOverlay: View {
     let pixels: [VariantPixel]
     let layout: DiffractionLayout
-    /// Spots double diffraction adds (#809): dashed rings of the smallest size.
+    /// Spots double diffraction adds (#809): dashed diamonds of the smallest size.
     var dashed = false
+    @Environment(\.colorSchemeContrast) private var contrast
 
     var body: some View {
         Canvas { ctx, _ in
+            let mark = OverlaySignal.simulatedSpot(variant: true)
+            let width = OverlaySignal.width(1.5, increasedContrast: contrast == .increased)
             for spot in pixels {
                 let p = layout.point(column: spot.column, row: spot.row)
                 let r = 3 + 6 * CGFloat(spot.relative.squareRoot())
-                ctx.stroke(Path(ellipseIn: CGRect(x: p.x - r, y: p.y - r, width: 2 * r, height: 2 * r)), with: .color(.pink),
-                           style: StrokeStyle(lineWidth: 1.5, dash: dashed ? [2, 2] : []))
+                ctx.stroke(Path(OverlaySignal.outline(mark, centre: p, radius: r)), with: .color(.pink),
+                           style: StrokeStyle(lineWidth: width, dash: dashed ? [2, 2] : []))
             }
         }
         .accessibilityHidden(true)

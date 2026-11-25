@@ -25,8 +25,16 @@ struct DiffractionZoneAxisMap: View {
     private static let pickRadius: CGFloat = 12
     /// Poles whose indices are all within this are labelled; the rest are dots.
     private static let labelledIndex = 1
-    /// The plane families' colours, in the kit's order; the legend names them.
+    /// The plane families' colours, in the kit's order; the legend names them, and each family has its dash as well
+    /// (`OverlaySignal.zoneAxisFamily`), so no two are told apart by colour alone.
     static let familyColours: [Color] = [.orange, .green, .purple]
+    @Environment(\.colorSchemeContrast) private var contrast
+    private var increasedContrast: Bool { contrast == .increased }
+
+    /// A family's trace: its dash, one point wide (thicker under Increase Contrast).
+    static func traceStyle(_ family: Int, increasedContrast: Bool) -> StrokeStyle {
+        StrokeStyle(lineWidth: OverlaySignal.width(1, increasedContrast: increasedContrast), dash: OverlaySignal.zoneAxisFamily(family).dash)
+    }
 
     var body: some View {
         VStack(spacing: 4) {
@@ -85,13 +93,14 @@ struct DiffractionZoneAxisMap: View {
             loop.closeSubpath()
             context.stroke(loop, with: .style(.tint), style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
         }
-        // The plane traces, one colour a family (the kit gives one trace a ±(hkl) pair).
+        // The plane traces, one colour and one dash a family (the kit gives one trace a ±(hkl) pair): solid, dashed, dotted (#923).
         let families = DiffractionZoneAxisMapText.families(plan)
         for trace in plan.traces {
             var path = Path()
             for segment in trace.points where segment.count > 1 { path.addLines(segment.map(map.point)) }
             let i = families.firstIndex(of: trace.family) ?? 0
-            context.stroke(path, with: .color(Self.familyColours[i % Self.familyColours.count].opacity(0.7)), lineWidth: 1)
+            context.stroke(path, with: .color(Self.familyColours[i % Self.familyColours.count].opacity(0.7)),
+                           style: Self.traceStyle(i, increasedContrast: increasedContrast))
         }
         // The zone axes.
         for row in plan.rows {
@@ -101,7 +110,7 @@ struct DiffractionZoneAxisMap: View {
             let dot = Path(ellipseIn: CGRect(x: p.x - r, y: p.y - r, width: 2 * r, height: 2 * r))
             context.fill(dot, with: isSelected ? .style(.tint) : .style(.primary))
             if isSelected || max(abs(row.uvw.x), abs(row.uvw.y), abs(row.uvw.z)) <= Self.labelledIndex {
-                context.draw(Text(row.id).font(.caption2.monospacedDigit()).foregroundStyle(isSelected ? .primary : .secondary),
+                context.draw(Text(row.id).font(.caption.monospacedDigit()).foregroundStyle(isSelected ? .primary : .secondary),
                              at: CGPoint(x: p.x + 5, y: p.y - 5), anchor: .bottomLeading)
             }
         }
@@ -129,7 +138,8 @@ struct DiffractionZoneAxisMap: View {
     }
 }
 
-/// The plane families' names, each in its trace colour, so the colours are not the only way to tell them apart.
+/// The plane families' names, each beside a short line in its trace's colour and dash, so neither the colour nor the dash is the only
+/// way to tell them apart.
 private struct DiffractionZoneAxisMapLegend: View {
     let families: [String]
 
@@ -137,10 +147,10 @@ private struct DiffractionZoneAxisMapLegend: View {
         HStack(spacing: 10) {
             ForEach(Array(families.enumerated()), id: \.offset) { i, name in
                 Label {
-                    Text(name).font(.caption2.monospacedDigit())
+                    Text(name).font(.caption.monospacedDigit())
                 } icon: {
-                    Rectangle().fill(DiffractionZoneAxisMap.familyColours[i % DiffractionZoneAxisMap.familyColours.count])
-                        .frame(width: LayoutPolicy.zoneAxisLegendLine.width, height: LayoutPolicy.zoneAxisLegendLine.height)
+                    LegendLine(colour: DiffractionZoneAxisMap.familyColours[i % DiffractionZoneAxisMap.familyColours.count],
+                               dash: OverlaySignal.zoneAxisFamily(i).dash)
                 }
             }
         }
@@ -167,5 +177,22 @@ nonisolated enum DiffractionZoneAxisMapText {
             text += "; \(row.id) picked, \(Num.fixed(row.angleFromBeamDeg, 1))° from the beam"
         }
         return text
+    }
+}
+
+/// A legend's short line in a series' colour and dash (#923): the key of a chart or a map whose series differ by both.
+struct LegendLine: View {
+    let colour: Color
+    var dash: [CGFloat] = []
+
+    var body: some View {
+        Canvas { context, size in
+            var line = Path()
+            line.move(to: CGPoint(x: 0, y: size.height / 2))
+            line.addLine(to: CGPoint(x: size.width, y: size.height / 2))
+            context.stroke(line, with: .color(colour), style: StrokeStyle(lineWidth: 2, dash: dash))
+        }
+        .frame(width: LayoutPolicy.zoneAxisLegendLine.width, height: LayoutPolicy.zoneAxisLegendLine.height)
+        .accessibilityHidden(true)
     }
 }

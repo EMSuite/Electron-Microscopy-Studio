@@ -217,7 +217,7 @@ nonisolated final class TIAImageReaderTests: XCTestCase {
         XCTAssertTrue(FolderGrants.askSentence(for: ser).contains("reads the TIA file pattern_1.ser with the .emi beside it"))
 
         // Declined: the .ser opens alone, its units assumed and no voltage, as before.
-        let routed = await AppState.inventories([ser])
+        let routed = await AppState.inventories([ser], memory: ProcessInfo.processInfo.physicalMemory)
         let alone = try XCTUnwrap(routed.first)
         XCTAssertEqual(alone.inventory, FileInventory(image: true))
         XCTAssertFalse(alone.asksForFolder)
