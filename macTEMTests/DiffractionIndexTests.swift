@@ -298,16 +298,23 @@ nonisolated final class DiffractionIndexTests: XCTestCase {
         XCTAssertEqual(csv[0], "# \(AppName.writer) diffraction spots")
         XCTAssertEqual(csv[1], "# file: planted Al")
         XCTAssertEqual(csv[2], "# index: \(try XCTUnwrap(a.indexLine))")
-        XCTAssertEqual(csv[3], "spot,hkl,R_px,q_per_A,d_A,d_expected_A,delta_percent,phase")
+        XCTAssertEqual(csv[3], "spot,hkl,R_px,R_mm,q_per_A,d_A,d_expected_A,delta_percent,phase")
         XCTAssertEqual(csv.count, 4 + rows.count)
         let first = try XCTUnwrap(explained.first)
         let line = csv[3 + first.number].split(separator: ",", omittingEmptySubsequences: false).map(String.init)
-        XCTAssertEqual(line.count, 8)
+        XCTAssertEqual(line.count, 9)
         XCTAssertEqual(line[0], "\(first.number)")
         let hkl = try XCTUnwrap(first.hkl)
         XCTAssertEqual(line[1], "\(hkl.h) \(hkl.k) \(hkl.l)")
-        XCTAssertEqual(try XCTUnwrap(Double(line[4])), first.d, accuracy: 1e-8 * first.d)
-        XCTAssertEqual(line[7], "Al")
+        XCTAssertEqual(line[3], "", "no pixel pitch, no R in mm")
+        XCTAssertEqual(try XCTUnwrap(Double(line[5])), first.d, accuracy: 1e-8 * first.d)
+        XCTAssertEqual(line[8], "Al")
+
+        // With the camera's pixel pitch, R in mm is R px times it (#907); without, none.
+        XCTAssertTrue(rows.allSatisfy { $0.radiusMM == nil })
+        a.pitchMM = 0.015
+        for row in a.indexSpotRows { XCTAssertEqual(try XCTUnwrap(row.radiusMM), row.radiusPx * 0.015, accuracy: 1e-12) }
+        a.pitchMM = nil
 
         // A spot removed leaves the table; the rest are numbered again as the readout numbers them.
         a.remove(rows[0].id)
@@ -320,8 +327,8 @@ nonisolated final class DiffractionIndexTests: XCTestCase {
                                           dExpected: 2.338, deltaPercent: 0.7086, phase: "Au")
         let en = Locale(identifier: "en_US")
         XCTAssertEqual(DiffractionSpotFormat.Column.allCases.map { DiffractionSpotFormat.cell($0, row, locale: en) },
-                       ["3", "11\u{0304}1", "42.47", "0.42470", "2.3546", "2.3380", "+0.71", "Au"])
-        XCTAssertEqual(DiffractionSpotFormat.Column.allCases.map(\.title), ["Spot", "hkl", "R px", "q Å⁻¹", "d Å", "d expected", "Δd/d %", "Phase"])
+                       ["3", "11\u{0304}1", "42.47", UnitDisplay.noValue, "0.42470", "2.3546", "2.3380", "+0.71", "Au"])
+        XCTAssertEqual(DiffractionSpotFormat.Column.allCases.map(\.title), ["Spot", "hkl", "R px", "R mm", "q Å⁻¹", "d Å", "d expected", "Δd/d %", "Phase"])
         XCTAssertEqual(DiffractionSpotFormat.spokenHKL(row), "1, minus 1, 1")
         let unexplained = PatternIndexing.SpotRow(id: UUID(), number: 4, hkl: nil, radiusPx: 80, q: 0.8, d: 1.25, dExpected: nil,
                                                   deltaPercent: nil, phase: "")
