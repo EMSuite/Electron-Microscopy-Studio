@@ -9,6 +9,7 @@
 //        (`MaterialsProjectPhaseSearch`); the sheet says how many came from each and which limits applied.
 //
 
+import ShellInspector
 import ShellLayout
 import ShellPhaseLibrary
 import SwiftUI
@@ -77,7 +78,8 @@ struct DiffractionFindPhasesSheet: View {
                     .accessibilityIdentifier("diffraction.findPhases.rank")
             }
             if let blocker { Label(blocker, systemImage: "info.circle").font(.callout).foregroundStyle(.secondary) }
-            if let refusal = finder.refusal { Label(refusal, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange) }
+            // The glyph carries the colour, the sentence stays primary (#923: orange text on a light sheet is about 2:1).
+            if let refusal = finder.refusal { InspectorWarning(refusal, font: .callout) }
             if let result = finder.result {
                 if result.pattern == DiffractionPhaseFinder.pattern(analysis: item.diffraction, image: image) {
                     DiffractionPhaseTable(result: result, selection: $selection)
@@ -152,7 +154,7 @@ struct DiffractionFindPhasesSheet: View {
         VStack(alignment: .leading, spacing: 4) {
             if let selected { Text(result.sentence(for: selected)) }
             if let selected, let tie = result.tieSentence(selected.tie) { Text(tie) }
-            if let weak = result.weakSentence { Label(weak, systemImage: "exclamationmark.triangle.fill").symbolRenderingMode(.multicolor) }
+            if let weak = result.weakSentence { InspectorWarning(weak, font: .callout) }
             if let note = result.materialsProjectNote { Text(note).foregroundStyle(.secondary) }
         }
         .font(.callout)
