@@ -68,6 +68,17 @@ package nonisolated struct HoughReflectorLibrary: Sendable {
     package let tripletAngles: [SIMD3<Double>]
     package let tripletFamilies: [SIMD3<Int>]
 
+    /// The name a family is written with (#1069): of a 3-index family, its variant with the largest (h, k, l) in dictionary order, so
+    /// fcc's 002, 022 and 113 read {200}, {220} and {311} as textbooks and kikuchipy's band lists write them; every variant names the same
+    /// family, so the label changes and the indexing does not. A 4-index (hexagonal) family keeps the indices it was given.
+    package func displayFamily(_ f: Int) -> [Int] {
+        guard poleFamilies.indices.contains(f) else { return [] }
+        let given = poleFamilies[f]
+        guard given.count == 3, familyStart.indices.contains(f), familySize.indices.contains(f) else { return given }
+        let variants = poles[familyStart[f]..<(familyStart[f] + familySize[f])].map { v in [v.x, v.y, v.z].map { Int($0.rounded()) } }
+        return variants.max { $0.lexicographicallyPrecedes($1) } ?? given
+    }
+
     package var familyCount: Int { familySize.count }
 
     /// pyEBSDindex's RADEG.

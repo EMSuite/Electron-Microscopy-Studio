@@ -777,7 +777,7 @@ package nonisolated struct IndexedBand: Sendable, Identifiable, Equatable {
                 let variant = solution.bandMatch[k]
                 if variant >= 0, library.familyID.indices.contains(variant) {
                     let f = library.familyID[variant]
-                    if library.poleFamilies.indices.contains(f) { family = familyLabel(library.poleFamilies[f]) }
+                    if library.poleFamilies.indices.contains(f) { family = familyLabel(library.displayFamily(f)) }
                     if solution.bandFit.indices.contains(k), solution.bandFit[k] < 180 { fit = solution.bandFit[k] }
                 }
             }
@@ -787,7 +787,7 @@ package nonisolated struct IndexedBand: Sendable, Identifiable, Equatable {
         }
     }
 
-    /// "{111}", "{002}", "{10-11}".
+    /// "{111}", "{200}", "{10-11}".
     package static func familyLabel(_ hkl: [Int]) -> String {
         let wide = hkl.contains { abs($0) > 9 }
         return "{" + hkl.map(String.init).joined(separator: wide ? " " : "") + "}"

@@ -141,7 +141,7 @@ nonisolated final class IndexingRoomTests: XCTestCase {
         XCTAssertEqual(indexing.detectedBands.count, HoughIndexingSettings.roomDefault.bands)
         let matched = indexing.detectedBands.filter(\.isMatched)
         XCTAssertFalse(matched.isEmpty)
-        XCTAssertTrue(matched.allSatisfy { ["{002}", "{111}", "{022}", "{113}"].contains($0.family ?? "") }, "\(matched.map(\.family))")
+        XCTAssertTrue(matched.allSatisfy { ["{200}", "{111}", "{220}", "{311}"].contains($0.family ?? "") }, "\(matched.map(\.family))")
         XCTAssertEqual(matched.count, solutions[first].matchedBands, "the overlay names the bands the solution counts, no more")
         XCTAssertLessThanOrEqual(matched.filter { $0.fitDegrees != nil }.count, 6, "QUEST weighs at most six bands")
         XCTAssertTrue(indexing.detectedBands.filter(\.isValid).allSatisfy { $0.start != nil && $0.end != nil }, "a valid band crosses its pattern")
@@ -495,6 +495,10 @@ nonisolated final class IndexingRoomTests: XCTestCase {
         XCTAssertNil(IndexedBand.segment(rho: 100, theta: 0, rows: 60, columns: 60), "a line beyond the pattern is not drawn")
         XCTAssertEqual(IndexedBand.familyLabel([1, 1, 1]), "{111}")
         XCTAssertEqual(IndexedBand.familyLabel([1, 0, -1, 1]), "{10-11}")
+        // A family is written by its largest variant (#1069): fcc's 002, 022, 113 read as textbooks write them.
+        let fcc = try HoughReflectorLibrary(name: "ni", spaceGroup: 225, lattice: [3.52, 3.52, 3.52, 90, 90, 90],
+                                            reflectors: [[1, 1, 1], [0, 0, 2], [0, 2, 2], [1, 1, 3]])
+        XCTAssertEqual(fcc.poleFamilies.indices.map { IndexedBand.familyLabel(fcc.displayFamily($0)) }, ["{111}", "{200}", "{220}", "{311}"])
     }
 
     /// The detector's own bands land where the pattern's stripes are: a bright row stripe and a bright column stripe on a 60 × 60
