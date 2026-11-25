@@ -30,6 +30,7 @@ enum RoomProgress {
         case .image:
             appState.simulatingDocument?.multislice.thermalProgress.map(BusyOperation.simulationFraction)
                 ?? appState.scanningSTEMDocument?.stem.progress.map { min(max($0, 0), 1) }
+        case .diffraction: appState.runningCBEDDocument?.cbed.progress.map { min(max($0, 0), 1) }
         default: nil
         }
     }
@@ -153,14 +154,16 @@ enum RoomPrimaryAction {
             // Index (#783): the kit finds the spots and the crystal's full orientation, off the main actor; Stop drops the answer.
             let analysis = item.diffraction
             let blocker = analysis.indexBlocker(image: image)
+            // A CBED run of the shown pattern's document is this room's work too (#1021): the button is its Stop while it runs.
+            let cbed = appState.runningCBEDDocument?.cbed
             return PrimaryAction(
                 title: "Index",
                 isEnabled: blocker == nil,
                 help: blocker ?? "Find the spots and the full orientation of \(analysis.crystal.name)",
                 hint: "Finds the spots and the crystal's full orientation",
-                isRunning: analysis.isIndexing || analysis.isFitting,
+                isRunning: analysis.isIndexing || analysis.isFitting || cbed != nil,
                 operationName: BusyOperation.name(room: .diffraction, appState: appState),
-                stop: { analysis.stop() },
+                stop: { if let cbed { cbed.stop() } else { analysis.stop() } },
                 run: { PendingEdits.run { analysis.index(image: image) } })
         default:
             return backgroundCancel(appState)
@@ -247,7 +250,7 @@ enum RoomPrimaryAction {
             help: words.help,
             hint: "Runs the probe through the slab and stores a pattern at every thickness step",
             isRunning: model.isComputing,
-            operationName: model.isComputing ? SimulateVerb.cbedOperation : nil,
+            operationName: model.isComputing ? BusyOperation.cbedSentence : nil,
             stop: { model.stop() },
             run: { Task { await appState.simulateCBED(of: simulation) } })
     }
@@ -257,7 +260,7 @@ enum RoomPrimaryAction {
     private static func cbedCancel(_ document: OpenItem) -> PrimaryAction? {
         let model = document.cbed
         guard model.isComputing else { return nil }
-        return PrimaryAction(title: nil, isRunning: true, operationName: SimulateVerb.cbedOperation, stop: { model.stop() }, run: {})
+        return PrimaryAction(title: nil, isRunning: true, operationName: BusyOperation.cbedSentence, stop: { model.stop() }, run: {})
     }
 
     /// Workspace > Run (⌘R): the shown room's verb as its title ("Process", "Index"), "Run" in a room without one or with no window.
@@ -353,9 +356,6 @@ nonisolated enum SimulateVerb {
         let isEnabled: Bool
         let help: String
     }
-
-    /// The toolbar's busy line and Cancel's name while a CBED run goes (#1021's words).
-    static let cbedOperation = "Computing the CBED patterns…"
 
     /// Why a CBED pattern cannot be computed with a Parallel beam.
     static let cbedParallelSentence = "The beam is Parallel: choose Convergent in the Simulation section to compute the CBED pattern."

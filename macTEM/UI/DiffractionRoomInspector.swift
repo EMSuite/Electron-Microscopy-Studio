@@ -337,6 +337,7 @@ private struct DiffractionPhaseRow: View {
 /// then Index's solutions, Flip and Fit scale. Typing either takes the drawn spots off Index's orientation.
 private struct DiffractionIndexSection: View {
     let analysis: DiffractionAnalysis
+    @Environment(AppState.self) private var appState
     @Environment(\.undoManager) private var undoManager
 
     var body: some View {
@@ -373,7 +374,8 @@ private struct DiffractionIndexSection: View {
                     .help("Index fits the scale within ±3 % of the room's; off, it holds the room's scale. Read when Index runs.")
                     .accessibilityIdentifier("diffraction.index.fitScale")
             }
-            InspectorNote(DiffractionIndexText.note(spots: analysis.spots, outcome: analysis.indexOutcome, indexed: settings.indexed != nil))
+            InspectorNote(DiffractionIndexText.note(spots: analysis.spots, outcome: analysis.indexOutcome, indexed: settings.indexed != nil,
+                                                    blocker: appState.openItems.selected?.session.image.flatMap { analysis.indexBlocker(image: $0) }))
         }
     }
 }
@@ -555,7 +557,10 @@ private struct DiffractionSimulationSection: View {
 
 /// The Index section's note (#784): what Index will read, and what a clicked spot cannot give.
 nonisolated enum DiffractionIndexText {
-    static func note(spots: [MeasuredSpot], outcome: PatternIndexing.Outcome?, indexed: Bool) -> String {
+    /// While Index is off, the note says what it waits for first (`indexBlocker`: centre, scale, beam energy, crystal), beside the
+    /// dimmed toolbar Index and ⌘R, so nobody guesses which one is missing (#1019).
+    static func note(spots: [MeasuredSpot], outcome: PatternIndexing.Outcome?, indexed: Bool, blocker: String? = nil) -> String {
+        if let blocker { return "\(blocker)." }
         if outcome?.zoneAxisOnly == true, outcome?.orientation != nil {
             return "Clicked spots carry no intensities, so they give the zone axis and the turn only; the tilt needs Index on found spots: Remove Spots, then Index."
         }

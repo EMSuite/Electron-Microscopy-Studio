@@ -54,19 +54,22 @@ package nonisolated enum SlabDrawing {
     }
 
     /// The slab of `built` as the pane draws it, at most `limit` atoms: whole periods from the entrance face (z = 0) while they fit,
-    /// else the `limit` atoms nearest the entrance.
-    package static func drawn(_ built: SimulationSpecimen.Built, limit: Int = drawnAtomLimit) -> Drawn {
+    /// else the `limit` atoms nearest the entrance. With `fitsAcross`, also no deeper than its widest side across (at least one
+    /// period, #1020): the pane frames a sphere round everything drawn, so a 10 nm slab one unit across (Si [1 1 0], 0.54 × 0.77 nm)
+    /// was a speck down the beam, where its columns are what it shows. The caption names the depth drawn.
+    package static func drawn(_ built: SimulationSpecimen.Built, limit: Int = drawnAtomLimit, fitsAcross: Bool = true) -> Drawn {
         let slab = built.slab
         let box = built.slabBox
         let atoms = slab.structure.atoms
         let rotation = slab.orientation
         var kept: [AtomicStructure.Atom]
         var depth = box.z
-        if atoms.count <= limit {
+        let perPeriod = max(1, atoms.count / max(1, built.periods))
+        let across = fitsAcross ? max(1, Int((max(box.x, box.y) / built.box.z + 1e-9).rounded(.down))) : built.periods
+        if atoms.count <= limit, built.periods <= across {
             kept = atoms
         } else {
-            let perPeriod = max(1, atoms.count / max(1, built.periods))
-            let periods = limit / perPeriod
+            let periods = min(across, limit / perPeriod)
             if periods >= 1 {
                 depth = Double(periods) * built.box.z
                 kept = atoms.filter { $0.position.z < depth }

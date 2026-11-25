@@ -65,6 +65,18 @@ enum BusyOperation {
         return nil
     }
 
+    /// The Diffraction room's running work: the CBED run of the shown pattern's Simulation document (#1021), else Index, else the
+    /// ring fit.
+    nonisolated static func diffraction(computingCBED: Bool, indexing: Bool, fitting: Bool) -> String? {
+        if computingCBED { return cbedSentence }
+        if indexing { return "Indexing the pattern…" }
+        if fitting { return "Fitting the ring…" }
+        return nil
+    }
+
+    /// The busy line of a CBED run (#1021).
+    nonisolated static let cbedSentence = "Computing the CBED patterns…"
+
     /// What `room` is running now, or nil when it is idle.
     @MainActor
     static func name(room: WorkspaceArea, appState: AppState) -> String? {
@@ -91,10 +103,9 @@ enum BusyOperation {
             let s = appState.maps
             return maps(opening: s.isOpening, segmenting: s.isSegmenting, texturing: s.isTexturing, drawing: s.isDrawing)
         case .diffraction:
-            guard let analysis = appState.openItems.selected?.diffraction else { return nil }
-            if analysis.isIndexing { return "Indexing the pattern…" }
-            if analysis.isFitting { return "Fitting the ring…" }
-            return nil
+            let analysis = appState.openItems.selected?.diffraction
+            return diffraction(computingCBED: appState.runningCBEDDocument != nil, indexing: analysis?.isIndexing == true,
+                               fitting: analysis?.isFitting == true)
         case .image:
             if let thermal = appState.simulatingDocument?.multislice.thermalProgress { return simulating(thermal) }
             return appState.scanningSTEMDocument != nil ? scanningSentence : nil
@@ -114,7 +125,9 @@ enum BusyOperation {
         case .indexing: appState.indexing.isBusy
         case .maps: appState.maps.isBusy
         case .image: appState.simulatingDocument != nil || appState.scanningSTEMDocument != nil
-        case .fft, .diffraction, .results: false
+        // The CBED run only: Index and the ring fit show on the room's own button, as before (#1021).
+        case .diffraction: appState.runningCBEDDocument != nil
+        case .fft, .results: false
         }
         guard busy else { return nil }
         return name(room: room, appState: appState) ?? room.title
@@ -171,6 +184,7 @@ enum BusyOperation {
         case .indexing: appState.indexing.isBusy || appState.ebsd.isOpening
         case .maps: appState.maps.isOpening || appState.maps.isSegmenting || appState.maps.isTexturing
         case .diffraction: appState.openItems.selected.map { $0.diffraction.isFitting || $0.diffraction.isIndexing } ?? false
+            || appState.runningCBEDDocument != nil
         case .image: appState.simulatingDocument != nil || appState.scanningSTEMDocument != nil
         case .fft, .results: false
         }

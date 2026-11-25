@@ -67,7 +67,9 @@ nonisolated enum DiffractionPart: String, CaseIterable, Identifiable, Sendable {
     /// Precipitate's variants, the rings and spots clicked), so no section of the document is lost. Tools (Ring · Spot · Tilt) stay
     /// where a click on the pattern is the work: Calibrate's rings and spots, Index's spots and the Tilt drag of Index and Simulate.
     static func sections(_ part: DiffractionPart, kind: DiffractionSections.Kind) -> [DiffractionSections.Section] {
-        switch (part, kind) {
+        // Only sections the document has (#1043's list): a part regroups them and adds none.
+        let has = Set(DiffractionSections.order(kind))
+        let list: [DiffractionSections.Section] = switch (part, kind) {
         case (.calibrate, .measured): [.centre, .calibration, .display, .tools, .rings]
         case (.index, .measured): [.phases, .index, .simulation, .crystalView, .precipitate, .tools, .display]
         case (.simulate, .simulation):
@@ -80,6 +82,7 @@ nonisolated enum DiffractionPart: String, CaseIterable, Identifiable, Sendable {
         case (.thickness, _): [.thickness, .display]
         case (.calibrate, _), (.index, _), (.simulate, _): []
         }
+        return list.filter(has.contains)
     }
 
     /// Whether the part ends with the Export section: every part but Thickness, which has nothing of its own to export.

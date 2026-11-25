@@ -95,6 +95,7 @@ struct ImageSettingsSection: View {
         }
         Section {
             Toggle("Hide the SEM databar", isOn: $cropsDatabar)
+                .accessibilityLabel("Hide the SEM databar")   // a grouped Form's switch was announced bare (#1023)
                 .accessibilityIdentifier("settings.images.cropDatabar")
         } footer: {
             Text("The bar a Thermo or Tescan microscope draws under the scan. Shown, it is a strip under the picture; lengths and exports "

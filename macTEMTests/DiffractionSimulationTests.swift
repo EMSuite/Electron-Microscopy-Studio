@@ -269,6 +269,39 @@ nonisolated final class DiffractionSimulationTests: XCTestCase {
         XCTAssertEqual(PatternIndexing.solutions(outcome(2)).first, o, "the best first")
     }
 
+    /// A label is drawn only where it clears every stronger spot's label and every other ring (#1030): strongest first, a label on a
+    /// stronger one's is left out, one over a neighbour's ring is left out, and one in the clear is kept. Red before: every one of the
+    /// 60 strongest was drawn, so the inner labels of Si [1 1 0] sat on each other and on the rings round the direct beam.
+    func testOnlyReadableLabelsAreDrawn() {
+        func spot(_ h: Int, row: Double, column: Double, relative: Double) -> ZoneAxisOverlay.Spot {
+            ZoneAxisOverlay.Spot(hkl: MillerIndex(h, 0, 0), row: row, column: column, intensity: relative, relative: relative)
+        }
+        let strong = spot(1, row: 100, column: 100, relative: 1)       // its label: x 105...126.5, y 105...119
+        let onTop = spot(2, row: 102, column: 104, relative: 0.9)      // its label starts inside the strong one's
+        let underRing = spot(3, row: 60, column: 100, relative: 0.8)   // its label (y 65...79) crosses the ring at (70, 112)
+        let ringed = spot(4, row: 70, column: 112, relative: 0.01)
+        let clear = spot(5, row: 200, column: 200, relative: 0.5)
+        let drawn = [strong, onTop, underRing, clear, ringed]
+        // Since #1045 the room places labels with `HKLLabelPlacement` (each tries its ring's four corners), which keeps this rule:
+        // after the strongest, no label crosses another spot's ring, and no two labels meet.
+        let point: (ZoneAxisOverlay.Spot) -> SIMD2<Double> = { SIMD2($0.column, $0.row) }
+        let placed = HKLLabelPlacement.place(drawn, mode: .all, point: point, radius: { _ in 3 }, beam: nil,
+                                             labelSize: { _ in SIMD2(21.5, 14) })
+        XCTAssertEqual(placed.first?.spot, strong, "the strongest first")
+        XCTAssertTrue(placed.contains { $0.spot == clear }, "one in the clear is kept")
+        for label in placed.dropFirst() {
+            for other in drawn where other != label.spot {
+                let centre = point(other)
+                let d = pointwiseMin(pointwiseMax(centre, label.low), label.high) - centre
+                XCTAssertGreaterThanOrEqual((d * d).sum(), 9, "\(label.spot.label)'s label crosses \(other.label)'s ring")
+            }
+        }
+        for (i, a) in placed.enumerated() {
+            for b in placed[(i + 1)...] { XCTAssertFalse(HKLLabelPlacement.meet((a.low, a.high), (b.low, b.high))) }
+        }
+        XCTAssertEqual(HKLLabelPlacement.estimatedLabelSize("1̄11"), SIMD2(21.5, 14), "three characters, the bar on its digit")
+    }
+
     @MainActor func testTheFitScaleIsOnByDefault() {
         XCTAssertTrue(DiffractionAnalysis().fitScale)
     }

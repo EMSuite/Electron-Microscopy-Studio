@@ -5,8 +5,9 @@
 //        their orientation (Index's, a solution, a typed zone axis, the Tilt tool, Flip), and turning the crystal turns the spots:
 //        one orientation, `DiffractionAnalysis.simulation`, drives both (`turnByHand`). The scene is the full cell VESTA draws, with the
 //        kit's bonds (`CrystalPaneModel`). In a Simulation document whose specimen builds, the pane shows the slab the multislice
-//        runs on instead (#897, plan row MA5): its atoms in the crystal's frame and its box, capped at the drawn-atom limit with
-//        the count named under it (`SlabDrawing`), so the columns in the pane are the ones marked on the HRTEM image.
+//        runs on instead (#897, plan row MA5): its atoms in the crystal's frame and its box, capped at the drawn-atom limit and at a
+//        depth no deeper than it is wide (the view frames a sphere round the drawing, #1020), with the count named under it
+//        (`SlabDrawing`), so the columns in the pane are the ones marked on the HRTEM image.
 //
 
 import ShellCrystal

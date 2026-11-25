@@ -27,7 +27,8 @@ extension AppState {
     }
 
     /// Show STEM Image: opens (or brings forward) the image of `simulation` in the Image room, here or in a tab of its own. The run
-    /// is the image's toolbar Simulate (#1047): a STEM scan takes minutes, so opening the image does not start one.
+    /// is the image's toolbar Simulate (#1047): a STEM scan takes minutes, so opening the image does not start one, and its
+    /// placeholder says "not computed yet: press Simulate" until a run goes (#1022; Show CBED Pattern starts its run, which takes seconds).
     func showSTEMImage(of simulation: OpenItem) {
         let url = DemoDocuments.stemURL(of: simulation.url)
         if let held = pairedItem(at: url) {
@@ -89,14 +90,15 @@ extension AppState {
     }
 
     /// Puts the image of `simulation`'s run, for its band at the HRTEM field of view, into its STEM item, in whichever window holds
-    /// it: the placeholder while a new run has no position yet, so the last run's image never stands for this one. Nothing while
-    /// the band gives no image (the section says why: `STEMModel.bandRefusal`) or the item is closed.
+    /// it: the placeholder while a new run has no position yet, so the last run's image never stands for this one ("computing" while
+    /// the run goes, else "not computed yet", #1022). Nothing while the band gives no image (the section says why:
+    /// `STEMModel.bandRefusal`) or the item is closed.
     func refreshSTEMImage(of simulation: OpenItem) {
         let url = DemoDocuments.stemURL(of: simulation.url)
         guard let held = pairedItem(at: url) else { return }
         let image: CalibratedImage
         if simulation.stem.scan?.isEmpty == true {
-            image = DemoDocuments.hrtemPlaceholder(name: url.lastPathComponent)
+            image = DemoDocuments.stemPlaceholder(name: url.lastPathComponent, computing: simulation.stem.isRunning)
         } else if case .success(let drawn)? = simulation.stem.image(fieldOfViewNM: simulation.multislice.optics.fieldOfViewNM,
                                                                      name: url.lastPathComponent) {
             image = drawn

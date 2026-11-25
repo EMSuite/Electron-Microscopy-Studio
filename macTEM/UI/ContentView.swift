@@ -41,6 +41,7 @@ struct ContentView: View {
         .onChange(of: appState.indexing.isBusy, initial: true) { appState.markBusy(.indexing, appState.indexing.isBusy) }
         .onChange(of: appState.maps.isBusy, initial: true) { appState.markBusy(.maps, appState.maps.isBusy) }
         .onChange(of: BusyOperation.isBusy(.image, appState: appState), initial: true) { _, busy in appState.markBusy(.image, busy) }
+        .onChange(of: appState.runningCBEDDocument != nil, initial: true) { appState.markBusy(.diffraction, appState.runningCBEDDocument != nil) }
         // INTERIM, delete at MacEMUI <next>: the shared EDS room's own Open button reads its file past the app's Open, so the file
         // the room comes to hold is noted as one of the app's EDS files here (EDSRoomDoor.swift, #318).
         .onChange(of: appState.edx.source?.metadata.filePath) { _, path in appState.noteEDSRoomFile(path: path) }

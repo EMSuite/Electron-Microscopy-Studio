@@ -184,9 +184,18 @@ nonisolated final class ResultsFormatTests: XCTestCase {
         XCTAssertEqual(ResultsFormat.session(firstLine: nil), "No marks in this file's session record.")
     }
 
+    /// #1031: the empty state names every room that sends rows here, from the groups' owners, not Image and FFT alone.
+    /// Red before: the sentence named only the Image and FFT rooms.
+    func testTheEmptyStateNamesEveryRoomThatSendsResults() {
+        for group in ResultRow.Group.allCases {
+            let room = ResultsFormat.owner(group).replacingOccurrences(of: "the ", with: "").replacingOccurrences(of: " room", with: "")
+            XCTAssertTrue(ResultsFormat.emptyDetail.contains(room), "\(room) is not named")
+        }
+    }
+
     func testTheStatesWords() {
         XCTAssertEqual(ResultsFormat.emptyTitle, "No results yet")
-        XCTAssertEqual(ResultsFormat.emptyDetail, "Measure in the Image or FFT room; the numbers appear here.")
+        XCTAssertEqual(ResultsFormat.emptyDetail, "Measure in the Image, FFT, Diffraction, EDS or EELS room; the numbers appear here.")
         XCTAssertEqual(ResultsFormat.allHiddenTitle, "All results are hidden")
         XCTAssertEqual(ResultsFormat.allHiddenDetail, "Switch a group on in the inspector's Show section.")
         XCTAssertEqual(ResultsFormat.noSelection, "Select a result to see its numbers and how far it is trusted.")

@@ -43,7 +43,12 @@ struct DiffractionRoom: View {
 
     /// The pattern's display is built again for another item, a Log switch, or new pixels (`ImageSession.generation`: a frame, a CBED
     /// pattern at another thickness, #1003), whatever their size.
-    private struct DisplayKey: Equatable { var id: OpenItem.ID; var log: Bool; var generation: Int }
+    private struct DisplayKey: Equatable {
+        var id: OpenItem.ID
+        var log: Bool
+        // periphery:ignore - read by the synthesized ==
+        var generation: Int
+    }
 
     var body: some View {
         // The root reads only what a change of the RESULTS (or the log toggle) must redraw: the pointer, the zoom and the annulus drag live in
@@ -596,7 +601,7 @@ struct SpotCursorActions {
     static func announcement(_ row: DiffractionReadoutRow) -> String {
         var parts = ["Added " + DiffractionReadoutFormat.spokenName(row)]
         if row.d != nil { parts.append("d " + DiffractionReadoutFormat.cell(.d, row) + " ångströms") }
-        parts.append(row.family ?? row.verdict)
+        parts.append(row.family ?? row.verdictWords)
         return parts.joined(separator: ", ")
     }
 }
@@ -814,7 +819,8 @@ private struct DiffractionOverlay: View {
 /// The simulated spots of a typed zone axis (#782): a ring per spot, its size growing with the square root of its intensity
 /// against the strongest, in cyan (the measured spots are red crosses, the rings yellow), and the hkl of those the `hkl labels`
 /// pop-up asks for (#1045): Strongest up to 16 from the brightest down, All, or None, each label only where it meets no other and
-/// not the centre's mark (`HKLLabelPlacement`), on a dark halo. The caption font is 10 pt.
+/// not the centre's mark, and where it clears every other ring (#1030), placed by `HKLLabelPlacement` on a dark halo. The caption
+/// font is 10 pt.
 /// A spot double diffraction adds (#786) is a dashed ring of the smallest size, labelled after the others.
 private struct SimulatedSpotsOverlay: View {
     let spots: [ZoneAxisOverlay.Spot]
@@ -961,8 +967,9 @@ private struct DiffractionReadoutTable: View {
             TableColumn(header(.odds)) { row in Text(DiffractionReadoutFormat.cell(.odds, row)).monospacedDigit() }.width(min: 60, ideal: 68)
             TableColumn(header(.verdict)) { row in
                 Text(DiffractionReadoutFormat.cell(.verdict, row)).lineLimit(1)
+                    .help(row.verdictDetail ?? row.verdictWords)
                     .accessibilityIdentifier("diffraction.row.\(row.kind.rawValue)\(row.number).verdict")
-                    .accessibilityValue(row.verdict)
+                    .accessibilityValue(row.verdictWords)
             }.width(min: 70, ideal: 90)
         }
         .onDeleteCommand { if let id = view.selection { DiffractionUndo.remove(id, in: analysis, undoManager: undoManager); view.selection = nil } }

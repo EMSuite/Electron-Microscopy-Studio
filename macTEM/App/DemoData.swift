@@ -116,3 +116,22 @@ extension AppState {
         return task
     }
 }
+
+extension AppState {
+    /// The Au {111} annulus of the generated demo pattern, px: about R = sqrt(3) / (a Δq) = 33.98 (`DemoDocuments.Truth`) and short of
+    /// {200} at 39.24, the annulus the app's own calibration tests fit on (DiffractionAnalysisTests and the others: 29 to 37).
+    static let demoPatternAnnulus = (inner: 29.0, outer: 37.0)
+
+    /// The Au demo pattern lands in the Diffraction room, ready for Calibrate on Ring (#1025): selected, its annulus on Au {111}
+    /// (the room's standard and ring at their defaults, Au and {111}), the room in front. Called by the Open itself, as
+    /// `landSimulation` is, so the pattern lands there in this window and in a tab of its own (a window that holds a document opens
+    /// the demo in a new tab, whose room started in Image).
+    func landDemoPattern(_ made: [(id: OpenItem.ID, url: URL)]) {
+        guard let pattern = made.first(where: { $0.url == DemoDocuments.patternURL }), let item = openItems.item(pattern.id) else { return }
+        if openItems.selected?.id != item.id { openItems.select(item.id) }
+        if item.diffraction.rings.isEmpty {
+            item.diffractionView.setAnnulus(inner: Self.demoPatternAnnulus.inner, outer: Self.demoPatternAnnulus.outer)
+        }
+        selectWorkspace(.diffraction)
+    }
+}
