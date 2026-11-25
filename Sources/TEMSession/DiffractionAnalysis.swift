@@ -795,7 +795,8 @@ package final class DiffractionAnalysis {
             return DiffractionReadoutRow(id: id, kind: kind, number: number, radiusPx: radius, q: q, d: 1 / q,
                                          family: indexing.family.map { DiffractionCompute.familyName($0) }, dListed: indexing.dListed,
                                          deltaPercent: indexing.deltaPercent, oddsText: indexing.assignment == nil ? nil : indexing.oddsText,
-                                         verdict: indexing.verdict, validation: indexing.validation, isCalibrating: calibrating)
+                                         verdict: indexing.verdict, validation: indexing.validation, isCalibrating: calibrating,
+                                         listedIntensity: indexing.family.flatMap { Self.relativeIntensity(of: $0, in: list) })
         }
         for (i, ring) in rings.enumerated() {
             out.append(row(id: ring.id, kind: .ring, number: i + 1, radius: ring.radius, calibrating: ring.isCalibrating,
@@ -808,6 +809,13 @@ package final class DiffractionAnalysis {
             }
         }
         return out
+    }
+
+    /// A family's kinematic intensity of 100 for the list's strongest family; nil when the list does not hold it.
+    package static func relativeIntensity(of family: ReflectionFamily, in list: KinematicReflectionList) -> Double? {
+        guard let strongest = list.families.map(\.intensity).max(), strongest > 0,
+              let listed = list.families.first(where: { $0.family == family }) else { return nil }
+        return 100 * listed.intensity / strongest
     }
 
     // MARK: Export and Results

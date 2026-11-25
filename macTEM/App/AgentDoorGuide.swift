@@ -309,6 +309,12 @@ extension MacTEMAgentDoor {
             d and the deviation in %.
             5. Index. crystal picks the crystal the rows are indexed against; k_max and tolerance (% of q) set the list and the \
             match. Rows are indexed again at once, with no refit. `get_diffraction` csv true gives Export Readout CSV…'s text.
+            6. Beyond the pattern. `find_phases` rank true ranks the room's standards and the open crystals against the measured \
+            rings or spots (ask again until running is false); use makes a ranked phase the crystal. `powder_pattern` gives the \
+            rings or the X-ray pattern of the crystal and a phase to compare with, and writes its CSV or .xy into the Agent folder. \
+            After Index found an orientation, `plan_tilt` gives the zone axes around the beam and, once the tilt axis is typed or \
+            calibrated from a second indexed pattern, the α and β that bring one on; `set_relationship` places a precipitate's \
+            variants in the crystal from the two parallel pairs a paper states.
 
             What to check:
             - fit_versus_file_percent compares the ring's Δq with the file's axis: a few % says the file's camera length is off; \
@@ -316,6 +322,8 @@ extension MacTEMAgentDoor {
             - A ring with a refusal has no radius: move the annulus so it holds the whole ring and nothing else.
             - A verdict other than accepted is not an index: report it in the verdict's own words.
             - Calibrating on a ring indexes that ring by construction: it does not test the scale. A second ring or spot does.
+            - Find Phases says which phase explains the rings, never which one is there; a tie is reported as a tie, with its sentence.
+            - Uncalibrated, plan_tilt gives angles only: report that, never an α or β.
             """
     }
 }
