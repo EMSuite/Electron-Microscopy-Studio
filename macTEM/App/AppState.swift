@@ -53,6 +53,8 @@ final class AppState {
     let diffractionRoom = DiffractionRoomState()
     let edx = EDXSession(host: .macTEM)
     let edxRoom = EDXRoomState()
+    /// Find Phases' Materials Project search (#813): the elements and the candidates it gave, one per window, as the EDS room is.
+    let phaseSearch = MaterialsProjectPhaseSearch()
     /// The EDS room's SEM rows for an SEM `.hspy` spectrum (line intensities with background windows, window quantification).
     let semEDS = SEMEDSState()
     let eels = EELSSession()
