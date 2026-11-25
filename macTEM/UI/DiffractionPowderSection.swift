@@ -90,11 +90,9 @@ struct DiffractionPowderSection: View {
                         .accessibilityIdentifier("diffraction.powder.markOverlaps")
                 }
             }
-            // The pattern, its headlines and its peaks are results: the Powder Pattern pane beside the pattern and the Peaks table
-            // under it (#921). One next-step line here.
-            if !item.diffractionView.isShowing(.powder) {
-                InspectorNote("View › Show Powder Pattern draws it beside the pattern, its peaks in the table under it.")
-            } else if table.patterns.contains(where: { $0 == nil }) {
+            // The pattern, its headlines and its peaks are results: the Powder Pattern pane beside the pattern and the peaks table
+            // under it in Powder, the part this section is shown in (#921, #1044).
+            if table.patterns.contains(where: { $0 == nil }) {
                 InspectorWarning("The kit drew no pattern for a phase: the pane says why.")
             }
             InspectorNote("A line pattern for planning and comparison: no instrument profile, no texture, no absorption, no thermal motion.")

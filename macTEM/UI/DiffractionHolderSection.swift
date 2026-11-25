@@ -111,10 +111,8 @@ struct DiffractionHolderSection: View {
                     .help("A zone axis near the beam, nearest first: its angle from the beam and, with a calibrated axis, the tilts that bring it on")
                     .accessibilityIdentifier("diffraction.holder.zoneAxis")
                 }
-                // The tilts to the picked zone axis and the map to pick it on are results: the Zone-axis Map pane (#921).
-                if !item.diffractionView.isShowing(.zoneAxisMap) {
-                    InspectorNote("View › Show Zone-axis Map draws the zone axes and the tilts to the picked one beside the pattern.")
-                }
+                // The tilts to the picked zone axis and the map to pick it on are results: the Zone-axis Map pane beside the pattern in
+                // Tilt Plan, the part this section is shown in (#921, #1044).
             } else {
                 InspectorNote("Index the pattern first: the zone axes and the tilts to them are placed from its orientation.")
             }

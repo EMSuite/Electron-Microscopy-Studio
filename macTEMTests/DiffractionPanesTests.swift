@@ -1,7 +1,7 @@
 //
 //  DiffractionPanesTests.swift
 //  Charts, maps and result tables leave the inspector for panes of the room (#921, control placement §1): the pane beside the Diffraction
-//  room's pattern shows the crystal, the zone-axis map or the powder pattern, picked from View or its header; the powder peaks are a
+//  room's pattern shows the crystal, the zone-axis map or the powder pattern, by the part in front (#1044); the powder peaks are a
 //  table under the pattern with ⌘C; the HRTEM transfer function is a strip under its image. The Holder, Powder and HRTEM sections hold
 //  rows and buttons only. Red before: the map, the chart, the peak list and the transfer chart were drawn in their sections, and the
 //  room had one pane beside the pattern, the crystal.
@@ -17,49 +17,23 @@ nonisolated final class DiffractionPanesTests: XCTestCase {
 
     private func ui(_ name: String) throws -> String { try FFTRoomWiringTests.squeezedUI(name) }
 
-    /// One pane beside the pattern, three views: a View item shows the pane with its view, or hides it while that view is shown.
-    @MainActor func testTheSidePaneShowsOneOfThreeViews() {
+    /// One pane beside the pattern, three views, by the part in front (#1044): the crystal in Index and Simulate, the zone-axis map in
+    /// Tilt Plan, the powder pattern in Powder, none in Calibrate and Thickness; the peaks are Powder's table under the pattern.
+    @MainActor func testThePartPicksThePaneAndTheTable() {
+        XCTAssertEqual(DiffractionPart.allCases.map(DiffractionPart.sidePane), [nil, .crystal, .crystal, .zoneAxisMap, .powder, nil])
+        XCTAssertEqual(DiffractionPart.tableStrip(.powder), .peaks)
+        XCTAssertEqual(DiffractionPart.tableStrip(.tiltPlan), DiffractionPart.TableStrip.none)
         let view = DiffractionViewState()
-        XCTAssertEqual(view.sidePane, .crystal, "the crystal, as before")
-        XCTAssertTrue(view.isShowing(.crystal) && view.showsCrystal)
-        view.toggle(.zoneAxisMap)
-        XCTAssertTrue(view.isShowing(.zoneAxisMap))
-        XCTAssertFalse(view.showsCrystal, "one view at a time")
-        view.toggle(.zoneAxisMap)
-        XCTAssertFalse(view.showsSidePane, "the same item hides it")
-        view.toggle(.powder)
-        XCTAssertTrue(view.isShowing(.powder))
-        view.showsCrystal = true
-        XCTAssertTrue(view.isShowing(.crystal))
-        view.showsCrystal = false
-        XCTAssertFalse(view.showsSidePane)
-
         let analysis = DiffractionAnalysis()
         analysis.simulation.isShown = false
-        view.toggle(.zoneAxisMap)
-        XCTAssertTrue(DiffractionSidePaneView.isShown(view: view, analysis: analysis), "the map's pane needs no simulated spots")
-    }
-
-    /// The View menu's items name the pane and say Hide only while it is shown (never "Hide Crystal" outside the room).
-    @MainActor func testTheMenuTitlesNameThePane() {
-        XCTAssertEqual(DiffractionPaneWords.menuTitle(.crystal, shown: false), "Show Crystal")
-        XCTAssertEqual(DiffractionPaneWords.menuTitle(.zoneAxisMap, shown: true), "Hide Zone-axis Map")
-        XCTAssertEqual(DiffractionPaneWords.menuTitle(.powder, shown: false), "Show Powder Pattern")
+        XCTAssertEqual(DiffractionSidePaneView.shown(part: .tiltPlan, view: view, analysis: analysis), .zoneAxisMap,
+                       "the map's pane needs no simulated spots")
+        XCTAssertEqual(DiffractionSidePaneView.shown(part: .powder, view: view, analysis: analysis), .powder)
+        XCTAssertNil(DiffractionSidePaneView.shown(part: .index, view: view, analysis: analysis), "the crystal waits for the spots")
+        XCTAssertNil(DiffractionSidePaneView.shown(part: .calibrate, view: view, analysis: analysis))
         XCTAssertEqual(DiffractionViewState.SidePane.allCases.map(DiffractionPaneWords.title), ["Crystal", "Zone-axis Map", "Powder Pattern"])
-    }
-
-    /// The table strip offers the peaks while the Powder Pattern pane is shown, and falls back to the readout when the chosen table goes.
-    @MainActor func testThePeaksTableComesWithThePowderPane() {
-        let view = DiffractionViewState()
-        XCTAssertEqual(view.lowerTables(hasSpots: false), [.readout])
-        XCTAssertEqual(view.shownLowerTable(hasSpots: false), .readout, "Spots chosen, none yet: the readout")
-        XCTAssertEqual(view.shownLowerTable(hasSpots: true), .spots)
-        view.toggle(.powder)
-        XCTAssertEqual(view.lowerTables(hasSpots: true), [.readout, .spots, .peaks])
-        view.lowerTable = .peaks
-        XCTAssertEqual(view.shownLowerTable(hasSpots: false), .peaks)
-        view.toggle(.powder)
-        XCTAssertEqual(view.shownLowerTable(hasSpots: true), .readout, "the pane hidden, its table goes with it")
+        let room = try? ui("DiffractionRoom.swift")
+        XCTAssertTrue(room?.contains("if strip == .peaks { // The Powder part lists the powder pattern's peaks (#921), strongest first, with ⌘C. DiffractionPowderPeakTable(") == true)
     }
 
     /// The peaks copy as the other tables do: the titles, then a row a line, tab-separated, strongest first.

@@ -3,7 +3,8 @@
 //  Role: File > Export Figure… in the Diffraction room (#822, plan row X6): the pattern on screen as a figure, PDF or SVG with live
 //        text or PNG at 300 dpi, through `FigureExport.patternScene` (TEMCore): the picture as the room displays it (its log, window,
 //        gamma and colormap), the measured rings and spots with their d, the simulated spots of the zone axis or of Index's
-//        orientation with their hkl (the room's own labelling rule, `ZoneAxisOverlay.labelled`), the centre, and a scale bar in Å⁻¹
+//        orientation with their hkl (the 60 strongest, `ZoneAxisOverlay.labelled`, with hkl labels not None: the room places its own
+//        on screen since #1045), the centre, and a scale bar in Å⁻¹
 //        from the room's scale. Taken when the panel opens, so the figure is what was on screen then.
 //        A figure carries its key and its spot table (#823, plan row X7): Legend draws one row per kind of mark under the picture, Spot
 //        table the readout's rows (number, family, d, listed d, misfit). Edit > Copy Figure, ⌘C on the pattern and its context menu put

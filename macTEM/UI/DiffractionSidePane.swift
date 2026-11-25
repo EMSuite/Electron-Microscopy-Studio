@@ -1,12 +1,12 @@
 //
 //  DiffractionSidePane.swift
-//  Role: the pane beside the Diffraction room's pattern (#921): the crystal down the beam (#790), the zone-axis map (#814) or the powder
-//        pattern (#810). They are results of the room, so they sit beside the data and never in an inspector section (control placement
-//        §1; design DNA: a live or interactive view is a pane). The pane is picked in its header or from View (Show Crystal, Show Zone-axis
-//        Map, Show Powder Pattern), which also hides it; its width is the room's `PaneSplit`. The sentences that describe a result (the
+//  Role: the pane beside the Diffraction room's pattern (#921): the crystal down the beam (#790) in Index and Simulate, the zone-axis
+//        map (#814) in Tilt Plan, the powder pattern (#810) in Powder. The part in the sidebar picks it (#1044, `DiffractionPart.sidePane`).
+//        They are results of the room, so they sit beside the data and never in an inspector section (control placement §1; design DNA:
+//        a live or interactive view is a pane). Its width is the room's `HorizontalPaneSplit`. The sentences that describe a result (the
 //        tilt to the picked zone axis, the powder headlines) are the pane's words above it; the inspector keeps the settings. The powder
-//        peaks are a table under the pattern (`DiffractionPowderPeakTable`) while the Powder Pattern pane is shown. Presentation only:
-//        the numbers are `TiltPlanning`'s and `PowderTable`'s over DiffractoKit.
+//        peaks are a table under the pattern (`DiffractionPowderPeakTable`) in the Powder part. Presentation only: the numbers are
+//        `TiltPlanning`'s and `PowderTable`'s over DiffractoKit.
 //
 
 import ShellControls
@@ -16,7 +16,7 @@ import SwiftUI
 import TEMCore
 import TEMSession
 
-/// The words of the side pane and the table strip. Pure; main-actor, as the view state's pane enums are.
+/// The words of the side pane. Pure; main-actor, as the view state's pane enums are.
 enum DiffractionPaneWords {
     static func title(_ pane: DiffractionViewState.SidePane) -> String {
         switch pane {
@@ -26,56 +26,40 @@ enum DiffractionPaneWords {
         }
     }
 
-    static func title(_ table: DiffractionViewState.LowerTable) -> String {
-        switch table {
-        case .readout: "Readout"
-        case .spots: "Spots"
-        case .peaks: "Peaks"
-        }
-    }
-
-    /// The View menu's item for a pane: "Show Zone-axis Map", or "Hide Zone-axis Map" while it is shown. With no Diffraction room on
-    /// screen the item reads "Show …" (and is disabled).
-    static func menuTitle(_ pane: DiffractionViewState.SidePane, shown: Bool) -> String {
-        (shown ? "Hide " : "Show ") + title(pane)
-    }
-
-    /// Why the crystal cannot be shown yet.
-    static let crystalBlocker = "Show the simulated spots, or Index, to see the crystal down the beam"
     /// The zone-axis map before Index.
     static let mapBlocker = "Index the pattern first: the zone axes and the tilts to them are placed from its orientation."
     /// What the powder pattern leaves out: the pane's last words.
     static let powderDisclaimer = "A line pattern for planning and comparison: no instrument profile, no texture, no absorption, no thermal motion."
 }
 
-/// The side pane: its header (which pane) and the pane.
+/// The side pane: its header (the pane's name) and the pane.
 struct DiffractionSidePaneView: View {
     let item: OpenItem
     let analysis: DiffractionAnalysis
     let view: DiffractionViewState
+    let pane: DiffractionViewState.SidePane
 
-    /// The side pane is on screen: shown, and for the crystal only once simulated spots are drawn (before, the pattern has the room).
-    static func isShown(view: DiffractionViewState, analysis: DiffractionAnalysis) -> Bool {
-        view.showsSidePane && (view.sidePane != .crystal || analysis.simulation.isShown)
+    /// The pane on screen in `part`, or nil: the part's pane; the crystal only while View > Show Crystal has it and once simulated
+    /// spots are drawn (before, the pattern has the room).
+    static func shown(part: DiffractionPart, view: DiffractionViewState, analysis: DiffractionAnalysis) -> DiffractionViewState.SidePane? {
+        guard let pane = DiffractionPart.sidePane(part) else { return nil }
+        if pane == .crystal && !(view.showsCrystal && analysis.simulation.isShown) { return nil }
+        return pane
     }
 
     var body: some View {
         VStack(spacing: 0) {
-            // The room's strip header, as the table strip under the pattern has one (Readout · Spots · Peaks).
+            // The pane's name in a strip header, as the table strip under the pattern has one.
             HStack {
-                SegmentedPicker(label: "Pane", items: DiffractionViewState.SidePane.allCases.map { pane -> (DiffractionViewState.SidePane, SegmentedControl.Segment) in
-                                    (pane, .title(DiffractionPaneWords.title(pane),
-                                                  disabledReason: pane == .crystal && !analysis.simulation.isShown ? DiffractionPaneWords.crystalBlocker : nil))
-                                },
-                                selection: Binding(get: { view.sidePane }, set: { view.sidePane = $0 }))
-                    .fixedSize()
-                    .accessibilityIdentifier("diffraction.sidePane")
+                Text(DiffractionPaneWords.title(pane)).font(.headline)
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, LayoutPolicy.infobarHorizontalPadding)
             .frame(height: LayoutPolicy.paneHeaderHeight)
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("diffraction.sidePane")
             Divider()
-            switch view.sidePane {
+            switch pane {
             case .crystal:
                 // A Simulation document draws the slab its multislice runs on (#897).
                 DiffractionCrystalPane(analysis: analysis, showsUnitCell: view.showsUnitCell,

@@ -15,6 +15,10 @@
 //        The frame: the pattern's rows run along the box's x (lab x), its columns along y, the suite's display frame (row = lab x),
 //        the same as the kinematic overlay of the Diffraction room, so its labels sit on the discs.
 //
+//        The tilt (#1013): a run may tilt the beam off the zone axis by the kit's small-angle beam tilt (`Probe(…, tilt:)`,
+//        abTEM's `Probe(tilt=…)`), read from the orientation drawn by hand (`CBEDTilt`); the discs stay where they are and the
+//        reflections the tilted beam meets at their Bragg condition light up, so a pattern can be two-beam.
+//
 
 import Foundation
 import ImagoCore
@@ -61,6 +65,8 @@ package nonisolated struct CBEDPattern: Sendable, Equatable {
     package let rowDeltaQ: Double
     package let columnDeltaQ: Double
     package let semiangleMrad: Double
+    /// The beam tilt (x, y) along the box's x and y (rows, columns), mrad; zero on the zone axis (`CBEDTilt`).
+    package let tiltMrad: SIMD2<Double>
     package let volts: Double
     /// "Si [1 1 1]".
     package let specimen: String
@@ -93,13 +99,14 @@ package nonisolated struct CBEDPattern: Sendable, Equatable {
     }
 
     /// "CBED · Si [1 1 1] · 200 kV · 6.5 mrad · 84 nm · Lobato, infinite projection, 1 Å slices · static lattice · Metal (float32)",
-    /// the design's line.
+    /// the design's line; a tilted run names its tilt after the thickness ("· beam tilt 35, 6.53 mrad (x, y)").
     package func methodLine(at index: Int) -> String {
         func n(_ v: Double, _ digits: Int = 3) -> String { UnitDisplay.number(v, digits: digits) }
         let t = thicknessesNM[min(max(index, 0), thicknessesNM.count - 1)]
-        return ["CBED", specimen, "\(n(volts / 1000, 4)) kV", "\(n(semiangleMrad)) mrad", "\(n(t)) nm",
-                "Lobato, infinite projection, \(n(SimulationSpecimen.sliceThickness)) Å slices", "static lattice",
-                onMetal ? "Metal (float32)" : "exact (float64)"]
+        return (["CBED", specimen, "\(n(volts / 1000, 4)) kV", "\(n(semiangleMrad)) mrad", "\(n(t)) nm"]
+                + (CBEDTilt.methodPart(tiltMrad).map { [$0] } ?? [])
+                + ["Lobato, infinite projection, \(n(SimulationSpecimen.sliceThickness)) Å slices", "static lattice",
+                   onMetal ? "Metal (float32)" : "exact (float64)"])
             .joined(separator: " · ")
     }
 
@@ -242,15 +249,18 @@ package nonisolated enum CBEDRun {
     }
 
     /// Runs the probe through the slab of `built` for `settings` at `volts` on Metal when this Mac has it (the CPU float64 path with
-    /// `reference`), keeping a pattern at every planned period. `shortestG` (1/Å) is the first ring the edge must hold. Throws
-    /// `EdgeRefusal`, `PlanRefusal`, the kit's errors, and `CancellationError`. `progress` gets the fraction done, when the kit
-    /// reports one.
+    /// `reference`), keeping a pattern at every planned period. `shortestG` (1/Å) is the first ring the edge must hold; `tiltMrad`
+    /// is the beam tilt along the box's x and y (`CBEDTilt`, zero on the zone axis of `zoneAxis`). Throws `EdgeRefusal`,
+    /// `CBEDTiltRefusal` (past `CBEDTilt.largestMrad`), `PlanRefusal`, the kit's errors, and `CancellationError`. `progress` gets
+    /// the fraction done, when the kit reports one.
     package static func run(_ built: SimulationSpecimen.Built, settings: CBEDSettings, semiangleMrad: Double, volts: Double,
-                            specimen: String, shortestG: Double? = nil, reference: Bool = false, limits: SimulationLimits = .thisMac,
+                            specimen: String, shortestG: Double? = nil, tiltMrad: SIMD2<Double> = .zero, zoneAxis: SIMD3<Int> = .zero,
+                            reference: Bool = false, limits: SimulationLimits = .thisMac,
                             progress: (@Sendable (Double?) -> Void)? = nil) throws -> CBEDPattern {
         if let sentence = edgeSentence(edgeMrad: settings.edgeMrad, semiangleMrad: semiangleMrad, shortestG: shortestG, volts: volts) {
             throw EdgeRefusal(sentence: sentence)
         }
+        if let sentence = CBEDTilt.refusal(tiltMrad, zoneAxis: zoneAxis) { throw CBEDTiltRefusal(sentence: sentence) }
         let plan = try Self.plan(built, settings: settings, volts: volts)
         try checkPlan(plan, built: built, settings: settings, volts: volts, limits: limits)
         let slab = built.slab
@@ -293,7 +303,9 @@ package nonisolated enum CBEDRun {
             }
             patterns.append(cropped)
         }
-        var wave = try Probe(beam: beam, grid: try potential(periods: plan.planePeriods.first ?? plan.periods).grid, aperture: Aperture(semiangleCutoff: semiangleMrad))
+        // The tilt rides on the waves into every propagator (abTEM's `base_tilt`); the exit waves keep it.
+        var wave = try Probe(beam: beam, grid: try potential(periods: plan.planePeriods.first ?? plan.periods).grid,
+                             aperture: Aperture(semiangleCutoff: semiangleMrad), tilt: tiltMrad)
             .build(at: plan.box / 2)
         var done = 0
         for plane in plan.planePeriods {
@@ -321,8 +333,8 @@ package nonisolated enum CBEDRun {
         return CBEDPattern(patterns: patterns, rows: rows, columns: columns,
                            thicknessesNM: plan.planePeriods.map { Double($0) * box.z / 10 },
                            rowStepMrad: rowDeltaQ * beam.wavelength * 1000,
-                           rowDeltaQ: rowDeltaQ, columnDeltaQ: columnDeltaQ, semiangleMrad: semiangleMrad, volts: volts, specimen: specimen,
-                           slices: slices, onMetal: onMetal,
+                           rowDeltaQ: rowDeltaQ, columnDeltaQ: columnDeltaQ, semiangleMrad: semiangleMrad, tiltMrad: tiltMrad, volts: volts,
+                           specimen: specimen, slices: slices, onMetal: onMetal,
                            beyondRegisteredDepth: onMetal && !MetalAccuracy.registered.covers(nx: grid.x, ny: grid.y, slices: slices))
     }
 

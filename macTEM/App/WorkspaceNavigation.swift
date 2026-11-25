@@ -164,6 +164,11 @@ final class WorkspaceNavigation {
         didSet { lastRoom[workspaceArea.group] = workspaceArea }
     }
 
+    /// The part of the Diffraction workspace the window shows (#1044), nil until the workspace first draws and pins the one its
+    /// document opens on (`AppState.settleDiffractionPart`). Read through `AppState.diffractionPart`, which falls back to that one
+    /// while the part chosen cannot be entered.
+    var diffractionPart: DiffractionPart?
+
     /// The room each workspace was last in, so Go to EBSD comes back to Maps when Maps was where the person left it.
     @ObservationIgnored private(set) var lastRoom: [WorkspaceGroup: WorkspaceArea] = [:]
 

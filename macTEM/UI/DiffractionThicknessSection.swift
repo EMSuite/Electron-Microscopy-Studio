@@ -22,7 +22,8 @@ struct DiffractionThicknessSection: View {
     var body: some View {
         let model = item.thickness
         let inputs = item.thicknessInputs
-        InspectorSection("Thickness", startsExpanded: false) {
+        // Open: it is the Thickness part's one job since #1044 (it sat closed at the foot of fifteen sections before).
+        InspectorSection("Thickness") {
             InspectorActionRow {
                 Button("Measure Thickness") { Task { await model.measure(inputs) } }
                     .disabled(model.isMeasuring)

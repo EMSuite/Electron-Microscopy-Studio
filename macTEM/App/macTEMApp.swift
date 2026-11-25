@@ -239,15 +239,12 @@ private struct ImageCommands: Commands {
             }
             .keyboardShortcut("l", modifiers: [.command, .control])
             .disabled(appState?.processAreaHasDocument != true)
-            // The Diffraction room's pane beside the pattern (#789, #921): the crystal, the zone-axis map or the powder pattern; each item
-            // shows the pane with its view, or hides it while that view is shown. On in that room only; outside it each reads "Show …".
+            // The Diffraction room's crystal pane beside the pattern (#789); on in that room only (the bottom bar's toggle is #921).
             let diffractionView = appState?.navigation.workspaceArea == .diffraction ? appState?.openItems.selected?.diffractionView : nil
-            ForEach(DiffractionViewState.SidePane.allCases, id: \.self) { pane in
-                Button(DiffractionPaneWords.menuTitle(pane, shown: diffractionView?.isShowing(pane) == true)) {
-                    diffractionView?.toggle(pane)
-                }
-                .disabled(diffractionView == nil)
+            Button(diffractionView?.showsCrystal == true ? "Hide Crystal" : "Show Crystal") {
+                diffractionView?.showsCrystal.toggle()
             }
+            .disabled(diffractionView == nil)
         }
         CommandMenu("Image") {
             // The Image room's measuring tools (V1-5), ⌃⌘1…4: a Toggle each, so the chosen tool carries the menu's
@@ -273,12 +270,13 @@ private struct ImageCommands: Commands {
             }
             // The rooms of the workspace in front, one after the other, on the system's next and previous tab keys (Safari, Finder,
             // Xcode): disabled where the workspace has no other room with data, so the key is never dead.
-            Button("Show Next Room") { if let room = appState?.neighbourRoom(forward: true) { appState?.selectWorkspace(room) } }
+            // In the Diffraction workspace they step through its parts (#1044), Calibrate to Thickness.
+            Button("Show Next Room") { appState?.showNeighbour(forward: true) }
                 .keyboardShortcut("]", modifiers: [.command, .shift])
-                .disabled(appState?.neighbourRoom(forward: true) == nil)
-            Button("Show Previous Room") { if let room = appState?.neighbourRoom(forward: false) { appState?.selectWorkspace(room) } }
+                .disabled(appState?.canShowNeighbour(forward: true) != true)
+            Button("Show Previous Room") { appState?.showNeighbour(forward: false) }
                 .keyboardShortcut("[", modifiers: [.command, .shift])
-                .disabled(appState?.neighbourRoom(forward: false) == nil)
+                .disabled(appState?.canShowNeighbour(forward: false) != true)
             Divider()
             ForEach(WorkspaceGroup.allCases.filter(\.hasParts)) { group in
                 Menu(group.title) {

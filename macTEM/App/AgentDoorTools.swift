@@ -111,6 +111,8 @@ enum MacTEMAgentDoor {
         let selected = appState.openItems.selected
         return [
             "room": appState.navigation.workspaceArea.title,
+            // The Diffraction workspace's part (#1044), whichever room is in front: the one it shows when entered.
+            "diffraction_part": AgentJSON.orNull(selected.map { _ in appState.diffractionPart.rawValue }),
             "shown_file": AgentJSON.orNull(selected.map { $0.url.lastPathComponent }),
             "files": appState.openItems.items.map { file($0, shown: $0 === selected) },
             "results": selected.map { appState.resultRows(of: $0).count } ?? 0,

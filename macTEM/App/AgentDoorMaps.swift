@@ -136,6 +136,7 @@ extension MacTEMAgentDoor {
                 ["index": i, "title": MapsRoomFormat.sourceTitle(held), "shown": held.id == document.id]
             },
             "source_stale": AgentJSON.orNull(appState.mapsStaleness),
+            "indexing_run_offered": AgentJSON.orNull(appState.mapsIndexingOffer),
             "grid": ["rows": document.rows, "columns": document.columns, "step_x": AgentJSON.number(document.dx),
                      "step_y": AgentJSON.number(document.dy), "unit": map.scanUnit] as [String: Any],
             "points": document.size,

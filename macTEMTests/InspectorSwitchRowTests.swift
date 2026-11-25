@@ -41,10 +41,16 @@ nonisolated final class InspectorSwitchRowTests: XCTestCase {
                 XCTAssertFalse(row.row.hasPrefix("Show"), "\(file): \(row.row)")
             }
         }
-        for noun in ["Objective aperture", "Frozen phonons", "Atom columns", "Fit scale", "Unit cell", "Simulated spots", "hkl labels",
+        for noun in ["Objective aperture", "Frozen phonons", "Atom columns", "Fit scale", "Unit cell", "Simulated spots",
                      "Double diffraction", "Mark overlaps", "Variants"] {
             XCTAssertTrue(seen.contains(noun), "\(noun) is a switch row")
         }
+    }
+
+    /// `hkl labels` is no on/off since #1045 but a pop-up of three (Strongest · All · None), so it is not a switch row.
+    func testTheHKLLabelsRowIsAPopUp() throws {
+        XCTAssertFalse(try switchRows("macTEM/UI/DiffractionRoomInspector.swift").contains { $0.row == "hkl labels" })
+        XCTAssertTrue(try source("macTEM/UI/DiffractionRoomInspector.swift").contains(#"Picker("hkl labels""#))
     }
 
     func testTheDetectorChartsAxisReadsPowersOfTen() {

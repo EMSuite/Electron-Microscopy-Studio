@@ -1,7 +1,8 @@
 //
 //  ExportCommands.swift
 //  Role: the File menu's export items, in their own `Commands`, so `ImageCommands` and `AppState` stay as they are; the scene adds
-//        `ExportCommands()` to its `.commands`. They act on the focused window's `AppState`. The menu lists only the room on
+//        `ExportCommands()` to its `.commands`. They act on the focused window's `AppState`; the items are one view, `RoomExportItems`,
+//        which the toolbar's Export menu lists too (#1048), so the two cannot drift. The menu lists only the room on
 //        screen's exports, as mac4DSTEM's File menu does (#631, Paul's pick): Export Image… (⇧⌘E) and Export Profile… in the Image
 //        room, Export Transform… (⌥⌘E), Export Radial Profile… and Export Spots… in the FFT room, Export Results… (⇧⌥⌘E) in the
 //        Results room, and Export Session Report… in the Results room and the rooms that feed it (`FixedExports.listed(in:)`);
@@ -31,97 +32,11 @@ struct ExportCommands: Commands {
 
     var body: some Commands {
         // Read once: both items follow the same state, and a second read of the focused value is a second dependency.
-        let availability = appState.map(ExportSnapshot.availability(of:))
-        let fft = appState.map(ExportSnapshot.fftAvailability(of:))
-        let session = appState.map(SEMSessionLedger.hasRows(_:))
-        let eds = appState.flatMap(ExportSnapshot.edsAvailability(of:))
-        let eels = appState.flatMap(ExportSnapshot.eelsAvailability(of:))
-        let patterns = appState.flatMap(ExportSnapshot.patternsAvailability(of:))
-        let indexing = appState.flatMap(ExportSnapshot.indexingAvailability(of:))
-        let maps = appState.flatMap(ExportSnapshot.mapsAvailability(of:))
-        let fixed = FixedExports.listed(in: appState?.navigation.workspaceArea)
         let methods = appState.map(MethodsRecordExport.isAvailable(in:))
-        let hyperSpy = appState.map { HyperSpyExportPanel.isAvailable(in: $0) }
         let diffractionFigure = appState.map { ExportSnapshot.diffractionFigureAvailable(in: $0) }
-        let shownPhase = appState.flatMap(PhaseCIF.shownPhase(in:))
         CommandGroup(after: .saveItem) {
-            // Export Figure…: the Image room's picture, or the Diffraction room's figure of the pattern on screen (#822). One item on
-            // one key, as one room is on screen at a time.
-            let inDiffraction = appState?.navigation.workspaceArea == .diffraction
-            if fixed.contains(.image) || inDiffraction {
-                Divider()
-                Button("Export Figure…") {
-                    guard let appState else { return }
-                    if inDiffraction { ExportPanels.exportDiffractionFigure(appState: appState) } else { ExportPanels.exportImage(appState: appState) }
-                }
-                .keyboardShortcut("e", modifiers: [.command, .shift])
-                .disabled(inDiffraction ? diffractionFigure != true : availability?.image != true)
-            }
-            // The phase the Diffraction room shows, as CIF (#821); a phase row's context menu saves any phase of the library.
-            if inDiffraction {
-                Button("Save Phase as CIF…") {
-                    if let appState, let phase = PhaseCIF.shownPhase(in: appState) { PhaseCIF.save(phase, appState: appState) }
-                }
-                .disabled(shownPhase == nil)
-            }
-            // The Image room's profile.
-            if fixed.contains(.image) {
-                Button("Export Profile…") {
-                    if let appState { ExportPanels.exportProfile(appState: appState) }
-                }
-                .disabled(availability?.profile != true)
-            }
-            // The FFT room's three, enabled with the spectrum on screen current.
-            if fixed.contains(.fft) {
-                Divider()
-                Button("Export Transform…") {
-                    if let appState { ExportPanels.exportTransform(appState: appState) }
-                }
-                .keyboardShortcut("e", modifiers: [.command, .option])
-                .disabled(fft?.transform != true)
-                Button("Export Radial Profile…") {
-                    if let appState { ExportPanels.exportRadialProfile(appState: appState) }
-                }
-                .disabled(fft?.profile != true)
-                Button("Export Spots…") {
-                    if let appState { ExportPanels.exportSpots(appState: appState) }
-                }
-                .disabled(fft?.spots != true)
-            }
-            if fixed.contains(.results) || fixed.contains(.sessionReport) { Divider() }
-            // The Results room's one: every finished measurement of the file as one CSV. ⇧⌥⌘E is free (⌘E is the
-            // system's Use Selection for Find; ⇧⌘E and ⌥⌘E are the Image and FFT rooms').
-            if fixed.contains(.results) {
-                Button("Export Results…") { if let appState { ExportPanels.exportResults(appState: appState) } }
-                .keyboardShortcut("e", modifiers: [.command, .option, .shift])
-                .disabled(availability?.results != true)
-            }
-            // The SEM session as one report (D-SEM-103): enabled wherever the SEM rooms hold a result; no key.
-            if fixed.contains(.sessionReport) {
-                Button("Export Session Report…") {
-                    if let appState { ExportPanels.exportSessionReport(appState: appState) }
-                }
-                .disabled(session != true)
-            }
-            // The EDS room's nine, in the menu only while that room shows a spectrum image.
-            if let appState, let eds { edsItems(eds, appState: appState) }
-            // The EELS room's eleven, on the same terms.
-            if let appState, let eels { eelsItems(eels, appState: appState) }
-            // The Patterns room's six, while that room shows a dataset.
-            if let appState, let patterns { patternsItems(patterns, appState: appState) }
-            // The Indexing room's five, on the same terms.
-            if let appState, let indexing { indexingItems(indexing, appState: appState) }
-            // The Maps room's six, while that room shows a map.
-            if let appState, let maps { mapsItems(maps, appState: appState) }
-            // Every room's methods record of its result (#818), last: it describes what the exports above hold. Before it, in the
-            // Image and Diffraction rooms, the image or pattern as a HyperSpy file (#819).
-            Divider()
-            if let appState, [.image, .diffraction, .eels].contains(appState.navigation.workspaceArea) {
-                hyperSpyItems(appState, available: hyperSpy == true)
-            }
-            Button("Export Methods Record…") { if let appState { MethodsRecordExport.exportRecord(appState: appState) } }
-                .disabled(methods != true)
-                .accessibilityIdentifier("menu.exportMethodsRecord")
+            // The room's exports: the same view the toolbar's Export menu lists (#1048), so the two cannot drift.
+            RoomExportItems(appState: appState)
         }
         // The figure and the paragraph go where a copy goes: Edit, after the pasteboard's items, always listed and dimmed where they
         // cannot act (HIG, Menus). Copy Figure (#823) puts the Diffraction room's figure on the clipboard as PDF and PNG on ⇧⌘C, beside
@@ -136,6 +51,106 @@ struct ExportCommands: Commands {
                 .disabled(methods != true)
                 .accessibilityIdentifier("menu.copyMethodsParagraph")
         }
+    }
+}
+
+/// The room on screen's exports (#631), as the File menu lists them after its Save group and as the toolbar's Export menu lists them
+/// (#1048): one view in both places, so the two lists, their order and their enabled state cannot drift. `dividesFromAbove` is the
+/// File menu's: there a divider keeps the first group apart from Close; at the top of the toolbar's menu it would be a stray line.
+struct RoomExportItems: View {
+    let appState: AppState?
+    var dividesFromAbove = true
+
+    var body: some View {
+        let availability = appState.map(ExportSnapshot.availability(of:))
+        let fft = appState.map(ExportSnapshot.fftAvailability(of:))
+        let session = appState.map(SEMSessionLedger.hasRows(_:))
+        let eds = appState.flatMap(ExportSnapshot.edsAvailability(of:))
+        let eels = appState.flatMap(ExportSnapshot.eelsAvailability(of:))
+        let patterns = appState.flatMap(ExportSnapshot.patternsAvailability(of:))
+        let indexing = appState.flatMap(ExportSnapshot.indexingAvailability(of:))
+        let maps = appState.flatMap(ExportSnapshot.mapsAvailability(of:))
+        let fixed = FixedExports.listed(in: appState?.navigation.workspaceArea)
+        let methods = appState.map(MethodsRecordExport.isAvailable(in:))
+        let hyperSpy = appState.map { HyperSpyExportPanel.isAvailable(in: $0) }
+        let diffractionFigure = appState.map { ExportSnapshot.diffractionFigureAvailable(in: $0) }
+        // Export Figure…: the Image room's picture, or the Diffraction room's figure of the pattern on screen (#822). One item on
+        // one key, as one room is on screen at a time.
+        let inDiffraction = appState?.navigation.workspaceArea == .diffraction
+        if fixed.contains(.image) || inDiffraction {
+            if dividesFromAbove { Divider() }
+            Button("Export Figure…") {
+                guard let appState else { return }
+                if inDiffraction { ExportPanels.exportDiffractionFigure(appState: appState) } else { ExportPanels.exportImage(appState: appState) }
+            }
+            .keyboardShortcut("e", modifiers: [.command, .shift])
+            .disabled(inDiffraction ? diffractionFigure != true : availability?.image != true)
+        }
+        // The phase the Diffraction room shows, as CIF (#821); a phase row's context menu saves any phase of the library.
+        if inDiffraction {
+            Button("Save Phase as CIF…") {
+                if let appState, let phase = PhaseCIF.shownPhase(in: appState) { PhaseCIF.save(phase, appState: appState) }
+            }
+            .disabled(appState.flatMap(PhaseCIF.shownPhase(in:)) == nil)
+        }
+        // The Image room's profile.
+        if fixed.contains(.image) {
+            Button("Export Profile…") {
+                if let appState { ExportPanels.exportProfile(appState: appState) }
+            }
+            .disabled(availability?.profile != true)
+        }
+        // The FFT room's three, enabled with the spectrum on screen current.
+        if fixed.contains(.fft) {
+            if dividesFromAbove { Divider() }
+            Button("Export Transform…") {
+                if let appState { ExportPanels.exportTransform(appState: appState) }
+            }
+            .keyboardShortcut("e", modifiers: [.command, .option])
+            .disabled(fft?.transform != true)
+            Button("Export Radial Profile…") {
+                if let appState { ExportPanels.exportRadialProfile(appState: appState) }
+            }
+            .disabled(fft?.profile != true)
+            Button("Export Spots…") {
+                if let appState { ExportPanels.exportSpots(appState: appState) }
+            }
+            .disabled(fft?.spots != true)
+        }
+        if dividesFromAbove && (fixed.contains(.results) || fixed.contains(.sessionReport)) { Divider() }
+        // The Results room's one: every finished measurement of the file as one CSV. ⇧⌥⌘E is free (⌘E is the
+        // system's Use Selection for Find; ⇧⌘E and ⌥⌘E are the Image and FFT rooms').
+        if fixed.contains(.results) {
+            Button("Export Results…") { if let appState { ExportPanels.exportResults(appState: appState) } }
+            .keyboardShortcut("e", modifiers: [.command, .option, .shift])
+            .disabled(availability?.results != true)
+        }
+        // The SEM session as one report (D-SEM-103): enabled wherever the SEM rooms hold a result; no key.
+        if fixed.contains(.sessionReport) {
+            Button("Export Session Report…") {
+                if let appState { ExportPanels.exportSessionReport(appState: appState) }
+            }
+            .disabled(session != true)
+        }
+        // The EDS room's nine, in the menu only while that room shows a spectrum image.
+        if let appState, let eds { edsItems(eds, appState: appState) }
+        // The EELS room's eleven, on the same terms.
+        if let appState, let eels { eelsItems(eels, appState: appState) }
+        // The Patterns room's six, while that room shows a dataset.
+        if let appState, let patterns { patternsItems(patterns, appState: appState) }
+        // The Indexing room's five, on the same terms.
+        if let appState, let indexing { indexingItems(indexing, appState: appState) }
+        // The Maps room's six, while that room shows a map.
+        if let appState, let maps { mapsItems(maps, appState: appState) }
+        // Every room's methods record of its result (#818), last: it describes what the exports above hold. Before it, in the
+        // Image and Diffraction rooms, the image or pattern as a HyperSpy file (#819).
+        Divider()
+        if let appState, [.image, .diffraction, .eels].contains(appState.navigation.workspaceArea) {
+            hyperSpyItems(appState, available: hyperSpy == true)
+        }
+        Button("Export Methods Record…") { if let appState { MethodsRecordExport.exportRecord(appState: appState) } }
+            .disabled(methods != true)
+            .accessibilityIdentifier("menu.exportMethodsRecord")
     }
 
     /// Export HyperSpy File… (#819) in the Image, Diffraction and EELS rooms, and the EELS room's core loss on an item of its own. A
@@ -182,7 +197,8 @@ struct ExportCommands: Commands {
     /// room adds (`EELSExportAvailability.menuKinds`): enabled by the button's rule and written by the room's own export. No keys.
     @ViewBuilder
     private func eelsItems(_ eels: EELSExportAvailability, appState: AppState) -> some View {
-        Divider()
+        // First in its room (`FixedExports` lists none there).
+        if dividesFromAbove { Divider() }
         ForEach(EELSExportAvailability.menuKinds) { kind in
             Button("Export \(kind.title)") { RoomExports.eels(kind, appState: appState) }
                 .disabled(!eels.isEnabled(kind))

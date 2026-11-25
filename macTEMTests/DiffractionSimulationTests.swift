@@ -282,13 +282,24 @@ nonisolated final class DiffractionSimulationTests: XCTestCase {
         let ringed = spot(4, row: 70, column: 112, relative: 0.01)
         let clear = spot(5, row: 200, column: 200, relative: 0.5)
         let drawn = [strong, onTop, underRing, clear, ringed]
-        let kept = ZoneAxisOverlay.readable(drawn, among: drawn, point: { SIMD2($0.column, $0.row) }, radius: { _ in 3 },
-                                            labelSize: { _ in SIMD2(21.5, 14) })
-        XCTAssertEqual(kept.map(\.hkl), [strong.hkl, clear.hkl, ringed.hkl])
-        XCTAssertEqual(ZoneAxisOverlay.readable(drawn, among: [], point: { SIMD2($0.column, $0.row) }, radius: { _ in 3 },
-                                                labelSize: { _ in SIMD2(21.5, 14) }).map(\.hkl),
-                       [strong.hkl, underRing.hkl, clear.hkl], "with no rings only the labels' overlap counts: 4's sits on 3's")
-        XCTAssertEqual(ZoneAxisOverlay.estimatedLabelSize("1̄11"), SIMD2(21.5, 14), "three characters, the bar on its digit")
+        // Since #1045 the room places labels with `HKLLabelPlacement` (each tries its ring's four corners), which keeps this rule:
+        // after the strongest, no label crosses another spot's ring, and no two labels meet.
+        let point: (ZoneAxisOverlay.Spot) -> SIMD2<Double> = { SIMD2($0.column, $0.row) }
+        let placed = HKLLabelPlacement.place(drawn, mode: .all, point: point, radius: { _ in 3 }, beam: nil,
+                                             labelSize: { _ in SIMD2(21.5, 14) })
+        XCTAssertEqual(placed.first?.spot, strong, "the strongest first")
+        XCTAssertTrue(placed.contains { $0.spot == clear }, "one in the clear is kept")
+        for label in placed.dropFirst() {
+            for other in drawn where other != label.spot {
+                let centre = point(other)
+                let d = pointwiseMin(pointwiseMax(centre, label.low), label.high) - centre
+                XCTAssertGreaterThanOrEqual((d * d).sum(), 9, "\(label.spot.label)'s label crosses \(other.label)'s ring")
+            }
+        }
+        for (i, a) in placed.enumerated() {
+            for b in placed[(i + 1)...] { XCTAssertFalse(HKLLabelPlacement.meet((a.low, a.high), (b.low, b.high))) }
+        }
+        XCTAssertEqual(HKLLabelPlacement.estimatedLabelSize("1̄11"), SIMD2(21.5, 14), "three characters, the bar on its digit")
     }
 
     @MainActor func testTheFitScaleIsOnByDefault() {

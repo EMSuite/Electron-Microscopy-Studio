@@ -19,47 +19,16 @@ package final class DiffractionViewState {
     package enum Tool: String, CaseIterable, Sendable { case ring, spot, tilt }
 
     package var tool: Tool = .ring
-    /// The table under the pattern: the readout, Index's Spots table once Index has an answer (#785), or the powder pattern's peaks
-    /// while the Powder Pattern pane is shown (#921). The readout when the chosen one is not offered.
-    package enum LowerTable: String, CaseIterable, Sendable { case readout, spots, peaks }
+    /// The table under the pattern once Index has an answer (#785): the readout, or Index's Spots table. Before, the readout.
+    package enum LowerTable: String, CaseIterable, Sendable { case readout, spots }
+    /// What the pane beside the pattern shows (#921), by the part in front (#1044): the crystal (#790) in Index and Simulate, the
+    /// zone-axis map (#814) in Tilt Plan, the powder pattern (#810) in Powder. Results of the room, so a pane, never an inspector
+    /// section (control placement §1).
+    package nonisolated enum SidePane: String, CaseIterable, Sendable { case crystal, zoneAxisMap, powder }
     package var lowerTable: LowerTable = .spots
     package var useLog = true
-    /// What the pane beside the pattern shows (#921): the crystal (#790), the zone-axis map (#814) or the powder pattern (#810). Results
-    /// of the room, so a pane, never an inspector section (control placement §1).
-    package enum SidePane: String, CaseIterable, Sendable { case crystal, zoneAxisMap, powder }
-    package var sidePane: SidePane = .crystal
-    /// The pane beside the pattern is shown: View > Show Crystal, Show Zone-axis Map and Show Powder Pattern show it with their pane.
-    package var showsSidePane = true
-
-    /// The pane beside the pattern shows `pane`.
-    package func isShowing(_ pane: SidePane) -> Bool { showsSidePane && sidePane == pane }
-
-    /// A View menu item: hides `pane` when it is shown, else shows the side pane with it.
-    package func toggle(_ pane: SidePane) {
-        if isShowing(pane) {
-            showsSidePane = false
-        } else {
-            sidePane = pane
-            showsSidePane = true
-        }
-    }
-
-    /// The crystal pane beside the pattern (#789): shown when the side pane shows the crystal.
-    package var showsCrystal: Bool {
-        get { isShowing(.crystal) }
-        set { if newValue != isShowing(.crystal) { toggle(.crystal) } }
-    }
-
-    /// The tables the strip under the pattern offers, in order: the readout, the Spots table with `hasSpots`, the powder peaks while
-    /// the Powder Pattern pane is shown.
-    package func lowerTables(hasSpots: Bool) -> [LowerTable] {
-        [.readout] + (hasSpots ? [.spots] : []) + (isShowing(.powder) ? [.peaks] : [])
-    }
-
-    /// The table the strip shows: the chosen one when it is offered, else the readout.
-    package func shownLowerTable(hasSpots: Bool) -> LowerTable {
-        lowerTables(hasSpots: hasSpots).contains(lowerTable) ? lowerTable : .readout
-    }
+    /// The crystal pane beside the pattern (#789): View > Show Crystal shows and hides it.
+    package var showsCrystal = true
     /// The crystal pane draws the unit cell's edges.
     package var showsUnitCell = true
     /// The Add Phase sheet is in front (#788): Add Phase… in the Phases section or on a Simulation document's empty pattern, and
