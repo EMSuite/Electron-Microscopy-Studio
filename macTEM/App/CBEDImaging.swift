@@ -47,45 +47,73 @@ extension AppState {
         DemoDocuments.isSimulation(item.url) ? item : simulationDocument(ofCBED: item)
     }
 
-    /// Why Show CBED Pattern cannot run for `simulation`, in the order a person fixes them: no phase, a refused specimen, no beam
-    /// energy, no semiangle, an edge that cuts the discs off, another document's run. The section and the door read this one.
-    func cbedBlocker(of simulation: OpenItem) -> String? {
-        let analysis = simulation.diffraction
-        guard let phase = analysis.simulatedPhase else { return "Add a phase to simulate." }
-        if case .failure(let refusal) = simulation.multislice.specimen(crystal: phase, zoneAxis: analysis.simulation.zoneAxis) { return refusal.sentence }
-        guard let volts = analysis.typedBeamKV.map({ $0 * 1000 }) else { return "Type the beam energy to simulate." }
-        let shortestG = analysis.shortestZeroOrderG(image: simulation.session.imageOrBlank)
-        guard let semiangle = simulation.cbed.semiangle(shortestG: shortestG, volts: volts) else {
-            return "Type the convergence semiangle: this zone has no reflection for Fit Discs."
+    /// Why Use in Simulation does nothing for a measurement on `item`: its Simulation document simulates an atom model, whose
+    /// thickness is the model's own slab (#953). The section and the door read this one.
+    func useInSimulationRefusal(of item: OpenItem) -> String? {
+        thicknessSimulation(of: item)?.multislice.atomModel != nil ? SimulationModel.modelThicknessSentence : nil
+    }
+
+    /// A CBED run of `simulation` as its settings stand: the key, the specimen with its name, and the zone's shortest reflection the
+    /// edge must hold (none for an atom model); or why there is none, in the order a person fixes them: no phase or model, a refused
+    /// specimen, no beam energy, no semiangle. The section, Show CBED Pattern and the door read this one.
+    func cbedRun(of simulation: OpenItem) -> Result<CBEDRunInputs, CBEDRefusal> {
+        let analysis = simulation.diffraction, model = simulation.multislice
+        let crystal = analysis.simulatedPhase, zoneAxis = analysis.simulation.zoneAxis
+        guard let source = model.sourceIdentity(crystal: crystal) else { return .failure(CBEDRefusal(sentence: "Add a phase to simulate.")) }
+        let built: SimulationSpecimen.Built
+        switch model.specimen(crystal: crystal, zoneAxis: zoneAxis) {
+        case .failure(let refusal): return .failure(CBEDRefusal(sentence: refusal.sentence))
+        case .success(let specimen): built = specimen
         }
-        if let sentence = CBEDRun.edgeSentence(edgeMrad: simulation.cbed.settings.edgeMrad, semiangleMrad: semiangle,
-                                               shortestG: shortestG, volts: volts) { return sentence }
-        return simulation.cbed.blocker
+        guard let volts = analysis.typedBeamKV.map({ $0 * 1000 }) else { return .failure(CBEDRefusal(sentence: "Type the beam energy to simulate.")) }
+        let shortestG = cbedShortestG(of: simulation)
+        guard let semiangle = simulation.cbed.semiangle(shortestG: shortestG, volts: volts) else {
+            return .failure(CBEDRefusal(sentence: model.atomModel != nil ? SimulationModel.modelFitDiscsSentence
+                                            : "Type the convergence semiangle: this zone has no reflection for Fit Discs."))
+        }
+        let key = simulation.cbed.key(source: source, zoneAxis: model.sourceZoneAxis(zoneAxis),
+                                      maximumStrain: model.maximumStrain(crystal: crystal, zoneAxis: zoneAxis), volts: volts,
+                                      semiangleMrad: semiangle)
+        return .success(CBEDRunInputs(key: key, built: built, specimen: model.sourceName(crystal: crystal, zoneAxis: zoneAxis) ?? source,
+                                      shortestG: shortestG))
+    }
+
+    /// The zero-order zone's shortest reflection, 1/Å, that Fit Discs keeps apart (`DiffractionAnalysis.shortestZeroOrderG`); nil
+    /// while an atom model is the source: it has no reflection list, so Fit Discs refuses and the semiangle is the typed one (#953).
+    func cbedShortestG(of simulation: OpenItem) -> Double? {
+        guard simulation.multislice.atomModel == nil else { return nil }
+        return simulation.diffraction.shortestZeroOrderG(image: simulation.session.imageOrBlank)
+    }
+
+    /// Why Show CBED Pattern cannot run for `simulation`: `cbedRun`'s refusal, an edge that cuts the discs off, another document's
+    /// run. The section and the door read this one.
+    func cbedBlocker(of simulation: OpenItem) -> String? {
+        switch cbedRun(of: simulation) {
+        case .failure(let refusal): return refusal.sentence
+        case .success(let run):
+            if let sentence = CBEDRun.edgeSentence(edgeMrad: simulation.cbed.settings.edgeMrad, semiangleMrad: run.key.semiangleMrad,
+                                                   shortestG: run.shortestG, volts: run.key.volts) { return sentence }
+            return simulation.cbed.blocker
+        }
     }
 
     /// The plan of a run of `simulation`'s CBED settings before it runs (the box the angular step needs); nil while there is no
     /// specimen or beam energy.
     func cbedPlan(of simulation: OpenItem) -> CBEDRun.Plan? {
         let analysis = simulation.diffraction
-        guard let volts = analysis.typedBeamKV.map({ $0 * 1000 }), let phase = analysis.simulatedPhase,
-              case .success(let built) = simulation.multislice.specimen(crystal: phase, zoneAxis: analysis.simulation.zoneAxis) else { return nil }
+        guard let volts = analysis.typedBeamKV.map({ $0 * 1000 }),
+              case .success(let built) = simulation.multislice.specimen(crystal: analysis.simulatedPhase, zoneAxis: analysis.simulation.zoneAxis)
+        else { return nil }
         return try? CBEDRun.plan(built, settings: simulation.cbed.settings, volts: volts)
     }
 
-    /// Runs the probe for `simulation`'s crystal, axis and settings at the document's beam energy, then draws the pattern into its item.
+    /// Runs the probe for `simulation`'s specimen (the atom model, else the phase down its axis) and settings at the document's beam
+    /// energy, then draws the pattern into its item.
     func computeCBEDPattern(of simulation: OpenItem) async {
-        let analysis = simulation.diffraction
-        // The section disables Show CBED Pattern and says why for each of these (no phase, no beam energy, a refused specimen).
-        let shortestG = analysis.shortestZeroOrderG(image: simulation.session.imageOrBlank)
-        guard let crystal = analysis.simulatedPhase, let volts = analysis.typedBeamKV.map({ $0 * 1000 }),
-              case .success(let built) = simulation.multislice.specimen(crystal: crystal, zoneAxis: analysis.simulation.zoneAxis),
-              let semiangle = simulation.cbed.semiangle(shortestG: shortestG, volts: volts) else { return }
-        let zoneAxis = analysis.simulation.zoneAxis
-        let key = simulation.cbed.key(crystal: crystal, zoneAxis: zoneAxis,
-                                      maximumStrain: simulation.multislice.maximumStrain(crystal: crystal, zoneAxis: zoneAxis),
-                                      volts: volts, semiangleMrad: semiangle)
-        await simulation.cbed.update(key, built: built, specimen: "\(crystal.name) \(ZoneAxisText.text(zoneAxis))", shortestG: shortestG)
-        refreshCBEDPattern(of: simulation, inPlaneDegrees: built.inPlaneAngle * 180 / .pi)
+        // The section disables Show CBED Pattern and says why for each refusal (`cbedBlocker`).
+        guard case .success(let run) = cbedRun(of: simulation) else { return }
+        await simulation.cbed.update(run.key, built: run.built, specimen: run.specimen, shortestG: run.shortestG)
+        refreshCBEDPattern(of: simulation, inPlaneDegrees: run.built.inPlaneAngle * 180 / .pi)
     }
 
     /// After an Open's items have landed: a CBED item among them is selected in the Diffraction room with its document's phase,
@@ -100,20 +128,40 @@ extension AppState {
     }
 
     /// Puts the shown stored pattern of `simulation` into its CBED item, in whichever window holds it, with the document's phase, zone
-    /// axis, beam and the slab's turn on the item's overlay. Nothing while either is missing or before the first run.
+    /// axis, beam and the slab's turn on the item's overlay. An atom model's pattern has no overlay: its spots and hkl labels would be
+    /// the phase's (`SimulationModel.modelLabelsSentence`, #953). Nothing while either is missing or before the first run.
     func refreshCBEDPattern(of simulation: OpenItem, inPlaneDegrees: Double? = nil) {
         let url = DemoDocuments.cbedURL(of: simulation.url)
         guard let held = pairedItem(at: url), let image = simulation.cbed.image(name: url.lastPathComponent) else { return }
         let source = simulation.diffraction, target = held.item.diffraction
-        if target.crystal != source.crystal { target.setCrystal(source.crystal) }
-        if target.simulation.zoneAxis != source.simulation.zoneAxis { target.setZoneAxis(source.simulation.zoneAxis) }
-        if let inPlaneDegrees { target.setTurn(degrees: inPlaneDegrees) }
         target.typedBeamKV = source.typedBeamKV
-        target.simulation.isShown = true
+        if simulation.multislice.atomModel != nil {
+            target.simulation.isShown = false
+        } else {
+            if target.crystal != source.crystal { target.setCrystal(source.crystal) }
+            if target.simulation.zoneAxis != source.simulation.zoneAxis { target.setZoneAxis(source.simulation.zoneAxis) }
+            if let inPlaneDegrees { target.setTurn(degrees: inPlaneDegrees) }
+            target.simulation.isShown = true
+        }
         let canvas = Self.canvas(for: image)
         held.state.openItems.showComputed(held.item, OpenedImage(image: image, canvas: canvas, metadata: AcquisitionMetadata(),
                                                                  url: held.item.url,
                                                                  thumbnail: canvas.thumbnail(maxSide: Thumbnail.defaultMaxSide),
                                                                  bookmark: nil))
     }
+}
+
+/// What a CBED run is made of (`AppState.cbedRun`).
+struct CBEDRunInputs {
+    let key: CBEDModel.RunKey
+    let built: SimulationSpecimen.Built
+    /// The name the pattern carries: the phase down its axis, or the model along its beam axis.
+    let specimen: String
+    /// The zone's shortest reflection, 1/Å, the edge must hold; nil for an atom model.
+    let shortestG: Double?
+}
+
+/// Why a CBED run cannot start, in the room's words.
+struct CBEDRefusal: Error, Equatable {
+    let sentence: String
 }

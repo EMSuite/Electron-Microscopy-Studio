@@ -25,7 +25,7 @@ struct SimulationCBEDRows: View {
         let model = item.cbed
         let analysis = item.diffraction
         let volts = analysis.typedBeamKV.map { $0 * 1000 }
-        let shortestG = analysis.shortestZeroOrderG(image: item.session.imageOrBlank)
+        let shortestG = appState.cbedShortestG(of: item)
         let separated = volts.flatMap { v in shortestG.flatMap { try? CBEDRun.separatedSemiangle(shortestG: $0, volts: v) } }
         let semiangle = volts.flatMap { model.semiangle(shortestG: shortestG, volts: $0) }
         SegmentedPicker(label: "Beam",
@@ -44,9 +44,11 @@ struct SimulationCBEDRows: View {
             }
             InspectorActionRow {
                 Button("Fit Discs") { model.fitDiscs() }
+                    .disabled(item.multislice.atomModel != nil)
                     .help("Sets the semiangle to half the angle of the shortest reflection of the zone: the discs just touch")
                     .accessibilityIdentifier("diffraction.simulation.cbed.fitDiscs")
             }
+            if item.multislice.atomModel != nil { InspectorNote(SimulationModel.modelFitDiscsSentence) }
             if let semiangle, let separated, let sentence = CBEDRun.overlapSentence(semiangleMrad: semiangle, separatedMrad: separated) {
                 InspectorNote(sentence)
             }

@@ -100,12 +100,12 @@ Behind "Let agents run analyses". Each goes through the entry point its control 
 | `powder_pattern` | the Powder section (rings or X-ray, the line, the range or reach, a phase to compare with, overlap marks); writes the peak table CSV or the .xy profile into the Agent folder |
 | `find_phases` | the Find Phases sheet: Fit scale, Rank (answers at once, `running` until it lands) and Use in Room; answers the ranked rows, their sentences and the ties |
 | `plan_tilt` | the Holder section: the tilts now, the limits, the tilt axis typed, forgotten or calibrated from another open pattern, a zone axis picked on the map; writes the Tilt List CSV into the Agent folder |
-| `set_dynamical` | the Simulation section's Intensities: Kinematic or Dynamical (Dynamical runs the multislice, as the section does) and the stored thickness shown |
-| `set_cbed` | the Simulation section's Beam (Parallel or Convergent) and CBED settings: semiangle or Fit Discs, largest thickness, angular step, pattern edge, and the stored pattern shown |
+| `set_dynamical` | the Simulation section's Intensities: Kinematic or Dynamical (Dynamical runs the multislice, as the section does) and the stored thickness shown; Dynamical is refused with the section's sentence while an atom model is the source |
+| `set_cbed` | the Simulation section's Beam (Parallel or Convergent) and CBED settings: semiangle or Fit Discs, largest thickness, angular step, pattern edge, and the stored pattern shown; with an atom model as the source Fit Discs is refused and `read_cbed` gives the overlay's refusal |
 | `run_cbed` | Show CBED Pattern: opens the pattern in the Diffraction room and runs the probe; refused with the section's words while it cannot run |
 | `stop_cbed` | the CBED section's Stop; the patterns stored stay |
 | `measure_thickness` | Measure Thickness on the pattern shown: the two-beam fit across the diffracted disc (Kelly et al. 1975); `read_thickness` gives the verdict |
-| `use_measured_thickness` | Use in Simulation: the thickness found becomes the Simulation document's specimen thickness |
+| `use_measured_thickness` | Use in Simulation: the thickness found becomes the Simulation document's specimen thickness; refused while the document simulates an atom model (its thickness is the model's own) |
 | `set_stem` | the STEM section: semiangle, defocus or Scherzer, scan step or Nyquist, Collect to, and the detector (a preset, or Custom with inner and outer angles on whole rings) |
 | `run_stem` | Show STEM Image and Simulate or Continue; the image fills as it is computed; refused with the section's words while it cannot run |
 | `stop_stem` | the STEM section's Stop; the positions done stay and `run_stem` continues |

@@ -52,7 +52,9 @@ struct DiffractionThicknessSection: View {
         ThicknessProfileChart(measurement: m)
             .frame(height: Self.chartHeight)
         InspectorNote(m.methodLine).accessibilityIdentifier("diffraction.thickness.method")
-        if let nm = m.thicknessNM, !m.isPoor, let simulation = appState.thicknessSimulation(of: item) {
+        if m.thicknessNM != nil, !m.isPoor, let refusal = appState.useInSimulationRefusal(of: item) {
+            InspectorNote(refusal).accessibilityIdentifier("diffraction.thickness.useInSimulationRefusal")
+        } else if let nm = m.thicknessNM, !m.isPoor, let simulation = appState.thicknessSimulation(of: item) {
             InspectorActionRow {
                 Button("Use in Simulation") { simulation.multislice.setThickness(nm: nm) }
                     .help("Sets the Simulation document's specimen thickness to \(UnitDisplay.number(nm, digits: 3)) nm")

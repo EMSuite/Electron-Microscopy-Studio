@@ -427,33 +427,38 @@ private struct DiffractionSimulationSection: View {
                 // The CBED pattern's own item: its document's rows (the slider, Stop, progress, failure), so they stay as it appears.
                 SimulationCBEDRows(item: simulation)
             }
-            InspectorRow("Overlay") {
-                Toggle("Show simulated spots", isOn: Binding(get: { analysis.simulation.isShown }, set: { analysis.simulation.isShown = $0 }))
-                    .toggleStyle(.switch).labelsHidden()
-                    .help("The crystal's kinematical spot pattern at the Index section's orientation, drawn over the pattern with the scale and centre in use")
-                    .accessibilityIdentifier("diffraction.simulation.show")
-            }
-            InspectorRow("Labels") {
-                Toggle("Show hkl labels", isOn: Binding(get: { analysis.simulation.showsLabels }, set: { analysis.simulation.showsLabels = $0 }))
-                    .toggleStyle(.switch).labelsHidden()
-                    .help("Each simulated spot's hkl beside it (the 60 strongest)")
-                    .accessibilityIdentifier("diffraction.simulation.labels")
-            }
-            InspectorRow("Double diffraction") {
-                Toggle("Show double diffraction", isOn: Binding(get: { analysis.simulation.doubleDiffraction }, set: { analysis.simulation.doubleDiffraction = $0 }))
-                    .toggleStyle(.switch).labelsHidden()
-                    .help("Also draws, as dashed rings, the spots a twice-diffracted beam adds (g₁ + g₂) where the crystal forbids a reflection, such as 002 in silicon down [1 1 0]")
-                    .accessibilityIdentifier("diffraction.simulation.doubleDiffraction")
-            }
-            InspectorRow("Excitation error") {
-                OptionalNumericField(title: "Excitation error", value: settings.excitationError, format: excitationFormat, unit: "Å⁻¹") { analysis.setExcitationError($0) }
-                    .help("σ of the excitation envelope; spots whose excitation error is up to three times this are kept (0.02 Å⁻¹ by default, as py4DSTEM; 0.001 to 1)")
-                    .accessibilityIdentifier("diffraction.simulation.excitationError")
-            }
-            if let line = DiffractionSimulationText.summary(simulated, crystal: analysis.crystal.name, zoneAxis: settings.zoneAxis) {
-                switch simulated {
-                case .failure?: InspectorWarning(line)
-                default: InspectorNote(line)
+            if appState.simulationDocument(ofCBED: item)?.multislice.atomModel != nil {
+                // An atom model's pattern: no reflections to draw or label (#953).
+                InspectorNote(SimulationModel.modelLabelsSentence).accessibilityIdentifier("diffraction.simulation.modelLabels")
+            } else {
+                InspectorRow("Overlay") {
+                    Toggle("Show simulated spots", isOn: Binding(get: { analysis.simulation.isShown }, set: { analysis.simulation.isShown = $0 }))
+                        .toggleStyle(.switch).labelsHidden()
+                        .help("The crystal's kinematical spot pattern at the Index section's orientation, drawn over the pattern with the scale and centre in use")
+                        .accessibilityIdentifier("diffraction.simulation.show")
+                }
+                InspectorRow("Labels") {
+                    Toggle("Show hkl labels", isOn: Binding(get: { analysis.simulation.showsLabels }, set: { analysis.simulation.showsLabels = $0 }))
+                        .toggleStyle(.switch).labelsHidden()
+                        .help("Each simulated spot's hkl beside it (the 60 strongest)")
+                        .accessibilityIdentifier("diffraction.simulation.labels")
+                }
+                InspectorRow("Double diffraction") {
+                    Toggle("Show double diffraction", isOn: Binding(get: { analysis.simulation.doubleDiffraction }, set: { analysis.simulation.doubleDiffraction = $0 }))
+                        .toggleStyle(.switch).labelsHidden()
+                        .help("Also draws, as dashed rings, the spots a twice-diffracted beam adds (g₁ + g₂) where the crystal forbids a reflection, such as 002 in silicon down [1 1 0]")
+                        .accessibilityIdentifier("diffraction.simulation.doubleDiffraction")
+                }
+                InspectorRow("Excitation error") {
+                    OptionalNumericField(title: "Excitation error", value: settings.excitationError, format: excitationFormat, unit: "Å⁻¹") { analysis.setExcitationError($0) }
+                        .help("σ of the excitation envelope; spots whose excitation error is up to three times this are kept (0.02 Å⁻¹ by default, as py4DSTEM; 0.001 to 1)")
+                        .accessibilityIdentifier("diffraction.simulation.excitationError")
+                }
+                if let line = DiffractionSimulationText.summary(simulated, crystal: analysis.crystal.name, zoneAxis: settings.zoneAxis) {
+                    switch simulated {
+                    case .failure?: InspectorWarning(line)
+                    default: InspectorNote(line)
+                    }
                 }
             }
             if let beams = item.dynamicalBeams {
@@ -473,16 +478,15 @@ private struct DiffractionSimulationSection: View {
                         items: [(false, .title("Kinematic", help: "The kit's |F|² with the excitation envelope")),
                                 (true, .title("Dynamical", help: "The multislice's zone-axis beams at a thickness, the same run as the HRTEM image"))],
                         selection: Binding(get: { model.isDynamical }, set: { model.setDynamical($0) }))
+            .disabled(model.atomModel != nil)
             .accessibilityIdentifier("diffraction.simulation.dynamical")
-        .task(id: DynamicalRunKey(on: model.isDynamical, crystal: crystal?.identity, zoneAxis: zoneAxis, thicknessNM: model.thicknessNM,
-                                  beamKV: analysis.typedBeamKV, apertureMrad: model.optics.apertureMrad,
-                                  strain: crystal.map { model.maximumStrain(crystal: $0, zoneAxis: zoneAxis) },
-                                  thermal: model.thermal?.sigmas)) {
-            guard model.isDynamical else { return }
+        .task(id: item.dynamicalRunKey) {
+            guard model.isDynamical, model.atomModel == nil else { return }
             model.adoptVoltage(kV: analysis.typedBeamKV)
             await model.updateExitWaves(crystal: crystal, zoneAxis: zoneAxis)
             appState.refreshHRTEMImage(of: item)
         }
+        if model.atomModel != nil { InspectorNote(SimulationModel.modelDynamicalSentence) }
         if model.isDynamical {
             if let waves = model.exitWaves, waves.waves.count > 1, let index = model.shownThicknessIndex,
                model.exitWavesAreCurrent(crystal: crystal, zoneAxis: zoneAxis) {
@@ -509,18 +513,6 @@ private struct DiffractionSimulationSection: View {
                 InspectorWarning(absence)
             }
         }
-    }
-
-    /// What a change of runs the multislice again (the HRTEM section's key, and the switch).
-    private struct DynamicalRunKey: Equatable {
-        let on: Bool
-        let crystal: String?
-        let zoneAxis: SIMD3<Int>
-        let thicknessNM: Double
-        let beamKV: Double?
-        let apertureMrad: Double?
-        let strain: Double?
-        let thermal: [Int: Double]?
     }
 }
 
