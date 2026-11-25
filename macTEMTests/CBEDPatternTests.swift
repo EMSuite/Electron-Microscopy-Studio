@@ -12,6 +12,7 @@
 
 import XCTest
 import DiffractoCore
+import ImagoCore
 import SimulatoCore
 import SimulatoMultislice
 import TEMCore

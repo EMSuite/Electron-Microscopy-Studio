@@ -10,6 +10,7 @@
 
 import XCTest
 import DiffractoCore
+import ImagoCore
 import SimulatoCore
 import TEMCore
 import TEMSession
