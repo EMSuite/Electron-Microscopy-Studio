@@ -96,7 +96,8 @@ enum BusyOperation {
             if analysis.isFitting { return "Fitting the ring…" }
             return nil
         case .image:
-            return appState.simulatingDocument?.multislice.thermalProgress.map(simulating)
+            if let thermal = appState.simulatingDocument?.multislice.thermalProgress { return simulating(thermal) }
+            return appState.scanningSTEMDocument != nil ? scanningSentence : nil
         default:
             return nil
         }
@@ -112,7 +113,7 @@ enum BusyOperation {
         case .patterns: appState.ebsd.isBusy
         case .indexing: appState.indexing.isBusy
         case .maps: appState.maps.isBusy
-        case .image: appState.simulatingDocument != nil
+        case .image: appState.simulatingDocument != nil || appState.scanningSTEMDocument != nil
         case .fft, .diffraction, .results: false
         }
         guard busy else { return nil }
@@ -170,10 +171,13 @@ enum BusyOperation {
         case .indexing: appState.indexing.isBusy || appState.ebsd.isOpening
         case .maps: appState.maps.isOpening || appState.maps.isSegmenting || appState.maps.isTexturing
         case .diffraction: appState.openItems.selected.map { $0.diffraction.isFitting || $0.diffraction.isIndexing } ?? false
-        case .image: appState.simulatingDocument != nil
+        case .image: appState.simulatingDocument != nil || appState.scanningSTEMDocument != nil
         case .fft, .results: false
         }
     }
+
+    /// The busy line of a STEM image's run (#1047): the section's own progress words.
+    nonisolated static let scanningSentence = "Scanning the probe…"
 
     /// "Simulating: configuration 3 of 10": the Image room's frozen-phonon run (#896).
     nonisolated static func simulating(_ progress: SimulationModel.ThermalProgress) -> String {
@@ -194,5 +198,16 @@ enum BusyOperation {
             return "\(room.title) · \(indexingLine(appState.indexing, dataset: dataset))"
         }
         return toolbarOperation(room: room, appState: appState).map { "\(room.title) · \($0)" }
+    }
+}
+
+extension AppState {
+    /// The Simulation document whose CBED run the selected item shows, while that run goes (#1021): the selected Simulation document,
+    /// or the document of the selected CBED pattern. The CBED pattern opens in a tab of its own, where the document's Stop and progress
+    /// sit far down the inspector; the toolbar's busy line, its Stop and ⌘. read this one, as the Image room's do for a simulation.
+    var runningCBEDDocument: OpenItem? {
+        guard let item = openItems.selected else { return nil }
+        let document = DemoDocuments.isSimulation(item.url) ? item : simulationDocument(ofCBED: item)
+        return document?.cbed.isComputing == true ? document : nil
     }
 }

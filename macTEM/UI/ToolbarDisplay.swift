@@ -66,6 +66,12 @@ enum ToolbarDisplay {
             guard let map = session.map else { return nil }
             return .idle(file: session.fileName, room: room.title, detail: MapsRoomFormat.capsuleDetail(map), help: "Map width × height in points, and its indexed phases")
         default:
+            // A simulation's run in the Image room (#1047: a STEM image's scan, a frozen-phonon HRTEM image's configurations): its
+            // line, fraction and clock, as the verb's Stop stands in the toolbar.
+            if room == .image, let operation = BusyOperation.toolbarOperation(room: room, appState: appState) {
+                return .busy(operation: operation, progress: RoomProgress.fraction(room: room, appState: appState),
+                             metrics: { now in RunClock.reading(since: appState.busySince[room], progress: RoomProgress.fraction(room: room, appState: appState), now: now) })
+            }
             guard !appState.imageSession.isLoading, let image = appState.imageSession.image else { return nil }
             return .idle(file: image.fileName, room: room.title, detail: "\(image.width) × \(image.height) px", help: nil)
         }

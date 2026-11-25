@@ -72,7 +72,7 @@ Behind "Let agents run analyses". Each goes through the entry point its control 
 | `open_file` | opens a file of the Agent folder (Settings > Agents) as File > Open does, in the room that fits it; paths outside the folder are refused; `room` (eds or eels) answers the question File > Open asks for TIA spectra no `.emi` places, and such spectra are refused without it |
 | `set_eds` | picks and removes elements, sets an element's role (quantify or fit only), chooses the region (whole, rectangle, ellipse, polygon, a kept region), keeps the selected region as Pin Region does, and draws a line profile as the Line tool does |
 | `run_eds` | Auto ID, Quantify or Stop; answers at once, `get_eds` says busy until done |
-| `run_room` | presses the shown room's toolbar verb, as ⌘R does (Quantify, Run, Process, Index, Segment); refused with the button's own words while it cannot run |
+| `run_room` | presses the shown room's toolbar verb, as ⌘R does (Quantify, Run, Process, Index, Segment, Simulate); refused with the button's own words while it cannot run |
 | `stop_run` | Stop, as ⌘. does: the shown room's run or open, or a run left going in another room |
 | `select_scan_position` | picks a scan position (x column, y row) as a click on the Patterns, Indexing or Maps room's map does; in the Indexing room the pattern pane shows it as indexed, in the Maps room the grain under it is selected |
 | `set_patterns` | the Virtual images section (grid, map, tile, colour mix, tiles pane), the pattern's Raw/Processed switch and the Simulation section (overlay, Min d, Band width, Zone axes, Labels, Blend); says when a new grid also dropped the tile map or the mix |
@@ -105,13 +105,13 @@ Behind "Let agents run analyses". Each goes through the entry point its control 
 | `plan_tilt` | the Holder section: the tilts now, the limits, the tilt axis typed, forgotten or calibrated from another open pattern, a zone axis picked on the map; writes the Tilt List CSV into the Agent folder |
 | `set_dynamical` | the Simulation section's Intensities: Kinematic or Dynamical (Dynamical runs the multislice, as the section does) and the stored thickness shown; Dynamical is refused with the section's sentence while an atom model is the source |
 | `set_cbed` | the Simulation section's Beam (Parallel or Convergent) and CBED settings: semiangle or Fit Discs, largest thickness, angular step, pattern edge, and the stored pattern shown; with an atom model as the source Fit Discs is refused and `read_cbed` gives the overlay's refusal |
-| `run_cbed` | Show CBED Pattern: opens the pattern in the Diffraction room and runs the probe; refused with the section's words while it cannot run |
-| `stop_cbed` | the CBED section's Stop; the patterns stored stay |
+| `run_cbed` | Show CBED Pattern: opens the pattern in the Diffraction room and runs its toolbar Simulate; refused with the section's words while it cannot run |
+| `stop_cbed` | the CBED pattern's toolbar Stop; the patterns stored stay |
 | `measure_thickness` | Measure Thickness on the pattern shown: the two-beam fit across the diffracted disc (Kelly et al. 1975); `read_thickness` gives the verdict |
 | `use_measured_thickness` | Use in Simulation: the thickness found becomes the Simulation document's specimen thickness; refused while the document simulates an atom model (its thickness is the model's own) |
 | `set_stem` | the STEM section: semiangle, defocus or Scherzer, scan step or Nyquist, Collect to, and the detector (a preset, or Custom with inner and outer angles on whole rings) |
-| `run_stem` | Show STEM Image and Simulate or Continue; the image fills as it is computed; refused with the section's words while it cannot run |
-| `stop_stem` | the STEM section's Stop; the positions done stay and `run_stem` continues |
+| `run_stem` | Show STEM Image and its toolbar Simulate or Continue; the image fills as it is computed; refused with the section's words while it cannot run |
+| `stop_stem` | the STEM image's toolbar Stop; the positions done stay and `run_stem` continues |
 | `set_atom_model` | the Specimen section's Source: an atom model file of the Agent folder (CIF, XYZ or POSCAR) read as Atom Model… does, back to the phase, and Beam along (c, a or b); answers at once, `read_atom_model` says when the file is in or why it was refused |
 | `select_grains` | selects grains as the grain table does, or none |
 

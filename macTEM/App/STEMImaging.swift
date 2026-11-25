@@ -19,8 +19,15 @@ extension AppState {
         return pairedItem(at: DemoDocuments.simulationURL(ofSTEM: item.url))?.item
     }
 
+    /// The Simulation document whose STEM scan runs: the selected STEM image's (its document may sit in another window), else one of
+    /// this window's. The Image room's busy line, its Stop and ⌘. read it (#1047).
+    var scanningSTEMDocument: OpenItem? {
+        if let item = openItems.selected, let document = simulationDocument(ofSTEM: item), document.stem.isRunning { return document }
+        return openItems.items.first { $0.stem.isRunning }
+    }
+
     /// Show STEM Image: opens (or brings forward) the image of `simulation` in the Image room, here or in a tab of its own. The run
-    /// is the section's Simulate: a STEM scan takes minutes, so opening the image does not start one.
+    /// is the image's toolbar Simulate (#1047): a STEM scan takes minutes, so opening the image does not start one.
     func showSTEMImage(of simulation: OpenItem) {
         let url = DemoDocuments.stemURL(of: simulation.url)
         if let held = pairedItem(at: url) {
@@ -59,7 +66,7 @@ extension AppState {
         }
     }
 
-    /// Simulate (and Continue) for `simulation`'s STEM image: the run of the specimen, optics and vibrations now, the image redrawn
+    /// Simulate (and Continue) for `simulation`'s STEM image, the image's toolbar verb, ⌘R and the door's run_stem (#1047): the run of the specimen, optics and vibrations now, the image redrawn
     /// as each slice lands. Returns when the run ends.
     func simulateSTEM(of simulation: OpenItem) async {
         guard case .success(let run) = stemRun(of: simulation) else { return }

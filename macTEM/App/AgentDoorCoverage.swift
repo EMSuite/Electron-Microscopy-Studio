@@ -134,10 +134,8 @@ nonisolated enum AgentDoorCoverage {
         "diffraction.simulation.cbed.largestThickness": .tool("set_cbed"),
         "diffraction.simulation.cbed.method": .tool("read_cbed"),
         "diffraction.simulation.cbed.plan": .tool("read_cbed"),
-        "diffraction.simulation.cbed.progress": .tool("read_cbed"),
         "diffraction.simulation.cbed.semiangle": .tool("set_cbed"),
         "diffraction.simulation.cbed.show": .tool("run_cbed"),
-        "diffraction.simulation.cbed.stop": .tool("stop_cbed"),
         "diffraction.simulation.cbed.thickness": .tool("set_cbed"),
         "diffraction.simulation.cbed.thicknessValue": .tool("read_cbed"),
         "diffraction.simulation.dynamical": .tool("set_dynamical"),
@@ -556,12 +554,9 @@ nonisolated enum AgentDoorCoverage {
         "simulation.stem.notQuantitative": .tool("read_stem"),
         "simulation.stem.outer": .tool("set_stem"),
         "simulation.stem.plan": .tool("read_stem"),
-        "simulation.stem.progress": .tool("read_stem"),
         "simulation.stem.scanStep": .tool("set_stem"),
         "simulation.stem.scherzer": .tool("set_stem"),
         "simulation.stem.semiangle": .tool("set_stem"),
-        "simulation.stem.simulate": .tool("run_stem"),
-        "simulation.stem.stop": .tool("stop_stem"),
         "simulation.stem.wrap": .tool("read_stem"),
         "simulation.thermal.configurations": .tool("set_simulation"),
         "simulation.thermal.convergence": .tool("read_simulation"),
@@ -587,6 +582,18 @@ nonisolated enum AgentDoorCoverage {
         "welcome.tryDemo": .tool("open_demo"),
         "welcome.unreadableStatus": .seen,
         "workspace.\\(room.id)": .tool("select_room"),
+    ]
+
+    /// The toolbar's verb per document (#1047): the verb is ShellLayout's button, with no identifier of the app's, so each document
+    /// that has one is a row here with the tool that runs the same code path (run_room presses whichever verb is shown; these are the
+    /// room-specific tools). `AgentDoorCoverageTests` checks every tool is registered and every document `RoomPrimaryAction` gives a
+    /// verb has its row.
+    static let toolbarVerbs: [String: Reach] = [
+        "Image · HRTEM image with frozen phonons · Simulate": .tool("run_simulation"),
+        "Image · STEM image · Simulate": .tool("run_stem"),
+        "Diffraction · measured pattern · Index": .tool("index_pattern"),
+        "Diffraction · CBED pattern · Simulate": .tool("run_cbed"),
+        "Stop (any verb)": .tool("stop_run"),
     ]
 
     /// Shows or hides a pane of the person's window; the get tools answer whether the pane shows or not.

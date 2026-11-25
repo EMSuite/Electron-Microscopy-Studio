@@ -450,8 +450,9 @@ private struct DiffractionSimulationSection: View {
                 dynamicalRows(item.multislice)
                 SimulationCBEDRows(item: item)
             } else if let simulation = appState.simulationDocument(ofCBED: item) {
-                // The CBED pattern's own item: its document's rows (the slider, Stop, progress, failure), so they stay as it appears.
-                SimulationCBEDRows(item: simulation)
+                // The CBED pattern's own item: its document's rows (the settings, the plan, the slider, the failure); the run is this
+                // pattern's toolbar Simulate (#1047).
+                SimulationCBEDRows(item: simulation, opensPattern: false)
             }
             if appState.simulationDocument(ofCBED: item)?.multislice.atomModel != nil {
                 // An atom model's pattern: no reflections to draw or label (#953).
