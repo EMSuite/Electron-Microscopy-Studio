@@ -6,6 +6,7 @@
 //
 
 import ShellAgentDoor
+import ShellLayout
 import SwiftUI
 import XCTest
 @testable import macTEM
