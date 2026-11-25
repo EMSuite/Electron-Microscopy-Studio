@@ -280,9 +280,10 @@ private struct DiffractionPhaseRow: View {
                         .help(attribution)
                 }
             }
-            Text(DiffractionPhases.latticeText(phase.structure().cell) + (phase.isEdited ? " (edited)" : ""))
+            let lattice = DiffractionPhases.latticeText(phase.structure().cell, locale: .autoupdatingCurrent)
+            Text(lattice + (phase.isEdited ? " (edited)" : ""))
                 .font(.caption).monospacedDigit().foregroundStyle(.secondary)
-                .accessibilityLabel("Lattice of \(phase.name): \(DiffractionPhases.latticeText(phase.structure().cell))")
+                .accessibilityLabel("Lattice of \(phase.name): \(lattice)")
                 .accessibilityIdentifier("diffraction.phases.lattice.\(phase.id)")
             if DiffractionPhases.isOutdated(phase, in: analysis) {
                 // The room keeps its own copy of the phase it uses (#780): the library's change waits for this button.

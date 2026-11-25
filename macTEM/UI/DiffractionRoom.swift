@@ -142,7 +142,7 @@ private struct DiffractionHeader: View {
                 .accessibilityValue(DiffractionValueFormat.scale(calibration?.deltaQ))
             Spacer(minLength: 8)
             // Index's verdict in words (#783): "Al · 2.1° from [001] · 22 of 24 spots explained · misfit 0.07 %".
-            if let outcome = analysis.indexOutcome, let line = analysis.indexLine {
+            if let outcome = analysis.indexOutcome, let line = analysis.indexHeaderLine(locale: .autoupdatingCurrent) {
                 Text(line)
                     .font(.callout.monospacedDigit()).lineLimit(1).truncationMode(.tail).layoutPriority(2)
                     .foregroundStyle(outcome.verdict == .found && !outcome.zoneAxisOnly && !analysis.indexIsStale && !analysis.indexSpotsChanged
@@ -154,7 +154,7 @@ private struct DiffractionHeader: View {
             }
             // The drawn orientation's nearest zone axis once it was tilted, turned or flipped by hand, or while no Index answer is
             // shown (#787): "Al · 2.1° from [001] · set by hand".
-            if let line = analysis.orientationLine {
+            if let line = analysis.orientationHeaderLine(locale: .autoupdatingCurrent) {
                 Text(line)
                     .font(.callout.monospacedDigit()).lineLimit(1).truncationMode(.tail).layoutPriority(2)
                     .help(line)
@@ -420,7 +420,7 @@ private struct DiffractionPatternPane: View {
             .accessibilityLabel("Diffraction pattern")
             // q and d under the pointer, as the status line reads them; else the pattern's size, rings and spots. This pane is the readout's one writer.
             .modifier(ReadoutAccessibilityValue(readout: { appState.diffractionRoom.readout },
-                                                fallback: "\(image.width) by \(image.height) pixels, \(UnitDisplay.count(analysis.rings.count, "ring", "rings")), \(UnitDisplay.count(analysis.spots.count, "spot", "spots"))" + DiffractionSimulationText.spoken(item.simulatedSpots(image: image), zoneAxis: analysis.simulation.zoneAxis) + DiffractionIndexText.spoken(analysis.indexLine, rows: analysis.indexSpotRows.count)))
+                                                fallback: "\(image.width) by \(image.height) pixels, \(UnitDisplay.count(analysis.rings.count, "ring", "rings")), \(UnitDisplay.count(analysis.spots.count, "spot", "spots"))" + DiffractionSimulationText.spoken(item.simulatedSpots(image: image), zoneAxis: analysis.simulation.zoneAxis) + DiffractionIndexText.spoken(analysis.indexHeaderLine(locale: .autoupdatingCurrent), rows: analysis.indexSpotRows.count)))
             .accessibilityAction(named: "Zoom in") { view.zoom(by: 2, image: image) }
             .accessibilityAction(named: "Zoom out") { view.zoom(by: 0.5, image: image) }
             .accessibilityAction(named: "Reset zoom") { view.fitView() }

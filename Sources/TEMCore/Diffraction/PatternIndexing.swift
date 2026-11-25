@@ -397,24 +397,27 @@ package nonisolated enum PatternIndexing {
     /// "[001]", "[1̄10]", "[10 0 1]": the zone axis as the header writes it (the hkl label's digits and bars).
     package static func zoneText(_ uvw: SIMD3<Int>) -> String { "[" + ZoneAxisText.label(MillerIndex(uvw.x, uvw.y, uvw.z)) + "]" }
 
-    /// "Al · 2.1° from [001]", or "Al [001]" within 0.5° of the zone axis (`angle` in radians).
-    package static func place(phase: String, zoneAxis uvw: SIMD3<Int>, angle: Double) -> String {
+    /// "Al · 2.1° from [001]", or "Al [001]" within 0.5° of the zone axis (`angle` in radians). `locale`: the reader's for the
+    /// header row ("2,1°" in de_DE), the point for the CSV and the door (#1039).
+    package static func place(phase: String, zoneAxis uvw: SIMD3<Int>, angle: Double, locale: Locale = UnitDisplay.point) -> String {
         let degrees = angle * 180 / .pi
-        return degrees < 0.5 ? "\(phase) \(zoneText(uvw))" : "\(phase) · \(String(format: "%.1f", degrees))° from \(zoneText(uvw))"
+        return degrees < 0.5 ? "\(phase) \(zoneText(uvw))"
+            : "\(phase) · \(UnitDisplay.fixed(degrees, places: 1, locale: locale))° from \(zoneText(uvw))"
     }
 
     /// What the header adds when clicked spots gave the answer.
     package static let zoneAxisOnlyNote = "zone axis only: clicked spots carry no intensities, so the tilt needs Index on found spots"
 
     /// The header's line: "Al · 2.1° from [001] · 22 of 24 spots explained · misfit 0.07 %", "Al [001] · …" within 0.5° of
-    /// the zone axis, the verdict's words before it when it is not a plain find.
-    package static func header(_ o: Outcome) -> String {
+    /// the zone axis, the verdict's words before it when it is not a plain find. `locale`: the reader's on screen, the point (the
+    /// default) in the CSV and the door's answer (#1039).
+    package static func header(_ o: Outcome, locale: Locale = UnitDisplay.point) -> String {
         var place: String?
-        if let uvw = o.zoneAxis, let angle = o.zoneAxisAngle { place = Self.place(phase: o.phase, zoneAxis: uvw, angle: angle) }
+        if let uvw = o.zoneAxis, let angle = o.zoneAxisAngle { place = Self.place(phase: o.phase, zoneAxis: uvw, angle: angle, locale: locale) }
         var facts: [String] = []
         if o.orientation != nil {
             facts.append("\(o.explained) of \(o.indexed) spots explained")
-            if let m = o.misfitPercent { facts.append("misfit \(String(format: "%.2f", m)) %") }
+            if let m = o.misfitPercent { facts.append("misfit \(UnitDisplay.fixed(m, places: 2, locale: locale)) %") }
         }
         if o.zoneAxisOnly, o.orientation != nil { facts.append(zoneAxisOnlyNote) }
         let tail = facts.isEmpty ? "" : " · " + facts.joined(separator: " · ")
@@ -426,7 +429,10 @@ package nonisolated enum PatternIndexing {
         case .tied(let n):
             return "\(place ?? o.phase) · tied: \(n) orientations explain the pattern equally" + tail
         case .scaleAtLimit:
-            let percent = o.scale.map { String(format: "%+.1f", 100 * ($0 - 1)) } ?? "?"
+            let percent = o.scale.map { s -> String in
+                let text = UnitDisplay.fixed(100 * (s - 1), places: 1, locale: locale)
+                return text.hasPrefix("-") ? text : "+" + text
+            } ?? "?"
             return "\(place ?? o.phase) · scale at its limit (\(percent) %): check the calibration" + tail
         case .oneRow:
             return "\(o.phase) · one row: the spots lie on one row through the beam, which fixes no zone axis"
