@@ -12,6 +12,7 @@ import Foundation
 import ShellAgentDoor
 import ShellLayout
 import DiffractoCore
+import FormatoCore
 import TEMCore
 import TEMSession
 import XCTest
