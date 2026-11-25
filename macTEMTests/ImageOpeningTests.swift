@@ -165,7 +165,8 @@ nonisolated final class ImageOpeningTests: XCTestCase {
                        "scan.RAW is a .raw file. Electron Microscopy Studio opens TEM and SEM images (.dm4, .dm3, .tif, .tiff, .mrc, .emd, .ser, .emi, .img, .map), "
                        + "patterns and images saved as pictures (.png, .jpg, .jpeg), "
                        + "EDS and EELS spectra and spectrum images (.emd, .dm4, .msa, .hspy, .ser, .bcf, .spd, .lsd, .pts, .asw, .spx, .spc, .eds), "
-                       + "and EBSD patterns and orientation maps (.h5, .hdf5, .h5oina, .h5ebsd, .ebsp, .ctf, .up1, .up2, .ang, .dat).")
+                       + "EBSD patterns and orientation maps (.h5, .hdf5, .h5oina, .h5ebsd, .ebsp, .ctf, .up1, .up2, .ang, .dat), "
+                       + "and Simulation documents (.emsim).")
         XCTAssertFalse(ser?.errorDescription?.contains("Lab Disk") ?? true, "the message never shows the folders")
         let bare = refusal("/tmp/README")
         XCTAssertEqual(bare, .unreadableFormat(file: "README", ext: ""))
