@@ -3,7 +3,7 @@
 //  Role: the Diffraction room's Powder section (plan row R11, #810): the powder pattern of the room's crystal, and of one more phase
 //        to compare with, as rings against q at the pattern's beam energy or as an X-ray pattern against 2θ at a chosen line. A
 //        stick chart (one colour a phase, the strongest peak of a phase at 100), the headline of each phase, the overlap and
-//        diagnostic marks with two phases, and the peaks in a short table. Presentation only: every number is `PowderTable`'s over
+//        diagnostic marks with two phases, and the peaks in a short table; its two files are the Export section's (#922). Presentation only: every number is `PowderTable`'s over
 //        DiffractoKit's `PowderPattern`. The Simulation document (R6, #788) takes the same table when it lands.
 //
 
@@ -15,15 +15,10 @@ import DiffractoCore
 import DiffractoScattering
 import TEMCore
 import TEMSession
-import UniformTypeIdentifiers
 
 struct DiffractionPowderSection: View {
     let item: OpenItem
     @Environment(AppState.self) private var appState
-    @State private var exporting = false
-    @State private var document = RoomExportFile(text: "")
-    @State private var exportType: UTType = .commaSeparatedText
-    @State private var exportName = ""
 
     private static let degrees = FloatingPointFormatStyle<Double>.number.precision(.fractionLength(0...2))
     private static let reach = FloatingPointFormatStyle<Double>.number.precision(.fractionLength(0...3))
@@ -31,12 +26,10 @@ struct DiffractionPowderSection: View {
     private static let listed = 12
 
     var body: some View {
-        let analysis = item.diffraction
         let powder = item.diffractionPowder
         let settings = powder.settings
-        let others = comparable(besides: analysis.crystal.name)
-        let phases = powder.phases(crystal: analysis.crystal, others: others)
-        let table = powder.table(phases: phases, volts: analysis.volts(for: item.session.imageOrBlank))
+        let others = Self.comparable(for: item, openItems: appState.openItems)
+        let table = Self.table(of: item, openItems: appState.openItems)
         InspectorSection("Powder", startsExpanded: false) {
             InspectorRow("Pattern") {
                 Picker("Pattern", selection: Binding(get: { settings.kind }, set: { powder.setKind($0) })) {
@@ -90,7 +83,7 @@ struct DiffractionPowderSection: View {
                 .help("A second phase drawn beside this crystal: a standard, or the crystal of another open pattern")
                 .accessibilityIdentifier("diffraction.powder.compare")
             }
-            if phases.count > 1 {
+            if table.phases.count > 1 {
                 InspectorRow("Mark overlaps") {
                     Toggle("Mark overlaps", isOn: Binding(get: { settings.markOverlaps }, set: { powder.setMarkOverlaps($0) }))
                         .toggleStyle(.switch).labelsHidden()
@@ -107,55 +100,22 @@ struct DiffractionPowderSection: View {
             }
             DiffractionPowderPeakList(table: table, limit: Self.listed)
             InspectorNote("A line pattern for planning and comparison: no instrument profile, no texture, no absorption, no thermal motion.")
-            InspectorActionRow {
-                Button("Export Powder CSV…") { exportCSV(table) }
-                    .disabled(table.rows.isEmpty)
-                    .help("The peak table of the shown phases, with how it was computed")
-                    .accessibilityIdentifier("diffraction.powder.exportCSV")
-                Button("Export .xy…") { exportXY(table) }
-                    .disabled((table.patterns.first ?? nil) == nil)
-                    .help("This crystal's drawn profile: two columns, position and intensity, a tenth of the peak width apart")
-                    .accessibilityIdentifier("diffraction.powder.exportXY")
-            }
-        }
-        .fileExporter(isPresented: $exporting, document: document, contentType: exportType, defaultFilename: exportName) { result in
-            if case .failure(let error) = result { appState.present(error) }
         }
     }
 
-    private var imageName: String { item.session.imageOrBlank.fileName }
-
-    private func exportCSV(_ table: PowderTable) {
-        let text = ExportSnapshot.powderCSV(table, image: item.session.imageOrBlank, openItems: appState.openItems)
-        save(text, name: DiffractionPowderExport.baseName(of: imageName), extension: "csv", type: .commaSeparatedText)
-    }
-
-    private func exportXY(_ table: PowderTable) {
-        guard let text = table.xy(phase: 0) else { return }
-        save(text, name: DiffractionPowderExport.baseName(of: imageName, phase: table.phases[0].name), extension: "xy",
-             type: DiffractionPowderExport.xyType)
-    }
-
-    private func save(_ text: String, name: String, extension ext: String, type: UTType) {
-        if let directory = appState.exportDirectory {
-            do {
-                let url = try DiffractionPowderExport.write(text, named: name + "." + ext, into: directory)
-                appState.statusText = "Exported \(url.lastPathComponent)"
-            } catch { appState.present(error) }
-        } else {
-            document = RoomExportFile(text: text)
-            exportType = type
-            exportName = name
-            exporting = true
-        }
+    /// The powder pattern the section draws and the Export section writes: the room's crystal and the phase it is compared with.
+    static func table(of item: OpenItem, openItems: OpenItems) -> PowderTable {
+        let analysis = item.diffraction
+        let phases = item.diffractionPowder.phases(crystal: analysis.crystal, others: comparable(for: item, openItems: openItems))
+        return item.diffractionPowder.table(phases: phases, volts: analysis.volts(for: item.session.imageOrBlank))
     }
 
     /// The phases this crystal can be compared with: the room's standards, then the crystals of the other open patterns, each name once.
-    private func comparable(besides name: String) -> [PowderPhase] {
-        var seen: Set<String> = [name]
+    static func comparable(for item: OpenItem, openItems: OpenItems) -> [PowderPhase] {
+        var seen: Set<String> = [item.diffraction.crystal.name]
         var out: [PowderPhase] = []
         for s in StandardCrystals.all where seen.insert(s.name).inserted { out.append(PowderPhase(name: s.name, structure: s.structure)) }
-        for other in appState.openItems.items where other.id != item.id {
+        for other in openItems.items where other.id != item.id {
             let c = other.diffraction.crystal
             if seen.insert(c.name).inserted { out.append(PowderPhase(name: c.name, structure: c.structure)) }
         }

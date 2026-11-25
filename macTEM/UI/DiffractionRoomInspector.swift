@@ -35,7 +35,7 @@ struct DiffractionRoomSettings: View {
                 self.section(section, kind: kind, part: part, analysis: analysis, view: view)
             }
             if DiffractionPart.showsExport(part) {
-                DiffractionExportSection(session: item.session, analysis: analysis, isSimulation: isSimulation)
+                DiffractionExportSection(item: item, isSimulation: isSimulation)
             }
         }
         .onAppear { analysis.bind(image) }
@@ -247,8 +247,9 @@ private struct DiffractionPhasesSection: View {
                     .accessibilityIdentifier("diffraction.findPhases")
             }
             if let why = analysis.crystalFailure { InspectorWarning(why) }
-            InspectorRow("k_max") {
-                OptionalNumericField(title: "k max", value: analysis.kMax, format: pixelFormat, unit: "Å⁻¹") { analysis.setKMax($0) }
+            InspectorRow("q max") {
+                OptionalNumericField(title: "q max", value: analysis.kMax, format: pixelFormat, unit: "Å⁻¹") { analysis.setKMax($0) }
+                    .help("The reflections listed for indexing, out to this q (no 2π)")
             }
             InspectorRow("Tolerance") {
                 OptionalNumericField(title: "Indexing tolerance", value: analysis.tolerancePercent, format: pixelFormat, unit: "% of q") { analysis.setTolerance(percent: $0) }
@@ -385,8 +386,8 @@ private struct DiffractionOrientationRows: View {
                 .accessibilityIdentifier("diffraction.simulation.zone")
         }
         if let refused { InspectorWarning(refused) }
-        InspectorRow("Turn") {
-            OptionalNumericField(title: "In-plane turn", value: settings.inPlaneDegrees, format: pixelFormat, unit: "°") { analysis.setTurn(degrees: $0) }
+        InspectorRow("In-plane rotation") {
+            OptionalNumericField(title: "In-plane rotation", value: settings.inPlaneDegrees, format: pixelFormat, unit: "°") { analysis.setTurn(degrees: $0) }
                 .help("The pattern's turn about the beam, counter-clockwise from down the rows toward along the columns")
                 .accessibilityIdentifier("diffraction.simulation.turn")
         }
@@ -657,51 +658,115 @@ private struct DiffractionDisplaySection: View {
     }
 }
 
+/// Every file the room writes (control placement §4): one section, last, plain buttons in width sets with no "Export" in their titles
+/// (the section says it), each disabled with its reason as help. The Holder's tilt list and the Powder section's two files live here
+/// too (#922), and `Figure…` is File > Export Figure…'s panel.
 private struct DiffractionExportSection: View {
-    let session: ImageSession
-    private var image: CalibratedImage { session.imageOrBlank }
-    let analysis: DiffractionAnalysis
+    let item: OpenItem
     /// A Simulation document exports its simulated spots (#907).
     var isSimulation = false
     @Environment(AppState.self) private var appState
     @State private var exporting = false
     @State private var document = RoomExportFile(text: "")
+    @State private var exportType: UTType = .commaSeparatedText
     @State private var exportName = ""
 
+    private var image: CalibratedImage { item.session.imageOrBlank }
+
     var body: some View {
+        let analysis = item.diffraction
+        let plan = item.diffractionHolder.plan(analysis: analysis, image: image)
+        let powder = DiffractionPowderSection.table(of: item, openItems: appState.openItems)
+        let hasSpots = isSimulation ? !analysis.simulatedSpotRows(image: image).isEmpty : !analysis.indexSpotRows.isEmpty
         InspectorSection("Export", startsExpanded: false) {
             InspectorActionRow {
-                Button("Export Readout CSV…") { export(spots: false) }
+                Button("Readout CSV…") { exportReadout(spots: false) }
                     .disabled(analysis.rings.isEmpty && analysis.spots.isEmpty)
+                    .help(analysis.rings.isEmpty && analysis.spots.isEmpty ? "The readout needs a fitted ring or a measured spot"
+                          : "The rings and spots as the readout lists them, with the calibration")
                     .accessibilityIdentifier("diffraction.export")
-            }
-            InspectorActionRow {
-                Button("Export Spots CSV…") { export(spots: true) }
-                    .disabled(isSimulation ? analysis.simulatedSpotRows(image: image).isEmpty : analysis.indexSpotRows.isEmpty)
-                    .help(isSimulation ? "The simulated spots as the Spots table lists them: hkl, R in px and mm, q, d and the phase"
+                Button("Spots CSV…") { exportReadout(spots: true) }
+                    .disabled(!hasSpots)
+                    .help(!hasSpots ? (isSimulation ? "Show the simulated spots to list them" : "The Spots table needs Index's answer")
+                          : isSimulation ? "The simulated spots as the Spots table lists them: hkl, R in px and mm, q, d and the phase"
                           : "Index's spots as the Spots table lists them: hkl, R, q, d, the expected d, Δd/d and the phase")
                     .accessibilityIdentifier("diffraction.export.spots")
             }
+            InspectorActionRow {
+                Button("Tilt List CSV…") { if let plan { exportTiltList(plan) } }
+                    .disabled(plan == nil)
+                    .help(plan == nil ? "The tilt list needs Index's orientation" : "The zone axes near the beam, with the tilts to each")
+                    .accessibilityIdentifier("diffraction.holder.export")
+                Button("Powder CSV…") { exportPowderCSV(powder) }
+                    .disabled(powder.rows.isEmpty)
+                    .help(powder.rows.isEmpty ? "The kit drew no powder pattern for this crystal" : "The peak table of the shown phases, with how it was computed")
+                    .accessibilityIdentifier("diffraction.powder.exportCSV")
+            }
+            InspectorActionRow {
+                Button("Powder XY…") { exportPowderXY(powder) }
+                    .disabled((powder.patterns.first ?? nil) == nil)
+                    .help((powder.patterns.first ?? nil) == nil ? "The kit drew no powder pattern for this crystal"
+                          : "This crystal's drawn profile: two columns, position and intensity, a tenth of the peak width apart")
+                    .accessibilityIdentifier("diffraction.powder.exportXY")
+                Button("Figure…") { ExportPanels.exportDiffractionFigure(appState: appState) }
+                    .disabled(!ExportSnapshot.diffractionFigureAvailable(in: appState))
+                    .help("The pattern on screen with its marks, labels and scale bar, as a PDF, SVG or PNG figure (File > Export Figure…)")
+                    .accessibilityIdentifier("diffraction.export.figure")
+            }
         }
-        .fileExporter(isPresented: $exporting, document: document, contentType: .commaSeparatedText,
-                      defaultFilename: exportName) { result in
+        .fileExporter(isPresented: $exporting, document: document, contentType: exportType, defaultFilename: exportName) { result in
             if case .failure(let error) = result { appState.present(error) }
         }
     }
 
-    private func export(spots: Bool) {
+    private func exportReadout(spots: Bool) {
+        let analysis = item.diffraction
         let text = spots ? ExportSnapshot.diffractionSpotsCSV(analysis, image: image, openItems: appState.openItems,
                                                                        simulation: isSimulation)
                          : ExportSnapshot.diffractionCSV(analysis, image: image, openItems: appState.openItems)
-        exportName = spots ? DiffractionReadoutExport.spotsBaseName(of: image.fileName) : DiffractionReadoutExport.baseName(of: image.fileName)
+        let name = spots ? DiffractionReadoutExport.spotsBaseName(of: image.fileName) : DiffractionReadoutExport.baseName(of: image.fileName)
+        let fileName = image.fileName
+        save(text, name: name, type: .commaSeparatedText) { directory in
+            try spots ? ExportDirectoryFile.write(text, named: name + ".csv", into: directory)
+                      : DiffractionReadoutExport.write(text, imageFileName: fileName, into: directory)
+        }
+    }
+
+    private func exportTiltList(_ plan: TiltPlan) {
+        let text = ExportSnapshot.tiltListCSV(plan, image: image, openItems: appState.openItems)
+        let fileName = image.fileName
+        save(text, name: DiffractionTiltListExport.baseName(of: fileName), type: .commaSeparatedText) { directory in
+            try DiffractionTiltListExport.write(text, imageFileName: fileName, into: directory)
+        }
+    }
+
+    private func exportPowderCSV(_ table: PowderTable) {
+        let text = ExportSnapshot.powderCSV(table, image: image, openItems: appState.openItems)
+        let name = DiffractionPowderExport.baseName(of: image.fileName)
+        save(text, name: name, type: .commaSeparatedText) { directory in
+            try DiffractionPowderExport.write(text, named: name + ".csv", into: directory)
+        }
+    }
+
+    private func exportPowderXY(_ table: PowderTable) {
+        guard let text = table.xy(phase: 0) else { return }
+        let name = DiffractionPowderExport.baseName(of: image.fileName, phase: table.phases[0].name)
+        save(text, name: name, type: DiffractionPowderExport.xyType) { directory in
+            try DiffractionPowderExport.write(text, named: name + ".xy", into: directory)
+        }
+    }
+
+    /// Into the export folder when one is set, else through the save panel.
+    private func save(_ text: String, name: String, type: UTType, into write: (URL) throws -> URL) {
         if let directory = appState.exportDirectory {
             do {
-                let url = try spots ? ExportDirectoryFile.write(text, named: exportName + ".csv", into: directory)
-                                    : DiffractionReadoutExport.write(text, imageFileName: image.fileName, into: directory)
+                let url = try write(directory)
                 appState.statusText = "Exported \(url.lastPathComponent)"
             } catch { appState.present(error) }
         } else {
             document = RoomExportFile(text: text)
+            exportType = type
+            exportName = name
             exporting = true
         }
     }

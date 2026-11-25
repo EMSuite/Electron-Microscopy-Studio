@@ -60,6 +60,7 @@ nonisolated enum AgentDoorCoverage {
         "diffraction.crystal.unitCell": .tool("set_diffraction"),
         "diffraction.export": .tool("save_diffraction"),
         "diffraction.export.spots": .tool("save_diffraction"),
+        "diffraction.export.figure": .tool("get_diffraction_figure"),
         "diffraction.family": .tool("set_diffraction"),
         "diffraction.figureDrag": .tool("get_diffraction_figure"),
         "diffraction.fitRing": .tool("set_diffraction"),
