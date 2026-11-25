@@ -41,6 +41,25 @@ extension MacTEMAgentDoor {
             appState.statusText = "An agent selected the \(room.title) room."
             return .json(window(appState))
         },
+        AgentTool(name: "set_diffraction_part", title: "Diffraction part",
+                  summary: "Shows a part of the Diffraction workspace, as its row in the sidebar does (#1044): "
+                      + DiffractionPart.allCases.map { "\($0.rawValue) (\($0.title))" }.joined(separator: ", ")
+                      + ". Only the inspector's sections, the pane beside the pattern and the table under it follow the part; every "
+                      + "Diffraction tool works whatever part is shown. A part the document has nothing for is refused with the "
+                      + "sidebar's reason. Nothing runs.",
+                  input: .window,
+                  parameters: [AgentParameter("part", .choice(DiffractionPart.allCases.map(\.rawValue)), summary: "The part to show.",
+                                              required: true)],
+                  acts: true) { call in
+            guard let appState = call.window?.state as? AppState else { return notAWindowRefusal }
+            guard let part = call.arguments["part"].flatMap(DiffractionPart.init(rawValue:)) else {
+                return .refusal(status: 400, message: "Name a part: " + DiffractionPart.allCases.map(\.rawValue).joined(separator: ", ") + ".")
+            }
+            if let reason = appState.diffractionPartUnavailableReason(part) { return .refusal(status: 409, message: reason) }
+            appState.selectDiffractionPart(part)
+            appState.statusText = "An agent showed the Diffraction room's \(part.title) part."
+            return .json(window(appState))
+        },
         AgentTool(name: "open_demo", title: "Open demo data",
                   summary: "Opens one of the demo documents in its room, as Help > Open Demo Data does: "
                       + DemoDocument.allCases.map { "\($0.rawValue) (\($0.title), \($0.room.title) room)" }.joined(separator: ", ")

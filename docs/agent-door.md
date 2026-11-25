@@ -68,6 +68,7 @@ Behind "Let agents run analyses". Each goes through the entry point its control 
 | Tool | Does |
 |---|---|
 | `select_room` | moves the window to a room, as the room bar does; a room the files do not fill is refused with the room bar's reason |
+| `set_diffraction_part` | shows a part of the Diffraction workspace (calibrate, index, simulate, tiltPlan, powder, thickness), as its sidebar row does; a part the document has nothing for is refused with the sidebar's reason; get_window's `diffraction_part` says the part shown |
 | `open_demo` | opens a demo document in its room, as Help > Open Demo Data does |
 | `open_file` | opens a file of the Agent folder (Settings > Agents) as File > Open does, in the room that fits it; paths outside the folder are refused; `room` (eds or eels) answers the question File > Open asks for TIA spectra no `.emi` places, and such spectra are refused without it |
 | `set_eds` | picks and removes elements, sets an element's role (quantify or fit only), chooses the region (whole, rectangle, ellipse, polygon, a kept region), keeps the selected region as Pin Region does, and draws a line profile as the Line tool does |

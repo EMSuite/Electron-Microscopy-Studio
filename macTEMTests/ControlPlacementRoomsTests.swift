@@ -59,10 +59,10 @@ nonisolated final class ControlPlacementRoomsTests: XCTestCase {
     /// Red under: Display back after Rings, a hand-made Display, the View row of small buttons back.
     @MainActor func testDiffractionDisplayIsTheImageRoomsSectionAndSecond() throws {
         let source = try ui("DiffractionRoomInspector.swift")
-        // The order is `DiffractionSections.order` (#1043, InspectorSectionOrderTests), drawn before Export.
-        XCTAssertTrue(source.contains("ForEach(DiffractionSections.order(kind), id: \\.self) { section in self.section(section, kind: kind, analysis: analysis, view: view) } DiffractionExportSection("))
+        // The order is the part's (#1044, `DiffractionPart.sections`, from `DiffractionSections`, #1043), drawn before Export.
+        XCTAssertTrue(source.contains("ForEach(DiffractionPart.sections(part, kind: kind), id: \\.self) { section in self.section(section, kind: kind, part: part, analysis: analysis, view: view) } if DiffractionPart.showsExport(part) { DiffractionExportSection("))
         XCTAssertEqual(Array(DiffractionSections.order(.measured).prefix(4)), [.centre, .calibration, .display, .tools])
-        XCTAssertTrue(source.contains("ImageRoomDisplaySection(presentation: view.presentation, colormapID: \"diffraction.colormap\", logID: \"diffraction.log\", log: Binding(get: { view.useLog }, set: { view.useLog = $0 }))"))
+        XCTAssertTrue(source.contains("ImageRoomDisplaySection(presentation: view.presentation, colormapID: \"diffraction.colormap\", logID: \"diffraction.log\", log: Binding(get: { view.useLog }, set: { view.useLog = $0 }), startsExpanded: startsExpanded)"))
         XCTAssertFalse(source.contains("InspectorRow(\"View\")") || source.contains(".controlSize(.small)"))
         let display = try ui("ImageRoomDisplay.swift")
         XCTAssertTrue(display.contains(".accessibilityIdentifier(logID)") && display.contains(".accessibilityIdentifier(colormapID)"))

@@ -582,7 +582,14 @@ nonisolated enum AgentDoorCoverage {
         "welcome.tryDemo": .tool("open_demo"),
         "welcome.unreadableStatus": .seen,
         "workspace.\\(room.id)": .tool("select_room"),
+        "diffraction.part.\\(part.rawValue)": .tool("set_diffraction_part"),
     ]
+
+    /// The Diffraction workspace's six parts in the sidebar (#1044): each reached by set_diffraction_part, which goes through the
+    /// row's own `selectDiffractionPart`; get_window says the part shown.
+    static let diffractionParts: [String: Reach] = Dictionary(uniqueKeysWithValues: DiffractionPart.allCases.map {
+        ($0.identifier, Reach.tool("set_diffraction_part"))
+    })
 
     /// The toolbar's verb per document (#1047): the verb is ShellLayout's button, with no identifier of the app's, so each document
     /// that has one is a row here with the tool that runs the same code path (run_room presses whichever verb is shown; these are the

@@ -269,12 +269,13 @@ private struct ImageCommands: Commands {
             }
             // The rooms of the workspace in front, one after the other, on the system's next and previous tab keys (Safari, Finder,
             // Xcode): disabled where the workspace has no other room with data, so the key is never dead.
-            Button("Show Next Room") { if let room = appState?.neighbourRoom(forward: true) { appState?.selectWorkspace(room) } }
+            // In the Diffraction workspace they step through its parts (#1044), Calibrate to Thickness.
+            Button("Show Next Room") { appState?.showNeighbour(forward: true) }
                 .keyboardShortcut("]", modifiers: [.command, .shift])
-                .disabled(appState?.neighbourRoom(forward: true) == nil)
-            Button("Show Previous Room") { if let room = appState?.neighbourRoom(forward: false) { appState?.selectWorkspace(room) } }
+                .disabled(appState?.canShowNeighbour(forward: true) != true)
+            Button("Show Previous Room") { appState?.showNeighbour(forward: false) }
                 .keyboardShortcut("[", modifiers: [.command, .shift])
-                .disabled(appState?.neighbourRoom(forward: false) == nil)
+                .disabled(appState?.canShowNeighbour(forward: false) != true)
             Divider()
             ForEach(WorkspaceGroup.allCases.filter(\.hasParts)) { group in
                 Menu(group.title) {

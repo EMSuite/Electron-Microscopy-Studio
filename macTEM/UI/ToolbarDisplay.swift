@@ -73,7 +73,9 @@ enum ToolbarDisplay {
                              metrics: { now in RunClock.reading(since: appState.busySince[room], progress: RoomProgress.fraction(room: room, appState: appState), now: now) })
             }
             guard !appState.imageSession.isLoading, let image = appState.imageSession.image else { return nil }
-            return .idle(file: image.fileName, room: room.title, detail: "\(image.width) × \(image.height) px", help: nil)
+            // The Diffraction workspace names its part (#1044): "file · Diffraction · Index".
+            let title = room == .diffraction ? DiffractionPart.toolbarRoom(appState.diffractionPart) : room.title
+            return .idle(file: image.fileName, room: title, detail: "\(image.width) × \(image.height) px", help: nil)
         }
     }
 }

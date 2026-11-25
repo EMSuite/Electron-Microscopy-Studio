@@ -19,34 +19,41 @@ import DiffractoGeometry
 
 struct DiffractionRoomSettings: View {
     let item: OpenItem
+    @Environment(AppState.self) private var appState
     private var image: CalibratedImage { item.session.imageOrBlank }
 
     var body: some View {
         let analysis = item.diffraction
         let view = item.diffractionView
-        // The sections per document (`DiffractionSections`, #1043): a Simulation document (#907) and the CBED pattern derived from it
-        // are computed, so one read-only Calibration stands where a measured pattern's Centre and Calibration do; a Simulation
-        // document's Microscope leads its job and its Orientation stands where Index's does.
+        // The sections of the part the sidebar shows (#1044, `DiffractionPart.sections`), from the document's own list
+        // (`DiffractionSections`, #1043): a Simulation document (#907) and the CBED pattern derived from it are computed, so one
+        // read-only Calibration leads their Simulate part, and Calibrate and Index are a measured pattern's.
         let kind = DiffractionSections.kind(of: item.url)
         let isSimulation = kind == .simulation
+        let part = appState.diffractionPart
         Group {
-            ForEach(DiffractionSections.order(kind), id: \.self) { section in
-                self.section(section, kind: kind, analysis: analysis, view: view)
+            ForEach(DiffractionPart.sections(part, kind: kind), id: \.self) { section in
+                self.section(section, kind: kind, part: part, analysis: analysis, view: view)
             }
-            DiffractionExportSection(session: item.session, analysis: analysis, isSimulation: isSimulation)
+            if DiffractionPart.showsExport(part) {
+                DiffractionExportSection(session: item.session, analysis: analysis, isSimulation: isSimulation)
+            }
         }
         .onAppear { analysis.bind(image) }
     }
 
-    /// One section of `DiffractionSections.order`.
+    /// One section of `DiffractionPart.sections`.
     @ViewBuilder
-    private func section(_ section: DiffractionSections.Section, kind: DiffractionSections.Kind, analysis: DiffractionAnalysis,
-                         view: DiffractionViewState) -> some View {
+    private func section(_ section: DiffractionSections.Section, kind: DiffractionSections.Kind, part: DiffractionPart,
+                         analysis: DiffractionAnalysis, view: DiffractionViewState) -> some View {
         switch section {
         case .centre: DiffractionCentreSection(analysis: analysis, view: view)
         case .calibration: DiffractionCalibrationSection(session: item.session, analysis: analysis, view: view)
         case .simulatedCalibration: DiffractionSimulatedCalibrationSection(session: item.session, analysis: analysis)
-        case .display: DiffractionDisplaySection(view: view)
+        case .display:
+            // Closed where the part's job is not the picture; remembered per part, so closing it in Index leaves Calibrate's open.
+            DiffractionDisplaySection(view: view, startsExpanded: !DiffractionPart.startsClosed(.display, in: part))
+                .environment(\.inspectorScope, "settings.diffraction.\(part.rawValue)")
         case .tools: DiffractionToolsSection(view: view, tools: DiffractionSections.tools(kind))
         case .microscope: DiffractionMicroscopeSection(analysis: analysis)
         case .phases: DiffractionPhasesSection(item: item, analysis: analysis)
@@ -654,10 +661,11 @@ private struct DiffractionToolsSection: View {
 /// window, gamma, and the log switch. The zoom is the pane's own (the wheel, a pinch, a double-click), not buttons here (§6).
 private struct DiffractionDisplaySection: View {
     let view: DiffractionViewState
+    var startsExpanded = true
 
     var body: some View {
         ImageRoomDisplaySection(presentation: view.presentation, colormapID: "diffraction.colormap", logID: "diffraction.log",
-                                log: Binding(get: { view.useLog }, set: { view.useLog = $0 }))
+                                log: Binding(get: { view.useLog }, set: { view.useLog = $0 }), startsExpanded: startsExpanded)
     }
 }
 

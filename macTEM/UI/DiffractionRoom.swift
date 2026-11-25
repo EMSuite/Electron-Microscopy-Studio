@@ -34,6 +34,9 @@ import DiffractoGeometry
 
 struct DiffractionRoom: View {
     let item: OpenItem
+    @Environment(AppState.self) private var appState
+    /// The part the window showed, restored with the scene (#1044).
+    @SceneStorage("diffraction.part") private var storedPart = ""
     /// Read from the item, never stored: SwiftUI keeps a view's closures (hover, gestures, commands) after the view is gone, and a stored
     /// image kept its pixels alive after its tab closed (macTEM#574, `ImagePane.image`).
     private var image: CalibratedImage { item.session.image ?? ImagePane.blankImage }
@@ -48,13 +51,17 @@ struct DiffractionRoom: View {
         let analysis = item.diffraction
         let view = item.diffractionView
         let rows = analysis.readout(image: image)
+        // The part shown (#1044) decides the pane beside the pattern and the strip under it; the pattern itself, its zoom, selection
+        // and overlays, are the same in every part.
+        let part = appState.diffractionPart
+        let strip = DiffractionPart.tableStrip(part)
         VStack(spacing: 0) {
             DiffractionHeader(item: item, analysis: analysis, view: view)
             // The crystal beside the pattern (#790), down the same beam: one orientation drives both. It appears once simulated spots
             // are drawn (before, the pattern has the room), unless View > Hide Crystal hid it (#789); the divider's place is the
             // window's (the split's scene storage). The crystal takes a third and the pattern, the data, two thirds until the person
             // drags it (#1046, `DiffractionCrystalSplit`); a place dragged in an earlier version is kept.
-            if view.showsCrystal && analysis.simulation.isShown {
+            if DiffractionPart.showsCrystalPane(part) && view.showsCrystal && analysis.simulation.isShown {
                 HorizontalPaneSplit(storageKey: DiffractionCrystalSplit.storageKey, defaultFraction: DiffractionCrystalSplit.defaultCrystalFraction,
                                     resizeLabel: "Resize the crystal and the pattern", leadingName: "Crystal",
                                     minimumLeading: LayoutPolicy.imagePaneMinimum, minimumTrailing: LayoutPolicy.imagePaneMinimum) {
@@ -69,41 +76,48 @@ struct DiffractionRoom: View {
             } else {
                 patternPane(analysis: analysis, view: view, rows: rows)
             }
-            Divider()
-            // One table under the pattern: the readout, or once Index has an answer, its Spots table (#785: hkl, expected d and
-            // misfit per spot), picked in the strip's header. Never both side by side: they share R, q, d and Δd/d and do not fit a
-            // small window.
-            // A Simulation document lists its simulated spots there (#907); a measured pattern lists Index's once it answers.
-            let isSimulation = DemoDocuments.isSimulation(item.url)
-            let hasSpots = isSimulation || analysis.indexOutcome != nil
-            VStack(spacing: 0) {
-                if hasSpots {
-                    HStack {
-                        SegmentedPicker(label: "Table", items: [(DiffractionViewState.LowerTable.readout, .title("Readout")),
-                                                                (.spots, .title("Spots"))],
-                                        selection: Binding(get: { view.lowerTable }, set: { view.lowerTable = $0 }))
-                            .fixedSize()
-                            .accessibilityIdentifier("diffraction.lowerTable")
-                        Spacer()
+            if strip != .none {
+                Divider()
+                // One table under the pattern: the readout, or once Index has an answer, its Spots table (#785: hkl, expected d and
+                // misfit per spot), picked in the strip's header. Never both side by side: they share R, q, d and Δd/d and do not fit a
+                // small window.
+                // A Simulation document lists its simulated spots there (#907); a measured pattern lists Index's once it answers.
+                let isSimulation = DemoDocuments.isSimulation(item.url)
+                // Calibrate lists the readout alone; Index and Simulate their spots, with the readout picked beside them (#1044).
+                let hasSpots = strip == .spots && (isSimulation || analysis.indexOutcome != nil)
+                VStack(spacing: 0) {
+                    if hasSpots {
+                        HStack {
+                            SegmentedPicker(label: "Table", items: [(DiffractionViewState.LowerTable.readout, .title("Readout")),
+                                                                    (.spots, .title("Spots"))],
+                                            selection: Binding(get: { view.lowerTable }, set: { view.lowerTable = $0 }))
+                                .fixedSize()
+                                .accessibilityIdentifier("diffraction.lowerTable")
+                            Spacer()
+                        }
+                        .padding(.horizontal, LayoutPolicy.infobarHorizontalPadding)
+                        .frame(height: LayoutPolicy.paneHeaderHeight)
+                        Divider()
                     }
-                    .padding(.horizontal, LayoutPolicy.infobarHorizontalPadding)
-                    .frame(height: LayoutPolicy.paneHeaderHeight)
-                    Divider()
-                }
-                if hasSpots && view.lowerTable == .spots {
-                    if isSimulation {
-                        DiffractionSpotTable(view: view, rows: item.simulatedSpotRows(image: image),
-                                             empty: "Add a phase and show the simulated spots to list them.", selectsMarks: false,
-                                             showsDynamical: item.dynamicalBeams != nil)
+                    if hasSpots && view.lowerTable == .spots {
+                        if isSimulation {
+                            DiffractionSpotTable(view: view, rows: item.simulatedSpotRows(image: image),
+                                                 empty: "Add a phase and show the simulated spots to list them.", selectsMarks: false,
+                                                 showsDynamical: item.dynamicalBeams != nil)
+                        } else {
+                            DiffractionSpotTable(view: view, rows: analysis.indexSpotRows)
+                        }
                     } else {
-                        DiffractionSpotTable(view: view, rows: analysis.indexSpotRows)
+                        DiffractionReadoutTable(analysis: analysis, view: view, rows: rows)
                     }
-                } else {
-                    DiffractionReadoutTable(analysis: analysis, view: view, rows: rows)
                 }
+                .frame(height: LayoutPolicy.diffractionReadoutHeight)
             }
-            .frame(height: LayoutPolicy.diffractionReadoutHeight)
         }
+        // The part: the scene's when the window comes back, else the one the document opens on; another document opens on its own.
+        .onAppear { appState.settleDiffractionPart(restored: DiffractionPart(rawValue: storedPart)) }
+        .onChange(of: item.id) { appState.diffractionDocumentChanged() }
+        .onChange(of: part) { storedPart = part.rawValue }
         // The pattern is shown by its owner (the bind, the extent and the canvas, off the main actor); a quick Log toggle or another
         // file cancels the pass in flight.
         .task(id: DisplayKey(id: item.id, log: view.useLog, generation: item.session.generation)) {
