@@ -110,11 +110,11 @@ nonisolated final class HRTEMControlsTests: XCTestCase {
     func testTheFieldOfViewSetsTheTiles() throws {
         var optics = HRTEMOptics()
         let exit = try siliconWaves(optics: optics)
-        XCTAssertEqual(try HRTEMImage.image(exit, thicknessIndex: 0, defocusNM: 0, optics: optics, name: "f").height, 8 * 120)
+        XCTAssertEqual(try HRTEMImage.image(exit, thicknessIndex: 0, defocusNM: 0, optics: optics, name: "f").height, 8 * 125)
         optics.fieldOfViewNM = 1
         let small = try HRTEMImage.image(exit, thicknessIndex: 0, defocusNM: 0, optics: optics, name: "f")
-        XCTAssertEqual(small.height, 2 * 120, "rows are lab x")
-        XCTAssertEqual(small.width, 2 * 160)
+        XCTAssertEqual(small.height, 2 * 125, "rows are lab x")
+        XCTAssertEqual(small.width, 2 * 176)
     }
 
     /// The strip marks the phase's strongest families, strongest first: for silicon {1 1 1} leads. Mutation: weakest first, the
