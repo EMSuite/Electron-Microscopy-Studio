@@ -1,8 +1,8 @@
 //
 //  MapsRoomAnalysis.swift
 //  Role: what the Maps room shows of its grain analysis and texture (docs/sem/design/orientation-maps-room.md §3-§4, brief P5-04): the
-//        boundaries, the selected grain's outline and its slip traces over the map; the bottom pane's tabs (Key, Grains, Pole figures,
-//        ODF); and the inspector's Misorientation, Grains, Slip and Texture sections. Presentation only: the numbers are `MapAnalysis` and
+//        boundaries, the selected grain's outline and its slip traces over the map; the results pane's tabs beside the map (Key,
+//        Grains, Pole figures, ODF, Histogram; #1064); and the inspector's Misorientation, Grains, Slip and Texture sections. Presentation only: the numbers are `MapAnalysis` and
 //        `MapTexture`'s (TEMCore), the state `OrientationMapSession`'s (TEMSession), the words `MapsRoomFormat`'s.
 //
 
@@ -122,10 +122,11 @@ struct MapsAnalysisOverlay: View {
     }
 }
 
-// MARK: - The bottom pane
+// MARK: - The results pane
 
-/// The bottom pane's tabs (design §3): the colour key, the grain table, the pole figures with the IPF density, the ODF sections.
-enum MapsBottomTab: String, CaseIterable, Identifiable {
+/// The results pane's tabs (design §3; the trailing pane at full height since #1064): the colour key, the grain table, the pole figures
+/// with the IPF density, the ODF sections, the histogram.
+enum MapsResultsTab: String, CaseIterable, Identifiable {
     case key = "Key"
     case grains = "Grains"
     case poleFigures = "Pole figures"
@@ -134,7 +135,7 @@ enum MapsBottomTab: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
-struct MapsBottomPane: View {
+struct MapsResultsPane: View {
     let session: OrientationMapSession
     @Bindable var state: MapsRoomState
 
@@ -144,15 +145,15 @@ struct MapsBottomPane: View {
                 // Full width, as every segmented control (control-placement §3, #629): MacEMUI's `SegmentedControl`, because a
                 // segmented `Picker` keeps its own width whatever frame it is given (the drive of 16 Nov saw it stay 480 pt and centred).
                 // Beside it only the tab's one choice.
-                SegmentedControl(label: "Bottom pane", segments: MapsBottomTab.allCases.map { .title($0.rawValue) },
-                                 selection: Binding(get: { MapsBottomTab.allCases.firstIndex(of: state.bottomTab) ?? 0 },
-                                                    set: { if MapsBottomTab.allCases.indices.contains($0) { state.bottomTab = MapsBottomTab.allCases[$0] } }))
+                SegmentedControl(label: "Results", segments: MapsResultsTab.allCases.map { .title($0.rawValue) },
+                                 selection: Binding(get: { MapsResultsTab.allCases.firstIndex(of: state.resultsTab) ?? 0 },
+                                                    set: { if MapsResultsTab.allCases.indices.contains($0) { state.resultsTab = MapsResultsTab.allCases[$0] } }))
                     .frame(maxWidth: .infinity)
-                    .accessibilityIdentifier("maps.bottom.tabs")
-                if state.bottomTab == .poleFigures || state.bottomTab == .odf {
+                    .accessibilityIdentifier("maps.results.tabs")
+                if state.resultsTab == .poleFigures || state.resultsTab == .odf {
                     MapsTexturePhasePicker(session: session)
                 }
-                if state.bottomTab == .histogram {
+                if state.resultsTab == .histogram {
                     Picker("Histogram of", selection: $state.histogramKind) {
                         ForEach(MapAnalysis.HistogramKind.allCases, id: \.self) { Text($0.rawValue).tag($0) }
                     }
@@ -165,7 +166,7 @@ struct MapsBottomPane: View {
             .padding(.top, 6)
             .fixedSize(horizontal: false, vertical: true)
             Group {
-                switch state.bottomTab {
+                switch state.resultsTab {
                 case .key: MapsKeyPane(session: session)
                 case .grains: MapsGrainsTable(session: session)
                 case .poleFigures: MapsTextureFigures(session: session, odf: false)

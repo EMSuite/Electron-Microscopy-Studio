@@ -652,3 +652,18 @@ and 4DSTEM Studio's sidebar of parts.
 
 **Reverse it.** Draw `DiffractionSections.order(kind)` in `DiffractionRoomSettings` again and drop the parts section from
 `WorkspaceSidebar`; the door tool and the navigation field can stay unused.
+
+## 2026-11-25 — The Maps room: the map leads, the results trail, the picked point is an inset (#1064)
+
+**What.** The Maps room is one split: the map in the leading pane, the results (the colour key, Grains, Pole figures, ODF,
+Histogram) in the trailing pane at full height; no strip under them. The picked point is a small inset on the map, in the
+top-trailing corner opposite the scale bar: the Patterns room's pattern there when the map is on its scan, else the point's unit
+cell with its IPF colour and Euler angles. Display › Pattern inset hides it (`set_maps show_inset`); it is left out when the map is
+smaller than twice its side. Patterns and Indexing are unchanged.
+
+**Why.** Approved by Paul in the design review of 25 Nov 2026 (proposal A): half the room showed the raw pattern under the pointer
+while the results shared a short strip that cut the key, the pole figures and the ODF (#1060). Results beside the data they
+describe (design DNA 4), the pattern as context on the map.
+
+**What would reverse it.** A drive that needs the pattern large beside the map; then the Patterns room is where it is shown large.
+

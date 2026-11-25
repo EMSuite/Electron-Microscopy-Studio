@@ -2,7 +2,8 @@
 //  MapsRoomInspector.swift
 //  Role: the Maps room's inspector content, mounted by `WorkspaceInspector`'s Settings and Info switches, in the design's map-room order
 //        (orientation-maps-room.md §4): Maps (which result the map is, a Source pop-up when the room holds several, D-SEM-99, and which
-//        layer it draws), Phases (the phases with their colours and point groups), Display (a scalar layer's colormap, window and gamma),
+//        layer it draws), Phases (the phases with their colours and point groups), Display (a scalar layer's colormap, window and gamma, and
+//        whether the map carries the picked point's inset),
 //        Misorientation, Grains, Slip and Texture (`MapsRoomAnalysis.swift`), and Export (the map with its key, the grain table, the
 //        texture figure). Info: what the map is and how its colours are made (§5). Presentation only: the rows are `MapsRoomFormat`'s,
 //        the state `OrientationMapSession`'s.
@@ -65,9 +66,7 @@ struct MapsRoomSettings: View {
                     InspectorNote("A phase without a known point group has no IPF colours: its points are black.")
                 }
             }
-            if !session.layer.isColour {
-                ImageRoomDisplaySection(presentation: session.propertyPresentation, colormapID: "maps.colormap")
-            }
+            MapsDisplaySection(session: session, state: appState.mapsRoom)
             MapsMisorientationSection(session: session)
             MapsGrainsSection(session: session)
             MapsSlipSection(session: session)
@@ -86,6 +85,26 @@ struct MapsRoomSettings: View {
         case .phase: "Each point in its phase's colour, as orix's phase list gives it; not indexed points are white."
         case .property(let name): "The file's \(name) at every point, through the Display section's colormap."
         case .derived(let d): MapsRoomFormat.derivedNote(d, load: appState.maps.loadDirection)
+        }
+    }
+}
+
+/// Display: a scalar layer's colormap, window and gamma (the Image room's rows), and the picked point's inset on the map (#1064).
+struct MapsDisplaySection: View {
+    let session: OrientationMapSession
+    @Bindable var state: MapsRoomState
+
+    var body: some View {
+        InspectorSection("Display") {
+            if !session.layer.isColour {
+                ImageRoomDisplayRows(presentation: session.propertyPresentation, colormapID: "maps.colormap")
+            }
+            InspectorRow("Pattern inset") {
+                Toggle("Pattern inset", isOn: $state.showsPointInset)
+                    .toggleStyle(.switch).labelsHidden()
+                    .help("The picked point's pattern, or its unit cell for a map without patterns, in the map's top-right corner")
+                    .accessibilityIdentifier("maps.showInset")
+            }
         }
     }
 }

@@ -16,7 +16,7 @@ nonisolated final class MapsJourney: Journey {
         return !e.label.isEmpty ? e.label : ((e.value as? String) ?? "")
     }
 
-    /// The row and column the orientation pane's header ("Orientation · row 12 col 40") or the status line ("row 12 · col 40 · …") names;
+    /// The row and column the orientation inset's line ("row 12 col 40") or the status line ("row 12 · col 40 · …") names;
     /// nil when it names none.
     private static func position(in text: String) -> (row: Int, column: Int)? {
         guard let range = text.range(of: #"row \d+ (· )?col \d+"#, options: .regularExpression) else { return nil }
@@ -60,7 +60,8 @@ nonisolated final class MapsJourney: Journey {
             XCTAssertEqual(label("maps.orientation.title"), picked, "hovering moved the orientation pane")
             try requireFrontmost()
             app.typeKey(.rightArrow, modifierFlags: [])
-            let stepped = "Orientation · row \(at.row) col \(at.column + 1)"
+            // The inset's line names the point alone (#1064: "row 12 col 41"; the pane's header read "Orientation · row 12 col 41").
+            let stepped = "row \(at.row) col \(at.column + 1)"
             let moved = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in self.label("maps.orientation.title") == stepped }, object: nil)
             XCTAssertEqual(XCTWaiter().wait(for: [moved], timeout: 20), .completed, "never \(stepped); last \(label("maps.orientation.title"))")
         }

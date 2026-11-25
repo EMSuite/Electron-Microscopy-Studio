@@ -47,9 +47,10 @@ extension LayoutPolicy {
     static let mapsKeyLabelInset: CGFloat = 18
     /// The Maps room's bottom pane under the map: the keys' height plus their titles (rule 4).
     static let mapsKeyPaneMinimum: CGFloat = 140
-    /// A phase's colour square in the Maps room's legend and inspector, and the IPF colour swatch under the unit cell.
+    /// A phase's colour square in the Maps room's legend and inspector, and the IPF colour swatch on the unit cell.
     static let mapsPhaseSwatchSize: CGFloat = 12
-    static let mapsColourSwatchSize: CGFloat = 22
+    /// The picked point's inset on the Maps room's map (#1064): the pattern or the unit cell this wide, small enough to leave the map.
+    static let mapsInsetSide: CGFloat = 120
     /// The kinematical master pattern's picture in the Simulation section: wide enough to read its zone axes (rule 4).
     static let overlayMasterPictureWidth: CGFloat = 180
     /// One stereogram or ODF section in the Maps room's Pole figures and ODF tabs (its title and colour bar under it).

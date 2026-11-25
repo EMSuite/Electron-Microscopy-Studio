@@ -14,9 +14,9 @@ nonisolated final class ControlPlacementTests: XCTestCase {
 
     func testTheMapsTabsRunTheFullWidth() throws {
         let pane = try ui("MapsRoomAnalysis.swift")
-        let tabs = try XCTUnwrap(pane.components(separatedBy: "SegmentedControl(label: \"Bottom pane\"").last?.components(separatedBy: "maps.bottom.tabs").first)
+        let tabs = try XCTUnwrap(pane.components(separatedBy: "SegmentedControl(label: \"Results\"").last?.components(separatedBy: "maps.results.tabs").first)
         XCTAssertTrue(tabs.contains(".frame(maxWidth: .infinity)"))
-        XCTAssertFalse(pane.contains("Picker(\"Bottom pane\""), "a segmented Picker keeps its own width")
+        XCTAssertFalse(pane.contains("Picker(\"Results\""), "a segmented Picker keeps its own width")
     }
 
     func testThePatternsTilesAreButtons() throws {

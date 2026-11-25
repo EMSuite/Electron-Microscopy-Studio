@@ -1,15 +1,15 @@
 //
 //  MapsRoom.swift
-//  Role: the Maps room's first slice (docs/sem/design/orientation-maps-room.md §3, §6; brief P3-04): the map on the left (the layer the
+//  Role: the Maps room (docs/sem/design/orientation-maps-room.md §3, §6; brief P3-04; #1064): the map in the leading pane (the layer the
 //        inspector's Maps section picks: IPF-Z, IPF-X, IPF-Y, Phase or a property of the file, one pixel per scan point, the marker at the
-//        picked point, the scale bar from the step), on the right the live pattern pane when the map came with its patterns (the Patterns
-//        room's own pane, following the same point) or the orientation pane when it did not (the point's unit cell in the sample frame, its
-//        IPF colour and Euler angles), and the colour key in the bottom pane (each phase's TSL key for an IPF layer, the phase legend for
-//        Phase, the colour bar's range for a property). Presentation only: the pictures and words are `OrientationMaps`' (TEMCore), the
-//        state `OrientationMapSession`'s (TEMSession).
+//        picked point, the scale bar from the step) with the picked point as a small inset in its top-trailing corner, opposite the scale
+//        bar (the Patterns room's pattern there when the map came with its patterns, else the point's unit cell in the sample frame with
+//        its Euler angles; Display › Pattern inset hides it), and the results in the trailing pane at full height (`MapsResultsPane`:
+//        the colour key, Grains, Pole figures, ODF, Histogram). Presentation only: the pictures and words are `OrientationMaps`'
+//        (TEMCore), the state `OrientationMapSession`'s (TEMSession).
 //
 //  P5-04 completes it: Segment (the toolbar's verb) adds the grain analysis' layers (Grains, KAM, GOS, GND, Schmid factor), the boundaries
-//  and the selected grain's outline and slip traces over the map, and the bottom pane's Grains, Pole figures and ODF tabs beside the key
+//  and the selected grain's outline and slip traces over the map, and the Grains, Pole figures and ODF tabs beside the key
 //  (`MapsRoomAnalysis.swift`).
 //
 //  ⌘-click on the map adds the grain under the pointer to the selection, or takes it out (macTEM#239).
@@ -41,17 +41,10 @@ struct MapsRoom: View {
         return dataset
     }
 
+    /// The map with the picked point's inset: the pane the keys live on.
     private func upper(_ document: OrientationMapSession.Document) -> some View {
-        PaneSplit(storageKey: "maps.split", resizeLabel: "Resize the map and the pattern", leadingName: "Map") {
-            MapPane(session: appState.maps, state: appState.mapsRoom, patterns: patternsDataset.map { _ in appState.ebsd }, map: document.map,
-                    staleness: appState.mapsStaleness)
-        } trailing: {
-            if let dataset = patternsDataset {
-                LivePatternPane(session: appState.ebsd, state: appState.patternsRoom, dataset: dataset)
-            } else {
-                OrientationPane(session: appState.maps)
-            }
-        }
+        MapPane(session: appState.maps, state: appState.mapsRoom, patterns: patternsDataset.map { _ in appState.ebsd }, map: document.map,
+                staleness: appState.mapsStaleness)
     }
 
     var body: some View {
@@ -70,14 +63,15 @@ struct MapsRoom: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .accessibilityIdentifier("maps.opening")
             } else if let document = session.document {
-                VerticalPaneSplit(storageKey: "maps.lowerSplit", defaultFraction: 0.72, resizeLabel: "Resize the map and the colour key",
-                                  topName: "Map and pattern", minimumTop: 160, minimumBottom: LayoutPolicy.mapsKeyPaneMinimum) {
+                // The map leads; the results take the trailing pane at full height (#1064: in a strip under the map and the pattern they
+                // were cut). No bottom strip.
+                PaneSplit(storageKey: MapsRoomLayout.splitKey, resizeLabel: "Resize the map and the results", leadingName: "Map") {
                     upper(document)
-                        // The keys live on the map and the pattern; the Grains table below sits outside this focusable container,
-                        // so a click in it keeps the keyboard there (blue rows, ⌘C), as in the EELS room (#353).
+                        // The keys live on the map; the results beside it sit outside this focusable container, so a click in the Grains
+                        // table keeps the keyboard there (blue rows, ⌘C), as in the EELS room (#353).
                         .modifier(MapsKeyedRoom(session: session, patterns: patternsDataset.map { _ in appState.ebsd }))
-                } bottom: {
-                    MapsBottomPane(session: session, state: state)
+                } trailing: {
+                    MapsResultsPane(session: session, state: state)
                 }
                 .id(document.id)
             } else {
@@ -99,6 +93,28 @@ struct MapsRoom: View {
                       didWrite: { state.didWrite(to: $0) }, didFinish: { state.didFinishExport() })
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("maps.room")
+    }
+}
+
+// MARK: - The layout
+
+/// Where the Maps room puts what (#1064): the map in the leading pane, the results in the trailing pane at full height, nothing in a
+/// strip under them; the picked point's inset in the map's top-trailing corner, opposite the scale bar in the footer's leading corner.
+enum MapsRoomLayout {
+    /// What a place of the room holds.
+    enum Content: Equatable { case map, results }
+    static let leading = Content.map
+    static let trailing = Content.results
+    /// The strip under the panes: none.
+    static let bottom: Content? = nil
+    /// The split's stored fraction: its own key, so the old map | pattern fraction does not size the results.
+    static let splitKey = "maps.resultsSplit"
+    static let insetAlignment = Alignment.topTrailing
+    static let insetMargin: CGFloat = 6
+    /// Whether the map's box holds the inset with room to spare: at least twice its side each way, else the inset would hide the map.
+    static func fitsInset(in box: CGSize) -> Bool {
+        let side = LayoutPolicy.mapsInsetSide + 2 * insetMargin + 8
+        return box.width >= 2 * side && box.height >= 2 * side
     }
 }
 
@@ -232,6 +248,15 @@ struct MapPane: View {
             .zoomPanWheel(zoomModel, box: box)
             .zoomCommandTarget(zoomModel, isTarget: true)
 
+            // The picked point beside the data it belongs to, opposite the scale bar (#1064); it takes no clicks, so the map under it
+            // still picks.
+            if state.showsPointInset, MapsRoomLayout.fitsInset(in: box) {
+                MapsPointInset(session: session, patterns: patterns)
+                    .padding(MapsRoomLayout.insetMargin)
+                    .frame(width: box.width, height: box.height, alignment: MapsRoomLayout.insetAlignment)
+                    .allowsHitTesting(false)
+            }
+
             PaneFooter {
                 if map.dx > 0 {
                     ScaleBar(unitsPerPoint: ImageScaleBar.unitsPerPoint(perPixel: map.dx, imageWidth: shape.columns, boxWidth: box.width, zoom: zp.drawZoom),
@@ -283,64 +308,92 @@ struct MapPane: View {
     }
 }
 
-// MARK: - The orientation pane
+// MARK: - The picked point's inset
 
-/// For a map without patterns (design §3): the picked point's unit cell in the sample frame seen down z (x to the right, y down, as the
-/// map), its IPF colour, phase and Euler angles.
-struct OrientationPane: View {
+/// The picked point as a small inset on the map (#1064; before, half the room): the pattern there as the Patterns room shows it when the
+/// map came with its patterns, else (design §3) the point's unit cell in the sample frame seen down z (x to the right, y down, as the
+/// map) with its IPF colour, phase and Euler angles.
+struct MapsPointInset: View {
+    /// What `OrientationMapSession.orientation(at:)` gives for an indexed point.
+    typealias PointOrientation = (phase: CrystalPhase, euler: SIMD3<Double>, rotation: SIMD4<Double>, rgb: SIMD3<Double>, direction: SampleDirection)
+
     let session: OrientationMapSession
+    /// The Patterns room's session when the map is on its scan.
+    let patterns: EBSDSession?
 
     var body: some View {
         let point = session.pinned
-        let found = session.orientation(at: point)
-        VStack(spacing: 6) {
-            HStack(spacing: 8) {
-                Text(verbatim: "Orientation · row \(point.row) col \(point.column)")
-                    .font(.headline).lineLimit(1)
-                    .accessibilityIdentifier("maps.orientation.title")
-                Spacer(minLength: 8)
-            }
-            .frame(height: LayoutPolicy.paneHeaderHeight)
-            if let found {
-                let edges = OrientationMaps.unitCellEdges(phase: found.phase, rotation: found.rotation)
-                Canvas { context, size in
-                    let side = min(size.width, size.height) * 0.42
-                    let centre = CGPoint(x: size.width / 2, y: size.height / 2)
-                    // Far edges first and fainter, so the cell reads in depth (z into the sample is away from the viewer).
-                    for (a, b) in edges.sorted(by: { $0.0.z + $0.1.z > $1.0.z + $1.1.z }) {
-                        var path = Path()
-                        path.move(to: CGPoint(x: centre.x + a.x * side, y: centre.y + a.y * side))
-                        path.addLine(to: CGPoint(x: centre.x + b.x * side, y: centre.y + b.y * side))
-                        let depth = (a.z + b.z) / 2
-                        context.stroke(path, with: .color(.primary.opacity(depth > 0 ? 0.35 : 0.9)), lineWidth: depth > 0 ? 1 : 2)
-                    }
-                }
-                .accessibilityLabel("Unit cell of \(found.phase.name) in the sample frame")
-                .accessibilityIdentifier("maps.orientation.cell")
-                HStack(spacing: 10) {
-                    RoundedRectangle(cornerRadius: 3)
-                        .fill(Color(red: found.rgb.x, green: found.rgb.y, blue: found.rgb.z))
-                        .frame(width: LayoutPolicy.mapsColourSwatchSize, height: LayoutPolicy.mapsColourSwatchSize)
-                        .accessibilityHidden(true)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(verbatim: "\(found.phase.name) · \(found.phase.pointGroupName ?? "no point group") · IPF-\(found.direction.rawValue.uppercased())")
-                            .font(.callout)
-                        // The angles' symbols are said in words (`SEMColumnSpeech`, #320); what is drawn is unchanged.
-                        let euler = MapsRoomFormat.eulerValues(found.euler)
-                        Text(verbatim: MapsRoomFormat.eulerLine(euler)).font(.callout.monospacedDigit()).foregroundStyle(.secondary)
-                            .accessibilityLabel(SEMColumnSpeech.spokenEuler(euler))
-                    }
-                    Spacer(minLength: 0)
-                }
-                .accessibilityElement(children: .combine)
-                .accessibilityIdentifier("maps.orientation.values")
+        let side = LayoutPolicy.mapsInsetSide
+        VStack(alignment: .leading, spacing: 3) {
+            if let patterns {
+                pattern(patterns, side: side)
+                Text(verbatim: "row \(point.row) · col \(point.column)").font(.caption2.monospacedDigit()).foregroundStyle(.secondary)
             } else {
-                Text("No indexed point here").foregroundStyle(.secondary).frame(maxWidth: .infinity, maxHeight: .infinity)
+                Text(verbatim: "row \(point.row) col \(point.column)").font(.caption2.monospacedDigit()).foregroundStyle(.secondary)
+                    .accessibilityIdentifier("maps.orientation.title")
+                if let found = session.orientation(at: point) {
+                    cell(found, side: side)
+                    // The angles' symbols are said in words (`SEMColumnSpeech`, #320); what is drawn is unchanged.
+                    let euler = MapsRoomFormat.eulerValues(found.euler)
+                    Text(verbatim: MapsRoomFormat.eulerLine(euler)).font(.caption2.monospacedDigit()).foregroundStyle(.secondary)
+                        .lineLimit(1).minimumScaleFactor(0.8)
+                        .accessibilityLabel(SEMColumnSpeech.spokenEuler(euler))
+                        .accessibilityIdentifier("maps.orientation.values")
+                } else {
+                    Text("No indexed point here").font(.caption2).foregroundStyle(.secondary)
+                        .frame(width: side, height: side)
+                }
             }
         }
-        .padding(8)
+        .frame(width: side, alignment: .leading)
+        .padding(4)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 4))
         .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("maps.orientation")
+        .accessibilityLabel(patterns == nil ? "Orientation at the picked point" : "Pattern at the picked point")
+        .accessibilityIdentifier("maps.inset")
+    }
+
+    /// The Patterns room's pattern at the point, through its own Display (colormap, window, gamma).
+    @ViewBuilder private func pattern(_ patterns: EBSDSession, side: CGFloat) -> some View {
+        let presentation = patterns.patternPresentation
+        if let canvas = presentation.canvas, canvas.width > 0, canvas.height > 0 {
+            let box = LayoutPolicy.fitted(in: CGSize(width: side, height: side), aspect: CGFloat(canvas.width) / CGFloat(canvas.height))
+            MetalImageView(pixels: canvas.values, width: canvas.width, height: canvas.height, contentVersion: canvas.contentVersion,
+                           colormap: presentation.colormap, displayLo: presentation.displayFractions.low,
+                           displayHi: presentation.displayFractions.high, gamma: Float(presentation.gamma), pixelScale: canvas.scale)
+                .displayTransform(.identity(box))
+                .frame(width: box.width, height: box.height)
+                .frame(width: side, height: side)
+                .accessibilityIdentifier("maps.inset.pattern")
+        } else {
+            Rectangle().fill(.quaternary).frame(width: side, height: side)
+        }
+    }
+
+    /// The unit cell of the point's phase in the sample frame, far edges first and fainter, beside its IPF colour.
+    private func cell(_ found: PointOrientation, side: CGFloat) -> some View {
+        let edges = OrientationMaps.unitCellEdges(phase: found.phase, rotation: found.rotation)
+        return Canvas { context, size in
+            let scale = min(size.width, size.height) * 0.42
+            let centre = CGPoint(x: size.width / 2, y: size.height / 2)
+            // Far edges first and fainter, so the cell reads in depth (z into the sample is away from the viewer).
+            for (a, b) in edges.sorted(by: { $0.0.z + $0.1.z > $1.0.z + $1.1.z }) {
+                var path = Path()
+                path.move(to: CGPoint(x: centre.x + a.x * scale, y: centre.y + a.y * scale))
+                path.addLine(to: CGPoint(x: centre.x + b.x * scale, y: centre.y + b.y * scale))
+                let depth = (a.z + b.z) / 2
+                context.stroke(path, with: .color(.primary.opacity(depth > 0 ? 0.35 : 0.9)), lineWidth: depth > 0 ? 1 : 2)
+            }
+        }
+        .frame(width: side, height: side)
+        .overlay(alignment: .topLeading) {
+            RoundedRectangle(cornerRadius: 2)
+                .fill(Color(red: found.rgb.x, green: found.rgb.y, blue: found.rgb.z))
+                .frame(width: LayoutPolicy.mapsPhaseSwatchSize, height: LayoutPolicy.mapsPhaseSwatchSize)
+                .accessibilityHidden(true)
+        }
+        .accessibilityLabel("Unit cell of \(found.phase.name) in the sample frame, IPF-\(found.direction.rawValue.uppercased())")
+        .accessibilityIdentifier("maps.orientation.cell")
     }
 }
 

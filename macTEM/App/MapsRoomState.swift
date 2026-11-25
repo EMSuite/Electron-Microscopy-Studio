@@ -3,7 +3,7 @@
 //  Role: the Maps room's own view state (the import request, the status line's readout, the export in flight) and its words
 //        (`MapsRoomFormat`) and figure (`MapsFigure`: the map with its colour key or phase legend and a scale bar, as one PNG). The room's
 //        facts are `OrientationMapSession`'s (TEMSession); the pictures and the hover's words `OrientationMaps`' (TEMCore). Window-wide,
-//        not saved; composed by `AppState` as `PatternsRoomState` is. P5-04 adds the bottom pane's tab, the grain table as CSV and the
+//        not saved; composed by `AppState` as `PatternsRoomState` is. P5-04 adds the results pane's tab, the grain table as CSV and the
 //        texture figures as one PNG.
 //
 
@@ -30,8 +30,10 @@ final class MapsRoomState {
     private(set) var exportName = ""
     /// What the save panel writes: the map figure or the texture figure (PNG) or the grain table (CSV).
     private(set) var exportType = UTType.png
-    /// The bottom pane's tab.
-    var bottomTab = MapsBottomTab.key
+    /// The results pane's tab (the trailing pane, #1064).
+    var resultsTab = MapsResultsTab.key
+    /// Whether the map carries the picked point's inset (Display › Pattern inset, #1064).
+    var showsPointInset = true
     /// What the Histogram tab counts.
     var histogramKind = MapAnalysis.HistogramKind.kam
     /// The export the save panel is writing, as the session record keeps it once the panel says where (`didWrite`).
