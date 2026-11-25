@@ -2,7 +2,7 @@
 //  FFTSpectrumImagePane.swift
 //  Role: the FFT room's right pane: the centred power spectrum of the region (or the whole image) drawn
 //        at its PHYSICAL aspect, the measured spots numbered on it and, while the masked inverse is shown, the mask's
-//        circles. Built as `ImagePane` is (single-line header, `GeometryReader` + `LayoutPolicy.fitted`, the shader's
+//        circles. Built as `ImagePane` is (the frame's `CentrePanel` header, `GeometryReader` + `LayoutPolicy.fitted`, the shader's
 //        `MetalDisplayTransform` with a pane-sized drawable, a `Canvas` over it mapped through `MarkGeometry`, `ZoomPan`,
 //        a `PaneFooter` outside the zoomed container). The spectrum, its bins and its values are TEMCore's and the
 //        owner's (`FFTAnalysis`); this file maps, draws and takes the click.
@@ -523,8 +523,9 @@ struct FFTSpectrumImagePane: View {
         let spectrum = analysis.spectrum
         let failure = analysis.spectrumFailure
         let isUpdating = FFTPaneFormat.isUpdating(hasSpectrum: spectrum != nil, isCurrent: analysis.isSpectrumCurrent)
-        VStack(spacing: 6) {
-            header(spectrum, isUpdating: isUpdating)
+        // The frame's panel (`CentrePanel`): its header is "FFT", what it is of in the readout slot and "Updating…" with its
+        // spinner at the right.
+        CentrePanel(title: "FFT") {
             GeometryReader { geometry in
                 Group {
                     if let spectrum, failure == nil {
@@ -535,9 +536,11 @@ struct FFTSpectrumImagePane: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
+        } controls: {
+            headerIndicator(isUpdating)
+        } readout: {
+            subjectText(spectrum.map { FFTPaneFormat.subject(crop: $0.key.crop, width: $0.width, height: $0.height) })
         }
-        .padding(8)
-        .clipped()
         .modifier(FFTPanePress(pane: .spectrum, keyPane: $keyPane))
         // View > Zoom acts on the pane pressed last, this one until a pane is pressed, and only on a spectrum that is drawn.
         .zoomCommandTarget(zoomModel, isTarget: FFTZoomTarget.isTarget(pane: .spectrum, lastClicked: keyPane,
@@ -563,45 +566,21 @@ struct FFTSpectrumImagePane: View {
 
     // MARK: Header
 
-    /// Single-line on purpose. Three layouts, the first that fits wins: "FFT", what it is of and "Updating…" with its
-    /// spinner; the same with the spinner alone; the title and the subject (which truncates). The indicator keeps its
-    /// place when it is not shown (opacity, not `if`), so the header never reflows as a result lands.
-    private func header(_ spectrum: FFTSpectrumProduct?, isUpdating: Bool) -> some View {
-        let subject = spectrum.map { FFTPaneFormat.subject(crop: $0.key.crop, width: $0.width, height: $0.height) }
-        return ViewThatFits(in: .horizontal) {
-            HStack(spacing: 8) {
-                title
-                subjectText(subject).fixedSize()
-                Spacer(minLength: 8)
-                indicator(isUpdating, withWords: true)
-            }
-            HStack(spacing: 8) {
-                title
-                subjectText(subject).fixedSize()
-                Spacer(minLength: 8)
-                indicator(isUpdating, withWords: false)
-            }
-            HStack(spacing: 8) {
-                title
-                subjectText(subject).layoutPriority(-1)
-                Spacer(minLength: 0)
-                indicator(isUpdating, withWords: false)
-            }
+    /// The header's right end: "Updating…" and its spinner, or the spinner alone when the words do not fit. The indicator
+    /// keeps its place when it is not shown (opacity, not `if`), so the header never reflows as a result lands. What the
+    /// spectrum is of is the readout (`subjectText`), which gives way first (`CentrePanel`).
+    private func headerIndicator(_ isUpdating: Bool) -> some View {
+        ViewThatFits(in: .horizontal) {
+            indicator(isUpdating, withWords: true)
+            indicator(isUpdating, withWords: false)
         }
-        .frame(height: LayoutPolicy.paneHeaderHeight)
     }
 
-    private var title: some View {
-        Text("FFT").font(.headline).lineLimit(1)
-    }
-
+    /// What the spectrum is of ("whole image W × H px"); `CentrePanel` sets it in the caption, secondary, on one line.
     @ViewBuilder
     private func subjectText(_ subject: String?) -> some View {
         if let subject {
             Text(subject)
-                .font(.caption.monospacedDigit())
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
                 .truncationMode(.tail)
         }
     }

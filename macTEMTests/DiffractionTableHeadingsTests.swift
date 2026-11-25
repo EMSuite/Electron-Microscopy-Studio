@@ -2,7 +2,8 @@
 //  DiffractionTableHeadingsTests.swift
 //  The Diffraction room's two tables in one heading style (#1041, HIG Lists and tables: nouns with title-style capitalization):
 //  words capitalized, symbols in their own case, the unit in parentheses; an empty table shows its hint on the plain background (no
-//  stripes under it); the strip under the pattern shows eight rows.
+//  stripes under it); the table shows eight rows (a pane of the shell's bottom area since #1094, at the area's ideal height in a
+//  1400 × 876 window).
 //  Red before: the Readout table read "R px · family · d listed · odds · verdict" beside the Spots table's "Spot · d expected · Phase";
 //  an empty table drew its stripes under the hint; the strip was 170 pt, four and a half rows.
 //
@@ -41,10 +42,18 @@ nonisolated final class DiffractionTableHeadingsTests: XCTestCase {
         XCTAssertEqual(room.components(separatedBy: stripes).count - 1, 2, "the Readout and the Spots table")
     }
 
-    @MainActor func testTheStripShowsEightRows() {
+    /// The table is a pane of the bottom area with no header of its own (the infobar's toggle names it), so the area at its ideal
+    /// share of a 1400 × 876 window's column (the toolbar, 52 pt, and the infobar off) holds the table's header and eight rows.
+    /// Mutation: a header row over the table, or the area at its floor (140 pt, four and a half rows).
+    @MainActor func testTheTableShowsEightRows() throws {
         XCTAssertGreaterThanOrEqual(LayoutPolicy.diffractionTableRows, 8)
-        let eight = LayoutPolicy.paneHeaderHeight + 1 + LayoutPolicy.diffractionTableHeaderHeight + 8 * LayoutPolicy.diffractionTableRowHeight
-        XCTAssertGreaterThanOrEqual(LayoutPolicy.diffractionReadoutHeight, eight)
-        XCTAssertGreaterThan(LayoutPolicy.diffractionReadoutHeight, 170, "four and a half rows before")
+        let eight = LayoutPolicy.diffractionTableHeaderHeight + 8 * LayoutPolicy.diffractionTableRowHeight
+        let column: CGFloat = 876 - 52 - LayoutPolicy.statusStripHeight
+        let area = ProcessAreaLayout.heights(fraction: LayoutPolicy.processAreaIdealFraction, available: column).process
+        XCTAssertGreaterThanOrEqual(area, eight, "the bottom area: \(area) pt")
+        XCTAssertLessThan(LayoutPolicy.processAreaMinimumHeight, eight, "at its floor the area shows fewer: the ideal is what holds eight")
+        let room = try source("macTEM/UI/DiffractionRoom.swift")
+        XCTAssertFalse(room.contains("ProcessPaneHeader("), "no header row over a table")
+        XCTAssertFalse(room.contains("diffractionReadoutHeight"), "no fixed strip")
     }
 }

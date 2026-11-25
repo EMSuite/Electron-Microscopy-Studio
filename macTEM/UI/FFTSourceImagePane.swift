@@ -2,7 +2,8 @@
 //  FFTSourceImagePane.swift
 //  Role: the FFT room's left pane: the file as the Image room draws it with the region transformed
 //        outlined on it, or the transformed pixels alone, or a product of them (the masked inverse, ABSF, Wiener) —
-//        one picture at a time, chosen by the header's View menu. The structure is `ImagePane`'s: a single-line header,
+//        one picture at a time, chosen by the inspector's View row. The structure is `ImagePane`'s: the frame's
+//        panel header (`CentrePanel`: the file's name, the size shown, the filtering spinner),
 //        a `GeometryReader` letterboxing with `LayoutPolicy.fitted`, one zoom (`ZoomPan`) applied by the shader
 //        (`MetalDisplayTransform`, a pane-sized untransformed drawable) and, to the overlays, through `MarkGeometry`, and
 //        a `PaneFooter` OUTSIDE the zoomed container so the bar keeps its size and corner at any zoom.
@@ -409,8 +410,9 @@ struct FFTSourceImagePane: View {
                                         inverse: view == .maskedInverse ? analysis.maskedInverse : nil,
                                         filtered: view == .absf || view == .wiener ? analysis.filtered : nil,
                                         strain: view.strainComponent != nil ? analysis.strain : nil)
-        VStack(spacing: 6) {
-            header(layer)
+        // The frame's panel (`CentrePanel`): its header is the file's name, the size of what is shown in the readout slot and
+        // the filtering spinner at the right; words and status only, the View picker is the inspector's Display row (#629).
+        CentrePanel(title: image.fileName) {
             GeometryReader { geometry in
                 Group {
                     if let layer {
@@ -421,9 +423,11 @@ struct FFTSourceImagePane: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
+        } controls: {
+            FFTFilteringIndicator(analysis: analysis)
+        } readout: {
+            size(layer)
         }
-        .padding(8)
-        .clipped()
         .modifier(FFTPanePress(pane: .source, keyPane: $keyPane))
         // View > Zoom acts on the pane pressed last (the transform until a pane is pressed), and only on a picture that is drawn.
         .zoomCommandTarget(zoomModel, isTarget: FFTZoomTarget.isTarget(pane: .source, lastClicked: keyPane, hasPicture: layer != nil))
@@ -440,41 +444,13 @@ struct FFTSourceImagePane: View {
 
     // MARK: Header
 
-    /// Single-line on purpose (the constraint-loop rule: nothing inside a split may change its own minimum). Two
-    /// layouts, the first that fits wins: the title, the filtering spinner and the size, or the title (which truncates)
-    /// and the spinner. Words and status only: the View picker is the inspector's Display row (#629).
-    private func header(_ layer: FFTSourceLayer?) -> some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: 8) {
-                title
-                Spacer(minLength: 8)
-                FFTFilteringIndicator(analysis: analysis)
-                size(layer)
-            }
-            HStack(spacing: 8) {
-                title
-                Spacer(minLength: 8)
-                FFTFilteringIndicator(analysis: analysis)
-            }
-        }
-        .frame(height: LayoutPolicy.paneHeaderHeight)
-    }
-
-    private var title: some View {
-        Text(image.fileName)
-            .font(.headline)
-            .lineLimit(1)
-            .truncationMode(.middle)
-            .layoutPriority(-1)
-    }
-
+    /// The header's readout: the columns × rows of what is shown. `CentrePanel` sets it in the caption, secondary, on one
+    /// line, and it gives way (shortens, then goes) before the spinner moves, as the narrow header dropped it before.
     private func size(_ layer: FFTSourceLayer?) -> some View {
         let shown = layer?.canvas
-        return Text(verbatim: "\(shown?.width ?? image.width) × \(shown?.height ?? image.height)")
-            .help("Columns × rows, in pixels")
-            .font(.caption.monospaced())
-            .foregroundStyle(.secondary)
-            .fixedSize()
+        let width = shown?.width ?? image.width, height = shown?.height ?? image.height
+        return Text(verbatim: "\(width) × \(height)")
+            .accessibilityLabel("\(width) columns × \(height) rows, in pixels")
     }
 
     // MARK: Body

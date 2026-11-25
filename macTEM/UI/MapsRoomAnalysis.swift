@@ -1,8 +1,9 @@
 //
 //  MapsRoomAnalysis.swift
 //  Role: what the Maps room shows of its grain analysis and texture (docs/sem/design/orientation-maps-room.md §3-§4, brief P5-04): the
-//        boundaries, the selected grain's outline and its slip traces over the map; the results pane's tabs beside the map (Grains,
-//        Pole figures, ODF, Histogram; #1064, #1065); and the inspector's Misorientation, Grains, Slip and Texture sections. Presentation only: the numbers are `MapAnalysis` and
+//        boundaries, the selected grain's outline and its slip traces over the map; the Detail panel beside the map (the picked point
+//        with the colour key, Pole figures, ODF, Histogram; #1089); the Grains and Slip tables, panes of the shell's bottom area (#1095);
+//        and the inspector's Misorientation, Grains, Slip and Texture sections. Presentation only: the numbers are `MapAnalysis` and
 //        `MapTexture`'s (TEMCore), the state `OrientationMapSession`'s (TEMSession), the words `MapsRoomFormat`'s.
 //
 
@@ -17,7 +18,9 @@ import TEMSession
 // MARK: - The overlay on the map
 
 /// Grain boundaries (white), phase boundaries (black), the selected grain's outline (the accent colour) and its slip traces through its
-/// centroid (each plane in DefDAP's trace colour), drawn in the map's own pixel coordinates through the pane's zoom.
+/// centroid (each plane in DefDAP's trace colour), drawn in the map's own pixel coordinates through the pane's zoom. The traces carry no
+/// labels on the map (#1095: a grain's thirty plates piled over the map's corner): the Slip table names each plane with its trace's
+/// angle and colour, which tell the lines apart without the colours too (#799).
 struct MapsAnalysisOverlay: View {
     let session: OrientationMapSession
     let geometry: MarkGeometry
@@ -27,7 +30,7 @@ struct MapsAnalysisOverlay: View {
     var body: some View {
         let high = contrast == .increased
         let boundary = OverlaySignal.width(LayoutPolicy.mapsBoundaryLineWidth, increasedContrast: high)
-        Canvas { context, size in
+        Canvas { context, _ in
             if session.showsBoundaries {
                 // A phase boundary is wider as well as black (#799).
                 context.stroke(path(session.grainBoundaryEdges), with: .color(.white.opacity(0.9)),
@@ -41,34 +44,13 @@ struct MapsAnalysisOverlay: View {
             }
             if session.showsSlipTraces, let row = session.selectedRow, let slip = session.selectedSlip {
                 let half = max(3, (Double(row.points)).squareRoot() / 2)
-                let planes = slip.planes.filter { $0.traceAngle.isFinite }
-                var ends: [(CGPoint, CGPoint)] = []
-                for plane in planes {
+                for plane in slip.planes where plane.traceAngle.isFinite {
                     let d = MapsRoomFormat.traceDirection(plane.traceAngle) * half
-                    let start = geometry.panePoint(of: ImagePoint(x: row.centroid.x - d.x, y: row.centroid.y - d.y))
-                    let end = geometry.panePoint(of: ImagePoint(x: row.centroid.x + d.x, y: row.centroid.y + d.y))
-                    ends.append((start, end))
                     var p = Path()
-                    p.move(to: start)
-                    p.addLine(to: end)
+                    p.move(to: geometry.panePoint(of: ImagePoint(x: row.centroid.x - d.x, y: row.centroid.y - d.y)))
+                    p.addLine(to: geometry.panePoint(of: ImagePoint(x: row.centroid.x + d.x, y: row.centroid.y + d.y)))
                     context.stroke(p, with: .color(Self.traceColour(plane.colour)),
                                    lineWidth: OverlaySignal.width(LayoutPolicy.mapsTraceLineWidth, increasedContrast: high))
-                }
-                // Each trace names its plane beside it, so the traces are told apart without their colours (#799); the plates are
-                // placed one by one inside the map, clear of each other and of the picked point's marker (#1059: a grain in the
-                // corner piled them on one point).
-                let words = planes.map { context.resolve(Text($0.label).font(.caption.monospacedDigit()).foregroundStyle(.white)) }
-                let plates = words.map { word -> CGSize in
-                    let measured = word.measure(in: CGSize(width: 200, height: 40))
-                    return CGSize(width: measured.width + 6, height: measured.height + 2)
-                }
-                let spots = zip(ends, plates).map { EBSDOverlayLabels.traceSpots(from: $0.0.0, to: $0.0.1, size: $0.1) }
-                let marker = geometry.panePoint(of: ImagePoint(x: Double(session.pinned.column), y: Double(session.pinned.row)))
-                let side = SEMScanMarker.handleDiameter
-                let clear = CGRect(x: marker.x - side / 2, y: marker.y - side / 2, width: side, height: side)
-                for placed in EBSDOverlayLabels.place(sizes: plates, spots: spots, in: CGRect(origin: .zero, size: size), avoiding: [clear]) {
-                    context.fill(Path(roundedRect: placed.frame, cornerRadius: 3), with: .color(.black.opacity(0.65)))
-                    context.draw(words[placed.index], at: CGPoint(x: placed.frame.midX, y: placed.frame.midY))
                 }
             }
         }
@@ -122,41 +104,34 @@ struct MapsAnalysisOverlay: View {
     }
 }
 
-// MARK: - The results pane
+// MARK: - The Detail panel
 
-/// The results pane's tabs (design §3; the trailing pane at full height since #1064): the grain table, the pole figures with the IPF
-/// density, the ODF sections, the histogram. The colour key is on the map (#1065).
-enum MapsResultsTab: String, CaseIterable, Identifiable {
-    case grains = "Grains"
-    case poleFigures = "Pole figures"
-    case odf = "ODF"
-    case histogram = "Histogram"
-    var id: String { rawValue }
-}
-
-struct MapsResultsPane: View {
+/// The Detail panel's content, the centre's trailing panel (#1089, #1095): the pictures that sat on the map (the picked point, the
+/// colour key) and the results pane's pictures (pole figures with the IPF density, ODF sections, histogram), one at a time behind the
+/// panel's tabs (`MapsDetailTab`). The Grains table and the slip planes are tables of the bottom area (`MapsTablePane`).
+struct MapsDetailPane: View {
     let session: OrientationMapSession
     @Bindable var state: MapsRoomState
+    /// The Patterns room's session when the map is on its scan: the Point tab shows its pattern.
+    let patterns: EBSDSession?
 
     var body: some View {
-        VStack(spacing: 0) {
+        VStack(spacing: 6) {
             HStack {
                 // Full width, as every segmented control (control-placement §3, #629): MacEMUI's `SegmentedControl`, because a
                 // segmented `Picker` keeps its own width whatever frame it is given (the drive of 16 Nov saw it stay 480 pt and centred).
                 // Alone in its row, so the tabs keep their width whichever is chosen (#1060): a tab's one choice (the histogram's
                 // kind, the texture's phase) is on that tab's own header line.
-                SegmentedControl(label: "Results", segments: MapsResultsTab.allCases.map { .title($0.rawValue) },
-                                 selection: Binding(get: { MapsResultsTab.allCases.firstIndex(of: state.resultsTab) ?? 0 },
-                                                    set: { if MapsResultsTab.allCases.indices.contains($0) { state.resultsTab = MapsResultsTab.allCases[$0] } }))
+                SegmentedControl(label: "Detail", segments: MapsDetailTab.allCases.map { .title($0.rawValue) },
+                                 selection: Binding(get: { MapsDetailTab.allCases.firstIndex(of: state.detailTab) ?? 0 },
+                                                    set: { if MapsDetailTab.allCases.indices.contains($0) { state.detailTab = MapsDetailTab.allCases[$0] } }))
                     .frame(maxWidth: .infinity)
                     .accessibilityIdentifier("maps.results.tabs")
             }
-            .padding(.horizontal, 10)
-            .padding(.top, 6)
             .fixedSize(horizontal: false, vertical: true)
             Group {
-                switch state.resultsTab {
-                case .grains: MapsGrainsTable(session: session)
+                switch state.detailTab {
+                case .point: MapsPointTab(session: session, patterns: patterns)
                 case .poleFigures: MapsTextureFigures(session: session, odf: false)
                 case .odf: MapsTextureFigures(session: session, odf: true)
                 case .histogram: MapsHistogramPane(session: session, state: state)
@@ -164,11 +139,26 @@ struct MapsResultsPane: View {
             }
             .frame(maxWidth: .infinity, minHeight: 0, maxHeight: .infinity, alignment: .topLeading)   // science: the figures fit (#1060)
         }
-        // The tabs stay at the top of the pane whatever its height: centred, they moved with each tab's content and, with the Output pane
+        // The tabs stay at the top of the panel whatever its height: centred, they moved with each tab's content and, with the Output pane
         // open, a figure taller than the pane pushed them out of view (drive 2026-11-08). The minimum height of 0 keeps a tall figure from
-        // moving the split; the texture figures size themselves to the pane (`MapsTextureLayout`, #1060).
+        // moving the split; the texture figures size themselves to the panel (`MapsTextureLayout`, #1060).
         .frame(maxWidth: .infinity, minHeight: 0, maxHeight: .infinity, alignment: .top)   // science: no minimum, never a size
         .clipped()
+    }
+}
+
+// MARK: - The tables in the bottom area
+
+/// A table of the room as a pane of the shell's bottom area beside Output (#1095), supplied by `WorkspaceView` while the room shows a map.
+struct MapsTablePane: View {
+    let table: MapsTable
+    @Environment(AppState.self) private var appState
+
+    var body: some View {
+        switch table {
+        case .grains: MapsGrainsTable(session: appState.maps)
+        case .slip: MapsSlipTable(session: appState.maps)
+        }
     }
 }
 
@@ -246,7 +236,6 @@ struct MapsGrainsTable: View {
                         personPicked = false
                     }
                     .accessibilityIdentifier("maps.grains.table")
-                    MapsGrainSlipRows(session: session)
                 }
                 .padding(10)
             } else {
@@ -274,34 +263,96 @@ struct MapsGrainsTable: View {
     }
 }
 
-/// The picked grain's slip planes under the Grains table (#1066: results in the room, not the inspector): each plane's Schmid factor,
-/// trace and inclination, beside a swatch in its trace's colour on the map. Nothing while no grain is picked.
-struct MapsGrainSlipRows: View {
-    let session: OrientationMapSession
+/// One slip plane of the picked grain, a row of the Slip table: the numbers and words `MapsRoomFormat.planeText` writes in one line,
+/// one per column. `id` is the plane's place in DefDAP's list, the table's first order.
+nonisolated struct MapsSlipRow: Identifiable, Equatable, Sendable {
+    let id: Int
+    /// "(111)".
+    let plane: String
+    /// DefDAP's trace colour name, as the map draws the trace.
+    let colour: String
+    let schmid: Double
+    /// Degrees from the map's +y axis, counter-clockwise; NaN for a plane parallel to the map (no trace).
+    let traceDegrees: Double
+    /// Degrees between the plane and the map plane.
+    let inclinationDegrees: Double
 
-    var body: some View {
-        if let row = session.selectedRow, let slip = session.selectedSlip {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(verbatim: "Slip in grain \(row.id) · \(row.phaseName)")
-                    .font(.caption).foregroundStyle(.secondary)
-                ForEach(Array(slip.planes.enumerated()), id: \.offset) { index, plane in
-                    HStack(spacing: 6) {
-                        RoundedRectangle(cornerRadius: 2)
-                            .fill(MapsAnalysisOverlay.traceColour(plane.colour))
-                            .frame(width: LayoutPolicy.regionSwatchSize, height: LayoutPolicy.regionSwatchSize)
-                            .accessibilityHidden(true)
-                        Text(verbatim: plane.label).font(.caption.monospaced())
-                        Text(verbatim: MapsRoomFormat.planeText(plane)).font(.caption.monospacedDigit())
-                            .lineLimit(1).truncationMode(.tail)
-                    }
-                    .accessibilityElement(children: .combine)
-                    .accessibilityIdentifier("maps.grains.slip.\(index)")
-                }
-            }
-            .accessibilityElement(children: .contain)
-            .accessibilityIdentifier("maps.grains.slip")
+    /// The trace's order in a sort: a plane with no trace after every angle.
+    var traceOrder: Double { traceDegrees.isFinite ? traceDegrees : .infinity }
+    var colourWord: String { MapsRoomFormat.colourWord(colour) }
+
+    /// The grain's planes in DefDAP's order, in degrees as `MapsRoomFormat.traceText` and `planeText` convert them.
+    static func rows(_ slip: GrainSlip) -> [MapsSlipRow] {
+        slip.planes.enumerated().map { index, plane in
+            MapsSlipRow(id: index, plane: plane.label, colour: plane.colour, schmid: plane.schmid,
+                        traceDegrees: plane.traceAngle * 180 / .pi, inclinationDegrees: plane.inclination * 180 / .pi)
         }
     }
+
+    /// The Trace cell: "132", or "no trace" for a plane parallel to the map, as `traceText` says it.
+    func traceText(locale: Locale = .autoupdatingCurrent) -> String {
+        traceDegrees.isFinite ? MapsRoomFormat.angle(traceDegrees, digits: 0, locale: locale) : "no trace"
+    }
+}
+
+/// The picked grain's slip planes as a table of the bottom area (#1095; under the Grains table as about thirty lines of text before, and
+/// in the inspector before #1066): per plane a swatch in its trace's colour on the map with the plane, the largest Schmid factor of its
+/// systems, the trace's angle and colour, and the inclination, each in `planeText`'s format; sortable by every column. One line says
+/// why there is nothing to list.
+struct MapsSlipTable: View {
+    let session: OrientationMapSession
+    @State private var sortOrder = [KeyPathComparator(\MapsSlipRow.id)]
+    @State private var rows: [MapsSlipRow] = []
+
+    /// The line in place of the table: Segment first, then a grain to pick, then a phase with no slip systems chosen.
+    static func emptyLine(segmented: Bool, picked: Bool) -> String {
+        if !segmented { return "Segment the map, then pick a grain for its slip systems." }
+        if !picked { return "Pick a grain on the map or in the Grains table for its slip systems." }
+        return "No slip systems for this grain's phase: choose them in the inspector's Slip section."
+    }
+
+    var body: some View {
+        Group {
+            if let row = session.selectedRow, let slip = session.selectedSlip {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(verbatim: "Slip in grain \(row.id) · \(row.phaseName)")
+                        .font(.caption).foregroundStyle(.secondary)
+                        .accessibilityIdentifier("maps.slip.title")
+                    Table(rows, sortOrder: $sortOrder) {
+                        TableColumn("Plane", value: \.id) { plane in
+                            HStack(spacing: 6) {
+                                RoundedRectangle(cornerRadius: 2)
+                                    .fill(MapsAnalysisOverlay.traceColour(plane.colour))
+                                    .frame(width: LayoutPolicy.regionSwatchSize, height: LayoutPolicy.regionSwatchSize)
+                                    .accessibilityHidden(true)
+                                Text(verbatim: plane.plane).monospaced()
+                            }
+                        }
+                        TableColumn("Schmid factor", value: \.schmid) { Text(MapsRoomFormat.fraction($0.schmid)).monospacedDigit() }
+                        TableColumn(SEMColumnSpeech.header("Trace °"), value: \.traceOrder) { Text($0.traceText()).monospacedDigit() }
+                        TableColumn("Colour", value: \.colourWord)
+                        TableColumn(SEMColumnSpeech.header("Inclined °"), value: \.inclinationDegrees) {
+                            Text(MapsRoomFormat.angle($0.inclinationDegrees, digits: 0)).monospacedDigit()
+                        }
+                    }
+                    .accessibilityIdentifier("maps.slip.table")
+                }
+                .padding(10)
+                .onAppear { refresh(slip) }
+                .onChange(of: slip) { _, changed in refresh(changed) }
+            } else {
+                Text(Self.emptyLine(segmented: session.analysis != nil, picked: session.selectedRow != nil))
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .accessibilityIdentifier("maps.slip.empty")
+            }
+        }
+        .onChange(of: sortOrder) { rows.sort(using: sortOrder) }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("maps.grains.slip")
+    }
+
+    private func refresh(_ slip: GrainSlip) { rows = MapsSlipRow.rows(slip).sorted(using: sortOrder) }
 }
 
 extension GrainRow {
@@ -616,7 +667,7 @@ struct MapsGrainsSection: View {
     }
 }
 
-/// Slip: the load axis, each phase's slip systems and whether the traces show; the picked grain's planes are under the Grains table.
+/// Slip: the load axis, each phase's slip systems and whether the traces show; the picked grain's planes are the Slip table's (#1095).
 struct MapsSlipSection: View {
     let session: OrientationMapSession
 
@@ -650,9 +701,9 @@ struct MapsSlipSection: View {
                     .help("The selected grain's slip-plane traces through its centroid, in DefDAP's colours")
                     .accessibilityIdentifier("maps.slip.traces")
             }
-            // The picked grain's planes are listed under the Grains table (#1066); the inspector keeps the settings.
+            // The picked grain's planes are the Slip table's, in the bottom area (#1066, #1095); the inspector keeps the settings.
             if session.analysis != nil, session.selectedSlip == nil {
-                InspectorNote("Pin a point in a grain, or pick a row of the Grains tab, for its Schmid factors and traces under the table.")
+                InspectorNote("Pin a point in a grain, or pick a row of the Grains table, for its Schmid factors and traces in the Slip table.")
             }
         }
     }

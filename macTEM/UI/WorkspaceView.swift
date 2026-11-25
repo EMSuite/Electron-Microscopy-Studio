@@ -23,7 +23,7 @@ struct WorkspaceView: View {
     var body: some View {
         WorkspaceColumn(
             navigation: appState.navigation.panels,
-            tabs: [ProcessTab.output { OutputPane(log: appState.activityLog) }],
+            tabs: [ProcessTab.output { OutputPane(log: appState.activityLog) }] + diffractionTabs + mapsTabs,
             hasDocument: hasDocument,
             statusText: cursorReadout ?? appState.statusText,
             isRunning: showsRun,
@@ -37,6 +37,42 @@ struct WorkspaceView: View {
                 await appState.semEDS.load(path: appState.edx.source?.metadata.filePath)
                 await appState.semEDS.pickFileElements(in: appState.edx)
             }
+            // Another part or another room takes the Diffraction tables away: the area never stands open with none of its panes.
+            .onChange(of: diffractionTables) { DiffractionRoomState.keepAPaneShown(supplied: diffractionTables, in: appState.navigation.panels) }
+            // The same for the Maps tables, when the room or its map goes.
+            .onChange(of: mapsTables) { MapsRoomState.keepAPaneShown(supplied: mapsTables, in: appState.navigation.panels) }
+    }
+
+    /// The Maps room's tables (#1095): Grains and Slip while the room shows a map, none elsewhere.
+    private var mapsTables: [MapsTable] {
+        guard appState.navigation.workspaceArea == .maps, appState.maps.document != nil else { return [] }
+        return MapsTable.allCases
+    }
+
+    /// The Maps room's tables as panes of the bottom area beside Output, each with its toggle in the infobar, under the bar the person
+    /// drags (#1095); the window shows each on its own once it has something to list (`MapsRoomState.offer`).
+    private var mapsTabs: [ProcessTab] {
+        mapsTables.map { table in
+            ProcessTab(id: table.paneID, title: table.title, systemImage: table.systemImage) {
+                MapsTablePane(table: table)
+            }
+        }
+    }
+
+    /// The Diffraction room's tables (#1094): the part's (`DiffractionPart.tables`) while the room shows a document, none elsewhere.
+    private var diffractionTables: [DiffractionTable] {
+        guard appState.navigation.workspaceArea == .diffraction, appState.openItems.selected != nil else { return [] }
+        return DiffractionPart.tables(appState.diffractionPart)
+    }
+
+    /// The Diffraction room's tables as panes of the bottom area beside Output, each with its toggle in the infobar, under the bar
+    /// the person drags (#1094); the window shows the part's first table on its own once (`DiffractionRoomState.offer`).
+    private var diffractionTabs: [ProcessTab] {
+        diffractionTables.map { table in
+            ProcessTab(id: table.paneID, title: table.title, systemImage: table.systemImage) {
+                DiffractionTablePane(table: table)
+            }
+        }
     }
 
     /// The room's cursor readout, which stands in the status line while the pointer is over a picture (control placement §7).

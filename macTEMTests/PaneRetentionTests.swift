@@ -31,7 +31,8 @@ nonisolated final class PaneRetentionTests: XCTestCase {
     func testNoRoomPaneStoresPixels() throws {
         let views = [("FFTRoom", "macTEM/UI/FFTRoom.swift"), ("FFTSourceImagePane", "macTEM/UI/FFTSourceImagePane.swift"),
                      ("ResultsRoom", "macTEM/UI/ResultsRoom.swift"), ("ResultsTable", "macTEM/UI/ResultsRoom.swift"),
-                     ("DiffractionRoom", "macTEM/UI/DiffractionRoom.swift"), ("DiffractionHeader", "macTEM/UI/DiffractionRoom.swift"),
+                     ("DiffractionRoom", "macTEM/UI/DiffractionRoom.swift"), ("DiffractionHeaderScale", "macTEM/UI/DiffractionRoom.swift"),
+                     ("DiffractionHeaderFacts", "macTEM/UI/DiffractionRoom.swift"), ("DiffractionTableContent", "macTEM/UI/DiffractionRoom.swift"),
                      ("DiffractionPatternPane", "macTEM/UI/DiffractionRoom.swift"), ("DiffractionZoomCommands", "macTEM/UI/DiffractionRoom.swift")]
         for (type, path) in views {
             let stored = Self.storedProperties(of: type, in: try Self.source(path))
