@@ -24,6 +24,7 @@
 import ShellControls
 import ShellLayout
 import ShellMetal
+import ShellSpectroscopy
 import SwiftUI
 import ImagoCore
 import TEMCore
@@ -33,6 +34,9 @@ import DiffractoGeometry
 
 struct DiffractionRoom: View {
     let item: OpenItem
+    @Environment(AppState.self) private var appState
+    /// The part the window showed, restored with the scene (#1044).
+    @SceneStorage("diffraction.part") private var storedPart = ""
     /// Read from the item, never stored: SwiftUI keeps a view's closures (hover, gestures, commands) after the view is gone, and a stored
     /// image kept its pixels alive after its tab closed (macTEM#574, `ImagePane.image`).
     private var image: CalibratedImage { item.session.image ?? ImagePane.blankImage }
@@ -52,13 +56,20 @@ struct DiffractionRoom: View {
         let analysis = item.diffraction
         let view = item.diffractionView
         let rows = analysis.readout(image: image)
+        // The part shown (#1044) decides the pane beside the pattern and the strip under it; the pattern itself, its zoom, selection
+        // and overlays, are the same in every part.
+        let part = appState.diffractionPart
+        let strip = DiffractionPart.tableStrip(part)
         VStack(spacing: 0) {
             DiffractionHeader(item: item, analysis: analysis, view: view)
             // The crystal beside the pattern (#790), down the same beam: one orientation drives both. It appears once simulated spots
             // are drawn (before, the pattern has the room), unless View > Hide Crystal hid it (#789); the divider's place is the
-            // window's (`PaneSplit`'s scene storage).
-            if view.showsCrystal && analysis.simulation.isShown {
-                PaneSplit(storageKey: "diffraction.crystalSplit", resizeLabel: "Resize the crystal and the pattern", leadingName: "Crystal") {
+            // window's (the split's scene storage). The crystal takes a third and the pattern, the data, two thirds until the person
+            // drags it (#1046, `DiffractionCrystalSplit`); a place dragged in an earlier version is kept.
+            if DiffractionPart.showsCrystalPane(part) && view.showsCrystal && analysis.simulation.isShown {
+                HorizontalPaneSplit(storageKey: DiffractionCrystalSplit.storageKey, defaultFraction: DiffractionCrystalSplit.defaultCrystalFraction,
+                                    resizeLabel: "Resize the crystal and the pattern", leadingName: "Crystal",
+                                    minimumLeading: LayoutPolicy.imagePaneMinimum, minimumTrailing: LayoutPolicy.imagePaneMinimum) {
                     // A Simulation document draws the slab its multislice runs on (#897).
                     DiffractionCrystalPane(analysis: analysis, showsUnitCell: view.showsUnitCell,
                                            slab: DemoDocuments.isSimulation(item.url)
@@ -70,41 +81,48 @@ struct DiffractionRoom: View {
             } else {
                 patternPane(analysis: analysis, view: view, rows: rows)
             }
-            Divider()
-            // One table under the pattern: the readout, or once Index has an answer, its Spots table (#785: hkl, expected d and
-            // misfit per spot), picked in the strip's header. Never both side by side: they share R, q, d and Δd/d and do not fit a
-            // small window.
-            // A Simulation document lists its simulated spots there (#907); a measured pattern lists Index's once it answers.
-            let isSimulation = DemoDocuments.isSimulation(item.url)
-            let hasSpots = isSimulation || analysis.indexOutcome != nil
-            VStack(spacing: 0) {
-                if hasSpots {
-                    HStack {
-                        SegmentedPicker(label: "Table", items: [(DiffractionViewState.LowerTable.readout, .title("Readout")),
-                                                                (.spots, .title("Spots"))],
-                                        selection: Binding(get: { view.lowerTable }, set: { view.lowerTable = $0 }))
-                            .fixedSize()
-                            .accessibilityIdentifier("diffraction.lowerTable")
-                        Spacer()
+            if strip != .none {
+                Divider()
+                // One table under the pattern: the readout, or once Index has an answer, its Spots table (#785: hkl, expected d and
+                // misfit per spot), picked in the strip's header. Never both side by side: they share R, q, d and Δd/d and do not fit a
+                // small window.
+                // A Simulation document lists its simulated spots there (#907); a measured pattern lists Index's once it answers.
+                let isSimulation = DemoDocuments.isSimulation(item.url)
+                // Calibrate lists the readout alone; Index and Simulate their spots, with the readout picked beside them (#1044).
+                let hasSpots = strip == .spots && (isSimulation || analysis.indexOutcome != nil)
+                VStack(spacing: 0) {
+                    if hasSpots {
+                        HStack {
+                            SegmentedPicker(label: "Table", items: [(DiffractionViewState.LowerTable.readout, .title("Readout")),
+                                                                    (.spots, .title("Spots"))],
+                                            selection: Binding(get: { view.lowerTable }, set: { view.lowerTable = $0 }))
+                                .fixedSize()
+                                .accessibilityIdentifier("diffraction.lowerTable")
+                            Spacer()
+                        }
+                        .padding(.horizontal, LayoutPolicy.infobarHorizontalPadding)
+                        .frame(height: LayoutPolicy.paneHeaderHeight)
+                        Divider()
                     }
-                    .padding(.horizontal, LayoutPolicy.infobarHorizontalPadding)
-                    .frame(height: LayoutPolicy.paneHeaderHeight)
-                    Divider()
-                }
-                if hasSpots && view.lowerTable == .spots {
-                    if isSimulation {
-                        DiffractionSpotTable(view: view, rows: SimulationEmptyState.spotRows(of: item, image: image),
-                                             empty: "Add a phase and show the simulated spots to list them.", selectsMarks: false,
-                                             showsDynamical: item.dynamicalBeams != nil)
+                    if hasSpots && view.lowerTable == .spots {
+                        if isSimulation {
+                            DiffractionSpotTable(view: view, rows: SimulationEmptyState.spotRows(of: item, image: image),
+                                                 empty: "Add a phase and show the simulated spots to list them.", selectsMarks: false,
+                                                 showsDynamical: item.dynamicalBeams != nil)
+                        } else {
+                            DiffractionSpotTable(view: view, rows: analysis.indexSpotRows)
+                        }
                     } else {
-                        DiffractionSpotTable(view: view, rows: analysis.indexSpotRows)
+                        DiffractionReadoutTable(analysis: analysis, view: view, rows: rows)
                     }
-                } else {
-                    DiffractionReadoutTable(analysis: analysis, view: view, rows: rows)
                 }
+                .frame(height: LayoutPolicy.diffractionReadoutHeight)
             }
-            .frame(height: LayoutPolicy.diffractionReadoutHeight)
         }
+        // The part: the scene's when the window comes back, else the one the document opens on; another document opens on its own.
+        .onAppear { appState.settleDiffractionPart(restored: DiffractionPart(rawValue: storedPart)) }
+        .onChange(of: item.id) { appState.diffractionDocumentChanged() }
+        .onChange(of: part) { storedPart = part.rawValue }
         // The pattern is shown by its owner (the bind, the extent and the canvas, off the main actor); a quick Log toggle or another
         // file cancels the pass in flight.
         .task(id: DisplayKey(id: item.id, log: view.useLog, generation: item.session.generation)) {
@@ -337,7 +355,8 @@ private struct DiffractionPatternPane: View {
                 // the crystal, the centre or the scale changes (`DiffractionAnalysis.simulatedSpots`), and a Simulation document's Dynamical
                 // beams at its thickness (#911).
                 if let simulated = try? item.simulatedSpots(image: image)?.get() {
-                    SimulatedSpotsOverlay(spots: simulated, showsLabels: analysis.simulation.showsLabels, layout: layout)
+                    SimulatedSpotsOverlay(spots: simulated, labelMode: analysis.simulation.labelMode,
+                                          beam: analysis.centre.map { layout.point(column: $0.column, row: $0.row) }, layout: layout)
                         .allowsHitTesting(false)
                 }
                 // The shown variants of a precipitate (#808), pink diamonds, under the measured marks; placed off the main actor, the last
@@ -358,8 +377,20 @@ private struct DiffractionPatternPane: View {
                         if let inputs = variants.inputs(analysis: analysis, image: image) { await variants.place(inputs) }
                     }
                 }
-                DiffractionOverlay(analysis: analysis, view: view, rows: rows, layout: layout, drag: drag.flatMap { radii(from: $0.start, to: $0.end, layout: layout) })
+                DiffractionOverlay(analysis: analysis, view: view, rows: rows, layout: layout, drag: drag.flatMap { radii(from: $0.start, to: $0.end, layout: layout) },
+                                   pointer: lastHover)
                     .allowsHitTesting(false)
+                // What the marks are (#1045): one chip in the top-leading corner while the simulated spots are drawn.
+                let legend = DiffractionLegend.entries(
+                    overlayShown: !((try? item.simulatedSpots(image: image)?.get()) ?? []).isEmpty, phase: analysis.crystal.name,
+                    hasFound: analysis.spots.contains { $0.row != nil && $0.column != nil },
+                    hasUnexplained: analysis.indexSpotRows.contains { $0.hkl == nil })
+                if !legend.isEmpty {
+                    DiffractionLegendChip(entries: legend)
+                        .padding(6)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                        .allowsHitTesting(false)
+                }
                 // The spot cursor, for the eyes, once a key or an action has moved it.
                 if spotCursorShown, SpotCursorActions.addsSpots(view) {
                     let pixel = spotActions.pixel(spotCursor)
@@ -471,7 +502,7 @@ private struct DiffractionPatternPane: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .padding(8)
+        // No margin: the pattern is fitted to the pane's whole width and height, centred (#1046).
         // The pattern's keyboard: a stack's frames, and the spot cursor's keys in the Spot tool.
         .modifier(DiffractionKeyedPane(keys: patternKeys))
         // The pane going (another file, another room) leaves the readout naming a point of a pattern that is not shown: it goes until the
@@ -715,6 +746,8 @@ private struct DiffractionOverlay: View {
     let rows: [DiffractionReadoutRow]
     let layout: DiffractionLayout
     let drag: (Double, Double)?
+    /// Where the pointer is over the pattern: the found spot under it carries its d label (#1045).
+    let pointer: CGPoint?
     /// Increase Contrast thickens the overlay lines (#799).
     @Environment(\.colorSchemeContrast) var contrast
 
@@ -725,6 +758,15 @@ private struct DiffractionOverlay: View {
         let rings = analysis.rings
         let spots = analysis.spots
         let labels = Dictionary(uniqueKeysWithValues: rows.map { ($0.id, label(for: $0)) })
+        // A found spot's d label only on the selected row and under the pointer (#1045); every ring keeps its own.
+        let shown = DiffractionMarkLabels.labelled(
+            rings: rings.map(\.id),
+            spots: spots.compactMap { spot in
+                guard let r = spot.row, let c = spot.column else { return nil }
+                let p = layout.point(column: c, row: r)
+                return (spot.id, SIMD2(Double(p.x), Double(p.y)))
+            },
+            selection: view.selection, pointer: pointer.map { SIMD2(Double($0.x), Double($0.y)) })
         Canvas { ctx, _ in
             func point(column: Double, row: Double) -> CGPoint { layout.point(column: column, row: row) }
             let ppp = layout.pointsPerPixel
@@ -752,9 +794,10 @@ private struct DiffractionOverlay: View {
                 // The calibrating ring is dashed as well as orange (#799).
                 let signal = OverlaySignal.diffractionRing(calibrating: ring.isCalibrating)
                 ctx.stroke(path, with: .color(ring.isCalibrating ? .orange : .yellow), style: StrokeStyle(lineWidth: line, dash: signal.dash))
-                if let text = labels[ring.id], let first = points.first {
+                if shown.contains(ring.id), let text = labels[ring.id], let first = points.first {
                     let at = point(column: first.x, row: first.y)
-                    ctx.draw(Text(text).font(.caption).foregroundStyle(.white), at: CGPoint(x: at.x + 6, y: at.y - 8), anchor: .leading)
+                    DiffractionHalo.draw(Text(text).font(.caption).foregroundStyle(.white), at: CGPoint(x: at.x + 6, y: at.y - 8),
+                                         anchor: .leading, in: ctx)
                 }
             }
             for spot in spots {
@@ -764,7 +807,10 @@ private struct DiffractionOverlay: View {
                 cross.move(to: CGPoint(x: p.x - 6, y: p.y - 6)); cross.addLine(to: CGPoint(x: p.x + 6, y: p.y + 6))
                 cross.move(to: CGPoint(x: p.x - 6, y: p.y + 6)); cross.addLine(to: CGPoint(x: p.x + 6, y: p.y - 6))
                 ctx.stroke(cross, with: .color(.red), lineWidth: line)
-                if let text = labels[spot.id] { ctx.draw(Text(text).font(.caption).foregroundStyle(.white), at: CGPoint(x: p.x + 8, y: p.y - 6), anchor: .leading) }
+                if shown.contains(spot.id), let text = labels[spot.id] {
+                    DiffractionHalo.draw(Text(text).font(.caption).foregroundStyle(.white), at: CGPoint(x: p.x + 8, y: p.y - 6),
+                                         anchor: .leading, in: ctx)
+                }
             }
         }
         .accessibilityHidden(true)
@@ -777,36 +823,83 @@ private struct DiffractionOverlay: View {
 }
 
 /// The simulated spots of a typed zone axis (#782): a ring per spot, its size growing with the square root of its intensity
-/// against the strongest, in cyan (the measured spots are red crosses, the rings yellow), and its hkl beside it when Labels is on.
-/// Labels go on the 60 strongest spots of at least 2 % of the strongest, so a dense pattern stays readable, and only where they clear
-/// a stronger spot's label and every other ring (#1030, `ZoneAxisOverlay.readable`); the caption font is 10 pt.
-/// A spot double diffraction adds (#786) is a dashed ring of the smallest size, labelled (when Labels is on) after the others.
+/// against the strongest, in cyan (the measured spots are red crosses, the rings yellow), and the hkl of those the `hkl labels`
+/// pop-up asks for (#1045): Strongest up to 16 from the brightest down, All, or None, each label only where it meets no other and
+/// not the centre's mark, and where it clears every other ring (#1030), placed by `HKLLabelPlacement` on a dark halo. The caption
+/// font is 10 pt.
+/// A spot double diffraction adds (#786) is a dashed ring of the smallest size, labelled after the others.
 private struct SimulatedSpotsOverlay: View {
     let spots: [ZoneAxisOverlay.Spot]
-    let showsLabels: Bool
+    let labelMode: HKLLabelMode
+    /// The central beam's mark, in points: no label covers it.
+    let beam: CGPoint?
     let layout: DiffractionLayout
 
+    private nonisolated static func radius(_ spot: ZoneAxisOverlay.Spot) -> Double { 3 + 6 * spot.relative.squareRoot() }
+
     var body: some View {
+        let layout = layout
+        let placed = HKLLabelPlacement.place(
+            spots, mode: labelMode,
+            point: { spot in
+                let p = layout.point(column: spot.column, row: spot.row)
+                return SIMD2(Double(p.x), Double(p.y))
+            },
+            radius: { Self.radius($0) }, beam: beam.map { SIMD2(Double($0.x), Double($0.y)) })
         Canvas { ctx, _ in
             for spot in spots {
                 let p = layout.point(column: spot.column, row: spot.row)
-                let r = 3 + 6 * CGFloat(spot.relative.squareRoot())
+                let r = CGFloat(Self.radius(spot))
                 ctx.stroke(Path(ellipseIn: CGRect(x: p.x - r, y: p.y - r, width: 2 * r, height: 2 * r)), with: .color(.cyan),
                            style: StrokeStyle(lineWidth: 1.5, dash: spot.isDoubleDiffraction ? [2, 2] : []))
             }
-            guard showsLabels else { return }
-            let place: (ZoneAxisOverlay.Spot) -> SIMD2<Double> = { spot in
-                let p = layout.point(column: spot.column, row: spot.row)
-                return SIMD2(Double(p.x), Double(p.y))
-            }
-            let ring: (ZoneAxisOverlay.Spot) -> Double = { 3 + 6 * $0.relative.squareRoot() }
-            let gap = CGFloat(ZoneAxisOverlay.labelOffset)
-            for spot in ZoneAxisOverlay.readable(ZoneAxisOverlay.labelled(spots), among: spots, point: place, radius: ring) {
-                let p = layout.point(column: spot.column, row: spot.row)
-                let r = CGFloat(ring(spot))
-                ctx.draw(Text(spot.label).font(.caption).foregroundStyle(.cyan), at: CGPoint(x: p.x + r + gap, y: p.y + r + gap), anchor: .topLeading)
+            for label in placed {
+                DiffractionHalo.draw(Text(label.spot.label).font(.caption).foregroundStyle(.cyan),
+                                     at: CGPoint(x: label.low.x, y: label.low.y), anchor: .topLeading, in: ctx)
             }
         }
+        .accessibilityHidden(true)
+    }
+}
+
+/// A label on the pattern with a dark halo, so it reads over a bright spot in every colormap (#1045).
+private nonisolated enum DiffractionHalo {
+    static func draw(_ text: Text, at point: CGPoint, anchor: UnitPoint, in ctx: GraphicsContext) {
+        ctx.drawLayer { layer in
+            layer.addFilter(.shadow(color: .black.opacity(0.9), radius: 1.5))
+            layer.draw(text, at: point, anchor: anchor)
+        }
+    }
+}
+
+/// The pattern's legend (#1045): one row per kind of mark, the mark drawn by shape as well as colour (#923).
+private struct DiffractionLegendChip: View {
+    let entries: [DiffractionLegend.Entry]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            ForEach(Array(entries.enumerated()), id: \.offset) { _, entry in
+                HStack(spacing: 5) {
+                    Canvas { ctx, size in
+                        let c = CGPoint(x: size.width / 2, y: size.height / 2)
+                        switch entry.mark {
+                        case .simulated(let mark):
+                            ctx.stroke(Path(OverlaySignal.outline(mark, centre: c, radius: 4.5)), with: .color(.cyan), lineWidth: 1.5)
+                        case .found, .unexplained:
+                            var cross = Path()
+                            cross.move(to: CGPoint(x: c.x - 4, y: c.y - 4)); cross.addLine(to: CGPoint(x: c.x + 4, y: c.y + 4))
+                            cross.move(to: CGPoint(x: c.x - 4, y: c.y + 4)); cross.addLine(to: CGPoint(x: c.x + 4, y: c.y - 4))
+                            ctx.stroke(cross, with: .color(.red),
+                                       style: StrokeStyle(lineWidth: 1.5, dash: entry.mark == .unexplained ? [2, 1.5] : []))
+                        }
+                    }
+                    .frame(width: 12, height: 12) // science: the legend chip drawn on the pattern
+                    Text(entry.text).font(.caption).foregroundStyle(.white)
+                }
+            }
+        }
+        .padding(.horizontal, 6).padding(.vertical, 4)
+        .background(.black.opacity(0.6), in: RoundedRectangle(cornerRadius: 5))
         .accessibilityHidden(true)
     }
 }
@@ -999,5 +1092,23 @@ nonisolated enum DiffractionValueFormat {
     /// A row's d to five decimals, "2,03910"; "" for a row that has none.
     static func spacing(_ d: Double?, locale: Locale = .autoupdatingCurrent) -> String {
         d.map { Num.fixed($0, 5, locale: locale) } ?? ""
+    }
+}
+
+/// The crystal pane's share of the centre beside the pattern (#1046): a third, so the pattern, the data, has two thirds. The split keeps
+/// the key it had under `PaneSplit`, whose stored value was the crystal's share too, so a place dragged in an earlier version is read
+/// back and only the default changes. Pure.
+nonisolated enum DiffractionCrystalSplit {
+    static let storageKey = "diffraction.crystalSplit"
+    static let defaultCrystalFraction = 1.0 / 3
+
+    /// The pattern's side, points, in a centre `width` × `height` (the header row, the dividers and the table strip already taken
+    /// off the height): the crystal pane takes `crystalFraction` of the width less the divider, held to `minimumPane` each side as
+    /// the split holds it, and the square pattern is the smaller of what is left across and the height. No margin.
+    static func patternSide(width: CGFloat, height: CGFloat, crystalFraction: Double, minimumPane: CGFloat) -> CGFloat {
+        let usable = max(width - 1, 1)
+        let limits = HorizontalPaneSplit<EmptyView, EmptyView>.bounds(usable: usable, minimumLeading: minimumPane, minimumTrailing: minimumPane)
+        let crystal = (usable * min(max(CGFloat(crystalFraction), limits.smallest), limits.largest)).rounded()
+        return max(min(usable - crystal, height), 0)
     }
 }

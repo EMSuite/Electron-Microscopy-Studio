@@ -424,8 +424,10 @@ extension EELSRoomFormat {
         max(minimum, ceil(Double(labels.map(\.count).max() ?? 0) * pointsPerCharacter) + 16)
     }
 
-    /// The results header: "Results · Region 1 · λ Iakoubovskii" (which λ the t comes from), or "λ not set".
-    package static func resultsHeader(region: String, lambdaNM: Double?, lambdaSource: String?) -> String {
+    /// The results header: "Results · Region 1 · λ Iakoubovskii" (which λ the t comes from), or "λ not set". A file with only a core loss has no t/λ
+    /// and no t, so no λ either: "Results · Region 1" (#1073).
+    package static func resultsHeader(region: String, lambdaNM: Double?, lambdaSource: String?, onlyCoreLoss: Bool = false) -> String {
+        if onlyCoreLoss { return "Results · \(region)" }
         let lambda: String
         if lambdaNM != nil { lambda = "λ " + (lambdaSource ?? "given") } else { lambda = "λ not set" }
         return "Results · \(region) · \(lambda)"
@@ -443,7 +445,10 @@ extension EELSRoomFormat {
     package static func fittingLine(region: String) -> String { "Fitting \(region)…" }
 
     /// "t/λ 0.523 (IQR 0.481–0.571) · λ 120 nm, given · t 62.8 nm": the results panel's thickness line. A missing part says what it needs.
-    package static func thicknessLine(_ stats: EELSThicknessStats?, lambdaNM: Double?, lambdaSource: String?, locale: Locale = .autoupdatingCurrent) -> String {
+    /// A file with only a core loss (`onlyCoreLoss`) says it has no t/λ instead of a number its core loss would give (#1073: "t/λ 0.220" on a high-loss file).
+    package static func thicknessLine(_ stats: EELSThicknessStats?, lambdaNM: Double?, lambdaSource: String?, onlyCoreLoss: Bool = false,
+                                      locale: Locale = .autoupdatingCurrent) -> String {
+        if onlyCoreLoss { return noLowLossLine }
         var parts: [String] = []
         if let s = stats {
             parts.append("t/λ \(fixed(s.median, 3, locale: locale)) (IQR \(fixed(s.q1, 3, locale: locale))–\(fixed(s.q3, 3, locale: locale)))")
@@ -458,6 +463,9 @@ extension EELSRoomFormat {
         if let nm = stats?.medianThicknessNM { parts.append("t \(sig(nm, 3, locale: locale)) nm") } else { parts.append("t needs λ") }
         return parts.joined(separator: " · ")
     }
+
+    /// The thickness line of a file with only a core loss, in the Maps control's words.
+    package static let noLowLossLine = "This file holds no low loss, so it has no t/λ."
 
     /// Where λ comes from, in a few words; nil for none.
     package static func lambdaSource(_ choice: EELSMeanFreePathChoice) -> String? {

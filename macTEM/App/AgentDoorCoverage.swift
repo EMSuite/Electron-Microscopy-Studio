@@ -140,12 +140,11 @@ nonisolated enum AgentDoorCoverage {
         "diffraction.simulation.cbed.largestThickness": .tool("set_cbed"),
         "diffraction.simulation.cbed.method": .tool("read_cbed"),
         "diffraction.simulation.cbed.plan": .tool("read_cbed"),
-        "diffraction.simulation.cbed.progress": .tool("read_cbed"),
         "diffraction.simulation.cbed.semiangle": .tool("set_cbed"),
         "diffraction.simulation.cbed.show": .tool("run_cbed"),
-        "diffraction.simulation.cbed.stop": .tool("stop_cbed"),
         "diffraction.simulation.cbed.thickness": .tool("set_cbed"),
         "diffraction.simulation.cbed.thicknessValue": .tool("read_cbed"),
+        "diffraction.simulation.cbed.tilt": .tool("read_cbed"),
         "diffraction.simulation.dynamical": .tool("set_dynamical"),
         "diffraction.simulation.method": .tool("read_dynamical"),
         "diffraction.simulation.modelLabels": .tool("read_cbed"),
@@ -401,6 +400,8 @@ nonisolated enum AgentDoorCoverage {
         "maps.slip.phase.\\(entry.id)": .tool("set_maps"),
         "maps.slip.traces": .tool("set_maps"),
         "maps.source": .tool("set_maps"),
+        "maps.source.indexingOffer": .tool("get_maps"),
+        "maps.source.showIndexingRun": .tool("open_in_maps"),
         "maps.source.stale": .tool("get_maps"),
         "maps.texture.compute": .tool("set_maps"),
         "maps.texture.empty": .tool("get_maps"),
@@ -563,12 +564,9 @@ nonisolated enum AgentDoorCoverage {
         "simulation.stem.notQuantitative": .tool("read_stem"),
         "simulation.stem.outer": .tool("set_stem"),
         "simulation.stem.plan": .tool("read_stem"),
-        "simulation.stem.progress": .tool("read_stem"),
         "simulation.stem.scanStep": .tool("set_stem"),
         "simulation.stem.scherzer": .tool("set_stem"),
         "simulation.stem.semiangle": .tool("set_stem"),
-        "simulation.stem.simulate": .tool("run_stem"),
-        "simulation.stem.stop": .tool("stop_stem"),
         "simulation.stem.wrap": .tool("read_stem"),
         "simulation.thermal.configurations": .tool("set_simulation"),
         "simulation.thermal.convergence": .tool("read_simulation"),
@@ -578,7 +576,7 @@ nonisolated enum AgentDoorCoverage {
         "simulation.thermal.sigma.\\(z)": .tool("set_simulation"),
         "simulation.thermal.simulate": .tool("run_simulation"),
         "simulation.thermal.stop": .tool("stop_run"),
-        "toolbar.datasetMenu": .personOnly(openCloseReason),
+        "toolbar.export": .personOnly(exportReason),
         "howToCite": .personOnly(citeReason),
         "howToCite.copyBibTeX": .personOnly(citeReason),
         "howToCite.copyText": .personOnly(citeReason),
@@ -596,6 +594,25 @@ nonisolated enum AgentDoorCoverage {
         "welcome.tutorials": .personOnly(browserReason),
         "welcome.unreadableStatus": .seen,
         "workspace.\\(room.id)": .tool("select_room"),
+        "diffraction.part.\\(part.rawValue)": .tool("set_diffraction_part"),
+    ]
+
+    /// The Diffraction workspace's six parts in the sidebar (#1044): each reached by set_diffraction_part, which goes through the
+    /// row's own `selectDiffractionPart`; get_window says the part shown.
+    static let diffractionParts: [String: Reach] = Dictionary(uniqueKeysWithValues: DiffractionPart.allCases.map {
+        ($0.identifier, Reach.tool("set_diffraction_part"))
+    })
+
+    /// The toolbar's verb per document (#1047): the verb is ShellLayout's button, with no identifier of the app's, so each document
+    /// that has one is a row here with the tool that runs the same code path (run_room presses whichever verb is shown; these are the
+    /// room-specific tools). `AgentDoorCoverageTests` checks every tool is registered and every document `RoomPrimaryAction` gives a
+    /// verb has its row.
+    static let toolbarVerbs: [String: Reach] = [
+        "Image · HRTEM image with frozen phonons · Simulate": .tool("run_simulation"),
+        "Image · STEM image · Simulate": .tool("run_stem"),
+        "Diffraction · measured pattern · Index": .tool("index_pattern"),
+        "Diffraction · CBED pattern · Simulate": .tool("run_cbed"),
+        "Stop (any verb)": .tool("stop_run"),
     ]
 
     /// Shows or hides a pane of the person's window; the get tools answer whether the pane shows or not.

@@ -990,7 +990,7 @@ struct EELSResultsPanel: View {
             HStack(spacing: LayoutPolicy.inspectorRowSpacing) {
                 // The region the rows below belong to, not the plot's: a drag's shape is on the plot while the rows are still the selected region's.
                 Text(EELSRoomFormat.resultsHeader(region: session.selectedRegionName, lambdaNM: session.map?.meanFreePathNM,
-                                                  lambdaSource: EELSRoomFormat.lambdaSource(session.meanFreePath)))
+                                                  lambdaSource: EELSRoomFormat.lambdaSource(session.meanFreePath), onlyCoreLoss: session.onlyCoreLoss))
                     .font(.callout.weight(.semibold)).lineLimit(1).truncationMode(.tail)
                     .accessibilityIdentifier("eels.results.header")
                 Spacer(minLength: 0)
@@ -1005,7 +1005,8 @@ struct EELSResultsPanel: View {
             .padding(.horizontal, LayoutPolicy.infobarHorizontalPadding)
             .frame(height: LayoutPolicy.paneHeaderHeight)
             Divider()
-            Text(EELSRoomFormat.thicknessLine(plot?.thickness, lambdaNM: session.map?.meanFreePathNM, lambdaSource: EELSRoomFormat.lambdaSource(session.meanFreePath)))
+            Text(EELSRoomFormat.thicknessLine(plot?.thickness, lambdaNM: session.map?.meanFreePathNM, lambdaSource: EELSRoomFormat.lambdaSource(session.meanFreePath),
+                                              onlyCoreLoss: session.onlyCoreLoss))
                 .font(.callout.monospacedDigit()).lineLimit(2)
                 .padding(.horizontal, LayoutPolicy.infobarHorizontalPadding).padding(.vertical, 5)
                 .frame(maxWidth: .infinity, alignment: .leading)

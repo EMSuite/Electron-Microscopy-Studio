@@ -107,7 +107,8 @@ enum BusyOperation {
             return diffraction(computingCBED: appState.runningCBEDDocument != nil, indexing: analysis?.isIndexing == true,
                                fitting: analysis?.isFitting == true)
         case .image:
-            return appState.simulatingDocument?.multislice.thermalProgress.map(simulating)
+            if let thermal = appState.simulatingDocument?.multislice.thermalProgress { return simulating(thermal) }
+            return appState.scanningSTEMDocument != nil ? scanningSentence : nil
         default:
             return nil
         }
@@ -123,7 +124,7 @@ enum BusyOperation {
         case .patterns: appState.ebsd.isBusy
         case .indexing: appState.indexing.isBusy
         case .maps: appState.maps.isBusy
-        case .image: appState.simulatingDocument != nil
+        case .image: appState.simulatingDocument != nil || appState.scanningSTEMDocument != nil
         // The CBED run only: Index and the ring fit show on the room's own button, as before (#1021).
         case .diffraction: appState.runningCBEDDocument != nil
         case .fft, .results: false
@@ -184,10 +185,13 @@ enum BusyOperation {
         case .maps: appState.maps.isOpening || appState.maps.isSegmenting || appState.maps.isTexturing
         case .diffraction: appState.openItems.selected.map { $0.diffraction.isFitting || $0.diffraction.isIndexing } ?? false
             || appState.runningCBEDDocument != nil
-        case .image: appState.simulatingDocument != nil
+        case .image: appState.simulatingDocument != nil || appState.scanningSTEMDocument != nil
         case .fft, .results: false
         }
     }
+
+    /// The busy line of a STEM image's run (#1047): the section's own progress words.
+    nonisolated static let scanningSentence = "Scanning the probe…"
 
     /// "Simulating: configuration 3 of 10": the Image room's frozen-phonon run (#896).
     nonisolated static func simulating(_ progress: SimulationModel.ThermalProgress) -> String {

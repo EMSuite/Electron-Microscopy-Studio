@@ -2,8 +2,9 @@
 //  RoomPrimaryAction.swift
 //  Role: the toolbar's one verb for the room that has one (design 2026-10-22, §2.2): EDS has Quantify, EELS has Run (the stages that are not current,
 //        in order), Patterns has Process, Indexing has Index, Maps has Segment, Diffraction has Index (#783), the Image room has Simulate for a
-//        frozen-phonon HRTEM image (#896); the FFT and Results rooms have none yet. The button and its glass styles are ShellLayout's
-//        `PrimaryActionButton`; what the verb is, when it is enabled and what it says while blocked is this file's. Workspace > Run (⌘R)
+//        frozen-phonon HRTEM image (#896) and a STEM image (#1047), and the Diffraction room has Simulate for a CBED pattern of a
+//        Simulation document while a Simulation document itself, live, has none (#1047); the FFT and Results rooms have none yet. The
+//        button and its glass styles are ShellLayout's `PrimaryActionButton`; what the verb is, when it is enabled and what it says while blocked is this file's. Workspace > Run (⌘R)
 //        runs the same verb from the menu, on exactly when the button can run it (`canRun`). A room without a verb shows Cancel in the
 //        verb's place while a run left going in another room is the toolbar's busy line (`BusyOperation.backgroundRoom`).
 //
@@ -26,7 +27,9 @@ enum RoomProgress {
         case .eels: appState.eels.isComputing ? min(max(appState.eels.progress, 0), 1) : appState.hyperSpyWrite.map { min(max($0.fraction, 0), 1) }
         case .patterns: patternsFraction(appState.ebsd)
         case .indexing: appState.indexing.isIndexing ? min(max(appState.indexing.progress, 0), 1) : nil
-        case .image: appState.simulatingDocument?.multislice.thermalProgress.map(BusyOperation.simulationFraction)
+        case .image:
+            appState.simulatingDocument?.multislice.thermalProgress.map(BusyOperation.simulationFraction)
+                ?? appState.scanningSTEMDocument?.stem.progress.map { min(max($0, 0), 1) }
         case .diffraction: appState.runningCBEDDocument?.cbed.progress.map { min(max($0, 0), 1) }
         default: nil
         }
@@ -131,12 +134,24 @@ enum RoomPrimaryAction {
                 stop: { session.stop() },
                 run: { session.segment() })
         case .image:
-            // Simulate (#896): the frozen-phonon configurations of the selected HRTEM image's document; Stop keeps those done.
-            if let action = simulateAction(appState) { return action }
+            // Simulate (#896): the frozen-phonon configurations of the selected HRTEM image's document; Stop keeps those done. A STEM
+            // image's Simulate scans the probe (#1047).
+            if let action = simulateAction(appState) ?? stemAction(appState) { return action }
             return backgroundCancel(appState)
         case .diffraction:
-            // Index (#783): the kit finds the spots and the crystal's full orientation, off the main actor; Stop drops the answer.
             guard let item = appState.openItems.selected, let image = item.session.image else { return nil }
+            switch DiffractionSections.kind(of: item.url) {
+            case .simulation:
+                // A Simulation document's pattern is live: no verb and no Index (#1047). The Cancel of its CBED run while that goes.
+                return cbedCancel(item) ?? backgroundCancel(appState)
+            case .cbed:
+                // The CBED pattern of a Simulation document: Simulate computes it for the settings now (#1047).
+                guard let simulation = appState.simulationDocument(ofCBED: item) else { return backgroundCancel(appState) }
+                return cbedAction(appState, simulation: simulation)
+            case .measured:
+                break
+            }
+            // Index (#783): the kit finds the spots and the crystal's full orientation, off the main actor; Stop drops the answer.
             let analysis = item.diffraction
             let blocker = analysis.indexBlocker(image: image)
             // A CBED run of the shown pattern's document is this room's work too (#1021): the button is its Stop while it runs.
@@ -192,6 +207,62 @@ enum RoomPrimaryAction {
             run: { Task { await appState.simulateHRTEM(of: simulation) } })
     }
 
+    /// A STEM image's Simulate (#1047): the scan of its Simulation document's settings now; Continue when a scan of them is held and
+    /// incomplete. The section keeps the plan line; the button, its Stop and the progress are the toolbar's.
+    @MainActor
+    private static func stemAction(_ appState: AppState) -> PrimaryAction? {
+        guard let item = appState.openItems.selected, let simulation = appState.simulationDocument(ofSTEM: item) else { return nil }
+        let model = simulation.stem
+        let refusal: String?
+        let holds: Bool
+        switch appState.stemRun(of: simulation) {
+        case .failure(let why):
+            refusal = why.sentence
+            holds = false
+        case .success(let run):
+            refusal = model.blocker
+            holds = model.holds(run.key)
+        }
+        let words = SimulateVerb.stem(refusal: refusal, holdsRun: holds, isComplete: model.scan?.isComplete == true)
+        return PrimaryAction(
+            title: words.title,
+            isEnabled: words.isEnabled,
+            help: words.help,
+            hint: "Scans the probe over one projected unit; the image fills as it is computed",
+            isRunning: model.isRunning,
+            operationName: BusyOperation.name(room: .image, appState: appState),
+            stop: { model.stop() },
+            run: { Task { await appState.simulateSTEM(of: simulation) } })
+    }
+
+    /// The Simulate of a Simulation document's CBED pattern (#1047): enabled while the stored patterns are not those of the settings
+    /// now (or there are none); Stop while the run goes, the patterns already stored staying.
+    @MainActor
+    private static func cbedAction(_ appState: AppState, simulation: OpenItem) -> PrimaryAction {
+        let model = simulation.cbed
+        let refusal = appState.cbedVerbRefusal(of: simulation)
+        let current: Bool
+        if case .success(let run) = appState.cbedRun(of: simulation) { current = model.isCurrent(run.key) } else { current = false }
+        let words = SimulateVerb.cbed(refusal: refusal, isCurrent: current)
+        return PrimaryAction(
+            title: words.title,
+            isEnabled: words.isEnabled,
+            help: words.help,
+            hint: "Runs the probe through the slab and stores a pattern at every thickness step",
+            isRunning: model.isComputing,
+            operationName: model.isComputing ? BusyOperation.cbedSentence : nil,
+            stop: { model.stop() },
+            run: { Task { await appState.simulateCBED(of: simulation) } })
+    }
+
+    /// The Cancel of a Simulation document's own CBED run while that document is shown (it has no verb, #1047); nil while none goes.
+    @MainActor
+    private static func cbedCancel(_ document: OpenItem) -> PrimaryAction? {
+        let model = document.cbed
+        guard model.isComputing else { return nil }
+        return PrimaryAction(title: nil, isRunning: true, operationName: BusyOperation.cbedSentence, stop: { model.stop() }, run: {})
+    }
+
     /// Workspace > Run (⌘R): the shown room's verb as its title ("Process", "Index"), "Run" in a room without one or with no window.
     @MainActor
     static func runTitle(_ appState: AppState?) -> String {
@@ -241,7 +312,8 @@ enum RoomPrimaryAction {
         case .maps: appState.maps.stop()
         case .diffraction:
             if let cbed = appState.runningCBEDDocument?.cbed { cbed.stop() } else { appState.openItems.selected?.diffraction.stop() }
-        case .image: appState.simulatingDocument?.multislice.stop()
+        case .image:
+            if let simulating = appState.simulatingDocument { simulating.multislice.stop() } else { appState.scanningSTEMDocument?.stem.stop() }
         default: break
         }
     }
@@ -270,8 +342,39 @@ enum RoomPrimaryAction {
         case .maps: appState.maps.isOpening || appState.maps.isSegmenting || appState.maps.isTexturing
         case .diffraction: appState.openItems.selected.map { $0.diffraction.isFitting || $0.diffraction.isIndexing } ?? false
             || appState.runningCBEDDocument != nil
-        case .image: appState.simulatingDocument != nil
+        case .image: appState.simulatingDocument != nil || appState.scanningSTEMDocument != nil
         default: false
         }
+    }
+}
+
+/// The Simulate verb's title, readiness and help for a computed document (#1047), from plain facts. Pure, so a test reads the verb
+/// per state as data.
+nonisolated enum SimulateVerb {
+    nonisolated struct Words: Equatable, Sendable {
+        let title: String
+        let isEnabled: Bool
+        let help: String
+    }
+
+    /// Why a CBED pattern cannot be computed with a Parallel beam.
+    static let cbedParallelSentence = "The beam is Parallel: choose Convergent in the Simulation section to compute the CBED pattern."
+
+    /// A STEM image: Continue while a scan of these settings is held and incomplete, else Simulate; off with `refusal` (the run's
+    /// own refusal or another document's run) or when the image is complete for these settings.
+    static func stem(refusal: String?, holdsRun: Bool, isComplete: Bool) -> Words {
+        let resumes = holdsRun && !isComplete
+        let complete = holdsRun && isComplete
+        let help = refusal ?? (complete ? "The image is complete for these settings: change one to simulate again"
+            : resumes ? "Scan the positions not yet done; what is finished stays"
+            : "Scan the probe over one projected unit; the image fills as it is computed")
+        return Words(title: resumes ? "Continue" : "Simulate", isEnabled: refusal == nil && !complete, help: help)
+    }
+
+    /// A CBED pattern of a Simulation document: Simulate, on while the stored patterns are not those of the settings now.
+    static func cbed(refusal: String?, isCurrent: Bool) -> Words {
+        let help = refusal ?? (isCurrent ? "The pattern shown is the one for these settings: change one to simulate again"
+            : "Run the probe through the slab for the settings now, storing a pattern at every thickness step")
+        return Words(title: "Simulate", isEnabled: refusal == nil && !isCurrent, help: help)
     }
 }

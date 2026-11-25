@@ -39,12 +39,14 @@ package final class CBEDModel {
         /// The specimen: `SimulationModel.sourceIdentity`, the phase's or the atom model's with its beam axis (#953).
         // periphery:ignore - read by the synthesized == (and hash)
         let source: String
-        // periphery:ignore - read by the synthesized == (and hash)
         let zoneAxis: SIMD3<Int>
         // periphery:ignore - read by the synthesized == (and hash)
         let maximumStrain: Double
         package let volts: Double
         package let semiangleMrad: Double
+        /// The beam tilt (x, y) along the box's x and y, mrad, read from the orientation drawn by hand (`CBEDTilt`); zero on the
+        /// zone axis. A new tilt is a new run (#1013).
+        package let tiltMrad: SIMD2<Double>
         let settings: CBEDSettings
     }
 
@@ -88,10 +90,11 @@ package final class CBEDModel {
     /// Whether the stored patterns are those of `key`.
     package func isCurrent(_ key: RunKey?) -> Bool { key != nil && patternKey == key }
 
-    /// The key of a run for this specimen (`SimulationModel.sourceIdentity`), axis, strain limit, voltage and semiangle.
-    package func key(source: String, zoneAxis: SIMD3<Int>, maximumStrain: Double, volts: Double, semiangleMrad: Double) -> RunKey {
+    /// The key of a run for this specimen (`SimulationModel.sourceIdentity`), axis, strain limit, voltage, semiangle and beam tilt.
+    package func key(source: String, zoneAxis: SIMD3<Int>, maximumStrain: Double, volts: Double, semiangleMrad: Double,
+                     tiltMrad: SIMD2<Double> = .zero) -> RunKey {
         RunKey(source: source, zoneAxis: zoneAxis, maximumStrain: maximumStrain, volts: volts, semiangleMrad: semiangleMrad,
-               settings: settings)
+               tiltMrad: tiltMrad, settings: settings)
     }
 
     /// Why Show CBED Pattern cannot run now: another document's simulation holds this Mac (one at a time, `SimulationGate`).
@@ -127,7 +130,7 @@ package final class CBEDModel {
         let task = Task { [weak self] in
             let result: Result<CBEDPattern, any Error> = await offMainActor {
                 Result { try CBEDRun.run(built, settings: settings, semiangleMrad: key.semiangleMrad, volts: key.volts, specimen: specimen,
-                                         shortestG: shortestG, progress: report) }
+                                         shortestG: shortestG, tiltMrad: key.tiltMrad, zoneAxis: key.zoneAxis, progress: report) }
             }
             self?.land(result, key: key, number: number)
         }

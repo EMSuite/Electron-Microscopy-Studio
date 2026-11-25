@@ -40,6 +40,14 @@ struct MapsRoomSettings: View {
                 if let stale = appState.mapsStaleness {
                     InspectorNote(stale).accessibilityIdentifier("maps.source.stale")
                 }
+                if let offer = appState.mapsIndexingOffer {
+                    InspectorNote(offer).accessibilityIdentifier("maps.source.indexingOffer")
+                    InspectorActionRow {
+                        Button("Show the Indexing Run") { appState.openIndexingInMaps() }
+                            .help("The Indexing room's run on this scan, as its Open in Maps shows it")
+                            .accessibilityIdentifier("maps.source.showIndexingRun")
+                    }
+                }
                 InspectorRow("Map") {
                     Picker("Map", selection: Binding(get: { session.layer }, set: { session.setLayer($0) })) {
                         ForEach(session.layers) { layer in

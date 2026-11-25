@@ -40,6 +40,7 @@ struct ContentView: View {
         .onChange(of: appState.ebsd.isBusy, initial: true) { appState.markBusy(.patterns, appState.ebsd.isBusy) }
         .onChange(of: appState.indexing.isBusy, initial: true) { appState.markBusy(.indexing, appState.indexing.isBusy) }
         .onChange(of: appState.maps.isBusy, initial: true) { appState.markBusy(.maps, appState.maps.isBusy) }
+        .onChange(of: BusyOperation.isBusy(.image, appState: appState), initial: true) { _, busy in appState.markBusy(.image, busy) }
         .onChange(of: appState.runningCBEDDocument != nil, initial: true) { appState.markBusy(.diffraction, appState.runningCBEDDocument != nil) }
         // INTERIM, delete at MacEMUI <next>: the shared EDS room's own Open button reads its file past the app's Open, so the file
         // the room comes to hold is noted as one of the app's EDS files here (EDSRoomDoor.swift, #318).
@@ -82,13 +83,13 @@ struct ContentView: View {
     }
 
     /// The arrangement (alignment design M2): the file, the room and the size as a DISPLAY in the centre, never a button; at the
-    /// trailing edge the room's verb (EDS: Quantify) and the Image menu; the inspector's toggle is the shell's.
+    /// trailing edge the room's verb (EDS: Quantify) and Export (#1048); the inspector's toggle is the shell's.
     @ToolbarContentBuilder
     private var windowToolbarContent: some ToolbarContent {
         ShellToolbar(
             display: { ToolbarRunDisplay(ToolbarDisplay.state(appState)) },
             verb: { PrimaryActionButton(RoomPrimaryAction.current(appState)) },
-            documentMenu: { ImageMenu() })
+            documentMenu: { ToolbarExportMenu() })
     }
 
     /// Opens the dropped files macTEM reads; every dropped file it does not read is refused by name in one alert, a line each, and
@@ -125,28 +126,26 @@ private struct SelectionRestorer: View {
     }
 }
 
-/// The shell's one document menu (`ShellToolbar`, mac4DSTEM's Dataset menu in the same place). DEPARTURE from control-placement §1
-/// (#629): it repeats File > Open and Close; it stays because the shell gives both apps this one menu, and in full screen with the menu
-/// bar hidden it is the window's own way to open and close a file.
-struct ImageMenu: View {
+/// The toolbar's Export (#1048), in the slot `ShellToolbar(documentMenu:)` gives the app (mac4DSTEM's Dataset menu in the same place).
+/// DEPARTURE from control-placement §1 (#1048, Paul's pick of 25 Nov 2026): a second button beside the verb, because exporting the
+/// figure follows every result (HIG Toolbars: the commands people use most, each also in the menu bar). A click runs the room's main
+/// export (`ToolbarExport.primary`, ⇧⌘E's where the room has it); the chevron lists the room's exports, the File menu's own view
+/// (`RoomExportItems`). It ends #629's departure, the Image menu that repeated File > Open and Close: ⌘O and ⌘W work in full screen.
+struct ToolbarExportMenu: View {
     @Environment(AppState.self) private var appState
 
     var body: some View {
-        @Bindable var openItems = appState.openItems
+        let primary = ToolbarExport.primary(in: appState.navigation.workspaceArea)
+        let blocker = ToolbarExport.blocker(appState)
         Menu {
-            Button("Open Image…") { appState.requestOpenImage() }
-                .disabled(appState.imageSession.isLoading)
-            if !openItems.items.isEmpty {
-                // The open files are the window's tabs (one file per window): no list of them here.
-                Divider()
-                Button("Close Image") { appState.requestCloseSelected() }
-            }
+            RoomExportItems(appState: appState, dividesFromAbove: false)
         } label: {
-            Label("Image", systemImage: "photo.on.rectangle")
+            Label(ToolbarExport.title, systemImage: ToolbarExport.systemImage)
+        } primaryAction: {
+            ToolbarExport.run(primary, appState: appState)
         }
-        // With nothing open the menu would offer only what the welcome door and ⌘O already do.
-        .disabled(openItems.items.isEmpty)
-        .help("Open an image")
-        .accessibilityIdentifier("toolbar.datasetMenu")
+        .disabled(blocker != nil)
+        .help(blocker ?? ToolbarExport.help)
+        .accessibilityIdentifier("toolbar.export")
     }
 }

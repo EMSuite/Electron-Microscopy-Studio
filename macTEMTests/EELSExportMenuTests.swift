@@ -117,7 +117,7 @@ nonisolated final class EELSExportMenuTests: XCTestCase {
         let commands = squeezed(try source("macTEM/App/ExportCommands.swift"))
         XCTAssertTrue(commands.contains("let eels = appState.flatMap(ExportSnapshot.eelsAvailability(of:))"))
         XCTAssertTrue(commands.contains("if let appState, let eels { eelsItems(eels, appState: appState) }"), "listed only while the rule has them")
-        XCTAssertTrue(commands.contains("Divider() ForEach(EELSExportAvailability.menuKinds) { kind in"))
+        XCTAssertTrue(commands.contains("if dividesFromAbove { Divider() } ForEach(EELSExportAvailability.menuKinds) { kind in"))
         XCTAssertTrue(commands.contains("{ RoomExports.eels(kind, appState: appState) } .disabled(!eels.isEnabled(kind))"))
         XCTAssertEqual(EELSExportKind.allCases.map { "Export \($0.title)" }.sorted(),
                        ["Export Maps PDF…", "Export Maps SVG…", "Export Maps…", "Export Method JSON…", "Export Per-pixel CSV…", "Export Regions CSV…",
