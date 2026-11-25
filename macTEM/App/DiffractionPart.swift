@@ -96,16 +96,28 @@ nonisolated enum DiffractionPart: String, CaseIterable, Identifiable, Sendable {
     /// The pane beside the pattern: the crystal in Index and Simulate (View > Show Crystal shows and hides it there), none elsewhere.
     static func showsCrystalPane(_ part: DiffractionPart) -> Bool { part == .index || part == .simulate }
 
-    /// The strip of tables under the pattern.
-    enum TableStrip: Sendable, Equatable { case readout, spots, none }
+    /// What the pane beside the pattern shows in `part` (#921): the crystal in Index and Simulate, the zone-axis map in Tilt Plan, the
+    /// powder pattern in Powder; none in Calibrate and Thickness, where the pattern has the room.
+    static func sidePane(_ part: DiffractionPart) -> DiffractionViewState.SidePane? {
+        switch part {
+        case .index, .simulate: .crystal
+        case .tiltPlan: .zoneAxisMap
+        case .powder: .powder
+        case .calibrate, .thickness: nil
+        }
+    }
 
-    /// Calibrate lists the readout; Index and Simulate the spots (with the readout beside them, picked in the strip's header); the
-    /// others none.
+    /// The strip of tables under the pattern.
+    enum TableStrip: Sendable, Equatable { case readout, spots, peaks, none }
+
+    /// Calibrate lists the readout; Index and Simulate the spots (with the readout beside them, picked in the strip's header); Powder
+    /// the powder pattern's peaks (#921); the others none.
     static func tableStrip(_ part: DiffractionPart) -> TableStrip {
         switch part {
         case .calibrate: .readout
         case .index, .simulate: .spots
-        case .tiltPlan, .powder, .thickness: .none
+        case .powder: .peaks
+        case .tiltPlan, .thickness: .none
         }
     }
 

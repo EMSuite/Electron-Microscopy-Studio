@@ -21,6 +21,10 @@ package final class DiffractionViewState {
     package var tool: Tool = .ring
     /// The table under the pattern once Index has an answer (#785): the readout, or Index's Spots table. Before, the readout.
     package enum LowerTable: String, CaseIterable, Sendable { case readout, spots }
+    /// What the pane beside the pattern shows (#921), by the part in front (#1044): the crystal (#790) in Index and Simulate, the
+    /// zone-axis map (#814) in Tilt Plan, the powder pattern (#810) in Powder. Results of the room, so a pane, never an inspector
+    /// section (control placement §1).
+    package nonisolated enum SidePane: String, CaseIterable, Sendable { case crystal, zoneAxisMap, powder }
     package var lowerTable: LowerTable = .spots
     package var useLog = true
     /// The crystal pane beside the pattern (#789): View > Show Crystal shows and hides it.
