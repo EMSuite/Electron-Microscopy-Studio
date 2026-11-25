@@ -293,7 +293,9 @@ extension MacTEMAgentDoor {
             """
         private static let diffractionText = """
             Diffraction room (a selected-area or nanobeam diffraction pattern; DiffractoKit's ring fit, calibration and kinematic \
-            indexing). A ring fitted on a known standard sets the scale; rings and spots are then indexed against a crystal.
+            indexing). A ring fitted on a known standard sets the scale; rings and spots are then indexed against a crystal. \
+            `new_simulation` opens a simulated pattern with no measured one; `get_crystal_view` reads the crystal pane beside the \
+            pattern (its orientation matrix is the simulated spots'), with picture true its picture.
 
             1. `select_room` room diffraction, then `get_diffraction`: the centre and its source, the scale in use (a ring fit, \
             the file's axis or a typed Δq), the beam energy, the standard and its families (each with its index), the crystal, \
