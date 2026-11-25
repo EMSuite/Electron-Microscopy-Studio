@@ -18,7 +18,7 @@ let package = Package(
         .package(url: "https://github.com/mac4DSTEM/SpectroKit", from: "0.16.0"),
         // The window shell, controls and Metal image view both apps share. TEMSession takes ShellMetal (MetalEngine, ColormapKind); TEMCore and
         // TEMSession take ShellEDXModel (the shared EDS room; the EELS room reuses its regions and pins).
-        .package(url: "https://github.com/mac4DSTEM/MacEMUI", from: "0.16.0"),
+        .package(url: "https://github.com/mac4DSTEM/MacEMUI", from: "0.17.0"),
         // The Simulation document's specimen and HRTEM image (2.5): the slab builder, the multislice and the transfer function.
         .package(url: "https://github.com/EMSuite/SimulatoKit", from: "0.7.0"),
     ],
@@ -31,6 +31,7 @@ let package = Package(
                 .product(name: "FormatoDM", package: "FormatoKit"),
                 .product(name: "FormatoEMD", package: "FormatoKit"),
                 .product(name: "FormatoHDF5", package: "FormatoKit"),
+                .product(name: "FormatoHSPY", package: "FormatoKit"),
                 .product(name: "FormatoMRC", package: "FormatoKit"),
                 .product(name: "FormatoMSA", package: "FormatoKit"),
                 .product(name: "FormatoTIA", package: "FormatoKit"),

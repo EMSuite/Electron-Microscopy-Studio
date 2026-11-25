@@ -27,11 +27,13 @@ and under the one in front its rooms. What the file holds decides the room it op
 
 - **TEM**: DigitalMicrograph (.dm3, .dm4), Velox (.emd), TIA (.ser with its .emi), TIFF and MRC images; EDS spectrum images from Velox and GMS,
   EELS spectrum images from GMS, TIA spectra and spectrum images in the EDS or EELS room, and single .msa spectra.
+- **HyperSpy**: a .hspy file's images, EELS and EDS spectrum images and spectra, each in its room (several in one file
+  open together, as a Velox file's do), read with FormatoKit's reader.
 - **Pictures**: a pattern or image saved as PNG or JPEG (from a paper or a camera export) opens as a picture, not counts;
   its scale is typed or fitted to a ring of a known phase.
 - **SEM images**: TIFF from Thermo Fisher (FEI), Zeiss and Tescan, read with the microscope's settings, and JEOL .img
   and .map files.
-- **SEM-EDS**: Bruker .bcf and .spx, EDAX .spd, .lsd and .spc, JEOL .pts, .eds and .asw, and a single spectrum in a
+- **SEM-EDS**: Bruker .bcf and .spx, EDAX .spd, .lsd and .spc, JEOL .pts, .eds and .asw, and an SEM spectrum in a
   HyperSpy .hspy file.
 - **EBSD and TKD patterns**: h5ebsd from kikuchipy, Bruker, EDAX and Oxford Instruments (.h5oina), EDAX .up1 and .up2,
   Oxford .ebsp and NORDIF Pattern.dat.
@@ -57,12 +59,14 @@ The rooms:
   Your marks are saved in a session file next to the image. An SEM TIFF shows the microscope's settings, and a Thermo
   Fisher or Tescan databar can be hidden or shown under the picture (Settings > Images).
 - **FFT**: the transform of the image or a region, spots and their d-spacings, the radial profile, a masked inverse,
-  ABSF and Wiener filters, and strain maps by geometric phase analysis (checked on planted fields only).
+  ABSF and Wiener filters, and strain maps by geometric phase analysis (checked on planted fields only). The transform
+  exports as a PNG, or as a PDF or SVG figure with its rings and labels as vectors.
 - **EDS**: Velox and GMS spectrum images, and SEM-EDS maps, line scans and spectra. Pick elements from the periodic
   table or let Auto ID suggest them, then get net, wt%, at% and thickness maps, regions, and the Cliff-Lorimer
   composition.
 - **EELS**: Dual-EELS spectrum images. Align the zero-loss peak, map t/λ, pick edges from the periodic table, and fit
-  their intensities and at%.
+  their intensities and at%. In both rooms the spectrum and the maps export as PDF or SVG figures for a paper, the
+  spectrum as one path and every label as live text.
 - **Diffraction**: calibrate on a ring of a standard, then index rings and spots and read their d-spacings; type a zone axis to
   see the crystal's simulated spots, with their hkl, over the pattern (with the spots double diffraction adds, and an excitation
   error to set), or press Index to find the spots and the crystal's full
@@ -96,9 +100,16 @@ The rooms:
 - **Maps**: IPF and phase maps with their colour keys; grains, and grain and phase boundaries over the map; grain size
   (mean and area-weighted ECD, mean lineal intercept, ASTM E112); KAM, GOS and GND; Schmid factors and slip traces; pole
   figures, ODF sections and histograms. A map comes from an .ang, .ctf or map-only .h5oina file, from a pattern file that
-  carries one, or from the Indexing room.
+  carries one, or from the Indexing room. The map exports as a PNG, or as a PDF or SVG figure for a paper: the boundaries
+  as lines, a vector scale bar and the key as live text.
 - **Results**: every measurement of a file in one table, exported as CSV. The SEM results have a table of their own and
   a session report, as PDF or Markdown.
+- **Methods**: every export carries a record of how its numbers were made (the source by fingerprint, each step and setting,
+  the app and kit versions). File > Export Methods Record… saves the room's record as JSON, and Edit > Copy Methods
+  Paragraph copies it as a paragraph for a paper's methods section.
+- **HyperSpy files**: File > Export HyperSpy File… writes the Image room's image, the Diffraction room's pattern or the
+  EELS room's spectrum image as a .hspy that `hs.load` opens (Signal2D, pyxem's ElectronDiffraction2D in Å⁻¹, or exspy's
+  EELSSpectrum), at its stored bit depth, with the methods record in its metadata. A cube shows its progress and can be stopped.
 
 ## Agents
 

@@ -57,12 +57,20 @@ extension OpenItem {
 
 /// What a change of runs a Simulation document's Dynamical multislice again (`OpenItem.dynamicalRunKey`).
 package nonisolated struct DynamicalRunKey: Equatable, Sendable {
+    // periphery:ignore - read by the synthesized == (and hash)
     let on: Bool
+    // periphery:ignore - read by the synthesized == (and hash)
     let source: String?
+    // periphery:ignore - read by the synthesized == (and hash)
     let zoneAxis: SIMD3<Int>
+    // periphery:ignore - read by the synthesized == (and hash)
     let thicknessNM: Double
+    // periphery:ignore - read by the synthesized == (and hash)
     let beamKV: Double?
+    // periphery:ignore - read by the synthesized == (and hash)
     let apertureMrad: Double?
+    // periphery:ignore - read by the synthesized == (and hash)
     let strain: Double
+    // periphery:ignore - read by the synthesized == (and hash)
     let thermal: [Int: Double]?
 }

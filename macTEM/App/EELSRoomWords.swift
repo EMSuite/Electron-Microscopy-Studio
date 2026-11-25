@@ -17,6 +17,8 @@ import TEMCore
 /// per-pixel thickness and the method.
 nonisolated enum EELSExportKind: String, CaseIterable, Identifiable {
     case results, spectrum, spectrumMSA, regions, mapsPNG, diagnostics, method
+    /// The spectrum and the maps as vector figures (#902).
+    case spectrumPDF, spectrumSVG, mapsPDF, mapsSVG
     var id: String { rawValue }
     var title: String {
         switch self {
@@ -27,12 +29,18 @@ nonisolated enum EELSExportKind: String, CaseIterable, Identifiable {
         case .mapsPNG: "Maps…"
         case .diagnostics: "Per-pixel CSV…"
         case .method: "Method JSON…"
+        case .spectrumPDF: "Spectrum PDF…"
+        case .spectrumSVG: "Spectrum SVG…"
+        case .mapsPDF: "Maps PDF…"
+        case .mapsSVG: "Maps SVG…"
         }
     }
     var contentType: UTType {
         switch self {
         case .method: .json
         case .mapsPNG: .png
+        case .spectrumPDF, .mapsPDF: .pdf
+        case .spectrumSVG, .mapsSVG: .svg
         case .spectrumMSA: UTType(filenameExtension: "msa") ?? .plainText
         default: .commaSeparatedText
         }
@@ -41,11 +49,19 @@ nonisolated enum EELSExportKind: String, CaseIterable, Identifiable {
     var suffix: String {
         switch self {
         case .results: " results"
-        case .spectrum, .spectrumMSA: " spectrum"
+        case .spectrum, .spectrumMSA, .spectrumPDF, .spectrumSVG: " spectrum"
         case .regions: " regions"
-        case .mapsPNG: " maps"
+        case .mapsPNG, .mapsPDF, .mapsSVG: " maps"
         case .diagnostics: " thickness"
         case .method: " thickness method"
+        }
+    }
+    /// The vector format of a figure's kind; nil for the others.
+    var figureFormat: FigureExport.Format? {
+        switch self {
+        case .spectrumPDF, .mapsPDF: .pdf
+        case .spectrumSVG, .mapsSVG: .svg
+        case .results, .spectrum, .spectrumMSA, .regions, .mapsPNG, .diagnostics, .method: nil
         }
     }
 }

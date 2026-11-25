@@ -185,6 +185,45 @@ nonisolated final class ExportMethodsSEMTests: XCTestCase {
         XCTAssertEqual(print.sha256, "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")
         XCTAssertEqual(print.byteCount, 3)
     }
+
+    /// An SEM room's methods record (#818) holds its session rows: each row's methods with their packages, then the row's fields as
+    /// a step named for its group. Mutation: the fields dropped, or a method's package not named - red.
+    func testAnSEMRoomsRecordHoldsItsSessionRows() {
+        let source = MethodsRecord.Source(fileName: "patterns_v2.h5", byteCount: 1000, fingerprint: Self.fingerprint, kind: "EBSD patterns",
+                                          shape: [75, 55, 60, 60])
+        let row = SEMSessionRow(id: "indexing", kind: .indexing, label: "Hough indexing", value: "4125 points indexed",
+                                source: "Indexing · patterns_v2.h5", fields: [SEMSessionField("Binning", "2")], methods: [.houghIndexing])
+        let record = ExportMethods.sessionRecord(app: Self.app, room: "indexing", exportKind: "methods-record", source: source, rows: [row])
+        XCTAssertEqual(record.room, "indexing")
+        XCTAssertEqual(record.steps.map(\.name), [SEMMethod.houghIndexing.title, "Indexing"])
+        XCTAssertEqual(record.steps[0].reference?.name, "pyebsdindex")
+        XCTAssertEqual(record.steps[1].method, "4125 points indexed")
+        XCTAssertEqual(record.steps[1].settings, [MethodsRecord.Quantity(name: "Binning", value: .number(2))])
+        XCTAssertEqual(record.references.map(\.name), ["pyebsdindex", "kikuchipy"])
+    }
+
+    /// The EDS room's record reads SpectroKit's method JSON: the elements quantified, then each setting in words. Mutation: a
+    /// camel-case value left as it is, the elements not filtered by role, or a flag read as a number - red.
+    func testTheEDSRecordReadsTheMethodJSON() {
+        let json = #"{"method":{"absorptionCorrection":true,"background":"empiricalWithAlEdge","beamEnergyKeV":200,"#
+            + #""elements":[{"symbol":"Al","role":"quantify"},{"symbol":"Cu","role":"fitOnly"},{"symbol":"Mg","role":"quantify"}],"#
+            + #""estimator":"leastSquares","kFactorSource":"computed","kSource":"","sigmaK":0.05},"sha256":"ab"}"#
+        let source = MethodsRecord.Source(fileName: "map.emd", byteCount: 10, fingerprint: Self.fingerprint, kind: "EDS spectrum image",
+                                          shape: [4, 4, 2048])
+        let record = ExportMethods.edsRecord(app: Self.app, exportKind: "methods-record", source: source, methodJSON: json)
+        XCTAssertEqual(record.room, "eds")
+        XCTAssertEqual(record.steps.map(\.name), ["Quantification"])
+        XCTAssertEqual(record.steps[0].settings, [
+            MethodsRecord.Quantity(name: "elements quantified", value: .texts(["Al", "Mg"])),
+            MethodsRecord.Quantity(name: "estimator", value: .text("least squares")),
+            MethodsRecord.Quantity(name: "background", value: .text("an empirical continuum with the Al K-edge step")),
+            MethodsRecord.Quantity(name: "k-factor source", value: .text("computed")),
+            MethodsRecord.Quantity(name: "relative σ of k", value: .number(0.05)),
+            MethodsRecord.Quantity(name: "absorption correction", value: .flag(true)),
+            MethodsRecord.Quantity(name: "beam energy", value: .number(200), units: "keV"),
+        ])
+        XCTAssertTrue(ExportMethods.edsRecord(app: Self.app, exportKind: "x", source: source, methodJSON: nil).steps.isEmpty)
+    }
 }
 
 /// The Particles section's and the Diffraction readout's CSVs (#817): the record names the segmentation's settings and counts, or
@@ -215,11 +254,32 @@ nonisolated final class ExportMethodsTableTests: XCTestCase {
                        "the table is as it was")
     }
 
-    /// The readout's record counts its rings and spots.
-    func testTheDiffractionReadoutRecordCountsRingsAndSpots() {
-        let record = ExportMethods.diffractionRecord(app: Self.app, source: Self.source, rings: 3, spots: 2)
+    /// The pattern's record tells a methods section where the centre came from, the scale with the wavelength and camera length its
+    /// ring fit gave (five significant digits), what the rows were indexed against, and how many were measured and indexed.
+    /// Mutation: the calibration step without its settings, the counts of the wrong kind, or the numbers in full - red.
+    func testTheDiffractionRecordTellsTheCentreTheScaleAndTheIndexing() {
+        let header = DiffractionExportHeader(fileName: "au.dm4", centreRow: 256, centreColumn: 256.5, centreSource: "a fitted ring",
+                                             calibration: "fit Au {111}", deltaQ: 0.012500432, wavelengthAngstroms: 0.025079347,
+                                             lengthPixels: 3190.1, lengthMM: 47.861234, fitVersusFilePercent: -0.987654, crystal: "Au",
+                                             crystalSHA256: nil, kMax: 1.2, tolerancePercent: 2)
+        let ring = DiffractionReadoutRow(id: UUID(), kind: .ring, number: 1, radiusPx: 34, q: 0.425, d: 2.355, family: "{111}",
+                                         dListed: 2.3548, deltaPercent: 0.01, oddsText: nil, verdict: "matches", validation: "")
+        let spot = DiffractionReadoutRow(id: UUID(), kind: .spot, number: 1, radiusPx: 80, q: 1, d: 1, family: nil, dListed: nil,
+                                         deltaPercent: nil, oddsText: nil, verdict: "no family", validation: "")
+        let record = ExportMethods.diffractionRecord(app: Self.app, source: Self.source, header: header, rows: [ring, spot])
         XCTAssertEqual(record.room, "diffraction")
         XCTAssertEqual(record.exportKind, "diffraction-readout-csv")
-        XCTAssertEqual(record.results.map(\.value), [.number(3), .number(2)])
+        XCTAssertEqual(record.steps.map(\.name), ["Centring", "Calibration", "Indexing"])
+        XCTAssertEqual(record.steps[1].method, "a ring fit to the Au {111} ring of the standard")
+        XCTAssertEqual(record.steps[1].settings, [MethodsRecord.Quantity(name: "Δq", value: .number(0.0125), units: "Å⁻¹ per pixel"),
+                                                  MethodsRecord.Quantity(name: "wavelength", value: .number(0.025079), units: "Å"),
+                                                  MethodsRecord.Quantity(name: "camera length", value: .number(47.861), units: "mm")])
+        XCTAssertEqual(record.results.map(\.value), [.number(1), .number(1), .number(1), .number(-0.98765)])
+        XCTAssertTrue(record.paragraph.contains("Centring used a fitted ring with centre row 256 px and centre column 256.5 px."),
+                      record.paragraph)
+        XCTAssertTrue(record.paragraph.contains("Calibration used a ring fit to the Au {111} ring of the standard with Δq 0.0125 Å⁻¹ per "
+                                                    + "pixel, wavelength 0.025079 Å and camera length 47.861 mm."), record.paragraph)
+        XCTAssertTrue(record.paragraph.contains("Indexing used the listed d-spacings of Au (d = 1/q) with tolerance 2 % and k_max 1.2 Å⁻¹."),
+                      record.paragraph)
     }
 }

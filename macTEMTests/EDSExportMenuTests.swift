@@ -80,9 +80,9 @@ nonisolated final class EDSExportMenuTests: XCTestCase {
         XCTAssertTrue(state.statusText.hasPrefix("Exported "), state.statusText)
     }
 
-    /// The File menu draws the five behind the rule, each calling the room's export with its own kind, and none takes a key.
+    /// The File menu draws the nine behind the rule, each calling the room's export with its own kind, and none takes a key.
     /// Red under: the condition dropped (the items listed in every room); two items writing the same kind; a `.disabled` swapped.
-    func testTheFileMenuDrawsTheFiveBehindTheRule() throws {
+    func testTheFileMenuDrawsTheNineBehindTheRule() throws {
         let commands = squeezed(try source("macTEM/App/ExportCommands.swift"))
         XCTAssertTrue(commands.contains("let eds = appState.flatMap(ExportSnapshot.edsAvailability(of:))"))
         XCTAssertTrue(commands.contains("if let appState, let eds { edsItems(eds, appState: appState) }"), "listed only while the rule has them")
@@ -92,6 +92,14 @@ nonisolated final class EDSExportMenuTests: XCTestCase {
         ]
         let drawn = items.map { "Button(\"\($0.title)\") { RoomExports.eds(.\($0.kind), appState: appState) } .disabled(!eds.\($0.flag))" }
         XCTAssertTrue(commands.contains("Divider() " + drawn.joined(separator: " ")), "the five, in mac4DSTEM's order, after a divider")
-        XCTAssertEqual(commands.components(separatedBy: "RoomExports.eds(").count - 1, 5, "no other EDS item")
+        // Then the four figures (#902), on the spectrum's and the maps' flags.
+        let figures: [(title: String, kind: String, flag: String)] = [
+            ("Export Spectrum PDF…", "spectrumPDF", "spectrum"), ("Export Spectrum SVG…", "spectrumSVG", "spectrum"),
+            ("Export Maps PDF…", "mapsPDF", "maps"), ("Export Maps SVG…", "mapsSVG", "maps"),
+        ]
+        let figureItems = figures.map { "Button(\"\($0.title)\") { RoomExports.eds(.\($0.kind), appState: appState) } .disabled(!eds.\($0.flag))" }
+        XCTAssertTrue(commands.contains((drawn.last ?? "") + " // The figures for a paper (#902), named as the inspector's buttons. "
+                                        + figureItems.joined(separator: " ")), "the four figures after the five")
+        XCTAssertEqual(commands.components(separatedBy: "RoomExports.eds(").count - 1, 9, "no other EDS item")
     }
 }

@@ -63,6 +63,18 @@ extension ExportImageSnapshot {
         return try await ImageExport.export(source: named.source, display: display, marks: marks, options: options, methods: record,
                                             to: url)
     }
+
+    /// Export Figure… as PDF or SVG (#822): the same source, display, marks and record as the PNG, drawn as a vector figure
+    /// `width` wide.
+    nonisolated func writeFigure(to url: URL, options: ImageExport.Options, width: FigureStyle.Width, format: FigureExport.Format,
+                                 leaveOutFileNames: Bool = false) async throws -> (scene: FigureScene, barLeftOut: Bool) {
+        let named = ExportSnapshot.named(source: source, methods: methods, leaveOutFileNames: leaveOutFileNames)
+        var record = named.methods
+        record?.drawn = ExportSnapshot.drawn(options: options, hasMarks: !marks.isEmpty)
+        record?.exportKind = "image-figure-\(format.rawValue)"
+        return try await FigureExport.export(source: named.source, display: display, marks: marks, options: options, width: width,
+                                             format: format, methods: record, to: url)
+    }
 }
 
 /// Everything Export Profile… needs, taken when the panel opens.
@@ -158,9 +170,7 @@ enum ExportSnapshot {
     /// The Image room's record of a file's export: nil for an item read from no file (a demo made in memory has no fingerprint).
     static func imageMethods(of item: OpenItem, image: CalibratedImage, exportKind: String, drawn: [String],
                              software: String) -> MethodsRecord? {
-        guard let identity = item.openedIdentity else { return nil }
-        let source = ExportMethods.source(ExportSource(image: image, software: software), byteCount: Int(identity.byteSize),
-                                          fingerprint: identity.pixelSHA256, kind: "image")
+        guard let source = imageSource(of: item, image: image, software: software) else { return nil }
         return ExportMethods.imageRecord(app: methodsApp(), exportKind: exportKind, source: source,
                                          lineage: item.measurements.lineage, drawn: drawn)
     }
@@ -169,12 +179,19 @@ enum ExportSnapshot {
     /// `record`; the text as it was when the image is not the selected file's or the file was read from nothing (a demo in memory).
     static func embeddingMethods(in text: String, of image: CalibratedImage, openItems: OpenItems, software: String = softwareName(),
                                  record: (MethodsRecord.Software, MethodsRecord.Source) -> MethodsRecord) -> String {
-        guard let item = openItems.selected, let identity = item.openedIdentity, item.session.image?.fileName == image.fileName else {
+        guard let item = openItems.selected, item.session.image?.fileName == image.fileName,
+              let source = imageSource(of: item, image: image, software: software) else {
             return text
         }
-        let source = ExportMethods.source(ExportSource(image: image, software: software), byteCount: Int(identity.byteSize),
-                                          fingerprint: identity.pixelSHA256, kind: "image")
         return (try? ExportMethods.embedding(record(methodsApp(), source), inText: text)) ?? text
+    }
+
+    /// A file's image as a record's source: its name, size, pixel fingerprint and calibrations; nil for a file read from nothing
+    /// (a demo in memory).
+    static func imageSource(of item: OpenItem, image: CalibratedImage, software: String) -> MethodsRecord.Source? {
+        guard let identity = item.openedIdentity else { return nil }
+        return ExportMethods.source(ExportSource(image: image, software: software), byteCount: Int(identity.byteSize),
+                                    fingerprint: identity.pixelSHA256, kind: "image")
     }
 
     /// The Particles section's CSV with its methods record inside (#817).
@@ -188,19 +205,20 @@ enum ExportSnapshot {
 
     /// The Diffraction room's readout CSV with its methods record inside (#817).
     static func diffractionCSV(_ analysis: DiffractionAnalysis, image: CalibratedImage, openItems: OpenItems) -> String {
-        let rings = analysis.rings.count, spots = analysis.spots.count
-        return embeddingMethods(in: analysis.exportText(image: image), of: image, openItems: openItems) {
-            ExportMethods.diffractionRecord(app: $0, source: $1, rings: rings, spots: spots)
+        let header = analysis.exportHeader(image: image), rows = analysis.readout(image: image)
+        return embeddingMethods(in: DiffractionExport.text(rows: rows, header: header), of: image, openItems: openItems) {
+            ExportMethods.diffractionRecord(app: $0, source: $1, header: header, rows: rows)
         }
     }
 
     /// The Diffraction room's Spots CSV (#785) with the same methods record inside as its readout CSV.
     static func diffractionSpotsCSV(_ analysis: DiffractionAnalysis, image: CalibratedImage, openItems: OpenItems,
                                     simulation: Bool = false) -> String {
-        let rings = analysis.rings.count, spots = analysis.spots.count
+        let header = analysis.exportHeader(image: image), rows = analysis.readout(image: image)
         let text = simulation ? analysis.simulatedSpotsExportText(image: image) : analysis.spotsExportText(image: image)
         return embeddingMethods(in: text, of: image, openItems: openItems) {
-            ExportMethods.diffractionRecord(app: $0, source: $1, rings: rings, spots: spots)
+            ExportMethods.diffractionRecord(app: $0, source: $1, header: header, rows: rows,
+                                            exportKind: simulation ? "diffraction-simulated-spots-csv" : "diffraction-spots-csv")
         }
     }
 
@@ -243,13 +261,20 @@ enum ExportSnapshot {
     /// read again or the kind holds no record (a method JSON, a `.ctf`): an export never fails for its record.
     @concurrent nonisolated static func semExport(_ data: Data, file: SEMExportedFile, fileExtension: String, sourceURL: URL?,
                                                   sourceKind: String, shape: [Int]) async -> Data {
-        guard ["png", "csv", "ang"].contains(fileExtension.lowercased()), let sourceURL,
-              let print = try? ExportMethods.fingerprint(ofFileAt: sourceURL) else { return data }
+        guard ["png", "csv", "ang"].contains(fileExtension.lowercased()),
+              let record = await semRecord(file, sourceURL: sourceURL, sourceKind: sourceKind, shape: shape) else { return data }
+        return (try? ExportMethods.embedding(record, inFileWithExtension: fileExtension, data: data)) ?? data
+    }
+
+    /// The methods record of an SEM room's export, its source fingerprinted off the main actor; nil when the source cannot be read
+    /// again. A vector figure takes it into its metadata as it is drawn (#902); `semExport` embeds it in a PNG, CSV or `.ang`.
+    @concurrent nonisolated static func semRecord(_ file: SEMExportedFile, sourceURL: URL?, sourceKind: String, shape: [Int]) async
+        -> MethodsRecord? {
+        guard let sourceURL, let print = try? ExportMethods.fingerprint(ofFileAt: sourceURL) else { return nil }
         let source = MethodsRecord.Source(fileName: file.source, byteCount: print.byteCount, fingerprint: print.sha256, kind: sourceKind,
                                           shape: shape)
         let exportKind = "\(file.room) \(file.what)".lowercased().replacingOccurrences(of: " ", with: "-")
-        let record = ExportMethods.semRecord(file, app: methodsApp(), exportKind: exportKind, source: source)
-        return (try? ExportMethods.embedding(record, inFileWithExtension: fileExtension, data: data)) ?? data
+        return ExportMethods.semRecord(file, app: methodsApp(), exportKind: exportKind, source: source)
     }
 
     /// A method record with the app's version under "software" and the kits under "builtWith" (name: version).
@@ -301,6 +326,12 @@ enum ExportSnapshot {
         let size = "\(width) × \(height) px"
         return barLeftOut ? "Exported \(name) without the scale bar (the image is too small) — \(size)"
                           : "Exported \(name) — \(size)"
+    }
+
+    /// The infobar, and the VoiceOver announcement, when a vector figure is written (#822).
+    nonisolated static func figureDoneLine(name: String, widthMM: Double, barLeftOut: Bool) -> String {
+        let width = "\(Int(widthMM.rounded())) mm wide"
+        return barLeftOut ? "Exported \(name) without the scale bar (the image has no scale) — \(width)" : "Exported \(name) — \(width)"
     }
 
     /// The infobar, and the VoiceOver announcement, when the CSV is written.

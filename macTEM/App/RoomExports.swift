@@ -72,13 +72,14 @@ nonisolated struct EELSExportAvailability: Sendable, Equatable {
     let regions: Bool
 
     /// The menu's items in order: the EDS room's five where the EELS room has them, the `.msa` after the CSV, the per-pixel table last.
-    static let menuKinds: [EELSExportKind] = [.spectrum, .spectrumMSA, .mapsPNG, .results, .method, .regions, .diagnostics]
+    static let menuKinds: [EELSExportKind] = [.spectrum, .spectrumMSA, .spectrumPDF, .spectrumSVG, .mapsPNG, .mapsPDF, .mapsSVG, .results, .method,
+                                              .regions, .diagnostics]
 
     /// Whether the item of `kind` is enabled.
     func isEnabled(_ kind: EELSExportKind) -> Bool {
         switch kind {
-        case .spectrum, .spectrumMSA: spectrum
-        case .mapsPNG, .diagnostics: maps
+        case .spectrum, .spectrumMSA, .spectrumPDF, .spectrumSVG: spectrum
+        case .mapsPNG, .mapsPDF, .mapsSVG, .diagnostics: maps
         case .results: results
         case .method: method
         case .regions: regions
@@ -190,9 +191,9 @@ extension ExportSnapshot {
 
 // MARK: - Maps
 
-/// The Maps room's four files, named as the room's Export buttons are (`MapsExportSection`); the room state has one call for each.
+/// The Maps room's six files, named as the room's Export buttons are (`MapsExportSection`); the room state has one call for each.
 nonisolated enum MapsExportKind: String, CaseIterable, Identifiable, Sendable {
-    case map, grains, histogram, texture
+    case map, mapPDF, mapSVG, grains, histogram, texture
 
     var id: String { rawValue }
 
@@ -200,6 +201,8 @@ nonisolated enum MapsExportKind: String, CaseIterable, Identifiable, Sendable {
     var title: String {
         switch self {
         case .map: "Map PNG…"
+        case .mapPDF: "Map PDF…"
+        case .mapSVG: "Map SVG…"
         case .grains: "Grains CSV…"
         case .histogram: "Histogram CSV…"
         case .texture: "Texture PNG…"
@@ -219,7 +222,7 @@ nonisolated struct MapsExportAvailability: Sendable, Equatable {
     /// Whether the item of `kind` is enabled.
     func isEnabled(_ kind: MapsExportKind) -> Bool {
         switch kind {
-        case .map: map
+        case .map, .mapPDF, .mapSVG: map
         case .grains, .histogram: grains
         case .texture: texture
         }
@@ -295,6 +298,8 @@ enum RoomExports {
         return Task {
             switch kind {
             case .map: await room.exportMap(from: appState.maps, directory: appState.exportDirectory) { appState.statusText = $0 }
+            case .mapPDF: await room.exportMap(from: appState.maps, format: .pdf, directory: appState.exportDirectory) { appState.statusText = $0 }
+            case .mapSVG: await room.exportMap(from: appState.maps, format: .svg, directory: appState.exportDirectory) { appState.statusText = $0 }
             case .grains: await room.exportGrains(from: appState.maps, directory: appState.exportDirectory) { appState.statusText = $0 }
             case .histogram: await room.exportHistogram(from: appState.maps, directory: appState.exportDirectory) { appState.statusText = $0 }
             case .texture: await room.exportTexture(from: appState.maps, directory: appState.exportDirectory) { appState.statusText = $0 }

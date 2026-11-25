@@ -16,7 +16,7 @@ struct AgentSettingsView: View {
 
     var body: some View {
         AgentDoorSettingsSection(door: MacTEMAgentDoor.shared, isOn: $enabled,
-                                 canSee: "the open files, the image as Export Image draws it, the results and the Output lines",
+                                 canSee: "the open files, the image as Export Figure draws its PNG, the results and the Output lines",
                                  runs: $runs,
                                  canRun: "open the files of the Agent folder, move a window to another room, pick elements and the "
                                      + "region in the EDS room, and press Auto ID, Quantify and Stop there")

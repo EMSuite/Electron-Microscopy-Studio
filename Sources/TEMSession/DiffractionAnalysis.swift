@@ -283,7 +283,8 @@ package final class DiffractionAnalysis {
     package func list() -> KinematicReflectionList? { listResult().list }
 
     /// The standard's first families (the ones a ring is picked from): name, d. Cached by standard and k_max.
-    package func standardFamilies() -> [(name: String, d: Double, family: ReflectionFamily)] {
+    package func standardFamilies(of other: StandardCrystal? = nil) -> [(name: String, d: Double, family: ReflectionFamily)] {
+        let standard = other ?? self.standard
         let reach = max(kMax, 2.5)
         let key = "\(standard.name)|\(reach)"
         if let hit = familiesCache[key] { return hit }
@@ -397,6 +398,8 @@ package final class DiffractionAnalysis {
         let key = "\(crystal.identity)|\(volts)" + (fit ? "" : "|fixed scale")
         let shortest = list()?.families.first.map { 1 / $0.family.d } ?? 0.2
         let task = Task.detached(priority: .userInitiated) { [weak self] in
+            // Quality bar: Index answers for one 2048² pattern within 2 s on the reference Mac (#797, docs/performance.md).
+            let interval = Signposts.begin("diffraction.index"); defer { Signposts.end(interval) }
             let outcome: PatternIndexing.Outcome
             var found: [PatternIndexing.Mark]?
             do {
@@ -703,6 +706,8 @@ package final class DiffractionAnalysis {
         let key = SimulationKey(settings: settings, crystal: crystal, centre: centre, calibration: calibration, volts: volts,
                                 width: image.width, height: image.height, dynamical: dynamical)
         if let simulationCache, simulationCache.key == key { return simulationCache.result }
+        // Quality bar: a crystal turn redraws 500 reflections and the crystal view within one frame (#797, docs/performance.md).
+        let interval = Signposts.begin("diffraction.spots"); defer { Signposts.end(interval) }
         let result = makeSimulatedSpots(settings: settings, calibration: calibration, volts: volts, width: image.width, height: image.height,
                                         dynamical: dynamical)
         simulationCache = (key, result)

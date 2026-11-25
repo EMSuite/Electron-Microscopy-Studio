@@ -138,7 +138,7 @@ nonisolated final class FFTExportSnapshotTests: XCTestCase {
         XCTAssertEqual(snapshot.defaultName, "plant-fft-r64x64-x16-y0")
         XCTAssertEqual(snapshot.directory?.path, "/data/run1")
         XCTAssertEqual(snapshot.message, "Transform of region 64 \u{00D7} 64 px at (16, 0), 64 \u{00D7} 64 bins, log\u{2081}\u{2080}|F|\u{00B2} in the window shown."
-                       + " This region is 64 \u{00D7} 64 bins: the PNG has one pixel per bin, so it is 1 : 1 where the room shows it 1 : 1.25.")
+                       + " This region is 64 \u{00D7} 64 bins: the file has one pixel per bin, so it is 1 : 1 where the room shows it 1 : 1.25.")
         XCTAssertEqual(snapshot.defaults, ExportImageDefaults(scaleBar: true, marks: true, offersMarks: true))
         XCTAssertEqual(snapshot.header.crop, FFTAnalysisTests.regionA)
         XCTAssertEqual(snapshot.header.spacingX, spectrum.spacingX)
@@ -225,6 +225,50 @@ nonisolated final class FFTExportSnapshotTests: XCTestCase {
         XCTAssertEqual(drawn, ["the transform, log₁₀|F|² in the window shown, grey", "a scale bar", "the measured spots"])
     }
 
+    /// "Leave out file names" in the FFT panels: the spots CSV names the image "source 1" in its header and its record, and the file's
+    /// name is nowhere in it. Red before: the FFT snapshots wrote the file name whatever the panel said.
+    @MainActor func testTheSpotsCSVLeavesOutTheFileNameWhenAsked() async throws {
+        let (image, analysis) = try await landed()
+        try await measure(analysis, row: 37, col: 40, count: 1)
+        var spots = try XCTUnwrap(ExportSnapshot.spotsSnapshot(image: image, url: Self.url, analysis: analysis, software: Self.software))
+        let source = MethodsRecord.Source(fileName: image.fileName, byteCount: 1000, fingerprint: String(repeating: "ab", count: 32), kind: "image",
+                                          shape: [image.width, image.height])
+        spots.methods = ExportMethods.fftRecord(app: MethodsRecord.Software(name: "Electron Microscopy Studio", version: "2.2.0 (1)"),
+                                                exportKind: "fft-spots-csv", source: source, header: spots.header,
+                                                product: .spots(count: 1, maskRadius: spots.maskRadius, maskEdge: spots.maskEdge), drawn: [])
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("fft-anonymous-\(UUID().uuidString).csv")
+        defer { try? FileManager.default.removeItem(at: url) }
+        try await spots.write(to: url, leaveOutFileNames: true)
+        let text = try String(contentsOf: url, encoding: .utf8)
+        // The name as a word: the validation line's "planted spots" holds the test image's name "plant".
+        let name = NSRegularExpression.escapedPattern(for: (image.fileName as NSString).deletingPathExtension)
+        XCTAssertNil(text.range(of: "\\b\(name)\\b", options: .regularExpression), text)
+        XCTAssertEqual(ExportMethods.record(inText: text)?.sources.first?.fileName, "source 1")
+    }
+
+    /// The transform as a vector figure (#902): the bins at their own pixels, one ring a measured spot, the reciprocal bar's label as
+    /// text in the SVG. Red before: the transform wrote PNG only.
+    @MainActor func testTheTransformIsAVectorFigure() async throws {
+        let (image, analysis) = try await landed()
+        try await measure(analysis, row: 37, col: 40, count: 1)
+        let transform = try XCTUnwrap(ExportSnapshot.transformSnapshot(image: image, url: Self.url, analysis: analysis, software: Self.software))
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("fft-figure-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let url = dir.appendingPathComponent("fft.svg")
+        let made = try await transform.writeFigure(to: url, options: ImageExport.Options(scaleBar: true, marks: true), asShown: false,
+                                                   width: .mm90, format: .svg)
+        guard case .raster(let picture, _) = try XCTUnwrap(made.scene.layers.first) else { return XCTFail("the picture first") }
+        XCTAssertEqual(picture.width, transform.display.width)
+        let rings = made.scene.layers.reduce(0) { count, layer in
+            if case .markers(let markers) = layer { count + markers.centers.count } else { count }
+        }
+        XCTAssertEqual(rings, transform.marks.count)
+        XCTAssertEqual(made.scene.widthMM, 90)
+        let svg = try String(contentsOf: url, encoding: .utf8)
+        XCTAssertTrue(svg.contains("<text"), "the labels are text")
+    }
+
     @MainActor func testNoMeasuredSpotMeansNoSpotsSnapshot() async throws {
         let (image, analysis) = try await landed()
         XCTAssertNil(ExportSnapshot.spotsSnapshot(image: image, url: Self.url, analysis: analysis, software: Self.software))
@@ -256,7 +300,7 @@ nonisolated final class FFTExportSnapshotTests: XCTestCase {
         let dq = 0.0390625
         let message = ExportSnapshot.transformMessage(crop: PixelCrop(row: 0, col: 0, height: 128, width: 256), imageWidth: 512, imageHeight: 512,
                                                       width: 256, height: 128, spacingX: dq, spacingY: dq * 2)
-        XCTAssertTrue(message.hasSuffix(" This region is 256 \u{00D7} 128 bins: the PNG has one pixel per bin, so it is 2 : 1 where the room shows it 1 : 1."), message)
+        XCTAssertTrue(message.hasSuffix(" This region is 256 \u{00D7} 128 bins: the file has one pixel per bin, so it is 2 : 1 where the room shows it 1 : 1."), message)
         XCTAssertEqual(ExportSnapshot.aspectSentence(width: 64, height: 64, spacingX: dq, spacingY: dq), "")
         XCTAssertEqual(ExportSnapshot.aspectSentence(width: 256, height: 128, spacingX: dq, spacingY: dq), "", "a box shown at the file's own shape")
     }

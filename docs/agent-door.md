@@ -19,12 +19,13 @@ door this one follows (4DSTEM Studio `docs/agent-door.md`). This app hands the d
 |---|---|
 | `get_workflow_guide` | how a person works through a file here and how to judge each step (topics `overview`, `eds`, `patterns`, `indexing`, `maps`, `eels`, `image`, `fft`, `diffraction`); read first |
 | `list_windows` | the open windows (`w1`, `w2`, ...), each with its shown file, room and number of open files (the door's own tool) |
-| `get_window` | the room, the open files (size, calibration, voltage once read), the shown file's number of results, the status line, any error |
-| `get_image` | the shown image as Export Image… draws it (display window, colormap, scale bar, marks), longest side up to 1024 px per `scale` step |
+| `get_window` | the room, the open files (size, calibration, voltage once read), the shown file's number of results, the status line, any error; whether an open runs, the rooms with work in flight, the one-document rooms' files, the app's memory footprint now and at its peak (the size table, #904) |
+| `get_image` | the shown image as Export Figure… draws its PNG (display window, colormap, scale bar, marks), longest side up to 1024 px per `scale` step |
 | `get_results` | the shown file's finished measurements as Export Results… writes them (CSV) |
 | `get_log` | the window's Output lines |
 | `list_agent_folder` | the files of the Agent folder the person chose in Settings > Agents, as `open_file` takes them |
 | `get_session` | the Results room's SEM session table: every SEM result with its group, value, source, time, Info fields, methods and logged lines, and an SEM spectrum's conditions (with the take-off angle) |
+| `get_methods_record` | the room on screen's methods record as Export Methods Record… writes it (JSON) and the paragraph Copy Methods Paragraph copies; `leave_out_file_names` names each source "source 1", ... (every room; the first ask in an SEM room or the EDS room may be refused while its file is read for its fingerprint: ask again) |
 | `get_eds` | the EDS room: file, picked elements and roles, region, kept regions, line windows' net counts with σ, Auto ID's suggestions, the results table or why the fit failed |
 | `get_eds_maps` | the EDS maps as the room's Maps as PNG… draws them |
 | `get_patterns` | the Patterns room: scan and pattern size, the file's calibration, the picked position, the map and grid, the colour mix, every processing setting (in `set_pattern_processing`'s names) with each stage's state, why Process is refused, NLPAR's λ, what is running, and the Kikuchi simulation overlay (its mode and settings, what it draws or why it draws nothing) |

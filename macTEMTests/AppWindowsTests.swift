@@ -273,6 +273,28 @@ nonisolated final class AppWindowsTests: XCTestCase {
         XCTAssertEqual(session.current?.files.map(\.path), [a.standardizedFileURL.path])
     }
 
+    /// An Open still sniffing its file when its window closes brings nothing into the closed window's state, and the last-session
+    /// record keeps the windows on screen (#925). Red before: the file loaded into a state no window shows, and the record was
+    /// written from that state alone.
+    @MainActor func testAnOpenWhoseWindowClosedLoadsNothingAndKeepsTheRecord() async throws {
+        let windows = AppWindows()
+        let session = LastSession()
+        let a = try plantedCopy(named: "a.dm4"), b = try plantedCopy(named: "b.dm4"), late = try plantedCopy(named: "late.dm4")
+        let first = AppState(launch: LaunchOptions(arguments: []), lastSession: session)
+        let second = AppState(launch: LaunchOptions(arguments: []), lastSession: session)
+        let third = AppState(launch: LaunchOptions(arguments: []), lastSession: session)
+        for state in [first, second, third] { windows.enroll(state) }
+        await first.open(urls: [a])?.value
+        await second.open(urls: [b])?.value
+        let opening = try XCTUnwrap(third.open(urls: [late]))
+        windows.windowWillClose(third)
+        windows.withdraw(third)
+        await opening.value
+        XCTAssertTrue(third.openItems.items.isEmpty, "the closed window's state holds no file")
+        XCTAssertTrue(third.heldFiles.isEmpty)
+        XCTAssertEqual(session.current?.files.map(\.path), [a.standardizedFileURL.path, b.standardizedFileURL.path])
+    }
+
     /// A window asked for by `openInTabs` is a tab request, taken once by the window that comes up; a file another window holds asks
     /// for none. Red under: the new window left a window of its own (driven 2026-11-10); every new window, New Window too, made a tab.
     @MainActor func testOnlyAWindowOpenedForAFileIsMadeATab() async throws {

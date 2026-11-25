@@ -6,6 +6,8 @@
 //        spots measured and the readout (radius, q, d, the family indexed, the listed d and the deviation), or Export Readout CSV…'s
 //        text. `set_diffraction` sets the inspector's Centre, Calibration, Crystal, Rings and Tools sections and presses Calibrate on
 //        Ring or Fit Ring; `set_diffraction_marks` adds a spot as a click on the pattern does, and removes rings and spots.
+//        `get_diffraction_figure` draws the figure Edit > Copy Figure copies (#823): the pattern at 90 mm with its bar, labels,
+//        legend and spot table, as PNG at 300 dpi.
 //
 //        ONE SOURCE PER FACT: the readout is `DiffractionAnalysis.readout`, the rows the room and the Results room show; the CSV is
 //        `exportText`, what the export writes. Every change goes through the analysis' intents as the controls' do, removals through
@@ -36,6 +38,23 @@ extension MacTEMAgentDoor {
                 guard let image = item.session.image else { return noPattern }
                 if call.arguments["csv"] == "true" { return .json(["csv": item.diffraction.exportText(image: image)]) }
                 return .json(diffraction(item, image: image))
+            }
+        },
+        AgentTool(name: "get_diffraction_figure", title: "Diffraction figure",
+                  summary: "The pattern on screen as Export Figure… draws it at its defaults (Edit > Copy Figure copies the same): 90 mm "
+                      + "wide with the scale bar in Å⁻¹, the d of each ring and spot, the hkl of the simulated spots, the legend and the "
+                      + "spot table, as PNG at 300 dpi.",
+                  input: .window) { call in
+            guard let appState = call.window?.state as? AppState else { return notAWindowRefusal }
+            switch diffractionItem(appState) {
+            case .refused(let refusal): return refusal
+            case .item:
+                guard let snapshot = ExportSnapshot.diffractionFigureSnapshot(of: appState) else {
+                    return .refusal(status: 404, message: "The pattern's display is still being built; ask again in a moment.")
+                }
+                do { return .png(try snapshot.png()) } catch {
+                    return .refusal(status: 500, message: "The figure could not be drawn: \(error.localizedDescription)")
+                }
             }
         },
         said(AgentTool(name: "set_diffraction", title: "Diffraction room settings",
@@ -215,9 +234,10 @@ extension MacTEMAgentDoor {
             return .refusal(status: 409, message: "The file states its beam energy; a typed one is only for a file without it.")
         }
         let standard = a["standard"].flatMap(StandardCrystals.named) ?? analysis.standard
-        // A new standard's rings are known once it is set; the current one's are checked here.
-        if let f = a["family"].flatMap(Int.init), a["standard"] == nil, !analysis.standardFamilies().indices.contains(f) {
-            return .refusal(status: 400, message: "The standard has rings 0 to \(analysis.standardFamilies().count - 1) (get_diffraction's families).")
+        // The ring is checked against the standard the call sets, before anything changes (#927).
+        let families = analysis.standardFamilies(of: standard)
+        if let f = a["family"].flatMap(Int.init), !families.indices.contains(f) {
+            return .refusal(status: 400, message: "The standard has rings 0 to \(families.count - 1) (get_diffraction's families).")
         }
         let inner = number("inner") ?? view.annulusInner, outer = number("outer") ?? view.annulusOuter
         if a["inner"] != nil || a["outer"] != nil, !(inner < outer) {
@@ -230,12 +250,7 @@ extension MacTEMAgentDoor {
         if let row = number("centre_row"), let column = number("centre_column") { analysis.setCentre(row: row, column: column) }
         if let n = a["use_ring_centre"].flatMap(Int.init) { analysis.useCentre(ofRing: analysis.rings[n - 1].id) }
         if a["standard"] != nil { analysis.setStandard(standard) }
-        if let f = a["family"].flatMap(Int.init) {
-            guard analysis.standardFamilies().indices.contains(f) else {
-                return .refusal(status: 400, message: "The standard has rings 0 to \(analysis.standardFamilies().count - 1) (get_diffraction's families).")
-            }
-            analysis.familyIndex = f
-        }
+        if let f = a["family"].flatMap(Int.init) { analysis.familyIndex = f }
         if a["clear_calibration"] == "true" { DiffractionUndo.clearCalibration(in: analysis, undoManager: nil) }
         if let dq = number("delta_q") { analysis.typedDeltaQ = dq }
         if let kv = number("beam_kv") { analysis.typedBeamKV = kv }
