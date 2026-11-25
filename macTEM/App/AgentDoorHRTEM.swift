@@ -28,7 +28,8 @@ extension MacTEMAgentDoor {
                        summary: "The shown Simulation document's (or its HRTEM image's) settings, only those given, through the "
                            + "sections' own controls. phase (a library phase's name or id) and zone_axis (\"1 1 0\") as the Diffraction "
                            + "room takes them; thickness_nm, build_with_strain true (accept the strain the specimen refusal names); "
-                           + "defocus_nm (positive is underfocus) or scherzer true, thickness_index (0 is one period); voltage_kv, "
+                           + "defocus_nm (positive is underfocus) or scherzer true, thickness_index (0 is one period); voltage_kv and "
+                           + "camera_length_mm (the Diffraction room's Microscope section: R in mm = λ L |g| in the Spots table), "
                            + "optics (Uncorrected, Cs Corrected), cs_mm, focal_spread_nm, angular_spread_mrad, aperture_mrad (0 for none), "
                            + "field_of_view_nm; frozen_phonons, sigma (\"Si 0.08, O 0.1\" in Å) and configurations; beside (an open "
                            + "image's file name, or none), beside_layout, beside_rotation_deg, beside_inset_across and _down. Refused with the "
@@ -69,7 +70,9 @@ extension MacTEMAgentDoor {
             return .json(["started": "exit waves"])
         }),
         AgentTool(name: "read_simulation", title: "Simulation",
-                  summary: "What the shown Simulation document (or its HRTEM image) holds: the phase and zone axis, the specimen's summary "
+                  summary: "What the shown Simulation document (or its HRTEM image) holds: the phase and zone axis, the zone axis "
+                      + "nearest the drawn orientation and the angle off it, the camera length and the Spots table's rows (hkl, R in "
+                      + "px and mm, q, d, the dynamical intensity where Dynamical is on), the specimen's summary "
                       + "or why it is refused, the optics and defocus, the stored thicknesses, the image's method line, frozen phonons "
                       + "(σ, configurations, the plan line, the run's progress, the convergence), Place Beside (the measured image, layout, "
                       + "rotation, inset size, and the scale both share or why the pair is not drawn), the potential, the transfer (point "
@@ -105,6 +108,8 @@ extension MacTEMAgentDoor {
         AgentParameter("scherzer", .boolean, summary: "Back to Scherzer defocus."),
         AgentParameter("thickness_index", .integer(0...10_000), summary: "The stored thickness shown, 0 is one period."),
         AgentParameter("voltage_kv", .number(1...10_000), summary: "The beam energy, kV (the document's, its pattern's too)."),
+        AgentParameter("camera_length_mm", .number(DiffractionAnalysis.cameraLengthRangeMM),
+                       summary: "The camera length, mm: the Spots table's R in mm = λ L |g|."),
         AgentParameter("optics", .choice([HRTEMPreset.uncorrected.rawValue, HRTEMPreset.csCorrected.rawValue]), summary: "A preset's Cs and focal spread."),
         AgentParameter("cs_mm", .number(-100...100), summary: "Spherical aberration Cs, mm."),
         AgentParameter("focal_spread_nm", .number(0...1000), summary: "Focal spread (1/e half-width), nm."),
@@ -162,6 +167,10 @@ extension MacTEMAgentDoor {
         if let v = number("angular_spread_mrad") { optics.angularSpreadMrad = v }
         if let v = number("aperture_mrad") { optics.apertureMrad = v > 0 ? v : nil }
         if let v = number("field_of_view_nm") { optics.fieldOfViewNM = v }
+        if let mm = number("camera_length_mm"), !(mm.isFinite && DiffractionAnalysis.cameraLengthRangeMM.contains(mm)) {
+            return refused("The camera length is \(UnitDisplay.number(DiffractionAnalysis.cameraLengthRangeMM.lowerBound, digits: 3)) to "
+                + "\(UnitDisplay.number(DiffractionAnalysis.cameraLengthRangeMM.upperBound, digits: 6)) mm.")
+        }
         guard SimulationModel.isValid(optics) else { return refused("Those optics are not valid: a positive voltage, a finite Cs, spreads of at least 0, "
             + "an aperture above 0 or none, and a field of view up to \(UnitDisplay.number(SimulationModel.largestFieldOfViewNM, digits: 3)) nm.") }
         let turnsOn = arguments["frozen_phonons"] == "true" && model.thermal == nil
@@ -215,10 +224,10 @@ extension MacTEMAgentDoor {
            let strain = refusal.acceptableStrain {
             model.acceptStrain(strain, crystal: crystal, zoneAxis: axis)
         }
-        if optics != model.optics {
-            model.changeOptics { $0 = optics }
-            if number("voltage_kv") != nil { analysis.typedBeamKV = optics.volts / 1000 }
-        }
+        if optics != model.optics { model.changeOptics { $0 = optics } }
+        // The document's voltage, as the Diffraction room's Microscope section types it, even when the optics already hold it.
+        if number("voltage_kv") != nil { analysis.typedBeamKV = optics.volts / 1000 }
+        if let mm = number("camera_length_mm") { analysis.setCameraLength(mm: mm) }
         if let nm = number("defocus_nm") { model.setDefocus(nm: nm) }
         if arguments["scherzer"] == "true" { model.useScherzerDefocus() }
         if let index = arguments["thickness_index"].flatMap(Int.init) { model.setThicknessIndex(index) }
@@ -252,6 +261,7 @@ extension MacTEMAgentDoor {
             "zone_axis": ZoneAxisText.text(zoneAxis),
             "thickness_nm": model.thicknessNM,
             "voltage_kv": optics.volts / 1000,
+            "camera_length_mm": analysis.cameraLengthMM,
             "optics": HRTEMPreset.of(optics).rawValue,
             "cs_mm": optics.csMM,
             "focal_spread_nm": optics.focalSpreadNM,
@@ -268,6 +278,14 @@ extension MacTEMAgentDoor {
             "compute_failure": AgentJSON.orNull(model.computeFailure),
             "image_failure": AgentJSON.orNull(model.imageFailure),
         ]
+        // The Diffraction room's readouts of the document (#846): the place the pattern is drawn at and its Spots table.
+        if let near = analysis.drawnOrientation?.nearestZoneAxis(cell: analysis.crystal.structure.cell) {
+            state["nearest_zone_axis"] = ["zone_axis": [near.uvw.x, near.uvw.y, near.uvw.z], "degrees_off": near.angle * 180 / .pi,
+                                          "place": PatternIndexing.place(phase: analysis.crystal.name, zoneAxis: near.uvw, angle: near.angle)]
+                as [String: Any]
+        }
+        let spots: [[String: Any]] = simulation.session.image.map { simulation.simulatedSpotRows(image: $0).map(spotRow) } ?? []
+        state["spots"] = spots
         if let curve = try? HRTEMTransferCurve.of(optics, defocusNM: model.effectiveDefocusNM) {
             state["transfer"] = ["point_resolution_nm": AgentJSON.orNull(curve.pointResolutionAngstrom.map { $0 / 10 }),
                                  "aperture_cutoff_per_nm": AgentJSON.orNull(curve.apertureFrequency),

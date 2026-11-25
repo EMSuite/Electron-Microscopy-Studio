@@ -65,7 +65,8 @@ extension MacTEMAgentDoor {
                            + "for a file with no voltage), camera (a name, or none) and pixel_pitch (mm). crystal (a standard's "
                            + "name), k_max (Å⁻¹) and tolerance (% of q) set the indexing. inner and outer set the annulus (px from the "
                            + "centre), fit_ring true fits the ring in it (answers at once; get_diffraction says fitting). tool ring or "
-                           + "spot, log the display's log switch.",
+                           + "spot, log the display's log switch, unit_cell the Crystal View section's Unit cell switch (the unit cell's "
+                           + "edges in the crystal pane; off limits, as the switch is, while the pane is hidden).",
                        input: .window, parameters: diffractionParameters, acts: true) { call in
             guard let appState = call.window?.state as? AppState else { return notAWindowRefusal }
             switch diffractionItem(appState) {
@@ -136,6 +137,7 @@ extension MacTEMAgentDoor {
         AgentParameter("fit_ring", .boolean, summary: "Fit Ring: fit the ring in the annulus."),
         AgentParameter("tool", .choice(DiffractionViewState.Tool.allCases.map(\.rawValue)), summary: "What a click on the pattern does."),
         AgentParameter("log", .boolean, summary: "Draw the pattern on a log scale."),
+        AgentParameter("unit_cell", .boolean, summary: "Draw the unit cell's edges in the crystal pane."),
     ]
 
     // MARK: Answers
@@ -198,6 +200,9 @@ extension MacTEMAgentDoor {
         out.merge([
             "inner": AgentJSON.number(view.annulusInner), "outer": AgentJSON.number(view.annulusOuter),
             "tool": view.tool.rawValue, "log": view.useLog, "rings": rings, "spots": spots, "readout": rows,
+            "shows_unit_cell": view.showsUnitCell,
+            // A Simulation document's Microscope section (#907): the camera length its Spots table's R in mm is at.
+            "camera_length_mm": AgentJSON.number(DemoDocuments.isSimulation(item.url) ? analysis.cameraLengthMM : nil),
             "fitting": analysis.isFitting, "failure": AgentJSON.orNull(analysis.failure),
         ]) { _, new in new }
         return out
@@ -246,6 +251,10 @@ extension MacTEMAgentDoor {
         if a["calibrate"] == "true" || a["fit_ring"] == "true", analysis.isFitting {
             return .refusal(status: 409, message: "A ring fit is running; ask again when get_diffraction says fitting false.")
         }
+        if a["unit_cell"] != nil, !view.showsCrystal {
+            return .refusal(status: 409, message: "The crystal pane is hidden, so its Unit cell switch is off; the person shows it with "
+                + "View > Show Crystal.")
+        }
 
         if let row = number("centre_row"), let column = number("centre_column") { analysis.setCentre(row: row, column: column) }
         if let n = a["use_ring_centre"].flatMap(Int.init) { analysis.useCentre(ofRing: analysis.rings[n - 1].id) }
@@ -262,6 +271,7 @@ extension MacTEMAgentDoor {
         if a["inner"] != nil || a["outer"] != nil { view.setAnnulus(inner: inner, outer: outer) }
         if let tool = a["tool"].flatMap(DiffractionViewState.Tool.init(rawValue:)) { view.tool = tool }
         if let log = a["log"] { view.useLog = log == "true" }
+        if let on = a["unit_cell"] { view.showsUnitCell = on == "true" }
         if a["calibrate"] == "true" {
             let families = analysis.standardFamilies()
             guard families.indices.contains(analysis.familyIndex) else {

@@ -5,6 +5,12 @@
 //  the orientation as the simulated spots' matrix (at [0 0 1] and no turn the kit's lab frame is the crystal's: the identity), the
 //  scene (Au: 14 atoms, no bond), and the words for an empty pane. Red before: the door had neither tool.
 //
+//  The Microscope section, the Unit cell switch and the Export section (#846's last gaps): set_simulation sets the voltage and the
+//  camera length the Diffraction room's Microscope section types, and read_simulation and get_spot_table read the Spots table with R
+//  in mm at it; set_diffraction unit_cell flips the crystal pane's switch, refused while the pane is hidden; save_diffraction writes
+//  the Spots CSV (the simulated spots) and the pattern's PNG into the Agent folder, refused where the section's button is off. Red
+//  before: the coverage rows were gaps and none of these arguments or tools existed.
+//
 
 import Foundation
 import ShellAgentDoor
@@ -32,6 +38,7 @@ nonisolated final class AgentDoorSimulationTests: XCTestCase {
         door?.setEnabled(false)
         door = nil
         keep = []
+        MacTEMAgentDoor.folder.use(folder: nil)
         UserDefaults().removePersistentDomain(forName: defaultsSuite)
     }
 
@@ -97,5 +104,102 @@ nonisolated final class AgentDoorSimulationTests: XCTestCase {
         let empty = try await call("get_crystal_view")
         XCTAssertTrue(empty.refused)
         XCTAssertTrue(empty.text.contains("crystal pane is empty"), empty.text)
+    }
+
+    /// Mutation: camera_length_mm not set through `setCameraLength`, the voltage not typed into the document, the Spots rows not the
+    /// simulated ones, unit_cell kept while the pane is hidden, save_diffraction writing the Index spots for a Simulation document or
+    /// writing a file while the button is off, or any of the five rows still a gap - red.
+    @MainActor func testTheMicroscopeSectionTheUnitCellSwitchAndTheExportsReachTheDoor() async throws {
+        for control in ["diffraction.microscope.voltage", "diffraction.microscope.cameraLength"] {
+            XCTAssertEqual(AgentDoorCoverage.controls[control], .tool("set_simulation"), control)
+        }
+        XCTAssertEqual(AgentDoorCoverage.controls["diffraction.crystal.unitCell"], .tool("set_diffraction"))
+        for control in ["diffraction.export", "diffraction.export.spots"] {
+            XCTAssertEqual(AgentDoorCoverage.controls[control], .tool("save_diffraction"), control)
+        }
+
+        let state = AppState(launch: LaunchOptions(arguments: []))
+        keep.append(state)
+        door.enroll(state) { [weak state] in state.map { MacTEMAgentDoor.summary(of: $0) } ?? [:] }
+        let opened = try await call("new_simulation")
+        XCTAssertFalse(opened.refused, opened.text)
+        try await waitUntil("the simulation to open", seconds: 30) {
+            state.openItems.selected?.session.image != nil && state.navigation.workspaceArea == .diffraction
+        }
+        let item = try XCTUnwrap(state.openItems.selected)
+        let analysis = item.diffraction
+
+        // The Microscope section: a value out of range is refused whole, the rest of the call with it.
+        let kV = analysis.typedBeamKV
+        let wrong = try await call("set_simulation", ["voltage_kv": 300, "camera_length_mm": 0.5])
+        XCTAssertTrue(wrong.refused, wrong.text)
+        XCTAssertEqual(analysis.typedBeamKV, kV, "a refused call changes nothing")
+        XCTAssertEqual(analysis.cameraLengthMM, DiffractionAnalysis.defaultCameraLengthMM)
+
+        let before = try await call("get_spot_table")
+        var table = try json(before.text)
+        let rows = try XCTUnwrap(table["rows"] as? [[String: Any]], "\(table)")
+        XCTAssertFalse(rows.isEmpty, "a Simulation document's table lists its simulated spots")
+        let first = try XCTUnwrap(rows.first?["r_mm"] as? Double, "\(rows)")
+
+        let set = try await call("set_simulation", ["voltage_kv": 300, "camera_length_mm": 1000])
+        XCTAssertFalse(set.refused, set.text)
+        XCTAssertEqual(analysis.typedBeamKV, 300, "the document's voltage, as the Microscope section types it")
+        XCTAssertEqual(analysis.cameraLengthMM, 1000)
+        let simulationRead = try await call("read_simulation")
+        let read = try json(simulationRead.text)
+        XCTAssertEqual(read["camera_length_mm"] as? Double, 1000)
+        XCTAssertEqual(read["voltage_kv"] as? Double ?? 0, 300, accuracy: 1e-9)
+        let near = try XCTUnwrap(read["nearest_zone_axis"] as? [String: Any], "\(read)")
+        XCTAssertEqual(near["zone_axis"] as? [Int], [0, 0, 1])
+        XCTAssertEqual(near["degrees_off"] as? Double ?? 1, 0, accuracy: 1e-6)
+        let spots = try XCTUnwrap(read["spots"] as? [[String: Any]], "\(read)")
+        let spotTable = try await call("get_spot_table")
+        table = try json(spotTable.text)
+        let after = try XCTUnwrap(table["rows"] as? [[String: Any]])
+        XCTAssertEqual(spots.count, after.count, "read_simulation and get_spot_table read the one Spots table")
+        // R in mm = λ L |g|: twice L at a shorter λ (300 kV against 200 kV), as the table computes it.
+        let image = try XCTUnwrap(item.session.image)
+        let expected = try XCTUnwrap(analysis.simulatedSpotRows(image: image).first?.radiusMM)
+        XCTAssertEqual(try XCTUnwrap(spots.first?["r_mm"] as? Double), expected, accuracy: expected * 1e-9)
+        XCTAssertNotEqual(expected, first)
+
+        // The Unit cell switch, and off limits while the pane is hidden.
+        let off = try await call("set_diffraction", ["unit_cell": false])
+        XCTAssertFalse(off.refused, off.text)
+        XCTAssertFalse(item.diffractionView.showsUnitCell)
+        let pane = try await call("get_crystal_view")
+        XCTAssertEqual(try json(pane.text)["shows_unit_cell"] as? Bool, false)
+        item.diffractionView.showsCrystal = false
+        let log = item.diffractionView.useLog
+        let hidden = try await call("set_diffraction", ["unit_cell": true, "log": !log])
+        XCTAssertTrue(hidden.refused, hidden.text)
+        XCTAssertFalse(item.diffractionView.showsUnitCell)
+        XCTAssertEqual(item.diffractionView.useLog, log, "a refused call changes nothing")
+        item.diffractionView.showsCrystal = true
+
+        // The Export section into the Agent folder.
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("agent-folder-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        MacTEMAgentDoor.folder.use(folder: root)
+        let csv = try await call("save_diffraction", ["which": "spots_csv", "file": "spots.csv"])
+        XCTAssertFalse(csv.refused, csv.text)
+        XCTAssertEqual(try json(csv.text)["written"] as? String, "spots.csv")
+        let written = try String(contentsOf: root.appendingPathComponent("spots.csv"), encoding: .utf8)
+        let csvAnswer = try await call("get_spot_table", ["csv": true])
+        let shown = try XCTUnwrap(try json(csvAnswer.text)["csv"] as? String)
+        XCTAssertEqual(written, shown, "the file the section's button writes, and get_spot_table's csv")
+        XCTAssertTrue(written.contains("# simulation: "), written)
+        let readout = try await call("save_diffraction", ["which": "readout_csv", "file": "readout.csv"])
+        XCTAssertTrue(readout.refused, "no rings or spots: the button is off")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("readout.csv").path))
+        let outside = try await call("save_diffraction", ["which": "spots_csv", "file": "../outside.csv"])
+        XCTAssertTrue(outside.refused, outside.text)
+        await item.diffractionView.show(image: image, analysis: analysis)
+        let png = try await call("save_diffraction", ["which": "png", "file": "pattern.png"])
+        XCTAssertFalse(png.refused, png.text)
+        let bytes = try Data(contentsOf: root.appendingPathComponent("pattern.png"))
+        XCTAssertEqual(Array(bytes.prefix(4)), [0x89, 0x50, 0x4E, 0x47], "a PNG")
     }
 }
