@@ -67,6 +67,8 @@ package nonisolated struct TiltListRow: Sendable, Equatable, Identifiable {
     package var id: String { TiltPlanning.zoneText(uvw) }
     package let uvw: SIMD3<Int>
     package let angleFromBeamDeg: Double
+    /// Its stereographic position on the map: (along the pattern's rows, along its columns), the beam at the origin.
+    package let position: SIMD2<Double>
     /// The tilts that bring it on the beam; nil while the axis is not calibrated.
     package let target: DoubleTiltHolder.Tilts?
     /// Inside the holder's limits; nil while the axis is not calibrated.
@@ -140,7 +142,7 @@ package nonisolated enum TiltPlanning {
         let poles = ZoneAxisMap.poles(structure: structure, orientation: orientation, maxIndex: 3, withinDeg: 60)
         let rows = poles.map { p -> TiltListRow in
             let target = kit.tilts(toZoneAxis: p.uvw, cell: structure.cell, orientation: orientation, at: now)
-            return TiltListRow(uvw: p.uvw, angleFromBeamDeg: p.angleFromBeamDeg, target: target?.tilts,
+            return TiltListRow(uvw: p.uvw, angleFromBeamDeg: p.angleFromBeamDeg, position: p.position, target: target?.tilts,
                                reachable: target?.reachable)
         }
         let traces = ZoneAxisMap.planeTraces(structure: structure, orientation: orientation, families: 3,

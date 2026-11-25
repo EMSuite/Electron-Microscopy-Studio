@@ -317,6 +317,12 @@ extension MacTEMAgentDoor {
             zone axis and turn, steps to Index's solution n of a tie, tilts (tilt_down, tilt_across, turn_by) and flips; \
             `simulate_pattern` shows the simulated spots (double_diffraction adds the forbidden spots g₁ + g₂ gives, \
             excitation_error sets σ), and `get_diffraction_picture` draws them over the pattern with the marked spots.
+            7. Beyond the pattern. `find_phases` rank true ranks the room's standards and the open crystals against the measured \
+            rings or spots (ask again until running is false); use makes a ranked phase the crystal. `powder_pattern` gives the \
+            rings or the X-ray pattern of the crystal and a phase to compare with, and writes its CSV or .xy into the Agent folder. \
+            After Index found an orientation, `plan_tilt` gives the zone axes around the beam and, once the tilt axis is typed or \
+            calibrated from a second indexed pattern, the α and β that bring one on; `set_relationship` places a precipitate's \
+            variants in the crystal from the two parallel pairs a paper states.
 
             What to check:
             - fit_versus_file_percent compares the ring's Δq with the file's axis: a few % says the file's camera length is off; \
@@ -327,6 +333,8 @@ extension MacTEMAgentDoor {
             - Index's verdict other than found is not an orientation: tied, found but poor, scale at its limit (check the \
             calibration), zone axis only (no tilt) and spots or scale changed since (Index again) each say what to do next; act \
             on it before reading the orientation, and look at `get_diffraction_picture` before reporting it.
+            - Find Phases says which phase explains the rings, never which one is there; a tie is reported as a tie, with its sentence.
+            - Uncalibrated, plan_tilt gives angles only: report that, never an α or β.
             """
     }
 }
