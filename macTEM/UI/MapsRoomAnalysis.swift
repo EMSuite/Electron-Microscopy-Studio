@@ -21,24 +21,40 @@ import TEMSession
 struct MapsAnalysisOverlay: View {
     let session: OrientationMapSession
     let geometry: MarkGeometry
+    /// Increase Contrast thickens the overlay lines (#799).
+    @Environment(\.colorSchemeContrast) var contrast
 
     var body: some View {
+        let high = contrast == .increased
+        let boundary = OverlaySignal.width(LayoutPolicy.mapsBoundaryLineWidth, increasedContrast: high)
         Canvas { context, _ in
             if session.showsBoundaries {
-                context.stroke(path(session.grainBoundaryEdges), with: .color(.white.opacity(0.9)), lineWidth: LayoutPolicy.mapsBoundaryLineWidth)
-                context.stroke(path(session.phaseBoundaryEdges), with: .color(.black), lineWidth: LayoutPolicy.mapsBoundaryLineWidth)
+                // A phase boundary is wider as well as black (#799).
+                context.stroke(path(session.grainBoundaryEdges), with: .color(.white.opacity(0.9)),
+                               lineWidth: boundary * OverlaySignal.grainBoundary.widthScale)
+                context.stroke(path(session.phaseBoundaryEdges), with: .color(.black),
+                               lineWidth: boundary * OverlaySignal.phaseBoundary.widthScale)
             }
             if !session.selectedOutline.isEmpty {
-                context.stroke(path(session.selectedOutline), with: .color(.accentColor), lineWidth: LayoutPolicy.mapsOutlineLineWidth)
+                context.stroke(path(session.selectedOutline), with: .color(.accentColor),
+                               lineWidth: OverlaySignal.width(LayoutPolicy.mapsOutlineLineWidth, increasedContrast: high))
             }
             if session.showsSlipTraces, let row = session.selectedRow, let slip = session.selectedSlip {
                 let half = max(3, (Double(row.points)).squareRoot() / 2)
                 for plane in slip.planes where plane.traceAngle.isFinite {
                     let d = MapsRoomFormat.traceDirection(plane.traceAngle) * half
+                    let end = geometry.panePoint(of: ImagePoint(x: row.centroid.x + d.x, y: row.centroid.y + d.y))
                     var p = Path()
                     p.move(to: geometry.panePoint(of: ImagePoint(x: row.centroid.x - d.x, y: row.centroid.y - d.y)))
-                    p.addLine(to: geometry.panePoint(of: ImagePoint(x: row.centroid.x + d.x, y: row.centroid.y + d.y)))
-                    context.stroke(p, with: .color(Self.traceColour(plane.colour)), lineWidth: LayoutPolicy.mapsTraceLineWidth)
+                    p.addLine(to: end)
+                    context.stroke(p, with: .color(Self.traceColour(plane.colour)),
+                                   lineWidth: OverlaySignal.width(LayoutPolicy.mapsTraceLineWidth, increasedContrast: high))
+                    // Each trace names its plane at its end, so the traces are told apart without their colours (#799).
+                    let word = context.resolve(Text(plane.label).font(.caption.monospacedDigit()).foregroundStyle(.white))
+                    let size = word.measure(in: CGSize(width: 200, height: 40))
+                    let plate = CGRect(x: end.x + 3, y: end.y - size.height / 2 - 1, width: size.width + 6, height: size.height + 2)
+                    context.fill(Path(roundedRect: plate, cornerRadius: 3), with: .color(.black.opacity(0.65)))
+                    context.draw(word, at: CGPoint(x: plate.midX, y: plate.midY))
                 }
             }
         }

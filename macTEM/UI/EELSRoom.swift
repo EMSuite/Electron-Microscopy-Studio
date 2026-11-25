@@ -558,6 +558,8 @@ private struct EELSSpectrumView: View {
     /// Back to the kit's default windows: one edge's, or every edge's (nil).
     let onResetWindows: (CoreLossEdge?) -> Void
     let hasEditedWindows: Bool
+    /// Increase Contrast thickens the windows' edges (#799).
+    @Environment(\.colorSchemeContrast) var contrast
     @Bindable var state: EELSRoomState
     @State private var drag: (id: String, handle: EELSEdgeWindows.Handle, start: EELSEdgeWindows, energy: Double)?
     /// A drag that is not a window's: the axis zoom or the pan, from the window and counts zoom it started at (the EDS spectrum's gestures).
@@ -643,7 +645,7 @@ private struct EELSSpectrumView: View {
                 let spoken = EELSRoomFormat.windowsSpeech(items: items.map { (title: EELSFitCompute.title($0.edge), windows: $0.windows) }, shown: w)
                 Canvas { context, size in
                     Self.draw(&context, size: size, left: left, plot: plot, axis: axis, shown: w, scale: scale, isLog: isLog, items: items, backgrounds: backgrounds,
-                              references: references, layers: layers)
+                              references: references, layers: layers, increasedContrast: contrast == .increased)
                 }
                 .contentShape(Rectangle())
                 .onContinuousHover { phase in
@@ -768,7 +770,8 @@ private struct EELSSpectrumView: View {
     }
 
     private static func draw(_ context: inout GraphicsContext, size: CGSize, left: CGFloat, plot: EELSPlotData, axis: EELSOneAxis, shown: ClosedRange<Double>, scale: Scale,
-                             isLog: Bool, items: [EELSWindowItem], backgrounds: [[Double]?], references: [EELSReference], layers: [SpectrumLayer]) {
+                             isLog: Bool, items: [EELSWindowItem], backgrounds: [[Double]?], references: [EELSReference], layers: [SpectrumLayer],
+                             increasedContrast: Bool = false) {
         let area = EELSSpectrumLayout.plotArea(in: size, left: left)
         func x(_ e: Double) -> CGFloat? { axis.x(forEnergy: e).map { area.minX + CGFloat($0) } }
         let (logTop, linearTop) = (scale.logTop, scale.linearTop)
@@ -808,15 +811,23 @@ private struct EELSSpectrumView: View {
                 }
             }
         }
-        // Each picked edge's windows: background (orange), signal (accent), refused ones in red.
+        // Each picked edge's windows: background (orange, dashed edges), signal (accent, solid), refused ones in red, dotted and
+        // named (#799: never by colour alone).
         for item in items {
             let refused = item.refusal != nil
-            for (w, color) in [(item.windows.background, refused ? Color.red : Color.orange), (item.windows.signal, refused ? Color.red : Color.accentColor)] {
+            for kind in [OverlaySignal.EELSWindow.background, .signal] {
+                let w = kind == .background ? item.windows.background : item.windows.signal
+                let color = refused ? Color.red : kind == .background ? Color.orange : Color.accentColor
                 guard let x0 = x(w.lowerBound), let x1 = x(w.upperBound), x1 > x0 else { continue }
+                let signal = OverlaySignal.eelsWindow(kind, refused: refused)
                 context.fill(Path(CGRect(x: x0, y: area.minY, width: x1 - x0, height: area.height)), with: .color(color.opacity(0.12)))
                 for hx in [x0, x1] {
                     var h = Path(); h.move(to: CGPoint(x: hx, y: area.minY)); h.addLine(to: CGPoint(x: hx, y: area.maxY))
-                    context.stroke(h, with: .color(color.opacity(0.7)), lineWidth: 1.5)
+                    context.stroke(h, with: .color(color.opacity(0.7)),
+                                   style: StrokeStyle(lineWidth: OverlaySignal.width(1.5, increasedContrast: increasedContrast), dash: signal.dash))
+                }
+                if let word = signal.word {
+                    context.draw(Text(word).font(.caption2).foregroundStyle(.red), at: CGPoint(x: (x0 + x1) / 2, y: area.minY + 2), anchor: .top)
                 }
             }
         }
@@ -885,7 +896,8 @@ private struct EELSSpectrumView: View {
         if let core = plot.core {
             for (item, background) in zip(items, backgrounds) {
                 guard let background else { continue }
-                context.stroke(path(core, values: background), with: .color(item.refusal == nil ? .orange : .red), style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                context.stroke(path(core, values: background), with: .color(item.refusal == nil ? .orange : .red),
+                               style: StrokeStyle(lineWidth: 1, dash: OverlaySignal.eelsBackground(refused: item.refusal != nil).dash))
             }
         }
         // The regions' spectra over the selected one, each in its region's colour (the EDS room's layers). The hovered pixel's (⌥) is temporary: thin, dashed,

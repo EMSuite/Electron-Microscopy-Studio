@@ -39,6 +39,10 @@ nonisolated enum AgentDoorCoverage {
     static let openReason = "opens a file the person picks in the open panel; the agent uses open_file (its Agent folder) or open_demo"
     static let openCloseReason = "opens or closes the window's files, which stay the person's; the agent uses open_file (its Agent folder) or open_demo"
     static let displayTargetReason = "picks which picture the person's Display rows set; the agent's pictures are drawn as the panes show them"
+    /// The crash report offer (#801): the person's own report of the app's crash, sent from their own mail app or browser.
+    static let crashReportReason = "the person's report of a crash, which only they may send or dismiss"
+    /// Help > How to Cite (#828): the app's citation, copied to the person's clipboard.
+    static let citeReason = "copies the app's citation to the person's clipboard; CITATION.cff in the repository holds the same"
     static let resultsFilterReason = "filters what the person's results table shows; get_results gives every row whatever the filter"
 
     static let controls: [String: Reach] = [
@@ -109,6 +113,8 @@ nonisolated enum AgentDoorCoverage {
         "diffraction.simulation.zone": .tool("set_zone_axis"),
         "diffraction.spotCursor": .personOnly(pointerReason),
         "diffraction.lowerTable": .personOnly(layoutReason),
+        "diffraction.microscope.cameraLength": .gap(846),
+        "diffraction.microscope.voltage": .gap(846),
         "diffraction.spots": .tool("get_spot_table"),
         "diffraction.spots.\\(row.number).delta": .tool("get_spot_table"),
         "diffraction.spots.\\(row.number).hkl": .tool("get_spot_table"),
@@ -497,7 +503,15 @@ nonisolated enum AgentDoorCoverage {
         "simulation.thermal.simulate": .tool("run_simulation"),
         "simulation.thermal.stop": .tool("stop_run"),
         "toolbar.datasetMenu": .personOnly(openCloseReason),
+        "howToCite": .personOnly(citeReason),
+        "howToCite.copyBibTeX": .personOnly(citeReason),
+        "howToCite.copyText": .personOnly(citeReason),
+        "welcome.crashReport": .personOnly(crashReportReason),
+        "welcome.crashReport.dismiss": .personOnly(crashReportReason),
+        "welcome.crashReport.report": .personOnly(crashReportReason),
         "welcome.loadingStage": .seen,
+        "welcome.recent": .personOnly(openReason),
+        "welcome.recent.\\(index)": .personOnly(openReason),
         "welcome.loadingStatus": .seen,
         "welcome.openImage": .tool("open_file"),
         "welcome.stopOpening": .personOnly(openCloseReason),
@@ -559,13 +573,14 @@ nonisolated enum AgentDoorCoverage {
         "Select Tool": .personOnly(pointerToolReason),
         "Rectangle Region Tool": .tool("set_eds"),
         "Ellipse Region Tool": .tool("set_eds"),
-        "Polygon Region Tool": .gap(885),
-        "Line Tool": .gap(885),
-        "Pin Region": .gap(885),
+        "Polygon Region Tool": .tool("set_eds"),
+        "Line Tool": .tool("set_eds"),
+        "Pin Region": .tool("set_eds"),
         // Help
         "demo.title": .tool("open_demo"),
         // The app menu and Settings > Updates.
         "Check for Updates…": .personOnly(updateReason),
+        "How to Cite": .personOnly(citeReason),
         "Check for updates automatically": .personOnly(settingsReason),
     ]
 }
