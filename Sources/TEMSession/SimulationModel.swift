@@ -85,6 +85,7 @@ package final class SimulationModel {
         }
     }
 
+    // periphery:ignore - its fields are read by the synthesized == and hash, which Periphery does not see
     package nonisolated struct GridSize: Hashable, Sendable {
         package let nx: Int
         package let ny: Int
@@ -100,6 +101,7 @@ package final class SimulationModel {
     /// What the stored exit waves were computed for: the specimen as built (its periods, not the thickness typed, so 10.0 and
     /// 10.1 nm, the same 13 periods, keep the waves), the voltage, the aperture and the thermal vibrations (their σ, not the
     /// number of configurations, so asking for more continues the run).
+    // periphery:ignore - its fields are read by the synthesized == and hash, which Periphery does not see
     private struct ExitKey: Equatable {
         let crystal: String
         let zoneAxis: SIMD3<Int>
@@ -110,6 +112,7 @@ package final class SimulationModel {
         let sigmas: [Int: Double]?
     }
 
+    // periphery:ignore - its fields are read by the synthesized == and hash, which Periphery does not see
     private struct Key: Equatable {
         let crystal: String
         let zoneAxis: SIMD3<Int>

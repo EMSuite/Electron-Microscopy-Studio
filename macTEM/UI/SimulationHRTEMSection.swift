@@ -150,6 +150,7 @@ struct SimulationHRTEMSection: View {
     }
 
     /// What a change of re-runs the multislice; every other setting only re-images the stored waves.
+    // periphery:ignore - its fields are read by the synthesized == and hash, which Periphery does not see
     private struct RunKey: Equatable {
         let crystal: String?
         let zoneAxis: SIMD3<Int>
