@@ -7,6 +7,7 @@
 //        MA3 (#895) adds the objective aperture, the field of view, the Potential readout and the Table… sheet, and puts the
 //        Microscope section and the transfer function strip under it. MA4 (#896) adds the Thermal Vibrations section under it,
 //        MA6 (#898) the Beside Measured section.
+//        MA5 (#897) adds Atom columns, which rings the specimen's projected columns on the image (`SimulationColumnsOverlay`).
 //
 
 import ShellControls
@@ -14,11 +15,14 @@ import ShellInspector
 import SwiftUI
 import TEMCore
 import TEMSession
+import UniformTypeIdentifiers
 
 struct SimulationHRTEMSection: View {
     let item: OpenItem
     @Environment(AppState.self) private var appState
     @State private var showsTable = false
+    /// The script Export abTEM Script… writes while its panel is up.
+    @State private var script: (name: String, text: String)?
 
     var body: some View {
         if let simulation = appState.simulationDocument(ofHRTEM: item) {
@@ -103,11 +107,29 @@ struct SimulationHRTEMSection: View {
                 Text(HRTEMImage.potentialName).foregroundStyle(.secondary)
                     .accessibilityIdentifier("simulation.hrtem.potential")
             }
+            InspectorRow("Atom columns") {
+                Toggle("Mark atom columns", isOn: Binding(get: { model.marksColumns }, set: { model.setMarksColumns($0) }))
+                    .toggleStyle(.switch).labelsHidden()
+                    .help("Rings on the specimen's projected atom columns, the slab the crystal pane shows, so each contrast has its column")
+                    .accessibilityValue(columnsValue(simulation))
+                    .accessibilityIdentifier("simulation.hrtem.columns")
+            }
+            if model.marksColumns, let blocker = model.columnsBlocker(crystal: crystal, zoneAxis: zoneAxis) {
+                InspectorNote(blocker)
+            }
             InspectorActionRow {
                 Button("Defocus and Thickness Table…") { showsTable = true }
                     .disabled(waves == nil)
                     .help("Images of the specimen at five defocus values and five thicknesses; a click picks one")
                     .accessibilityIdentifier("simulation.hrtem.table")
+            }
+            InspectorActionRow {
+                Button("Export abTEM Script…") {
+                    script = model.abTEMScript(crystal: crystal, zoneAxis: zoneAxis, appVersion: MacTEMAgentDoor.version())
+                }
+                .disabled(waves == nil || model.isComputing || !model.exitWavesAreCurrent(crystal: crystal, zoneAxis: zoneAxis))
+                .help("A Python script that runs this image again in abTEM \(AbTEMScript.abTEMVersion): the same specimen, grid, slices, lens and defocus")
+                .accessibilityIdentifier("simulation.hrtem.saveScript")
             }
             if model.isComputing {
                 InspectorNote("Computing the exit waves…")
@@ -123,10 +145,13 @@ struct SimulationHRTEMSection: View {
                     .accessibilityIdentifier("simulation.hrtem.method")
             }
         }
+        .roomExporter(isPresented: Binding(get: { script != nil }, set: { if !$0 { script = nil } }),
+                      data: Data((script?.text ?? "").utf8), contentType: .pythonScript, defaultFilename: script?.name ?? "HRTEM.py",
+                      didWrite: { _ in script = nil }, didFinish: { script = nil })
         .sheet(isPresented: $showsTable) {
             SimulationHRTEMTableSheet(model: model) { appState.refreshHRTEMImage(of: simulation) }
         }
-        .task(id: RunKey(crystal: crystal?.identity, zoneAxis: zoneAxis, thicknessNM: model.thicknessNM,
+        .task(id: RunKey(crystal: model.sourceIdentity(crystal: crystal), zoneAxis: zoneAxis, thicknessNM: model.thicknessNM,
                          beamKV: analysis.typedBeamKV, apertureMrad: model.optics.apertureMrad,
                          strain: crystal.map { model.maximumStrain(crystal: $0, zoneAxis: zoneAxis) }, thermal: model.thermal != nil)) {
             await appState.computeHRTEMImage(of: simulation)
@@ -171,6 +196,18 @@ struct SimulationHRTEMSection: View {
     static let defocusRange = -100.0 ... 200.0
     /// The semiangle an objective aperture starts at when it is turned on: abTEM's examples use 20 mrad.
     static let defaultApertureMrad = 20.0
+
+    /// VoiceOver's value of the Atom columns switch: how many columns are marked on the image.
+    private func columnsValue(_ simulation: OpenItem) -> String {
+        let model = simulation.multislice, analysis = simulation.diffraction
+        guard model.marksColumns else { return "Off" }
+        let crystal = analysis.simulatedPhase, zoneAxis = analysis.simulation.zoneAxis
+        if let blocker = model.columnsBlocker(crystal: crystal, zoneAxis: zoneAxis) { return "On, none drawn: \(blocker)" }
+        guard let image = item.session.image, let columns = model.drawnColumns(crystal: crystal, zoneAxis: zoneAxis, on: image) else {
+            return "On, no specimen"
+        }
+        return "On, \(UnitDisplay.count(columns.count, "column", "columns")) marked"
+    }
 
     private func scherzerText(_ model: SimulationModel) -> String {
         (try? model.optics.scherzerDefocusNM()).map { "\(UnitDisplay.number($0, digits: 4)) nm" } ?? "not defined for these optics"

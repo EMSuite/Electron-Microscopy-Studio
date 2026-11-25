@@ -4,7 +4,9 @@
 //        simulated spots beside it are drawn (EMSuiteUI's `CrystalView`). Empty until the simulated spots are shown; then it follows
 //        their orientation (Index's, a solution, a typed zone axis, the Tilt tool, Flip), and turning the crystal turns the spots:
 //        one orientation, `DiffractionAnalysis.simulation`, drives both (`turnByHand`). The scene is the full cell VESTA draws, with the
-//        kit's bonds (`CrystalPaneModel`).
+//        kit's bonds (`CrystalPaneModel`). In a Simulation document whose specimen builds, the pane shows the slab the multislice
+//        runs on instead (#897, plan row MA5): its atoms in the crystal's frame and its box, capped at the drawn-atom limit with
+//        the count named under it (`SlabDrawing`), so the columns in the pane are the ones marked on the HRTEM image.
 //
 
 import ShellCrystal
@@ -16,20 +18,34 @@ import TEMSession
 
 struct DiffractionCrystalPane: View {
     let analysis: DiffractionAnalysis
-    /// The Crystal section's Unit cell toggle (#789).
+    /// The Crystal section's Unit cell toggle (#789); for a slab, its box.
     var showsUnitCell = true
+    /// A Simulation document's slab (#897); nil draws the phase's unit cell.
+    var slab: SlabDrawing.Drawn?
 
     var body: some View {
         Group {
             if let orientation = DiffractionCrystalScenes.shown(analysis) {
-                CrystalView(DiffractionCrystalScenes.scene(for: analysis.crystal), orientation: CrystalPaneModel.view(orientation),
+                let label = CrystalPaneModel.label(phase: analysis.crystal.name, orientation: orientation, cell: analysis.crystal.structure.cell)
+                CrystalView(slab.map(DiffractionCrystalScenes.scene(for:)) ?? DiffractionCrystalScenes.scene(for: analysis.crystal),
+                            orientation: CrystalPaneModel.view(orientation),
                             showsUnitCell: showsUnitCell,
-                            accessibilityLabel: CrystalPaneModel.label(phase: analysis.crystal.name, orientation: orientation,
-                                                                       cell: analysis.crystal.structure.cell),
+                            accessibilityLabel: slab.map { "\(label). \($0.caption)" } ?? label,
                             onOrientationChange: { change in
                                 // The crystal turned by hand: the simulated spots turn with it.
                                 if let turned = CrystalPaneModel.orientation(view: change.orientation) { analysis.turnByHand(to: turned) }
                             })
+                .overlay(alignment: .bottom) {
+                    if let slab {
+                        Text(slab.caption)
+                            .font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                            .padding(.horizontal, 8).padding(.vertical, 4)
+                            .background(.regularMaterial, in: .rect(cornerRadius: 6))
+                            .padding(8)
+                            .accessibilityHidden(true)   // said in the view's label
+                            .allowsHitTesting(false)
+                    }
+                }
             } else {
                 Text("Show the simulated spots, or Index, to see the crystal down the beam.")
                     .font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.center).padding(12)
@@ -59,6 +75,16 @@ struct DiffractionCrystalPane: View {
             sites: CrystalPaneModel.sites(s).map { CrystalSite(fractional: $0.fractional, atomicNumber: $0.atomicNumber, occupancy: $0.occupancy) },
             bonds: CrystalPaneModel.bonds(s).map { CrystalBondInput(from: $0.from, to: $0.to, image: $0.image) })
         cache = (s, scene)
+        return scene
+    }
+
+    private static var slabCache: (slab: SlabDrawing.Drawn, scene: CrystalScene)?
+
+    /// A Simulation document's slab, its box drawn as the cell (no bonds: a slab is many cells, and its columns are what it shows).
+    static func scene(for slab: SlabDrawing.Drawn) -> CrystalScene {
+        if let slabCache, slabCache.slab == slab { return slabCache.scene }
+        let scene = CrystalScene(atoms: slab.atoms.map { CrystalAtom(position: $0.position, atomicNumber: $0.atomicNumber) }, cell: slab.cell)
+        slabCache = (slab, scene)
         return scene
     }
 }

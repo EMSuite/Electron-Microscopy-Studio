@@ -16,7 +16,7 @@ struct RoomExportFile: FileDocument {
     /// Every type a room passes to the save panel: a type missing here makes the panel fall back to the first one, with its name and
     /// format (MacEMUI#106), so the list is built from the rooms' own export kinds.
     static var readableContentTypes: [UTType] {
-        var types: [UTType] = [.png, .json, .commaSeparatedText, .plainText]
+        var types: [UTType] = [.png, .json, .commaSeparatedText, .plainText, .pythonScript]
         let kinds = PatternsExportKind.allCases.map(\.contentType) + IndexingExportKind.allCases.map(\.contentType)
             + EELSExportKind.allCases.map(\.contentType) + [DiffractionPowderExport.xyType]
         for type in kinds where !types.contains(type) { types.append(type) }

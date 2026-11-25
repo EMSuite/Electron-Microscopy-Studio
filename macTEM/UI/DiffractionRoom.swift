@@ -52,7 +52,11 @@ struct DiffractionRoom: View {
             // window's (`PaneSplit`'s scene storage).
             if view.showsCrystal && analysis.simulation.isShown {
                 PaneSplit(storageKey: "diffraction.crystalSplit", resizeLabel: "Resize the crystal and the pattern", leadingName: "Crystal") {
-                    DiffractionCrystalPane(analysis: analysis, showsUnitCell: view.showsUnitCell)
+                    // A Simulation document draws the slab its multislice runs on (#897).
+                    DiffractionCrystalPane(analysis: analysis, showsUnitCell: view.showsUnitCell,
+                                           slab: DemoDocuments.isSimulation(item.url)
+                                               ? item.multislice.drawnSlab(crystal: analysis.simulatedPhase, zoneAxis: analysis.simulation.zoneAxis)
+                                               : nil)
                 } trailing: {
                     patternPane(analysis: analysis, view: view, rows: rows)
                 }

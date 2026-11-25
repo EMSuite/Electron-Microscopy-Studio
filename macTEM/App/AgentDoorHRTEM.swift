@@ -93,6 +93,9 @@ extension MacTEMAgentDoor {
         return appState.simulationDocument(ofHRTEM: item) ?? appState.simulationDocument(ofCBED: item) ?? appState.simulationDocument(ofSTEM: item)
     }
 
+    /// How many of the marked columns `read_simulation` lists (the count is always whole).
+    static let columnsListed = 50
+
     static let simulationParameters: [AgentParameter] = [
         AgentParameter("phase", .text, summary: "A library phase's name or id: the crystal simulated."),
         AgentParameter("zone_axis", .text, summary: "The zone axis, \"u v w\"."),
@@ -108,6 +111,7 @@ extension MacTEMAgentDoor {
         AgentParameter("angular_spread_mrad", .number(0...100), summary: "Beam convergence semiangle, mrad."),
         AgentParameter("aperture_mrad", .number(0...1000), summary: "The objective aperture's semiangle, mrad; 0 for none."),
         AgentParameter("field_of_view_nm", .number(0.01...SimulationModel.largestFieldOfViewNM), summary: "The image's width, nm."),
+        AgentParameter("mark_columns", .boolean, summary: "Ring the specimen's atom columns on the HRTEM image."),
         AgentParameter("frozen_phonons", .boolean, summary: "Frozen phonons on (σ per element, Simulate) or the static lattice."),
         AgentParameter("sigma", .text, summary: "σ per element, Å: \"Si 0.08, O 0.1\"."),
         AgentParameter("configurations", .integer(HRTEMThermal.configurationRange), summary: "Frozen-phonon configurations to average."),
@@ -161,7 +165,7 @@ extension MacTEMAgentDoor {
         guard SimulationModel.isValid(optics) else { return refused("Those optics are not valid: a positive voltage, a finite Cs, spreads of at least 0, "
             + "an aperture above 0 or none, and a field of view up to \(UnitDisplay.number(SimulationModel.largestFieldOfViewNM, digits: 3)) nm.") }
         let turnsOn = arguments["frozen_phonons"] == "true" && model.thermal == nil
-        if turnsOn, crystal == nil { return refused(SimulationSpecimen.Refusal.noPhase.sentence) }
+        if turnsOn, model.sourceIdentity(crystal: crystal) == nil { return refused(SimulationSpecimen.Refusal.noPhase.sentence) }
         var thermal: HRTEMThermal?
         if arguments["sigma"] != nil || arguments["configurations"] != nil {
             guard arguments["frozen_phonons"] != "false" else { return refused("σ and configurations need frozen phonons on.") }
@@ -218,6 +222,7 @@ extension MacTEMAgentDoor {
         if let nm = number("defocus_nm") { model.setDefocus(nm: nm) }
         if arguments["scherzer"] == "true" { model.useScherzerDefocus() }
         if let index = arguments["thickness_index"].flatMap(Int.init) { model.setThicknessIndex(index) }
+        if let on = arguments["mark_columns"] { model.setMarksColumns(on == "true") }
         if let on = arguments["frozen_phonons"] { model.useThermalVibrations(on == "true", crystal: crystal) }
         if let thermal { model.setThermal(thermal) }
         if beside != model.beside { model.setBeside(beside) }
@@ -257,6 +262,7 @@ extension MacTEMAgentDoor {
             "defocus_nm": model.effectiveDefocusNM,
             "scherzer": model.defocusNM == nil,
             "image_shown": appState.hrtemItem(of: simulation) != nil,
+            "columns_marked": model.marksColumns,
             "running": model.isComputing || model.isSimulating,
             "waves_current": model.exitWavesAreCurrent(crystal: crystal, zoneAxis: zoneAxis),
             "compute_failure": AgentJSON.orNull(model.computeFailure),
@@ -269,10 +275,27 @@ extension MacTEMAgentDoor {
         }
         switch model.specimen(crystal: crystal, zoneAxis: zoneAxis) {
         case .success(let built):
-            state["specimen"] = SimulationSpecimen.summary(built, phase: crystal?.name ?? "", zoneAxis: zoneAxis)
+            state["specimen"] = model.atomModel.map { $0.summary(built, beam: model.beamAxis) }
+                ?? SimulationSpecimen.summary(built, phase: crystal?.name ?? "", zoneAxis: zoneAxis)
+        case .failure(.building):
+            // Not a refusal: the model's slab is still being built; read again when it lands.
+            state["specimen_building"] = true
         case .failure(let refusal):
             state["specimen_refusal"] = refusal.sentence
             state["build_with_strain"] = AgentJSON.orNull(refusal.acceptableStrain)
+        }
+        // The columns ringed on the image, in its pixels (row, column, elements): what the person sees over the contrast (#897).
+        if model.marksColumns {
+            if let blocker = model.columnsBlocker(crystal: crystal, zoneAxis: zoneAxis) {
+                state["columns_blocked"] = blocker
+            } else if let image = appState.hrtemItem(of: simulation)?.session.image,
+                      let columns = model.drawnColumns(crystal: crystal, zoneAxis: zoneAxis, on: image) {
+                let listed: [[String: Any]] = columns.prefix(Self.columnsListed).map { c -> [String: Any] in
+                    ["row": c.row, "column": c.column,
+                     "elements": c.atomicNumbers.map { Element.symbol(forAtomicNumber: $0) ?? "Z\($0)" }]
+                }
+                state["columns"] = ["count": columns.count, "first": listed] as [String: Any]
+            }
         }
         if let waves = model.exitWaves, let index = model.shownThicknessIndex {
             state["thicknesses_nm"] = waves.planePeriods.indices.map { waves.thicknessNM(at: $0) }

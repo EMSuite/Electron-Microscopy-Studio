@@ -9,12 +9,14 @@
 //        from them on demand, one inverse FFT, so moving Defocus or Thickness redraws at once. With frozen phonons on (#896, MA4)
 //        the waves are no longer live: Simulate runs the configurations one at a time on a supercell across, keeps each one that
 //        finishes (Stop keeps them, Continue adds the rest), and reads how much the last one changed the image. One simulation runs
-//        at a time on this Mac.
+//        at a time on this Mac. An atom model opened as the specimen (#914, MA14) takes the phase's place: the document keeps the
+//        model as read, the beam runs along its c (or a, or b), and its own thickness is the slab's; the rest is the same.
 //
 
 import DiffractoCore
 import DiffractoScattering
 import Foundation
+import ImagoCore
 import Observation
 import TEMCore
 
@@ -139,8 +141,107 @@ package final class SimulationModel {
         let maximumStrain: Double
     }
     @ObservationIgnored private var cache: (key: Key, result: Result<SimulationSpecimen.Built, SimulationSpecimen.Refusal>)?
+    @ObservationIgnored private var drawnCache: (built: SimulationSpecimen.Built, drawn: SlabDrawing.Drawn)?
+    @ObservationIgnored private var columnsCache: (key: ColumnsKey, columns: [SlabDrawing.Column])?
+    /// The specimen's atom columns are marked on the HRTEM image (#897).
+    package private(set) var marksColumns = false
+
+    /// The atom model simulated in the phase's place (Source: Atom Model…); nil simulates the Diffraction room's phase.
+    package private(set) var atomModel: AtomModelSpecimen?
+    /// The model's axis the beam runs along.
+    package private(set) var beamAxis = AtomModelSpecimen.BeamAxis.c
+    /// Raised each time a model's slab lands: views key their runs on it (with `sourceIdentity`).
+    package private(set) var modelSlabsRevision = 0
+    /// The model's slabs, built off the main actor (a million atoms cut and sorted would stall drawing): one unit across, and the
+    /// frozen-phonon supercell once frozen phonons are on, per beam axis.
+    @ObservationIgnored private var modelSlabs: [ModelSlabKey: Result<SimulationSpecimen.Built, SimulationSpecimen.Refusal>] = [:]
+    @ObservationIgnored private var modelBuildTask: Task<Void, Never>?
+
+    private struct ModelSlabKey: Hashable {
+        let identity: String
+        // periphery:ignore - read by the synthesized == (and hash)
+        let axis: AtomModelSpecimen.BeamAxis
+        // periphery:ignore - read by the synthesized == (and hash)
+        let thermal: Bool
+    }
 
     package init() {}
+
+    /// Simulates `model` in the phase's place, or the phase again (nil). Stops a run going: its configurations are of another
+    /// specimen. The model's slab is built off the main actor; until it lands the specimen is "building".
+    package func useAtomModel(_ model: AtomModelSpecimen?) {
+        guard model != atomModel else { return }
+        stop()
+        atomModel = model
+        modelSlabs = modelSlabs.filter { $0.key.identity == model?.identity }
+        if model == nil { beamAxis = .c }
+        scheduleModelBuild()
+    }
+
+    /// Turns the model so the beam runs along `axis`.
+    package func setBeamAxis(_ axis: AtomModelSpecimen.BeamAxis) {
+        guard axis != beamAxis else { return }
+        stop()
+        beamAxis = axis
+        scheduleModelBuild()
+    }
+
+    /// What the specimen is, for a view's run key: the model with its beam axis and slabs landed, else the phase's identity; nil
+    /// with neither.
+    package func sourceIdentity(crystal: DiffractionCrystal?) -> String? {
+        if let atomModel { return "\(atomModel.identity) \(beamAxis.rawValue) \(modelSlabsRevision)" }
+        return crystal?.identity
+    }
+
+    private func scheduleModelBuild() {
+        modelBuildTask?.cancel()
+        guard atomModel != nil else { return }
+        modelBuildTask = Task { [weak self] in await self?.buildModelSlabs() }
+    }
+
+    /// Builds the open model's slabs not yet built (one unit across; the supercell too with frozen phonons on) off the main actor,
+    /// and returns when they have landed. Each lands even when the model changed meanwhile: it is valid for its key.
+    package func buildModelSlabs() async {
+        guard let atomModel else { return }
+        let axis = beamAxis
+        let laterals: [SIMD2<Double>?] = thermal == nil ? [nil] : [nil, HRTEMThermal.lateralSize]
+        for lateral in laterals {
+            let key = ModelSlabKey(identity: atomModel.identity, axis: axis, thermal: lateral != nil)
+            guard modelSlabs[key] == nil else { continue }
+            let result = await offMainActor { atomModel.build(beamAlong: axis, lateralSize: lateral) }
+            modelSlabs[key] = result
+            modelSlabsRevision += 1
+        }
+    }
+
+    /// What a run is made of, whichever the specimen is: its key, the name its images carry, its elements and how it is built.
+    private struct Source {
+        let identity: String
+        let zoneAxis: SIMD3<Int>
+        let name: String
+        let atomicNumbers: [Int]
+        /// Builds the slab at a thickness, nm, a strain limit and a lateral size (nil is one unit across).
+        let build: (Double, Double, SIMD2<Double>?) -> Result<SimulationSpecimen.Built, SimulationSpecimen.Refusal>
+    }
+
+    /// The atom model when one is open, else the phase along `zoneAxis`; nil with neither.
+    private func source(crystal: DiffractionCrystal?, zoneAxis: SIMD3<Int>) -> Source? {
+        if let atomModel {
+            let axis = beamAxis
+            // The model's own thickness is the slab's: the thickness field does not key it.
+            let along = SIMD3<Int>(axis == .a ? 1 : 0, axis == .b ? 1 : 0, axis == .c ? 1 : 0)
+            let slabs = modelSlabs
+            return Source(identity: atomModel.identity, zoneAxis: along, name: "\(atomModel.name) along \(axis.rawValue)",
+                          atomicNumbers: atomModel.atomicNumbers) { _, _, lateral in
+                slabs[ModelSlabKey(identity: atomModel.identity, axis: axis, thermal: lateral != nil)] ?? .failure(.building)
+            }
+        }
+        guard let crystal else { return nil }
+        return Source(identity: crystal.identity, zoneAxis: zoneAxis, name: "\(crystal.name) \(ZoneAxisText.text(zoneAxis))",
+                      atomicNumbers: crystal.structure.sites.map(\.z)) { thickness, limit, lateral in
+            SimulationSpecimen.build(crystal.structure, zoneAxis: zoneAxis, thicknessNM: thickness, maximumStrain: limit, lateralSize: lateral)
+        }
+    }
 
     /// Sets the thickness, nm, kept in the field's range; a non-finite value changes nothing.
     package func setThickness(nm: Double) {
@@ -154,7 +255,11 @@ package final class SimulationModel {
     /// The strain limit for `crystal` along `zoneAxis`: the one Build with Strain accepted there (the kit's test is "at most", and the same
     /// box gives the same strain), else the kit's default.
     package func maximumStrain(crystal: DiffractionCrystal, zoneAxis: SIMD3<Int>) -> Double {
-        if let acceptedStrain, acceptedStrain.crystal == crystal.identity, acceptedStrain.zoneAxis == zoneAxis {
+        source(crystal: crystal, zoneAxis: zoneAxis).map(maximumStrain) ?? SimulationSpecimen.defaultMaximumStrain
+    }
+
+    private func maximumStrain(_ source: Source) -> Double {
+        if let acceptedStrain, acceptedStrain.crystal == source.identity, acceptedStrain.zoneAxis == source.zoneAxis {
             return acceptedStrain.strain
         }
         return SimulationSpecimen.defaultMaximumStrain
@@ -294,8 +399,8 @@ package final class SimulationModel {
 
     /// Whether the stored exit waves are those of this specimen and optics.
     package func exitWavesAreCurrent(crystal: DiffractionCrystal?, zoneAxis: SIMD3<Int>) -> Bool {
-        guard let crystal, let exitKey else { return false }
-        return exitKey == exitKeyFor(crystal: crystal, zoneAxis: zoneAxis)
+        guard let source = source(crystal: crystal, zoneAxis: zoneAxis), let exitKey else { return false }
+        return exitKey == exitKeyFor(source)
     }
 
     /// Runs the multislice for this specimen and optics off the main actor when the stored exit waves are not theirs, and returns
@@ -308,7 +413,7 @@ package final class SimulationModel {
             cancelRun()
             return
         }
-        guard let crystal, !exitWavesAreCurrent(crystal: crystal, zoneAxis: zoneAxis) else {
+        guard let source = source(crystal: crystal, zoneAxis: zoneAxis), !exitWavesAreCurrent(crystal: crystal, zoneAxis: zoneAxis) else {
             // The stored waves are what is asked for (or there is nothing to ask): a run for anything else must not land over them.
             cancelRun()
             return
@@ -320,14 +425,14 @@ package final class SimulationModel {
             exitKey = nil
             return
         }
-        let key = exitKeyFor(crystal: crystal, zoneAxis: zoneAxis)
+        let key = exitKeyFor(source)
         if let running, running.key == key {
             await running.task.value
             return
         }
         cancelRun()
         let optics = optics
-        let specimen = "\(crystal.name) \(ZoneAxisText.text(zoneAxis))"
+        let specimen = source.name
         isComputing = true
         runNumber += 1
         let number = runNumber
@@ -387,10 +492,10 @@ package final class SimulationModel {
         return Result { try HRTEMImage.image(exitWaves, thicknessIndex: index, defocusNM: effectiveDefocusNM, optics: optics, name: name) }
     }
 
-    private func exitKeyFor(crystal: DiffractionCrystal, zoneAxis: SIMD3<Int>) -> ExitKey {
-        let periods: Int? = if case .success(let built) = specimen(crystal: crystal, zoneAxis: zoneAxis) { built.periods } else { nil }
-        return ExitKey(crystal: crystal.identity, zoneAxis: zoneAxis, periods: periods,
-                       maximumStrain: maximumStrain(crystal: crystal, zoneAxis: zoneAxis), volts: optics.volts,
+    private func exitKeyFor(_ source: Source) -> ExitKey {
+        let periods: Int? = if case .success(let built) = specimen(source) { built.periods } else { nil }
+        return ExitKey(crystal: source.identity, zoneAxis: source.zoneAxis, periods: periods,
+                       maximumStrain: maximumStrain(source), volts: optics.volts,
                        apertureMrad: optics.apertureMrad, sigmas: thermal?.sigmas)
     }
 
@@ -406,7 +511,9 @@ package final class SimulationModel {
                   HRTEMThermal.configurationRange.contains(new.configurations) else { return false }
         }
         if new?.sigmas != thermal?.sigmas { stop() }
+        let turnedOn = thermal == nil && new != nil
         thermal = new
+        if turnedOn, atomModel != nil { scheduleModelBuild() }
         return true
     }
 
@@ -423,10 +530,10 @@ package final class SimulationModel {
     }
 
     /// What turning frozen phonons on for `crystal` sets: the σ and configurations set before when they name the same elements,
-    /// else the defaults. Nil without a crystal.
+    /// else the defaults. Nil without a crystal or an atom model.
     package func thermalTurnedOn(crystal: DiffractionCrystal?) -> HRTEMThermal? {
-        guard let crystal else { return nil }
-        let defaults = HRTEMThermal.defaults(for: crystal.structure.sites.map(\.z))
+        guard let source = source(crystal: crystal, zoneAxis: SIMD3(0, 0, 1)) else { return nil }
+        let defaults = HRTEMThermal.defaults(for: source.atomicNumbers)
         if let lastThermal, Set(lastThermal.sigmas.keys) == Set(defaults.sigmas.keys) { return lastThermal }
         return defaults
     }
@@ -437,12 +544,13 @@ package final class SimulationModel {
     /// The specimen of a frozen-phonon run: the slab with whole units to at least `HRTEMThermal.lateralSize` across. Cached.
     package func thermalSpecimen(crystal: DiffractionCrystal?, zoneAxis: SIMD3<Int>)
         -> Result<SimulationSpecimen.Built, SimulationSpecimen.Refusal> {
-        guard let crystal else { return .failure(.noPhase) }
-        let limit = maximumStrain(crystal: crystal, zoneAxis: zoneAxis)
-        let key = Key(crystal: crystal.identity, zoneAxis: zoneAxis, thicknessNM: thicknessNM, maximumStrain: limit)
+        guard let source = source(crystal: crystal, zoneAxis: zoneAxis) else { return .failure(.noPhase) }
+        let limit = maximumStrain(source)
+        // A model's slabs are built off the main actor and kept by `buildModelSlabs`.
+        if atomModel != nil { return source.build(thicknessNM, limit, HRTEMThermal.lateralSize) }
+        let key = Key(crystal: source.identity, zoneAxis: source.zoneAxis, thicknessNM: thicknessNM, maximumStrain: limit)
         if let thermalCache, thermalCache.key == key { return thermalCache.result }
-        let result = SimulationSpecimen.build(crystal.structure, zoneAxis: zoneAxis, thicknessNM: thicknessNM, maximumStrain: limit,
-                                              lateralSize: HRTEMThermal.lateralSize)
+        let result = source.build(thicknessNM, limit, HRTEMThermal.lateralSize)
         thermalCache = (key, result)
         return result
     }
@@ -459,7 +567,7 @@ package final class SimulationModel {
 
     /// The stored configurations can be continued: they are of this specimen, optics and vibrations, and fewer than asked for.
     package func canContinue(crystal: DiffractionCrystal?, zoneAxis: SIMD3<Int>) -> Bool {
-        guard let crystal, let thermal, let exitWaves, exitWaves.thermal != nil, exitWavesAreCurrent(crystal: crystal, zoneAxis: zoneAxis)
+        guard let thermal, let exitWaves, exitWaves.thermal != nil, exitWavesAreCurrent(crystal: crystal, zoneAxis: zoneAxis)
         else { return false }
         return !exitWaves.configurations.isEmpty && exitWaves.configurations.count < thermal.configurations
     }
@@ -493,7 +601,7 @@ package final class SimulationModel {
     package func simulate(crystal: DiffractionCrystal?, zoneAxis: SIMD3<Int>,
                           current: (() -> (crystal: DiffractionCrystal?, zoneAxis: SIMD3<Int>))? = nil,
                           landed: @escaping () -> Void = {}) async {
-        guard let crystal, let thermal, thermalTask == nil else { return }
+        guard let source = source(crystal: crystal, zoneAxis: zoneAxis), let thermal, thermalTask == nil else { return }
         guard SimulationGate.shared.owner == nil else {
             computeFailure = "Another document is simulating; this one can run when it ends."
             return
@@ -505,13 +613,13 @@ package final class SimulationModel {
             computeFailure = refusal.sentence
             return
         }
-        let key = exitKeyFor(crystal: crystal, zoneAxis: zoneAxis)
+        let key = exitKeyFor(source)
         let optics = optics
         let start: HRTEMExitWaves
         do {
             _ = try HRTEMImage.thermalPlan(built, optics: optics, thermal: thermal)
             let fresh = try HRTEMImage.thermalEnsemble(built, optics: optics, thermal: thermal,
-                                                      specimen: "\(crystal.name) \(ZoneAxisText.text(zoneAxis))")
+                                                      specimen: source.name)
             if canContinue(crystal: crystal, zoneAxis: zoneAxis), let exitWaves, exitWaves.planePeriods == fresh.planePeriods {
                 start = HRTEMExitWaves(configurations: exitWaves.configurations, planePeriods: fresh.planePeriods, periodNM: fresh.periodNM,
                                        volts: fresh.volts, apertureMrad: fresh.apertureMrad, specimen: fresh.specimen, thermal: thermal)
@@ -544,8 +652,8 @@ package final class SimulationModel {
                     Result { try HRTEMImage.addingConfiguration(to: before, built: built, optics: optics, thermal: thermal, index: index,
                                                                 progress: progress) }
                 }
-                let now = current?() ?? (crystal, zoneAxis)
-                guard !Task.isCancelled, let nowCrystal = now.crystal, model.exitKeyFor(crystal: nowCrystal, zoneAxis: now.zoneAxis) == key
+                let now = current?() ?? (crystal: crystal, zoneAxis: zoneAxis)
+                guard !Task.isCancelled, let nowSource = model.source(crystal: now.crystal, zoneAxis: now.zoneAxis), model.exitKeyFor(nowSource) == key
                 else { break }
                 switch made {
                 case .success(let grown):
@@ -595,17 +703,72 @@ package final class SimulationModel {
 
     // MARK: Specimen
 
-    /// The specimen of `crystal` along `zoneAxis` at the thickness, or why there is none. Nil crystal: "Add a phase to simulate."
-    /// Cached; it writes no observed state, so a view may call it while drawing.
+    /// The specimen of the atom model, or of `crystal` along `zoneAxis` at the thickness, or why there is none. Neither:
+    /// "Add a phase to simulate." Cached; it writes no observed state, so a view may call it while drawing.
     package func specimen(crystal: DiffractionCrystal?, zoneAxis: SIMD3<Int>) -> Result<SimulationSpecimen.Built, SimulationSpecimen.Refusal> {
-        guard let crystal else { return .failure(.noPhase) }
-        let limit = maximumStrain(crystal: crystal, zoneAxis: zoneAxis)
-        let key = Key(crystal: crystal.identity, zoneAxis: zoneAxis, thicknessNM: thicknessNM, maximumStrain: limit)
+        guard let source = source(crystal: crystal, zoneAxis: zoneAxis) else { return .failure(.noPhase) }
+        return specimen(source)
+    }
+
+    private func specimen(_ source: Source) -> Result<SimulationSpecimen.Built, SimulationSpecimen.Refusal> {
+        let limit = maximumStrain(source)
+        if atomModel != nil { return source.build(thicknessNM, limit, nil) }
+        let key = Key(crystal: source.identity, zoneAxis: source.zoneAxis, thicknessNM: thicknessNM, maximumStrain: limit)
         if let cache, cache.key == key { return cache.result }
-        let result = SimulationSpecimen.build(crystal.structure, zoneAxis: zoneAxis, thicknessNM: thicknessNM, maximumStrain: limit)
+        let result = source.build(thicknessNM, limit, nil)
         cache = (key, result)
         return result
     }
+
+    /// The slab of `crystal` along `zoneAxis` as the crystal pane draws it (#897): capped at `SlabDrawing.drawnAtomLimit`, with
+    /// the count named; nil while no specimen builds. Cached with the specimen, so a view may call it while drawing.
+    package func drawnSlab(crystal: DiffractionCrystal?, zoneAxis: SIMD3<Int>) -> SlabDrawing.Drawn? {
+        guard case .success(let built) = specimen(crystal: crystal, zoneAxis: zoneAxis) else { return nil }
+        if let drawnCache, drawnCache.built == built { return drawnCache.drawn }
+        let drawn = SlabDrawing.drawn(built)
+        drawnCache = (built, drawn)
+        return drawn
+    }
+
+    /// The specimen's atom columns on `image`, its HRTEM image (#897); nil while no specimen builds. Cached on the specimen and the
+    /// image's size and sampling, so a view may call it while drawing (each zoom step redraws the image pane).
+    package func columns(crystal: DiffractionCrystal?, zoneAxis: SIMD3<Int>, on image: CalibratedImage) -> [SlabDrawing.Column]? {
+        guard case .success(let built) = specimen(crystal: crystal, zoneAxis: zoneAxis) else { return nil }
+        let key = ColumnsKey(built: built, width: image.width, height: image.height, x: image.x?.scale, y: image.y?.scale)
+        if let columnsCache, columnsCache.key == key { return columnsCache.columns }
+        let columns = SlabDrawing.columns(built, on: image)
+        columnsCache = (key, columns)
+        return columns
+    }
+
+    private struct ColumnsKey: Equatable {
+        let built: SimulationSpecimen.Built
+        let width: Int, height: Int
+        let x: Double?, y: Double?
+
+        // Written out (not synthesized) so the unused-code scan sees each field read.
+        static func == (a: ColumnsKey, b: ColumnsKey) -> Bool {
+            a.built == b.built && a.width == b.width && a.height == b.height && a.x == b.x && a.y == b.y
+        }
+    }
+
+    /// Why the Atom columns rings are not drawn though the switch is on, in the section's words; nil when they are. The rings read
+    /// the HRTEM image's size and calibration as the simulation's, so they wait for the image of this specimen, and Place Beside's
+    /// pair (at the measured image's scale) has none.
+    package func columnsBlocker(crystal: DiffractionCrystal?, zoneAxis: SIMD3<Int>) -> String? {
+        if beside != nil { return "Column rings show on the simulation alone; turn Place Beside off." }
+        if !exitWavesAreCurrent(crystal: crystal, zoneAxis: zoneAxis) { return "The rings wait for the image of this specimen." }
+        return nil
+    }
+
+    /// The rings to draw on `image`: the columns while the switch is on and nothing blocks them, else nil.
+    package func drawnColumns(crystal: DiffractionCrystal?, zoneAxis: SIMD3<Int>, on image: CalibratedImage) -> [SlabDrawing.Column]? {
+        guard marksColumns, columnsBlocker(crystal: crystal, zoneAxis: zoneAxis) == nil else { return nil }
+        return columns(crystal: crystal, zoneAxis: zoneAxis, on: image)
+    }
+
+    /// Marks the atom columns of the specimen on its HRTEM image (the HRTEM section's Atom columns switch and the door's).
+    package func setMarksColumns(_ on: Bool) { marksColumns = on }
 }
 
 extension DiffractionAnalysis {

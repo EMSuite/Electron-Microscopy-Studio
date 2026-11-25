@@ -62,6 +62,10 @@ package nonisolated enum SimulationSpecimen {
         case strain(strain: Double, limit: Double, repetitions: Int)
         /// Anything else the kit refused, in its words.
         case refused(String)
+        /// An atom model refused (#914), in a whole sentence of its own.
+        case model(String)
+        /// An atom model's slab is being built off the main actor.
+        case building
 
         package var sentence: String {
             switch self {
@@ -76,6 +80,10 @@ package nonisolated enum SimulationSpecimen {
                     + "Build with Strain builds it strained so."
             case .refused(let words):
                 "The specimen cannot be built: \(words)."
+            case .model(let sentence):
+                sentence
+            case .building:
+                "Building the model's slab…"
             }
         }
 
