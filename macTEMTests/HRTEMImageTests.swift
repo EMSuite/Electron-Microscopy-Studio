@@ -90,9 +90,9 @@ nonisolated final class HRTEMImageTests: XCTestCase {
         for (ix, iy) in [(0, 0), (17, 3), (119, 159), (500, 700), (959, 959)] {
             XCTAssertEqual(pixels[ix * image.width + iy], Float(truth[ix, iy]), accuracy: 1e-6 * Float(truth.values.max()!))
         }
-        XCTAssertEqual(try XCTUnwrap(image.y).scale, 5.4309 / 120 / 10, accuracy: 1e-15, "rows are lab x")
+        XCTAssertEqual(try XCTUnwrap(image.y).scale, 5.4309 / 125 / 10, accuracy: 1e-15, "rows are lab x")
         XCTAssertEqual(try XCTUnwrap(image.y).unit, "nm")
-        XCTAssertEqual(try XCTUnwrap(image.x).scale, 5.4309 * 2.0.squareRoot() / 160 / 10, accuracy: 1e-15, "columns are lab y")
+        XCTAssertEqual(try XCTUnwrap(image.x).scale, 5.4309 * 2.0.squareRoot() / 176 / 10, accuracy: 1e-15, "columns are lab y")
         XCTAssertEqual(image.voltage, 200_000)
         XCTAssertEqual(image.notes.first, "simulated image, no measured data")
     }
