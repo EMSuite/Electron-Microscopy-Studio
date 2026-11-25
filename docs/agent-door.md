@@ -107,15 +107,9 @@ Behind "Let agents run analyses". Each goes through the entry point its control 
 | `plan_tilt` | the Holder section: the tilts now, the limits, the tilt axis typed, forgotten or calibrated from another open pattern, a zone axis picked on the map; writes the Tilt List CSV into the Agent folder |
 | `set_dynamical` | the Simulation section's Intensities: Kinematic or Dynamical (Dynamical runs the multislice, as the section does) and the stored thickness shown; Dynamical is refused with the section's sentence while an atom model is the source |
 | `set_cbed` | the Simulation section's Beam (Parallel or Convergent) and CBED settings: semiangle or Fit Discs, largest thickness, angular step, pattern edge, and the stored pattern shown; with an atom model as the source Fit Discs is refused and `read_cbed` gives the overlay's refusal |
-<<<<<<< HEAD
-| `run_cbed` | Show CBED Pattern: opens the pattern in the Diffraction room and runs its toolbar Simulate; refused with the section's words while it cannot run |
+| `run_cbed` | Show CBED Pattern: opens the pattern in the Diffraction room and runs its toolbar Simulate, at the beam tilt drawn by hand (`set_zone_axis` `tilt_down`, `tilt_across`; at most 50 mrad); refused with the section's words while it cannot run |
 | `stop_cbed` | the CBED pattern's toolbar Stop; the patterns stored stay |
-| `measure_thickness` | Measure Thickness on the pattern shown: the two-beam fit across the diffracted disc (Kelly et al. 1975); `read_thickness` gives the verdict |
-=======
-| `run_cbed` | Show CBED Pattern: opens the pattern in the Diffraction room and runs the probe, at the beam tilt drawn by hand (`set_zone_axis` `tilt_down`, `tilt_across`; at most 50 mrad); refused with the section's words while it cannot run |
-| `stop_cbed` | the CBED section's Stop; the patterns stored stay |
 | `measure_thickness` | Measure Thickness on the pattern shown: the two-beam fit across the diffracted disc (Kelly et al. 1975), on a measured pattern or a simulated CBED pattern run at a hand tilt to one strong reflection; `read_thickness` gives the verdict |
->>>>>>> origin/main
 | `use_measured_thickness` | Use in Simulation: the thickness found becomes the Simulation document's specimen thickness; refused while the document simulates an atom model (its thickness is the model's own) |
 | `set_stem` | the STEM section: semiangle, defocus or Scherzer, scan step or Nyquist, Collect to, and the detector (a preset, or Custom with inner and outer angles on whole rings) |
 | `run_stem` | Show STEM Image and its toolbar Simulate or Continue; the image fills as it is computed; refused with the section's words while it cannot run |
