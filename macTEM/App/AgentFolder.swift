@@ -74,14 +74,20 @@ final class AgentFolder {
         return try? folder.bookmarkData(options: [.withSecurityScope], includingResourceValuesForKeys: nil, relativeTo: nil)
     }
 
-    /// Where a bookmark points, for Settings to show; nil when it does not resolve.
-    static func displayPath(bookmark: Data?) -> String? {
+    /// Where a bookmark points, for Settings to show; nil when it does not resolve. Resolving touches the disk (a share's server),
+    /// so Settings asks `shownPath`, which runs this off the main actor once per bookmark, never from a view body (#926).
+    nonisolated static func displayPath(bookmark: Data?) -> String? {
         guard let bookmark else { return nil }
         var stale = false
-        // .withoutMounting: Settings calls this from a view body (#926).
+        // .withoutMounting: a folder on a share that is asleep answers "not found" at once (#926).
         let resolved = try? URL(resolvingBookmarkData: bookmark, options: [.withSecurityScope, .withoutUI, .withoutMounting],
                                 relativeTo: nil, bookmarkDataIsStale: &stale)
         return resolved.map { ($0.path as NSString).abbreviatingWithTildeInPath }
+    }
+
+    /// `displayPath`, resolved off the main actor as part of the asking task (Settings' `.task(id:)`), for Settings > Agents (#926).
+    nonisolated static func shownPath(bookmark: Data?) async -> String? {
+        await offMainActor { AgentFolder.displayPath(bookmark: bookmark) }
     }
 
     static let noFolder = "No Agent folder is chosen. Ask the person to choose one in \(AppName.display)'s Settings > Agents > Agent folder."
@@ -106,18 +112,31 @@ final class AgentFolder {
     /// Whether `candidate` (canonical) is the folder or inside it.
     func contains(_ candidate: URL) -> Bool {
         guard let url else { return false }
-        let root = url.path.hasSuffix("/") ? url.path : url.path + "/"
-        return candidate.path == url.path || candidate.path.hasPrefix(root)
+        return Self.contains(candidate, in: url)
+    }
+
+    /// Whether `candidate` (canonical) is `folder` (canonical) or inside it.
+    nonisolated static func contains(_ candidate: URL, in folder: URL) -> Bool {
+        let root = folder.path.hasSuffix("/") ? folder.path : folder.path + "/"
+        return candidate.path == folder.path || candidate.path.hasPrefix(root)
     }
 
     /// The most entries (files and folders) one listing visits, so a huge tree cannot hold the main actor for long (#926).
-    static let visitLimit = 50_000
+    nonisolated static let visitLimit = 50_000
 
     /// The files in the folder and its subfolders (hidden ones and packages' insides left out), the first `limit` by path:
     /// relative path, size in bytes and modification date (ISO 8601). `truncated` says files were left out: more than `limit`,
     /// or a tree of more than `visitLimit` entries, of which only the ones visited are sorted.
     func listing(limit: Int = 2000, visitLimit: Int = AgentFolder.visitLimit) -> (files: [[String: Any]], truncated: Bool)? {
         guard let url else { return nil }
+        return Self.listing(of: url, limit: limit, visitLimit: visitLimit)
+    }
+
+    /// The walk behind `listing`, of any folder, touching nothing of this object, so it can run off the main actor: on a share
+    /// every entry is a round trip to the server (#926).
+    nonisolated static func listing(of folder: URL, limit: Int = 2000,
+                                    visitLimit: Int = AgentFolder.visitLimit) -> (files: [[String: Any]], truncated: Bool)? {
+        let url = canonical(folder)
         let keys: [URLResourceKey] = [.isRegularFileKey, .fileSizeKey, .contentModificationDateKey]
         let keySet = Set(keys)
         guard let walk = FileManager.default.enumerator(at: url, includingPropertiesForKeys: keys,
@@ -136,9 +155,9 @@ final class AgentFolder {
                 path = String(file.path.dropFirst(root.count))
             } else {
                 // The walk spelled the folder another way (/private/var for /var): the slow, link-resolving way, as before #926.
-                let inside = Self.canonical(file)
-                guard contains(inside) else { continue }
-                path = relativePath(of: inside)
+                let inside = canonical(file)
+                guard contains(inside, in: url) else { continue }
+                path = String(inside.path.dropFirst(root.count))
             }
             found.append((path, values.fileSize ?? 0, values.contentModificationDate))
         }
@@ -161,7 +180,7 @@ final class AgentFolder {
     }
 
     /// Standardized, with symbolic links resolved, so `..` and links cannot lead out unseen.
-    static func canonical(_ url: URL) -> URL {
+    nonisolated static func canonical(_ url: URL) -> URL {
         url.standardizedFileURL.resolvingSymlinksInPath()
     }
 }
