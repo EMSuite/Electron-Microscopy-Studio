@@ -237,7 +237,7 @@ package nonisolated enum DemoDocuments {
 
         /// One recorded spot pattern (#804, plan row Q21): the frame at scan position (y 84, x 26) of pyxem's twinned nanowire 4D-STEM
         /// scan (precession electron diffraction, 300 kV, 144 x 144 px, 8 bit; pyxem data 0.9.0 `twinned_nanowire.hdf5`), the frame with
-        /// the most spot pixels, written as a HyperSpy file of one 2D signal by tools/demo/extract-spot-pattern.py on GitHub's runner.
+        /// the most spot pixels, written as a HyperSpy file of one 2D signal by tools/lib/extract-spot-pattern.py on GitHub's runner.
         /// C. Francis, "Pyxem 4D STEM Demo Data", Zenodo 10.5281/zenodo.15490547, CC BY 4.0. Its axes are in pixels, as the scan's are.
         package static let nanowirePattern = ShippedFile(relativePath: "twinned_nanowire_frame.hspy", bytes: 40_433,
                                                          md5: "1e109a2b19e0e4cff3db9186ea37ac60", title: "Nanowire Spot Pattern (pyxem)")

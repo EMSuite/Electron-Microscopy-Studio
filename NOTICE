@@ -348,7 +348,7 @@ twinned_nanowire_frame.hspy (40,433 bytes, md5 1e109a2b19e0e4cff3db9186ea37ac60)
     licensed under the Creative Commons Attribution 4.0 International licence (CC BY 4.0,
     https://creativecommons.org/licenses/by/4.0/; text in `Licenses/kikuchipy-data-nickel_ebsd_large-LICENSE.txt`, the same
     licence). Changed: one frame of the 100 x 30 scan was taken and written, with the scan's axes and metadata, as a HyperSpy
-    file of one 2D signal by tools/demo/extract-spot-pattern.py.
+    file of one 2D signal by tools/lib/extract-spot-pattern.py.
 
 silicon_Fd-3m.cif (4,317 bytes, md5 b82db5cc152bea24a6418080a99bbd5c)
     Silicon (diamond structure, Fd-3m, a = 5.4309 Å) as CIF, written by DiffractoKit's CIFExport (EMSuite/DiffractoKit 0.22.0,
