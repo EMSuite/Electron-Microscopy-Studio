@@ -9,6 +9,7 @@
 
 import Foundation
 import ShellAgentDoor
+import SwiftUI
 import TEMSession
 import XCTest
 @testable import macTEM

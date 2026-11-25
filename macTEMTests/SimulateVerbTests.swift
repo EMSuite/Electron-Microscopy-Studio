@@ -10,6 +10,7 @@
 
 import Foundation
 import ShellAgentDoor
+import ShellLayout
 import TEMSession
 import XCTest
 @testable import macTEM
