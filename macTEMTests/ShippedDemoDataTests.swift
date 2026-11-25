@@ -13,6 +13,7 @@ import FormatoCore
 import FormatoHDF5
 import FormatoHSPY
 import SpectroCore
+import SpectroEDX
 import TEMCore
 import TEMSession
 @testable import macTEM
