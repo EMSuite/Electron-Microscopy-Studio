@@ -122,35 +122,57 @@ struct DiffractionPowderSection: View {
     }
 }
 
-/// The sticks: each peak from 0 to its intensity at its position, one colour a phase; the strongest of each phase is 100.
+/// The sticks: each peak from 0 to its intensity at its position, one colour and one dash a phase; the strongest of each phase is 100.
 struct DiffractionPowderChart: View {
     let table: PowderTable
 
     private struct Stick: Identifiable {
         let id: String
-        let phase: String
+        /// The phase's place in the table: 0 the room's crystal, 1 the one compared with.
+        let phaseIndex: Int
         let position: Double
         let intensity: Double
     }
 
     private var xTitle: String { table.settings.kind == .xray ? "2θ (°)" : "q (Å⁻¹)" }
 
+    /// The phases' colours, in the table's order; each phase has its dash as well (`OverlaySignal.powderPhase`, #923).
+    static let phaseColours: [Color] = [.blue, .orange]
+
     var body: some View {
-        let sticks = table.rows.map { Stick(id: $0.id, phase: $0.phase, position: $0.position, intensity: $0.intensity) }
-        let range = table.settings.range
-        Chart(sticks) { stick in
-            RuleMark(x: .value(xTitle, stick.position), yStart: .value("Intensity", 0), yEnd: .value("Intensity", stick.intensity))
-                .foregroundStyle(by: .value("Phase", stick.phase))
-                .lineStyle(StrokeStyle(lineWidth: 1.5))
+        let names = table.phases.map(\.name)
+        let sticks = table.rows.map {
+            Stick(id: $0.id, phaseIndex: $0.phaseIndex, position: $0.position, intensity: $0.intensity)
         }
-        .chartXScale(domain: range.lowerBound...range.upperBound)
-        .chartYScale(domain: 0...100)
-        .chartXAxisLabel(xTitle, alignment: .center)
-        .chartYAxisLabel("I (of 100)")
-        .chartLegend(table.phases.count > 1 ? .visible : .hidden)
-        .frame(height: LayoutPolicy.powderChartHeight)
-        .accessibilityLabel("Powder pattern")
-        .accessibilityValue(table.phases.indices.map { table.headline(phase: $0) }.joined(separator: ". "))
+        let range = table.settings.range
+        VStack(alignment: .leading, spacing: 4) {
+            Chart(sticks) { stick in
+                RuleMark(x: .value(xTitle, stick.position), yStart: .value("Intensity", 0), yEnd: .value("Intensity", stick.intensity))
+                    .foregroundStyle(Self.phaseColours[stick.phaseIndex % Self.phaseColours.count])
+                    .lineStyle(StrokeStyle(lineWidth: 1.5, dash: OverlaySignal.powderPhase(stick.phaseIndex).dash))
+            }
+            .chartXScale(domain: range.lowerBound...range.upperBound)
+            .chartYScale(domain: 0...100)
+            .chartXAxisLabel(xTitle, alignment: .center)
+            .chartYAxisLabel("I (of 100)")
+            .frame(height: LayoutPolicy.powderChartHeight)
+            .accessibilityLabel("Powder pattern")
+            .accessibilityValue(table.phases.indices.map { table.headline(phase: $0) }.joined(separator: ". "))
+            // The key: each phase's name beside a line in its colour and its dash, never a colour swatch alone.
+            if names.count > 1 {
+                HStack(spacing: 10) {
+                    ForEach(Array(names.enumerated()), id: \.offset) { i, name in
+                        Label {
+                            Text(name).font(.caption)
+                        } icon: {
+                            LegendLine(colour: Self.phaseColours[i % Self.phaseColours.count], dash: OverlaySignal.powderPhase(i).dash)
+                        }
+                    }
+                }
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+            }
+        }
     }
 }
 
