@@ -62,19 +62,21 @@ nonisolated enum DiffractionReadoutFormat {
     nonisolated enum Column: CaseIterable, Sendable {
         case name, radius, q, d, family, dListed, intensity, delta, odds, verdict
 
-        /// The header the table draws. The first column's is empty: its cells name themselves ("Ring 1", "Spot 2").
+        /// The header the table draws, in the app's one heading style (#1041, HIG Lists and tables: nouns in title-style
+        /// capitalization): words capitalized, symbols keep their case, the unit in parentheses ("q (Å⁻¹)"). The first column's is
+        /// empty: its cells name themselves ("Ring 1", "Spot 2"). The CSV export keeps its own headers.
         var title: String {
             switch self {
             case .name: ""
-            case .radius: "R px"
-            case .q: "q Å⁻¹"
-            case .d: "d Å"
-            case .family: "family"
-            case .dListed: "d listed"
-            case .intensity: "Σ|F|² listed"
-            case .delta: "Δd/d %"
-            case .odds: "odds"
-            case .verdict: "verdict"
+            case .radius: "R (px)"
+            case .q: "q (Å⁻¹)"
+            case .d: "d (Å)"
+            case .family: "Family"
+            case .dListed: "d Listed"
+            case .intensity: "Σ|F|² Listed"
+            case .delta: "Δd/d (%)"
+            case .odds: "Odds"
+            case .verdict: "Verdict"
             }
         }
 
@@ -89,12 +91,12 @@ nonisolated enum DiffractionReadoutFormat {
             case .radius: "radius, pixels"
             case .q: "q, inverse ångströms"
             case .d: "d, ångströms"
-            case .family: "family"
-            case .dListed: "d listed"
+            case .family: "Family"
+            case .dListed: "d Listed"
             case .intensity: "listed sum of F squared, of a hundred"
             case .delta: "delta d over d, percent"
-            case .odds: "odds"
-            case .verdict: "verdict"
+            case .odds: "Odds"
+            case .verdict: "Verdict"
             }
         }
     }
@@ -135,23 +137,30 @@ nonisolated enum DiffractionReadoutFormat {
     }
 }
 
+/// Whether a table draws its alternating row backgrounds (#1041): only with rows. An empty table's stripes read as grey loading bars
+/// under its hint, so it shows the hint alone on the plain background, the header row kept.
+nonisolated enum TableStripes {
+    static func shown(rowCount: Int) -> Bool { rowCount > 0 }
+}
+
 /// The Diffraction room's Spots table (#785, R in mm #907): its columns in the table's order, each cell as the table shows it, and its sorting.
 nonisolated enum DiffractionSpotFormat {
     nonisolated enum Column: CaseIterable, Sendable {
         case spot, hkl, radius, radiusMM, q, d, dExpected, delta, phase, dynamical
 
+        /// The header the table draws, in the readout's style (#1041): words capitalized, symbols in their case, units in parentheses.
         var title: String {
             switch self {
             case .spot: "Spot"
             case .hkl: "hkl"
-            case .radius: "R px"
-            case .radiusMM: "R mm"
-            case .q: "q Å⁻¹"
-            case .d: "d Å"
-            case .dExpected: "d expected"
-            case .delta: "Δd/d %"
+            case .radius: "R (px)"
+            case .radiusMM: "R (mm)"
+            case .q: "q (Å⁻¹)"
+            case .d: "d (Å)"
+            case .dExpected: "d Expected"
+            case .delta: "Δd/d (%)"
             case .phase: "Phase"
-            case .dynamical: "I dyn %"
+            case .dynamical: "I dyn (%)"
             }
         }
 

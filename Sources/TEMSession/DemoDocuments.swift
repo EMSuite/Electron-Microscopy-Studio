@@ -156,6 +156,18 @@ package nonisolated enum DemoDocuments {
                                notes: ["simulated image, no measured data", "computing"])
     }
 
+    /// What a STEM item holds before its first positions land: the HRTEM placeholder's 64 pixels, its note saying whether a run is
+    /// going. Show STEM Image does not start one (a scan takes minutes), so before Simulate it says so instead of "computing" (#1022).
+    package static func stemPlaceholder(name: String, computing: Bool) -> CalibratedImage {
+        let axis = AxisCalibration(scale: 0.05, unit: "nm")
+        return CalibratedImage(width: 64, height: 64, stored: .uint8([UInt8](repeating: 0, count: 64 * 64)), x: axis, y: axis,
+                               fileName: name, source: "simulation", voltage: nil,
+                               notes: ["simulated image, no measured data", computing ? "computing" : stemNotComputedNote])
+    }
+
+    /// The STEM placeholder's note before a run (#1022).
+    package static let stemNotComputedNote = "not computed yet: press Simulate"
+
     /// The folders in the app's temporary folder that Help > Open Demo Data writes its on-disk demos to (the stack, the SEM image, the
     /// spectrum): opened through the File menu's own path, but scratch, never a folder to save into (#507).
     package static let writtenFolders = ["Electron-Microscopy-Studio-demo-stack", "Electron-Microscopy-Studio-demo-sem",
