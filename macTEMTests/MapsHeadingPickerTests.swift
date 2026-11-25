@@ -51,7 +51,7 @@ nonisolated final class MapsHeadingPickerTests: XCTestCase {
         XCTAssertEqual(MapsRoomFormat.keyUnit(.property("CI")), "CI")
         XCTAssertEqual(MapsRoomFormat.keyUnit(.derived(.kam)), "KAM (°)")
         let room = try ui("MapsRoom.swift")
-        XCTAssertTrue(room.contains("MapsKeyInset(session: session)"), "the key is on the map's footer")
+        XCTAssertTrue(room.contains("MapsKeyInset(session: session, keyWidth: MapsRoomLayout.keyWidth(in: box, count: session.keys.count))"), "the key is on the map's footer, its width set by the map (#1089)")
         XCTAssertTrue(room.contains("switch MapsKeyKind.of(session.layer) {"))
     }
 }
