@@ -37,8 +37,11 @@ package final class CBEDModel {
 
     package nonisolated struct RunKey: Equatable, Sendable {
         /// The specimen: `SimulationModel.sourceIdentity`, the phase's or the atom model's with its beam axis (#953).
+        // periphery:ignore - read by the synthesized == (and hash)
         let source: String
+        // periphery:ignore - read by the synthesized == (and hash)
         let zoneAxis: SIMD3<Int>
+        // periphery:ignore - read by the synthesized == (and hash)
         let maximumStrain: Double
         package let volts: Double
         package let semiangleMrad: Double
@@ -172,7 +175,7 @@ extension DiffractionAnalysis {
     /// The shortest reflection of the zero-order zone at the overlay's zone axis, 1/Å: the kinematic list's shortest family with a
     /// member on the zone (h u + k v + l w = 0), what Fit Discs keeps apart. Read from the list, not the drawn overlay, so it holds
     /// with the simulated spots hidden. Nil without a phase or a reflection on the zone.
-    package func shortestZeroOrderG(image: CalibratedImage) -> Double? {
+    package func shortestZeroOrderG() -> Double? {
         guard simulatedPhase != nil, let list = list() else { return nil }
         let axis = simulation.zoneAxis
         return list.families.map(\.family)
