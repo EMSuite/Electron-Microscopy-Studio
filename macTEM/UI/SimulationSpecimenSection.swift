@@ -96,7 +96,7 @@ struct SimulationSpecimenSection: View {
                         .help("Opens the specimen's HRTEM image in the Image room, with live Defocus and Thickness")
                         .accessibilityIdentifier("simulation.specimen.hrtem")
                     Button("Show STEM Image") { appState.showSTEMImage(of: item) }
-                        .help("Opens the specimen's STEM image in the Image room; Simulate there scans the probe")
+                        .help("Opens the specimen's STEM image in the Image room and scans the probe over one projected unit (the STEM section's plan line states its size); Stop in the toolbar keeps the positions done")
                         .accessibilityIdentifier("simulation.specimen.stem")
                 }
             case .failure(.building):

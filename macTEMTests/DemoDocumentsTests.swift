@@ -185,7 +185,7 @@ nonisolated final class DemoDocumentsTests: XCTestCase {
         XCTAssertFalse(DemoDocuments.isDemo(URL(fileURLWithPath: "/Users/x/a.dm4")))
     }
 
-    /// A STEM image opened before Simulate (Show STEM Image starts no run: a scan takes minutes) says so, never "computing" (#1022);
+    /// A STEM image opened before Simulate (an Open of the image by itself starts no run; Show STEM Image starts one) says so, never "computing" (#1022);
     /// the placeholder says "computing" only while a run goes. Red before: the STEM item held the HRTEM placeholder's "computing".
     @MainActor func testAStemImageBeforeSimulateSaysItIsNotComputedYet() async throws {
         let state = AppState(launch: LaunchOptions(arguments: []))

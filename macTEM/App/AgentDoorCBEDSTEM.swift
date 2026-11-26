@@ -417,8 +417,8 @@ extension MacTEMAgentDoor {
                 return refused("The STEM image is complete for these settings: change one with set_stem to run again.")
             }
             let resumes = model.holds(run.key)
+            // Show STEM Image runs the image's Simulate itself, as the section's button does.
             appState.showSTEMImage(of: simulation)
-            Task { await appState.simulateSTEM(of: simulation) }
             return .json(["started": resumes ? "Continue" : "Simulate"])
         }),
         said(AgentTool(name: "stop_stem", title: "Stop STEM",
