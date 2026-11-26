@@ -296,7 +296,7 @@ package nonisolated enum DemoDocuments {
         /// The scale both axes of `nanowirePattern` carry, Å⁻¹ per pixel: calibrated on GaAs {111} of the pattern itself (a = 5.6535 Å,
         /// tools/lib/extract-spot-pattern.py's `SCALE`), not an independent calibration. pyxem's tutorial states 0.026874375407392053,
         /// read off the whole scan's mean, which puts {111} of this pattern 5.1 % short.
-        package static let nanowirePatternDeltaQ = 0.0283261891071197
+        package static let nanowirePatternDeltaQ = 0.028326189107119697
         package static let nanowirePatternSide = 100
         /// Silicon (diamond structure, Fd-3m, a = 5.4309 Å) as CIF, the crystal of the demo simulation (#804): written by DiffractoKit's
         /// `CIFExport` (its pin corpus's `silicon_Fd-3m.cif`), GPL-3.0-only.

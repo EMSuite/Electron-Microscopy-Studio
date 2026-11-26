@@ -776,7 +776,7 @@ raw frame again, and update NOTICE and the constant with the new md5, size and s
 
 **What.** `DemoData/twinned_nanowire_frame.hspy` is now the mean of the 64 frames of pyxem's twinned nanowire scan whose spots
 match frame (y 84, x 26) best (3 by 3 smoothed, background-subtracted annulus, Pearson 0.73 or more), distortion-corrected as
-before, cropped to the 100 x 100 pixels the correction fills, float32, at 0.0283261891071197 Å⁻¹ per pixel (calibrated on its own
+before, cropped to the 100 x 100 pixels the correction fills, float32, at 0.028326189107119697 Å⁻¹ per pixel (calibrated on its own
 GaAs {111}, as before). The demo lands with the shipped GaAs CIF as the room's crystal. Index takes the room's Tolerance, and its
 length floor is half a pixel of the image's scale where that is wider than the kit's 0.004 Å⁻¹ (`PatternIndexing.solverSettings`).
 
