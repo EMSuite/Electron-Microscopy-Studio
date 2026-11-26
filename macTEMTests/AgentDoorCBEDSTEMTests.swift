@@ -102,7 +102,8 @@ nonisolated final class AgentDoorCBEDSTEMTests: XCTestCase {
         XCTAssertFalse(beams.isEmpty)
         // The Spots table's rows of the document with their dynamical column (#1152: Index's rows, always empty here, before).
         simulation.diffraction.simulation.isShown = true
-        let rows = try XCTUnwrap(try await read("read_dynamical")["spots"] as? [[String: Any]])
+        let shown = try await read("read_dynamical")
+        let rows = try XCTUnwrap(shown["spots"] as? [[String: Any]], "\(shown)")
         XCTAssertFalse(rows.isEmpty, "the Spots table's rows")
         XCTAssertTrue(rows.contains { $0["dynamical_percent"] is Double }, "\(rows)")
         let count = try XCTUnwrap(now["thicknesses_nm"] as? [Double], "\(now)").count
