@@ -363,7 +363,14 @@ nonisolated final class DiffractionIndexTests: XCTestCase {
         XCTAssertEqual(a.indexBlocker(image: image), "Index needs a scale: calibrate on a standard's ring, or type Δq")
         XCTAssertNil(a.index(image: image), "Index does not start without a scale")
         a.typedDeltaQ = Self.deltaQ
+        XCTAssertEqual(a.indexBlocker(image: image), "Show the specimen's phase under Phases (Add Phase… opens a CIF or the Materials Project): "
+                       + "the standard Au only calibrates", "the calibration standard never names an unknown pattern (#1139)")
+        XCTAssertNil(a.index(image: image), "Index does not start against the fallen-back standard")
+        a.setCrystal(.preset(al))
         XCTAssertNil(a.indexBlocker(image: image))
+        a.clearCrystal()
+        XCTAssertFalse(a.isCrystalChosen, "hiding the phase returns the room to the standard, which only calibrates")
+        XCTAssertNotNil(a.indexBlocker(image: image))
         let unpowered = CalibratedImage(width: 8, height: 8, pixels: [Float](repeating: 1, count: 64), x: nil, y: nil, fileName: "u",
                                         source: "test", voltage: nil)
         let b = DiffractionAnalysis()

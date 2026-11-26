@@ -118,6 +118,10 @@ package final class DiffractionAnalysis {
     // The facts
     package private(set) var centre: DiffractionCentre?
     package private(set) var crystal: DiffractionCrystal = .preset(StandardCrystals.all[0])
+    /// The crystal is the person's choice (a shown phase, a CIF, a standard picked as the specimen, a demo's crystal), not the
+    /// calibration standard the room falls back to. Index and the simulated spots of a measured pattern wait for it (#1139): the
+    /// standard calibrates, it never names an unknown pattern.
+    package private(set) var isCrystalChosen = false
     /// This analysis is a Simulation document's (set once, when its item is made): its standard is no specimen (`awaitsPhase`).
     package var isSimulationDocument = false
     /// The standard a ring is calibrated on, and the index of its family in the list (the nearest few families).
@@ -254,17 +258,34 @@ package final class DiffractionAnalysis {
 
     // MARK: Crystal
 
+    /// The person's crystal: Index and the simulated spots use it.
     package func setCrystal(_ new: DiffractionCrystal) {
-        if new != crystal { dropIndex() }
+        if new != crystal || !isCrystalChosen { dropIndex() }
         crystal = new
+        isCrystalChosen = true
         cifRefusal = nil
         if case .preset(let s) = new { standard = s }
+    }
+
+    /// No crystal chosen: the room falls back to its calibration standard, which only calibrates.
+    package func clearCrystal() {
+        if isCrystalChosen || crystal != .preset(standard) { dropIndex() }
+        crystal = .preset(standard)
+        isCrystalChosen = false
+        cifRefusal = nil
     }
 
     package func setStandard(_ new: StandardCrystal) {
         standard = new
         familyIndex = 0
         if case .preset = crystal, crystal != .preset(new) { dropIndex(); crystal = .preset(new) }
+    }
+
+    /// Why Index and the simulated spots wait for a phase on a measured pattern; nil once the person chose the crystal. A Simulation
+    /// document has its own empty state (`awaitsPhase`).
+    package var phaseBlocker: String? {
+        guard !isSimulationDocument, !isCrystalChosen else { return nil }
+        return "Show the specimen's phase under Phases (Add Phase… opens a CIF or the Materials Project): the standard \(standard.name) only calibrates"
     }
 
     package func crystalRefused(_ words: String) { cifRefusal = words }
@@ -439,6 +460,7 @@ package final class DiffractionAnalysis {
         if centre == nil { return "Index needs the pattern's centre" }
         if calibration(for: image) == nil { return "Index needs a scale: calibrate on a standard's ring, or type Δq" }
         if volts(for: image) == nil { return "Index needs the beam energy: type it under Calibration" }
+        if let why = phaseBlocker { return why }
         if let why = crystalFailure { return why }
         return nil
     }
@@ -673,7 +695,7 @@ package final class DiffractionAnalysis {
 
     /// `orientationLine` with its angle in `locale`: the reader's in the header row, the point (the door's) by default (#1039).
     package func orientationHeaderLine(locale: Locale) -> String? {
-        guard simulation.isShown, !awaitsPhase, isTurnedByHand || indexOutcome == nil, let o = drawnOrientation,
+        guard simulation.isShown, !awaitsPhase, phaseBlocker == nil, isTurnedByHand || indexOutcome == nil, let o = drawnOrientation,
               let near = o.nearestZoneAxis(cell: crystal.structure.cell) else { return nil }
         return PatternIndexing.place(phase: crystal.name, zoneAxis: near.uvw, angle: near.angle, locale: locale)
             + (isTurnedByHand ? " · set by hand" : "")
@@ -784,6 +806,7 @@ package final class DiffractionAnalysis {
     /// spots are its beams at its thickness, placed the same way.
     package func simulatedSpots(image: CalibratedImage, dynamical: DynamicalBeams? = nil) -> SimulatedSpots? {
         guard simulation.isShown else { return nil }
+        if let why = phaseBlocker { return .failure(SimulationAbsence(sentence: why)) }
         let calibration = calibration(for: image)
         let volts = volts(for: image)
         var settings = simulation

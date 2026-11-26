@@ -3,7 +3,7 @@
 //  Role: the Diffraction room's phases from the library (#779): each phase's marker shape and colour, by its place in the
 //        library, and the crystal the room indexes against when a phase is shown. In this first slice one phase is shown at a
 //        time: showing a phase makes it the crystal Index, the readout and the simulated spots use; hiding it returns the room to
-//        the calibration standard. The room keeps its own copy of the phase it uses (#780), so a later change to the
+//        the calibration standard, which only calibrates: Index waits for a phase again (#1139). The room keeps its own copy of the phase it uses (#780), so a later change to the
 //        library changes no result until Update from Library. The numbers stay DiffractoKit's; this file only names and chooses.
 //
 
@@ -57,7 +57,7 @@ enum DiffractionPhases {
         if shown {
             analysis.setCrystal(crystal(for: phase))
         } else if analysis.crystal.phaseID == phase.id {
-            analysis.setCrystal(.preset(analysis.standard))
+            analysis.clearCrystal()
         }
     }
 

@@ -21,6 +21,7 @@ nonisolated final class DiffractionBudgetSignpostTests: XCTestCase {
     @MainActor private func shown(_ image: CalibratedImage) -> DiffractionAnalysis {
         let analysis = DiffractionAnalysis()
         analysis.bind(image)
+        analysis.setCrystal(.preset(analysis.standard))
         analysis.typedDeltaQ = 0.01
         analysis.simulation.isShown = true
         analysis.simulation.zoneAxis = SIMD3(0, 0, 1)

@@ -159,6 +159,8 @@ extension AppState {
         }
         guard let pattern = made.first(where: { $0.url == DemoDocuments.patternURL }), let item = openItems.item(pattern.id) else { return }
         if openItems.selected?.id != item.id { openItems.select(item.id) }
+        // The demo's specimen is gold, the standard itself: it is the crystal, chosen, so Index runs on it as on any phase (#1139).
+        if !item.diffraction.isCrystalChosen { item.diffraction.setCrystal(.preset(item.diffraction.standard)) }
         if item.diffraction.rings.isEmpty {
             item.diffractionView.setAnnulus(inner: Self.demoPatternAnnulus.inner, outer: Self.demoPatternAnnulus.outer)
         }

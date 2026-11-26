@@ -60,6 +60,7 @@ extension MacTEMAgentDoor {
                 return .refusal(status: 404, message: "The crystal pane is empty: this Simulation document has no phase yet; add one "
                     + "(add_phase) first.")
             }
+            if let why = analysis.phaseBlocker { return .refusal(status: 404, message: "The crystal pane is empty: \(why).") }
             return .refusal(status: 404, message: "The crystal pane is empty: show the simulated spots (simulate_pattern overlay true) "
                 + "or Index first.")
         }

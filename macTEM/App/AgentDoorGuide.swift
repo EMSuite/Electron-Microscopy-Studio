@@ -315,7 +315,9 @@ extension MacTEMAgentDoor {
             d and the deviation in %.
             5. Index. crystal picks the crystal the rows are indexed against; k_max and tolerance (% of q) set the list and the \
             match. Rows are indexed again at once, with no refit. `get_diffraction` csv true gives Export Readout CSV…'s text.
-            6. Orientation (a spot pattern). `index_pattern` presses Index: with no spot marked it finds the spots (they become \
+            6. Orientation (a spot pattern). Index and the simulated spots wait for the specimen's phase: show one (`list_phases`, \
+            `add_phase`) or name a standard as the specimen with crystal; the calibration standard the room falls back to only \
+            calibrates. `index_pattern` presses Index: with no spot marked it finds the spots (they become \
             marks) and the crystal's full orientation; with spots marked it reads those, and a clicked spot among them gives the \
             zone axis only. It answers at once: ask `get_spot_table` until indexing is false, then read the verdict, its line, the \
             solutions and the rows (hkl, d expected, Δd/d). `set_diffraction_marks` remove "spot N" drops a spot before Index runs \
