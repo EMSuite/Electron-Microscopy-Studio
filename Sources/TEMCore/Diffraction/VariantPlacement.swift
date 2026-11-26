@@ -150,6 +150,12 @@ package nonisolated struct VariantSet: Sendable, Equatable {
 
 /// Why no variant could be placed, in the room's words.
 package nonisolated enum VariantRefusal: Error, Sendable, Equatable {
+    /// No precipitate is chosen.
+    case noPrecipitate
+    /// The precipitate chosen is the matrix itself.
+    case precipitateIsMatrix
+    /// No relationship is typed.
+    case noRelationship
     /// The matrix has no orientation yet.
     case noMatrixOrientation
     /// The pairs do not fix an orientation (a zero vector, parallel vectors on one side).
@@ -159,6 +165,9 @@ package nonisolated enum VariantRefusal: Error, Sendable, Equatable {
 
     package var sentence: String {
         switch self {
+        case .noPrecipitate: "Choose the precipitate: a phase of the library (Add Phase… under Phases), a standard, or another open pattern's crystal."
+        case .precipitateIsMatrix: "The precipitate is the matrix itself: choose another phase."
+        case .noRelationship: "Type the orientation relationship as a paper states it, two parallel pairs, or pick a literature example."
         case .noMatrixOrientation: "Index the matrix first. Variants are placed from its orientation."
         case .pairsDoNotFixAnOrientation: "These pairs do not fix an orientation."
         case .kit(let s): s
@@ -168,7 +177,8 @@ package nonisolated enum VariantRefusal: Error, Sendable, Equatable {
 
 package nonisolated enum VariantPlacement {
 
-    /// β″ (Mg5Si6) in Al as Andersen et al. (1998) state it: [1 0 0] ∥ [3 2 0] Al, kept exact, and [0 0 1] ∥ [1 -3 0] Al.
+    /// β″ (Mg5Si6) in Al as Andersen et al. (1998) state it: [1 0 0] ∥ [3 2 0] Al, kept exact, and [0 0 1] ∥ [1 -3 0] Al. A
+    /// literature example (`DiffractionVariants.Example`), never a default.
     package static let betaDoublePrimeInAluminium = PrecipitateRelationship(
         first: (RelationshipVector(.direction, 1, 0, 0), RelationshipVector(.direction, 3, 2, 0)),
         second: (RelationshipVector(.direction, 0, 0, 1), RelationshipVector(.direction, 1, -3, 0)))

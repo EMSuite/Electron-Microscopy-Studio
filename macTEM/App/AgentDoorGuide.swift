@@ -328,7 +328,9 @@ extension MacTEMAgentDoor {
             rings or the X-ray pattern of the crystal and a phase to compare with, and writes its CSV or .xy into the Agent folder. \
             After Index found an orientation, `plan_tilt` gives the zone axes around the beam and, once the tilt axis is typed or \
             calibrated from a second indexed pattern, the α and β that bring one on; `set_relationship` places a precipitate's \
-            variants in the crystal from the two parallel pairs a paper states.
+            variants in the crystal from the two parallel pairs a paper states: nothing is set until you give a precipitate (a \
+            library phase, a standard or an open crystal) and both pairs, or an example; a warning says when an example's paper \
+            names another matrix.
             8. Look. `get_diffraction_figure` draws the figure Export Figure… writes: the pattern with its marks, labels, scale \
             bar, legend and spot table.
 
