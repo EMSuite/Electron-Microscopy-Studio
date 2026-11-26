@@ -675,7 +675,7 @@ def make_r9(out, cif_dirs):
     planted = {
         "cap-exact-5MiB.cif": (padded(MAX_CIF_BYTES), "read-at-cap"),
         "cap-plus-1.cif": (padded(MAX_CIF_BYTES + 1), "refuse-size"),
-        "invalid-utf8.cif": (b"# \xc3\x28 invalid UTF-8 (a lead byte then a non-continuation)\n" + nl, "refuse-utf8"),
+        "invalid-utf8.cif": (b"# \xc3\x28 invalid UTF-8 (a lead byte then a non-continuation)\n" + nl, "read-latin1"),
         "utf8-bom.cif": (b"\xef\xbb\xbf" + nl, "read"),
         "crlf.cif": (nl.replace(b"\r\n", b"\n").replace(b"\n", b"\r\n"), "read"),
         "nfd-comment.cif": (("# café Ångström\n").encode() + nl, "read"),

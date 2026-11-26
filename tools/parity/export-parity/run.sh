@@ -169,8 +169,8 @@ source_mutant registered band-twice-as-wide $IO 'P5-band/p5x-u1' p5x-u1 marks \
 source_mutant registered band-never-drawn $IO 'P5-band/p5x-u1' p5x-u1 marks \
   'if mark.kind == .profile, mark.width > 1, points.count == 2 {' 'if mark.kind == .profile, mark.width > 1_000_000, points.count == 2 {'
 source_mutant registered angle-drawn-through-the-wrong-vertex $IO 'P5-stroke/p5x-u1/angle-arm-1' p5x-u1 marks \
-  $'                context.addLines(between: points)\n                context.strokePath()' \
-  $'                context.addLines(between: (mark.kind == .angle && points.count == 3) ? [points[0], points[2], points[1]] : points)\n                context.strokePath()'
+  $'                    context.addLines(between: points)\n                    context.strokePath()' \
+  $'                    context.addLines(between: (mark.kind == .angle && points.count == 3) ? [points[0], points[2], points[1]] : points)\n                    context.strokePath()'
 # P7 (the label a mark carries is drawn, upright, where it is anchored; the plants p7-u1 and -u2, the labels drawn alone and upright
 # by main.swift's own CoreGraphics context). (30) a mark's label never drawn, (31) every label upside down.
 source_mutant registered mark-label-not-drawn $IO 'P7-label/p7-u1/mark-0' p7-u1 marks,bar \

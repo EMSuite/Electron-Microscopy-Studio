@@ -110,9 +110,9 @@ mutant provenance-validation-kept $IE 'F-3-meta' \
 mutant ring-without-half-pixel $IO 'F-5-rings' \
   'CGPoint(x: $0.x + 0.5, y: $0.y + 0.5)' 'CGPoint(x: $0.x, y: $0.y)'
 mutant ring-radius-3 $IO 'F-5-rings' \
-  'let ringRadius = (mark.kind == .spot ? 7.0 : 3.0) * scale' 'let ringRadius = (mark.kind == .spot ? 3.0 : 3.0) * scale'
+  'let ringRadius = (mark.kind == .spot ? 7.0 : mark.kind == .simulatedSpot ? 5.0 : 3.0) * scale' 'let ringRadius = (mark.kind == .spot ? 3.0 : mark.kind == .simulatedSpot ? 5.0 : 3.0) * scale'
 mutant spot-not-drawn $IO 'F-5-rings' \
-  '(mark.kind == .spot ? mark.points.count == 1 : mark.points.count >= 2)' '(mark.kind == .spot ? mark.points.count == 2 : mark.points.count >= 2)'
+  '(mark.kind == .spot || mark.kind == .simulatedSpot ? mark.points.count == 1 : mark.points.count >= 2)' '(mark.kind == .spot || mark.kind == .simulatedSpot ? mark.points.count == 2 : mark.points.count >= 2)'
 wait
 
 caught=0
