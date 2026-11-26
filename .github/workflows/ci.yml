@@ -68,6 +68,13 @@
 # docs (DOCS ONLY, read by `changes` from the merge commit) skips it, as its pull request did. Tags, by hand and the
 # nightly run it too.
 #
+# LIGHT (release-please.yml dispatches CI on each Release PR with `light`): the Release PR changes only the version files
+# (CHANGELOG.md, .release-please-manifest.json, Config/Version.xcconfig, CITATION.cff) on top of a main commit whose own push
+# run passed `unit (XCTest)`, so the whole suite has already run on every line of code it holds. `changes` checks both; then
+# `unit` is skipped (GitHub counts a skipped job as passing, as in DOCS ONLY) and `scientific` and `ui-build` do not run.
+# `release-build` (the signed Release configuration, which reads the version) and the Linux jobs run. Any other file, a
+# base commit without a green `unit` run, or a branch that is not release-please's: the full by-hand run, as before.
+#
 # XCODE: every macOS job uses Xcode 26.6 (DEVELOPER_DIR below), never the image's default, so an image update cannot
 # change the toolchain on an unchanged tree.
 #
@@ -99,6 +106,11 @@ on:
     tags: ['*']
   pull_request:
   workflow_dispatch:
+    inputs:
+      light:
+        description: "Release PR run: skip the macOS jobs a version bump cannot change when `changes` finds it eligible (LIGHT in the header)"
+        type: boolean
+        default: false
   # Nightly: the unit job (inventory, core, unit) with the SEM reference data, `scientific`, `release-build` and `ui-build` (the Linux jobs skip it).
   schedule:
     - cron: "0 1 * * *"
@@ -126,7 +138,7 @@ jobs:
     # DOCS ONLY in the header: whether this pull request, or this merge to main, changes anything the macOS job checks. On
     # every other event `unit` runs as before.
     name: changes (does the PR need the macOS job)
-    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && inputs.light)
     runs-on: ubuntu-latest
     timeout-minutes: 5
     # actions: read for MAC OR GITHUB (the other runs' jobs); nothing is written.
@@ -134,7 +146,8 @@ jobs:
       contents: read
       actions: read
     outputs:
-      macos: ${{ steps.files.outputs.macos }}
+      macos: ${{ steps.light.outputs.macos || steps.files.outputs.macos }}
+      light: ${{ steps.light.outputs.light }}
       mac: ${{ steps.mac.outputs.mac }}
     steps:
       - uses: actions/checkout@v7
@@ -163,6 +176,36 @@ jobs:
             fi
           done < <(git diff --name-only --no-renames HEAD^1 HEAD)
           echo "macos=$macos" | tee -a "$GITHUB_OUTPUT"
+      - name: Light run for a Release PR (LIGHT in the header)
+        id: light
+        if: github.event_name == 'workflow_dispatch' && inputs.light
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -uo pipefail
+          light=false
+          if [[ "$GITHUB_REF_NAME" != release-please--* ]]; then
+            echo "not a release-please branch: the full run"
+          else
+            base=$(git rev-parse HEAD^1)
+            others=$(git diff --name-only --no-renames HEAD^1 HEAD | grep -v -x -E 'CHANGELOG.md|\.release-please-manifest\.json|Config/Version\.xcconfig|CITATION\.cff' || true)
+            if [ -n "$others" ]; then
+              echo "the Release PR also changes: $others"; echo "the full run"
+            else
+              run=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$base&event=push&per_page=20" \
+                      --jq '[.workflow_runs[] | select(.head_branch == "main")] | sort_by(.created_at) | last | .id // empty') || run=""
+              ok=""
+              [ -n "$run" ] && ok=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run/jobs?per_page=100" \
+                      --jq '.jobs[] | select(.name == "unit (XCTest)" and .conclusion == "success") | .id' || true)
+              if [ -n "$ok" ]; then
+                echo "the base $base passed unit (XCTest) on main (run $run): light"; light=true
+              else
+                echo "no passing unit (XCTest) run of main on the base $base: the full run"
+              fi
+            fi
+          fi
+          echo "light=$light" >> "$GITHUB_OUTPUT"
+          if [ "$light" = true ]; then echo "macos=false" >> "$GITHUB_OUTPUT"; else echo "macos=true" >> "$GITHUB_OUTPUT"; fi
       - name: Mac or GitHub (MAC OR GITHUB in the header)
         id: mac
         if: github.event_name == 'pull_request' && vars.MACEM_MAC_RUNNER != ''
@@ -364,8 +407,9 @@ jobs:
 
   scientific:
     name: scientific (TEM parity harnesses)
-    # Nightly and by hand only: the slowest job, and not a required check.
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    # Nightly and by hand only: the slowest job, and not a required check. Not on a light Release PR run (LIGHT in the header).
+    needs: changes
+    if: ${{ !cancelled() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && needs.changes.outputs.light != 'true' }}
     runs-on: macos-26
     # Margin, not measurement (mac4DSTEM's for its own roster): export-parity and sidecar-parity build many mutants.
     timeout-minutes: 180
@@ -447,8 +491,10 @@ jobs:
     # Named apart from ui-build.yml's job: on a pull request this one reports as skipped, and GitHub tells required checks apart by
     # job name alone, so two jobs of one name could not be required or read apart.
     name: UI journeys build, nightly (compiled, not run)
-    # Nightly and by hand only: a pull request that can break the journeys' build runs this gate through ui-build.yml.
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    # Nightly and by hand only: a pull request that can break the journeys' build runs this gate through ui-build.yml. Not on a
+    # light Release PR run (LIGHT in the header).
+    needs: changes
+    if: ${{ !cancelled() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && needs.changes.outputs.light != 'true' }}
     runs-on: macos-26
     # Margin, not measurement (ui-build.yml's): the app and the kits at -O from a cold DerivedData, then the journeys.
     timeout-minutes: 45
