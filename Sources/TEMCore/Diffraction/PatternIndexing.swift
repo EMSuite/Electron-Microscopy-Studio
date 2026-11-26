@@ -133,6 +133,9 @@ package nonisolated enum PatternIndexing {
         let beam = ZoneAxisOverlay.radius(q: shortestG / 2, calibration: calibration)
         settings.beamExclusionRadius = max(5, beam.isFinite ? beam : 5)
         let at = SIMD2(centre.row, centre.column)
+        // A centre off the pattern is the kit's refusal, before the beam is read there.
+        guard at.x.isFinite, at.y.isFinite, at.x >= 0, at.x <= Double(pattern.height - 1), at.y >= 0,
+              at.y <= Double(pattern.width - 1) else { throw PatternSpots.Failure.centreOutside }
         if let radius = DiscSpots.beamRadius(pattern: pattern, centre: at), radius >= DiscSpots.discRadiusThreshold {
             return try DiscSpots.find(pattern: pattern, centre: at, radius: radius, beamExclusionRadius: settings.beamExclusionRadius)
         }
