@@ -60,11 +60,13 @@ package nonisolated struct DynamicalSpots: Sendable, Equatable {
         guard let first = atoms.first, atoms.count > 1 else { return [] }
         let grid = 1e4   // fractional positions to 1e-4 of the box side: far below an atomic spacing, far above rounding
         func wrapped(_ f: Double) -> Double { let w = f - f.rounded(.down); return w >= 1 - 0.5 / grid ? 0 : w }
-        func key(_ z: Int, _ p: SIMD3<Double>) -> SIMD4<Int> {
-            SIMD4(z, Int((wrapped(p.x / box.x) * grid).rounded()) % Int(grid), Int((wrapped(p.y / box.y) * grid).rounded()) % Int(grid),
-                  Int((wrapped(p.z / box.z) * grid).rounded()) % Int(grid))
+        // The element and its occupancy (to 1e-3) name a site, so an ordered phase's partly occupied sites are no translation of
+        // its full ones.
+        func key(_ atom: AtomicStructure.Atom, _ p: SIMD3<Double>) -> [Int] {
+            [atom.atomicNumber, Int((atom.occupancy * 1000).rounded()), Int((wrapped(p.x / box.x) * grid).rounded()) % Int(grid),
+             Int((wrapped(p.y / box.y) * grid).rounded()) % Int(grid), Int((wrapped(p.z / box.z) * grid).rounded()) % Int(grid)]
         }
-        let sites = Set(atoms.map { key($0.atomicNumber, $0.position) })
+        let sites = Set(atoms.map { key($0, $0.position) })
         // The candidates map one atom of the rarest element onto another of it.
         let counts = Dictionary(grouping: atoms, by: \.atomicNumber).mapValues(\.count)
         let rarest = counts.min { $0.value != $1.value ? $0.value < $1.value : $0.key < $1.key }?.key ?? first.atomicNumber
@@ -72,8 +74,11 @@ package nonisolated struct DynamicalSpots: Sendable, Equatable {
         let origin = anchors[0].position
         var found: [SIMD3<Double>] = []
         for other in anchors.dropFirst() {
-            let t = other.position - origin
-            guard atoms.allSatisfy({ sites.contains(key($0.atomicNumber, $0.position + t)) }) else { continue }
+            let shift = other.position - origin
+            guard atoms.allSatisfy({ sites.contains(key($0, $0.position + shift)) }) else { continue }
+            // Snapped to the key grid, so a CIF's rounded coordinates (0.3333) give g · t whole numbers within `isReflection`'s cut.
+            let t = SIMD3((shift.x / box.x * grid).rounded() / grid * box.x, (shift.y / box.y * grid).rounded() / grid * box.y,
+                          (shift.z / box.z * grid).rounded() / grid * box.z)
             found.append(t)
         }
         return found
@@ -83,8 +88,10 @@ package nonisolated struct DynamicalSpots: Sendable, Equatable {
     /// translation t of `latticeTranslations` (the beams of the zero-order Laue zone have g_z = 0).
     package static func isReflection(_ g: SIMD2<Double>, translations: [SIMD3<Double>]) -> Bool {
         translations.allSatisfy { t in
+            // A point that is no reflection misses a whole number by at least 1/n (n the translation's order, 2 to 6 for the
+            // centrings), so 1e-3 tells them apart and absorbs the snapping above.
             let phase = g.x * t.x + g.y * t.y
-            return abs(phase - phase.rounded()) <= 1e-6
+            return abs(phase - phase.rounded()) <= 1e-3
         }
     }
 

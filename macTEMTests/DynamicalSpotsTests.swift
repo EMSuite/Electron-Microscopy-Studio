@@ -37,8 +37,11 @@ nonisolated final class DynamicalSpotsTests: XCTestCase {
         for t in 0 ..< 3 {
             XCTAssertEqual(kit.thicknesses[t] / 10, spots.thicknessesNM[t], accuracy: 1e-9, "the kit's slices end at period \(t + 1)")
             XCTAssertNil(spots.intensities[t][.zero])
+            // The kit's beams, less the box-grid points that are no lattice reflection (#1150).
+            let translations = DynamicalSpots.latticeTranslations(of: built.slab.unit.structure)
             for (beam, value) in zip(kit.beams, kit.intensities[t]) where beam.hkl != .zero {
-                XCTAssertEqual(spots.intensities[t][MillerIndex(beam.hkl.x, beam.hkl.y, beam.hkl.z)], value)
+                let kept = DynamicalSpots.isReflection(beam.spatialFrequency, translations: translations)
+                XCTAssertEqual(spots.intensities[t][MillerIndex(beam.hkl.x, beam.hkl.y, beam.hkl.z)], kept ? value : nil)
             }
         }
         XCTAssertEqual(spots.specimen, "Si [1 1 0]")
