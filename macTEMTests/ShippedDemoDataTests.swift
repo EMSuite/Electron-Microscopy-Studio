@@ -25,7 +25,7 @@ nonisolated final class ShippedDemoDataTests: XCTestCase {
     /// Every shipped file is in the bundle (the `DemoData` folder reference copies the whole folder) at the pinned size and md5.
     /// Mutation: a file replaced, truncated or renamed; the folder reference dropped from the project.
     func testEveryShippedFileIsInTheBundleAtItsPinnedSizeAndMD5() throws {
-        XCTAssertEqual(DemoDocuments.Shipped.all.count, 6)
+        XCTAssertEqual(DemoDocuments.Shipped.all.count, 7)
         for file in DemoDocuments.Shipped.all {
             let url = try XCTUnwrap(file.url, "\(file.relativePath) is not in the bundle's DemoData/")
             let size = try XCTUnwrap(FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int)
@@ -127,6 +127,17 @@ nonisolated final class ShippedDemoDataTests: XCTestCase {
         XCTAssertTrue(loaded.structure.sites.allSatisfy { $0.z == 14 })
         XCTAssertEqual(loaded.structure.cell.a, 5.4309)
         XCTAssertEqual(loaded.structure.spaceGroupNumber, 227)
+    }
+
+    /// The GaAs CIF the nanowire demo lands with: F-43m, four Ga and four As in the cell, a = 5.6533 Å, as the kit reads it.
+    func testTheGaAsCIFIsTheZincBlendeStructure() throws {
+        let url = try XCTUnwrap(DemoDocuments.Shipped.gaAsCIF.url)
+        let loaded = try CrystalLoading.load(bytes: Data(contentsOf: url), fileName: url.lastPathComponent)
+        XCTAssertEqual(loaded.structure.sites.count, 8)
+        XCTAssertEqual(loaded.structure.sites.filter { $0.z == 31 }.count, 4)
+        XCTAssertEqual(loaded.structure.sites.filter { $0.z == 33 }.count, 4)
+        XCTAssertEqual(loaded.structure.cell.a, 5.6533)
+        XCTAssertEqual(loaded.structure.spaceGroupNumber, 216)
     }
 
     /// The BAM TM002 spectrum through the HyperSpy reader: 1024 channels of 0.01 keV from -0.1 keV, 10 kV, the counts exact (their total,

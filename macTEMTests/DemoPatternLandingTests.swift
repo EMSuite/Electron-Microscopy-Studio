@@ -69,5 +69,8 @@ nonisolated final class DemoPatternLandingTests: XCTestCase {
         XCTAssertFalse(blocker?.contains("scale") ?? false, blocker ?? "")
         XCTAssertFalse(blocker?.contains("beam energy") ?? false, blocker ?? "")
         XCTAssertFalse(blocker?.contains("centre") ?? false, blocker ?? "")
+        // The wire's crystal, not the room's Au standard (walk of 26 Nov 2026), and the person's phase library untouched.
+        XCTAssertEqual(analysis.crystal.structure.spaceGroupNumber, 216, analysis.crystal.name)
+        XCTAssertEqual(analysis.crystal.structure.cell.a, 5.6533)
     }
 }

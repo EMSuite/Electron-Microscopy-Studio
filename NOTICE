@@ -303,8 +303,8 @@ Demo data shipped in the app (Contents/Resources/DemoData/)
 
 Four public datasets ship in the application bundle unchanged, so that anyone can try the SEM rooms without a microscope file
 (Help > Open Demo Data, the welcome window's Try Demo Data). Each is the copy its source publishes; the repository's
-DemoData/ folder holds them and `DemoDocuments.Shipped` pins their size and md5. Two more files, one frame taken from a public
-4D-STEM scan and a silicon CIF the kit wrote, are listed after them.
+DemoData/ folder holds them and `DemoDocuments.Shipped` pins their size and md5. Three more files, one pattern made from a public
+4D-STEM scan and two CIFs (silicon, which the kit wrote, and gallium arsenide), are listed after them.
 
 nickel_ebsd_large/patterns_v2.h5 (15,368,325 bytes, md5 51d6bc0f5ff23dcb0c1a8e1f4c52d4d4)
     4125 electron backscatter diffraction patterns (55 x 75 scan, 60 x 60 pixels, 8 bit) from polycrystalline nickel, acquired
@@ -357,6 +357,10 @@ twinned_nanowire_frame.hspy (38,169 bytes, md5 04560cb3c84b205c0271d1f0ab7ac97b)
 silicon_Fd-3m.cif (4,317 bytes, md5 b82db5cc152bea24a6418080a99bbd5c)
     Silicon (diamond structure, Fd-3m, a = 5.4309 Å) as CIF, written by DiffractoKit's CIFExport (EMSuite/DiffractoKit 0.22.0,
     GPL-3.0-only, the same author); the crystal of the demo simulation.
+
+gallium_arsenide_F-43m.cif (2,245 bytes, md5 ce0815bcba9f1043ad202bd2146e4618)
+    Gallium arsenide (zinc blende, F-43m, a = 5.6533 Å at room temperature after J. S. Blakemore, J. Appl. Phys. 53 (1982) R123)
+    as CIF, written for the app (GPL-3.0-only, the same author); the crystal the nanowire spot pattern lands with.
 
 ================================================================================
 RosettaSciIO (the SEM-EDS map readers are ported from it; its test files are fixtures)

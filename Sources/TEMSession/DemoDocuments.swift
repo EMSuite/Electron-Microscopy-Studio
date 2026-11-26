@@ -302,7 +302,13 @@ package nonisolated enum DemoDocuments {
         package static let siliconCIF = ShippedFile(relativePath: "silicon_Fd-3m.cif", bytes: 4_317,
                                                     md5: "b82db5cc152bea24a6418080a99bbd5c", title: "Silicon Simulation (CIF)")
 
-        package static let all = [nickelEBSD, semEDSSpectrum, nickelMasterPattern, duplexSteelMap, nanowirePattern, siliconCIF]
+        /// Gallium arsenide (zinc blende, F-43m, a = 5.6533 Å at room temperature, Blakemore 1982) as CIF: the crystal the nanowire spot
+        /// pattern lands with, so its Index runs on the wire's own phase (walk of 26 Nov 2026: with none, Index tried the Au standard).
+        /// Written for the app, GPL-3.0-only.
+        package static let gaAsCIF = ShippedFile(relativePath: "gallium_arsenide_F-43m.cif", bytes: 2_245,
+                                                 md5: "ce0815bcba9f1043ad202bd2146e4618", title: "GaAs (CIF)")
+
+        package static let all = [nickelEBSD, semEDSSpectrum, nickelMasterPattern, duplexSteelMap, nanowirePattern, siliconCIF, gaAsCIF]
     }
 
     /// The md5 of a file, as `md5sum` prints it: how a shipped file is pinned to the copy its source publishes.
