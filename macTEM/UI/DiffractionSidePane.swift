@@ -52,6 +52,10 @@ struct DiffractionSidePaneView: View {
         // The pane's name in the frame's panel header, as the pattern's panel beside it has one (#1094).
         CentrePanel(title: DiffractionPaneWords.title(pane)) {
             switch pane {
+            case .crystal where SimulationEmptyState.isShown(for: item):
+                DiffractionPaneEmpty(text: SimulationEmptyState.paneSentence)
+            case .powder where SimulationEmptyState.isShown(for: item):
+                DiffractionPaneEmpty(text: SimulationEmptyState.paneSentence)
             case .crystal:
                 // A Simulation document draws the slab its multislice runs on (#897).
                 DiffractionCrystalPane(analysis: analysis, showsUnitCell: view.showsUnitCell,
@@ -66,6 +70,18 @@ struct DiffractionSidePaneView: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("diffraction.sidePane")
+    }
+}
+
+/// A pane with nothing to draw yet: what to do, centred.
+struct DiffractionPaneEmpty: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.center).padding(12)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .accessibilityIdentifier("diffraction.sidePane.empty")
     }
 }
 

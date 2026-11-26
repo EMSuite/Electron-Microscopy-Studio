@@ -5,12 +5,25 @@
 //
 
 import DiffractoCore
+import ShellPhaseLibrary
 import TEMCore
 import TEMSession
 import XCTest
 @testable import macTEM
 
 nonisolated final class DemoDataTests: XCTestCase {
+    @MainActor private var saved: PhaseLibrary!
+
+    /// The silicon simulation adds its CIF to the phase library: a library of its own in a temporary folder, never this Mac's.
+    @MainActor override func setUp() async throws {
+        saved = PhaseServices.library
+        PhaseServices.library = PhaseLibrary(store: PhaseLibraryStore(folder: FileManager.default.temporaryDirectory
+            .appending(path: "DemoDataTests-\(UUID().uuidString)", directoryHint: .isDirectory)))
+    }
+
+    @MainActor override func tearDown() async throws {
+        PhaseServices.library = saved
+    }
 
     /// Mutation: point any case's `openDemo` at the wrong document, or drop the room switch - red.
     @MainActor func testEveryDemoOpensInItsRoomWithDataThere() async throws {
@@ -33,7 +46,9 @@ nonisolated final class DemoDataTests: XCTestCase {
     }
 
     /// #804: the recorded spot pattern opens as the selected file in the Diffraction room, and the silicon simulation is a Simulation
-    /// document whose crystal is the shipped CIF. Mutation: the simulation keeps the room's standard, the pattern is not selected - red.
+    /// document that shows the shipped CIF as a library phase, with no Add Phase sheet and no empty state, so the crystal and powder
+    /// panes draw Si, not the standard. Mutation: the simulation keeps the room's standard, or sets the CIF as a crystal that is no
+    /// library phase (it opened in its empty state, drawing Au, before), the pattern is not selected - red.
     @MainActor func testTheSpotPatternAndTheSiliconSimulation() async throws {
         let pattern = AppState(launch: LaunchOptions(arguments: []))
         await pattern.openDemo(.spotPattern)?.value
@@ -46,7 +61,13 @@ nonisolated final class DemoDataTests: XCTestCase {
         XCTAssertTrue(DemoDocuments.isSimulation(item.url))
         XCTAssertEqual(item.diffraction.crystal.structure.sites.count, 8)
         XCTAssertEqual(item.diffraction.crystal.structure.spaceGroupNumber, 227)
-        XCTAssertNotNil(item.diffraction.crystal.sha256, "the crystal is the CIF, not a standard")
+        let phaseID = try XCTUnwrap(item.diffraction.crystal.phaseID, "the crystal is a library phase, not a standard")
+        XCTAssertTrue(phaseID.hasPrefix("cif-"), "the shipped CIF, added as Open CIF… adds one")
+        XCTAssertEqual(PhaseServices.library.phases.map(\.id), [phaseID])
+        XCTAssertFalse(SimulationEmptyState.isShown(for: item))
+        XCTAssertFalse(item.diffractionView.isAddingPhase, "no Add Phase sheet over the demo")
+        XCTAssertEqual(DiffractionPowderSection.table(of: item, openItems: simulation.openItems).phases.count, 1)
+        XCTAssertEqual(DiffractionPowderSection.table(of: item, openItems: simulation.openItems).phases.first?.structure.spaceGroupNumber, 227)
         XCTAssertEqual(simulation.navigation.workspaceArea, .diffraction)
     }
 
