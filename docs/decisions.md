@@ -753,3 +753,21 @@ version. A date that release-please cannot write would disagree with the version
 the entry of 2026-11-10 gave for keeping the file by hand. No date is better than a wrong one (CFF does not require it).
 
 **Reversal.** Remove the extra file and the inventory check, and go back to a `docs:` PR after each tag.
+
+## 2026-11-26 — The nanowire demo pattern ships distortion-corrected, with a scale
+
+**What.** `DemoData/twinned_nanowire_frame.hspy` is now the frame (y 84, x 26) of pyxem's twinned nanowire scan corrected as
+pyxem's tutorial does it (pyxem-demos notebook 01, "GaAs Nanowire", cell 35: `apply_affine_transformation` with
+`[[0.99,0,0],[0,0.69,0],[0,0,1]]`, skimage warp convention about the pattern centre, order 1, back to uint8). Both axes carry
+0.028471335881638242 Å⁻¹ per pixel (`DemoDocuments.Shipped.nanowirePatternDeltaQ`, offset 0). `tools/lib/extract-spot-pattern.py`
+writes it, from the scan on the runner or from the raw frame first shipped.
+
+**Why.** Paul, 26 Nov 2026: the demo had no scale, so a new user could not run Index without typing a number. The raw frame is
+also stretched by about a third in y (lens distortion: its two {111} were 11.0 and 14.6 px apart at 81°; corrected they are
+10.74 and 10.78 px at 69.9°, GaAs <110> wants 70.5°). The scale is calibrated on this frame's own GaAs {111} (a = 5.6535 Å), so
+it is not an independent calibration: Index finds {111} at 0.3064 Å⁻¹ by construction. The tutorial's own value, sqrt(3)/5.6535/11.4
+= 0.02687 Å⁻¹ per pixel, read off the whole scan's mean pattern, puts {111} of this frame 5.6 % short; Paul chooses between the
+two (the script's `SCALE`, the app's one constant).
+
+**What would reverse it.** Paul choosing the tutorial's scale or none: `SCALE = 'tutorial'` or `None` in the script, run it on the
+raw frame again, and update NOTICE and the constant with the new md5, size and scale.

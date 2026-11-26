@@ -12,6 +12,7 @@ import DiffractoCore
 import FormatoCore
 import FormatoHDF5
 import FormatoHSPY
+import ImagoCore
 import SpectroCore
 import SpectroEDX
 import TEMCore
@@ -88,6 +89,34 @@ nonisolated final class ShippedDemoDataTests: XCTestCase {
         XCTAssertEqual(experiments.first?.shape, [DemoDocuments.Shipped.nanowirePatternSide, DemoDocuments.Shipped.nanowirePatternSide])
         XCTAssertEqual(HyperSpyOpening.contents(of: experiments).images.count, 1)
         XCTAssertEqual(FileRouting.inventory(path: url.path), FileInventory(image: true))
+    }
+
+    /// The spot pattern is the distortion-corrected frame (pyxem tutorial 01's affine, x 0.99 and y 0.69 about the centre, order 1, uint8;
+    /// tools/lib/extract-spot-pattern.py) and carries its scale (2026-11-26): both axes in Å⁻¹ at `nanowirePatternDeltaQ`, the zero at
+    /// pixel 0 as the scan's axes had it, the scan's 300 kV. Pixels as h5py reads them: sum 174,088, maximum 254 at two pixels, the
+    /// first at (row 72, column 71), and the 0.69 squeeze leaves rows 0 to 21 and 122 to 143 black.
+    /// Mutation: the raw frame back (sum 264,228, max 255, no black rows), the axes in pixels again, the scale's unit in 1/nm - red.
+    func testTheSpotPatternIsTheCorrectedFrameWithItsScale() throws {
+        let url = try XCTUnwrap(DemoDocuments.Shipped.nanowirePattern.url)
+        let image = try ImageOpening.openNow(path: url.path)
+        let side = DemoDocuments.Shipped.nanowirePatternSide
+        XCTAssertEqual(image.width, side)
+        XCTAssertEqual(image.height, side)
+        XCTAssertEqual(image.voltage, 300_000)
+        for axis in [image.x, image.y] {
+            XCTAssertEqual(axis?.unit, "Å⁻¹")
+            XCTAssertEqual(axis?.scale, DemoDocuments.Shipped.nanowirePatternDeltaQ)
+            XCTAssertEqual(axis?.origin, 0)
+        }
+        XCTAssertEqual(UnitDisplay.reciprocalAngstromsPerPixel(image.x), DemoDocuments.Shipped.nanowirePatternDeltaQ)
+        guard case .uint8(let pixels) = image.stored else { return XCTFail("the frame is 8 bit") }
+        XCTAssertEqual(pixels.reduce(0) { $0 + Int($1) }, 174_088)
+        XCTAssertEqual(pixels.max(), 254)
+        XCTAssertEqual(pixels.firstIndex(of: 254), 72 * side + 71)
+        XCTAssertEqual(pixels.filter { $0 == 254 }.count, 2)
+        let rowSums = (0..<side).map { row in pixels[(row * side)..<((row + 1) * side)].reduce(0) { $0 + Int($1) } }
+        XCTAssertEqual(rowSums.indices.filter { rowSums[$0] > 0 }.first, 22)
+        XCTAssertEqual(rowSums.indices.filter { rowSums[$0] > 0 }.last, 121)
     }
 
     /// The silicon CIF of the demo simulation (#804): Fd-3m, eight atoms in the cell, a = 5.4309 Å, as the kit reads it.
