@@ -15,17 +15,15 @@ abstract: >-
   dictionary indexing) to orientation maps, grains, grain size, KAM, GOS, GND,
   slip and texture. The TEM methods run on the EMSuite Swift kits; the SEM
   methods are ported into the app. Each is checked against its Python
-  reference package. The SEM features are in the development version on main,
-  not yet in release 1.3.0.
+  reference package.
 type: software
 authors:
   - family-names: Lobpreis
     given-names: Paul
-version: 1.3.0
-date-released: "2026-11-05"
+version: 2.1.1
 license: GPL-3.0-only
 repository-code: https://github.com/EMSuite/Electron-Microscopy-Studio
-url: https://mac4dstem.com/mactem/
+url: https://mac4dstem.com/electron-microscopy-studio/
 keywords:
   - transmission electron microscopy
   - scanning electron microscopy

@@ -13,6 +13,11 @@
         {
           "type": "generic",
           "path": "Config/Version.xcconfig"
+        },
+        {
+          "type": "yaml",
+          "path": "CITATION.cff",
+          "jsonpath": "$.version"
         }
       ]
     }
