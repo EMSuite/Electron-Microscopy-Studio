@@ -215,6 +215,22 @@ jobs:
           # job could never pass until this was set (mac4DSTEM, 2026-09-09). Kept so a rule that compares
           # against the previous commit does not repeat that.
           fetch-depth: 2
+      - name: The checkout is the commit (a reused workspace keeps nothing)
+        # On the self-hosted Mac the workspace and its .git persist between jobs, and on 25 Nov the workspace Package.resolved
+        # read after checkout held an earlier job's pins, not the commit's (#1104's runs, #1105). This prints each tracked
+        # file's index flags (h = assume-unchanged, S = skip-worktree: git then never rewrites the file), clears both flags,
+        # restores every tracked file from HEAD and fails if the tree still differs from it, so stale state cannot pass a gate.
+        run: |
+          set -euo pipefail
+          flagged=$(git ls-files -v | grep -E '^([a-z]|S) ' || true)
+          if [ -n "$flagged" ]; then echo "::warning::index flags on tracked files (cleared now):"; echo "$flagged"; fi
+          # Two passes: one update-index call with both options leaves a skip-worktree flag set (git 2.43, tried).
+          git ls-files -z | xargs -0 git update-index --no-assume-unchanged --
+          git ls-files -z | xargs -0 git update-index --no-skip-worktree --
+          git ls-files -v -- '*Package.resolved'
+          git checkout --force HEAD -- .
+          git diff --exit-code --stat HEAD
+          echo "the tree is HEAD ($(git rev-parse --short HEAD))"
       - name: Toolchain on record
         run: |
           sw_vers
