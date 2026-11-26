@@ -343,6 +343,8 @@ extension MacTEMAgentDoor {
             on it before reading the orientation, and look at `get_diffraction_picture` before reporting it.
             - Find Phases says which phase explains the rings, never which one is there; a tie is reported as a tie, with its sentence.
             - Uncalibrated, plan_tilt gives angles only: report that, never an α or β.
+            - A calibration pair that changes one tilt only cannot tell which way β turns: plan_tilt says so in \
+            calibration_refusal and gives no α or β; calibrate from a pair that changes both, or set beta_sense by hand.
             """
     }
 }

@@ -3,10 +3,12 @@
 //  The Diffraction room's double-tilt holder for one open pattern (#815): the file's stage tilts are read once and only as a pair
 //  (a record without the pair does not use up the read),
 //  a typed tilt marks the source typed, limits outside (0, 90] are refused, a typed axis is folded into [0, 360) and Forget clears it,
+//  the β sense set by hand forgets only a calibrated axis it clashes with (#932),
 //  and there is no tilt plan before Index found an orientation. Red before: the holder did not exist.
 //
 
 import XCTest
+import DiffractoGeometry
 import FormatoCore
 import TEMCore
 import TEMSession
@@ -62,5 +64,19 @@ nonisolated final class DiffractionHolderTests: XCTestCase {
         let analysis = DiffractionAnalysis()
         analysis.bind(image)
         XCTAssertNil(DiffractionHolder().plan(analysis: analysis, image: image))
+    }
+
+    /// The β sense set by hand: a typed axis stays (only a calibrated axis was fitted with a sense); back to found, β is taken
+    /// positive until a calibration finds it.
+    @MainActor func testSettingTheBetaSense() {
+        let holder = DiffractionHolder()
+        holder.setAxis(degrees: 20)
+        holder.setBetaSense(.negative)
+        XCTAssertEqual(holder.settings.axisAngleDeg, 20, "a typed axis has no sense to clash with")
+        XCTAssertEqual(holder.settings.betaSense, .negative)
+        XCTAssertEqual(holder.settings.betaSenseSource, .hand)
+        holder.setBetaSense(nil)
+        XCTAssertEqual(holder.settings.betaSense, .positive)
+        XCTAssertEqual(holder.settings.betaSenseSource, .assumed)
     }
 }

@@ -4,7 +4,7 @@
 //        section: the precipitate, its two parallel pairs, which variants are shown, double diffraction with the matrix),
 //        `powder_pattern` (the Powder section, and its CSV or .xy written into the Agent folder), `find_phases` (the Find Phases
 //        sheet: Rank, Fit scale, Use Phase) and `plan_tilt` (the Holder section and its map: the tilts now, the limits, the
-//        axis typed or calibrated, a zone axis picked, the Tilt List CSV into the Agent folder).
+//        axis typed or calibrated, the β sense, a zone axis picked, the Tilt List CSV into the Agent folder).
 //
 //        ONE SOURCE PER FACT: each tool goes through the intents the section's controls call (`DiffractionVariants`,
 //        `DiffractionPowder`, `DiffractionPhaseFinder`, `DiffractionHolder`) and answers with what the section shows: the same
@@ -131,7 +131,7 @@ extension MacTEMAgentDoor {
         }),
         said(AgentTool(name: "plan_tilt", title: "Diffraction holder",
                        summary: "The Holder section, only those given: alpha and beta (the stage now, °), alpha_limit and beta_limit, "
-                           + "axis (the tilt axis in the pattern, °) or clear, calibrate_from (another open pattern of this crystal, "
+                           + "axis (the tilt axis in the pattern, °) or clear, beta_sense, calibrate_from (another open pattern of this crystal, "
                            + "indexed, by file name), zone_axis (\"[u v w]\" to pick on the map). write true saves the Tilt List "
                            + "CSV into the Agent folder as file. Answers the map's zone axes around the beam (angle, and α, β and "
                            + "reachable once the axis is calibrated), the calibration sentence and the picked zone axis' sentence; "
@@ -144,6 +144,9 @@ extension MacTEMAgentDoor {
                            AgentParameter("beta_limit", .number(0.1...90), summary: "The holder's β limit, °."),
                            AgentParameter("axis", .number(-360...360), summary: "The tilt axis in the pattern, °."),
                            AgentParameter("clear", .boolean, summary: "Clear the tilt axis."),
+                           AgentParameter("beta_sense", .choice(["found", "positive", "reversed"]),
+                                          summary: "β sense: found by the calibration, or set by hand (clears a calibrated axis "
+                                              + "it changes)."),
                            AgentParameter("calibrate_from", .text, summary: "Another open, indexed pattern's file name."),
                            AgentParameter("zone_axis", .text, summary: "The zone axis to pick, \"[u v w]\"."),
                            AgentParameter("write", .boolean, summary: "Save the Tilt List CSV."),
@@ -503,6 +506,16 @@ extension MacTEMAgentDoor {
             }
             partner = other
         }
+        // nil: not given; .some(nil): found by the calibration.
+        var sense: DoubleTiltHolder.BetaSense??
+        if let words = a["beta_sense"] {
+            switch words {
+            case "found": sense = .some(nil)
+            case "positive": sense = .positive
+            case "reversed": sense = .negative
+            default: return .refusal(status: 400, message: "beta_sense takes found, positive or reversed.")
+            }
+        }
         var pick: SIMD3<Int>?
         if let words = a["zone_axis"] {
             guard let uvw = ZoneAxisText.parse(words) else { return .refusal(status: 400, message: "zone_axis takes \"[u v w]\".") }
@@ -522,6 +535,7 @@ extension MacTEMAgentDoor {
             holder.setLimits(alphaDeg: a["alpha_limit"].flatMap(Double.init) ?? s.alphaLimitDeg,
                              betaDeg: a["beta_limit"].flatMap(Double.init) ?? s.betaLimitDeg)
         }
+        if let sense { holder.setBetaSense(sense) }
         if a["clear"] == "true" { holder.forgetAxis() }
         if let axis = a["axis"].flatMap(Double.init) { holder.setAxis(degrees: axis) }
         if let partner {
@@ -538,6 +552,7 @@ extension MacTEMAgentDoor {
             "alpha_deg": AgentJSON.number(s.alphaDeg), "beta_deg": AgentJSON.number(s.betaDeg), "tilts_from": s.source.rawValue,
             "alpha_limit_deg": AgentJSON.number(s.alphaLimitDeg), "beta_limit_deg": AgentJSON.number(s.betaLimitDeg),
             "axis_deg": AgentJSON.number(s.axisAngleDeg), "calibration_refusal": AgentJSON.orNull(holder.calibrationRefusal),
+            "beta_sense": TiltPlanning.betaSenseWord(s.betaSense), "beta_sense_from": s.betaSenseSource.rawValue,
         ]
         guard let plan = holder.plan(analysis: item.diffraction, image: image) else {
             out["refusal"] = "Index the pattern first: the zone axes and the tilts to them are placed from its orientation."

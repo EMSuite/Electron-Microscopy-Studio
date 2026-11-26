@@ -83,6 +83,7 @@ nonisolated enum AgentDoorCoverage {
         "diffraction.holder.axis": .tool("plan_tilt"),
         "diffraction.holder.beta": .tool("plan_tilt"),
         "diffraction.holder.betaLimit": .tool("plan_tilt"),
+        "diffraction.holder.betaSense": .tool("plan_tilt"),
         "diffraction.holder.calibrate": .tool("plan_tilt"),
         "diffraction.holder.forget": .tool("plan_tilt"),
         "diffraction.holder.map": .tool("plan_tilt"),
