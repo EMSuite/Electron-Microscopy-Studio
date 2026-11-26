@@ -1,7 +1,7 @@
 //
 //  AccessibilityAuditJourney.swift
 //  Xcode's accessibility audit (`performAccessibilityAudit`) on every room as Help > Open Demo Data fills it (#328): the welcome
-//  canvas, the Image and FFT rooms on the lattice, Diffraction on the Au pattern, the EDS room on the EDX spectrum image, the EELS
+//  canvas, the Image and FFT rooms on the lattice, Diffraction on the Au pattern, the EDS room on the EDS spectrum image, the EELS
 //  room on its spectrum image, the Image room on the generated SEM image, the EDS room on the shipped SEM-EDS spectrum, Patterns and
 //  Indexing on the nickel scan, Maps on the steel map, and the Results room last. Each room is audited for what VoiceOver needs:
 //  every element says what it is (sufficient description), every element the audit sees on screen is in the accessibility tree
@@ -76,11 +76,11 @@ nonisolated final class AccessibilityAuditJourney: Journey {
             waitValue("diffraction.view", timeout: 60) { (Journey.number($0) ?? 0) > 0 }
             try audit("Diffraction (Au)")
         }
-        try step("the EDS room on the EDX spectrum image") {
-            try openDemoData("EDX Spectrum Image")
+        try step("the EDS room on the EDS spectrum image") {
+            try openDemoData("EDS Spectrum Image")
             waitFor("edx.room", timeout: 30)
             waitFor("maps.scaleBar.HAADF", timeout: 60)
-            try audit("EDS (EDX spectrum image)")
+            try audit("EDS (EDS spectrum image)")
         }
         try step("the EELS room on its spectrum image") {
             try openDemoData("EELS Spectrum Image")

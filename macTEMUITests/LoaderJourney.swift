@@ -9,7 +9,7 @@ import XCTest
 nonisolated final class LoaderJourney: Journey {
     @MainActor func testAnMSAFileOpensInTheEDXRoom() throws {
         try step("launch and open the .msa") { launch(["--demo-msa-fixture"]) }
-        try step("the EDX room is selected by the route") { waitFor("edx.room", timeout: 60) }
+        try step("the EDS room is selected by the route") { waitFor("edx.room", timeout: 60) }
         try step("the sidebar highlights EDS alone") {
             // The rooms list's rows: the selected ones, by the room identifier each row carries.
             let selected = app.outlines.firstMatch.cells.matching(NSPredicate(format: "isSelected == true"))

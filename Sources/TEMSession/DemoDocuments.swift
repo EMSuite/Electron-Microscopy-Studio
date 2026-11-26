@@ -559,7 +559,7 @@ package nonisolated enum DemoDocuments {
                 counts[p * channels + c] = UInt32(whole) + (g.uniform() < expected - whole ? 1 : 0)
             }
         }
-        var meta = SpectrumImageMetadata(fileName: "Demo EDX", filePath: "", scanWidth: n, scanHeight: n, channelCount: channels,
+        var meta = SpectrumImageMetadata(fileName: "Demo EDS", filePath: "", scanWidth: n, scanHeight: n, channelCount: channels,
                                          energyOffsetEV: 0, energyDispersionEV: Truth.edxDispersionEV)
         meta.origin = .veloxEMD
         meta.beamEnergyKeV = Truth.edxBeamKeV
@@ -567,14 +567,14 @@ package nonisolated enum DemoDocuments {
                                    scanImage: (0..<(n * n)).map { Float(100 + $0 % n) })
     }
 
-    /// The demo EDX image's pooled spectrum as an `.msa` file in the temporary folder (what a person would open from the File menu),
+    /// The demo EDS image's pooled spectrum as an `.msa` file in the temporary folder (what a person would open from the File menu),
     /// written atomically as the other demo files are.
     package static func spectrumFile() throws -> URL {
         let demo = edx()
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(writtenFolders[2])
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let url = dir.appendingPathComponent("Demo EDX spectrum.msa")
-        try EDXExports.msa(counts: demo.image.sum(mask: nil), axis: demo.energyAxis, title: "Demo EDX spectrum", beamEnergyKeV: Truth.edxBeamKeV, host: .macTEM).write(to: url, options: .atomic)
+        let url = dir.appendingPathComponent("Demo EDS spectrum.msa")
+        try EDXExports.msa(counts: demo.image.sum(mask: nil), axis: demo.energyAxis, title: "Demo EDS spectrum", beamEnergyKeV: Truth.edxBeamKeV, host: .macTEM).write(to: url, options: .atomic)
         return url
     }
 

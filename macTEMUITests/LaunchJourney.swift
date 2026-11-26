@@ -51,7 +51,7 @@ nonisolated final class LaunchJourney: Journey {
         try step("launch in light mode") {
             launch(["--demo-spectrum-fixture", "--demo-eels-fixture", "--appearance", "light"])
         }
-        try step("the EDX room in light mode") {
+        try step("the EDS room in light mode") {
             waitFor("workspace.edx", timeout: 30).click()
             waitFor("workspace.primaryAction", timeout: 60)
             waitFor("maps.scaleBar.HAADF", timeout: 30)

@@ -46,7 +46,7 @@ package enum EDXOpening {
 
 extension EDXRoomHost {
     /// macTEM in the shared EDS room: its names in the export files, its file routing for the room's Open button.
-    package static let macTEM = EDXRoomHost(appName: AppName.writer, roomSource: "\(AppName.writer) EDX room", regionsTitle: "\(AppName.writer) EDX pins",
+    package static let macTEM = EDXRoomHost(appName: AppName.writer, roomSource: "\(AppName.writer) EDS room", regionsTitle: "\(AppName.writer) EDS pins",
                                             readableExtensions: EDXOpening.readableExtensions) { url, progress in
         try EDXOpening.open(url: url, progress: progress)
     }

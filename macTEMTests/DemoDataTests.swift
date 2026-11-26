@@ -5,6 +5,7 @@
 //
 
 import DiffractoCore
+import ShellEDXModel
 import TEMCore
 import TEMSession
 import XCTest
@@ -30,6 +31,20 @@ nonisolated final class DemoDataTests: XCTestCase {
                                                            .diffraction, .diffraction])
         XCTAssertEqual(Set(DemoDocument.allCases.map(\.title)).count, DemoDocument.allCases.count)
         XCTAssertEqual(DemoDocument.semImage.title, "SEM Image (generated)")
+    }
+
+    /// One word on screen: the room is EDS, so the menu, the demo's file name (the toolbar's centre display) and the names its exports
+    /// carry say EDS too. Red before: the menu said "EDX Spectrum Image" and the document "Demo EDX".
+    @MainActor func testTheDemoSaysEDSNotEDX() async throws {
+        XCTAssertEqual(DemoDocument.edx.title, "EDS Spectrum Image")
+        for demo in DemoDocument.allCases { XCTAssertFalse(demo.title.contains("EDX"), demo.title) }
+        let state = AppState(launch: LaunchOptions(arguments: []))
+        await state.openDemo(.edx)?.value
+        await state.edx.settled()
+        XCTAssertEqual(state.edx.fileName, "Demo EDS")
+        XCTAssertEqual(try DemoDocuments.spectrumFile().lastPathComponent, "Demo EDS spectrum.msa")
+        XCTAssertFalse(EDXRoomHost.macTEM.roomSource.contains("EDX"), EDXRoomHost.macTEM.roomSource)
+        XCTAssertFalse(EDXRoomHost.macTEM.regionsTitle.contains("EDX"), EDXRoomHost.macTEM.regionsTitle)
     }
 
     /// #804: the recorded spot pattern opens as the selected file in the Diffraction room, and the silicon simulation is a Simulation

@@ -9,7 +9,7 @@ import XCTest
 nonisolated final class EDXJourney: Journey {
     @MainActor func testAutoIDAndQuantifyFindMagnesiumAndSilicon() throws {
         try step("launch with the demo spectrum image") { launch(["--demo-spectrum-fixture"]) }
-        try step("go to the EDX room") {
+        try step("go to the EDS room") {
             waitFor("workspace.edx", timeout: 30).click()
             waitFor("edx.room", timeout: 30)
         }
@@ -40,7 +40,7 @@ nonisolated final class EDXJourney: Journey {
     /// to the whole scan, and the grid stays as it was.
     @MainActor func testADoubleClickResetsTheZoomAndKeepsTheGrid() throws {
         try step("launch with the demo spectrum image") { launch(["--demo-spectrum-fixture"]) }
-        try step("go to the EDX room") {
+        try step("go to the EDS room") {
             waitFor("workspace.edx", timeout: 30).click()
             waitFor("edx.room", timeout: 30)
         }
@@ -81,7 +81,7 @@ nonisolated final class EDXJourney: Journey {
     /// the inset over the spectrum.
     @MainActor func testRegionsAreComparedInTheTableAndTheLineHasAProfile() throws {
         try step("launch with the demo spectrum image and two regions") { launch(["--demo-spectrum-fixture", "--demo-regions"]) }
-        try step("go to the EDX room") {
+        try step("go to the EDS room") {
             waitFor("workspace.edx", timeout: 30).click()
             waitFor("edx.room", timeout: 30)
         }
@@ -105,7 +105,7 @@ nonisolated final class EDXJourney: Journey {
     /// The colour mix is the anchor tile with every quantified map in it; a click on an element map takes it out (and back in), and the scale bar of a map opens its colour controls.
     @MainActor func testClickingMapsMakesCustomMixesAndTheScaleBarOpensColours() throws {
         try step("launch with the demo spectrum image") { launch(["--demo-spectrum-fixture"]) }
-        try step("go to the EDX room; the colour mix holds every map") {
+        try step("go to the EDS room; the colour mix holds every map") {
             waitFor("workspace.edx", timeout: 30).click()
             waitFor("edx.room", timeout: 30)
             waitFor("workspace.primaryAction", timeout: 60)

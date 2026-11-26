@@ -200,7 +200,7 @@ nonisolated final class DemoDocumentsTests: XCTestCase {
         let state = AppState(launch: LaunchOptions(arguments: ["--demo-spectrum-fixture", "--demo-eels-fixture"]))
         await state.edx.settled()
         await state.eels.settled()
-        XCTAssertEqual(state.edx.fileName, "Demo EDX")
+        XCTAssertEqual(state.edx.fileName, "Demo EDS")
         XCTAssertEqual(state.eels.fileName, "Demo EELS")
         XCTAssertFalse(state.hasImage, "no image fixture: no image open")
         XCTAssertEqual(state.navigation.workspaceArea, .edx, "a launch with only spectrum documents starts in a room that can show one, not in Prepare")

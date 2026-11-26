@@ -38,7 +38,7 @@ nonisolated enum DemoDocument: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .lattice: "Lattice Image"
         case .diffraction: "Au Diffraction Pattern"
-        case .edx: "EDX Spectrum Image"
+        case .edx: "EDS Spectrum Image"
         case .eels: "EELS Spectrum Image"
         case .semImage: "SEM Image (generated)"
         case .semSpectrum: DemoDocuments.Shipped.semEDSSpectrum.title
