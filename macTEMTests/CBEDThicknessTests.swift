@@ -77,6 +77,19 @@ nonisolated final class CBEDThicknessTests: XCTestCase {
         XCTAssertTrue(m.methodLine.hasPrefix("Two-beam CBED thickness · Si "), m.methodLine)
         XCTAssertEqual(m.fittedCurve.count, m.discs.offsets.count)
         XCTAssertGreaterThanOrEqual(m.minima.count, 4, "two fitted minima or more on each side")
+        XCTAssertNil(m.unreliableThicknessLine, "a good fit's number is the result, not a greyed line")
+    }
+
+    /// A poor fit keeps its number on screen, greyed under the warning, as DM and exSpy show an estimate beside its quality (it was
+    /// hidden: walk D32, 189 nm). Mutation: the line dropped, or the section not drawing it.
+    func testAPoorFitShowsItsNumberGreyed() throws {
+        let line = CBEDThickness.Measurement.unreliableLine(thicknessNM: 189.2)
+        XCTAssertTrue(line.hasPrefix("Fitted thickness 189"), line)
+        XCTAssertTrue(line.hasSuffix(" nm, not reliable at this residual."), line)
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+        let section = try String(contentsOf: root.appendingPathComponent("macTEM/UI/DiffractionThicknessSection.swift"), encoding: .utf8)
+        XCTAssertTrue(section.contains("if let line = m.unreliableThicknessLine {"))
+        XCTAssertTrue(section.contains("InspectorNote(line).accessibilityIdentifier(\"diffraction.thickness.unreliable\")"))
     }
 
     /// A recorded pattern (#978): the same discs at 1000 counts for an intensity of 1, on a background rising from 5 counts at the

@@ -159,6 +159,7 @@ nonisolated enum AgentDoorCoverage {
         "diffraction.thickness.measure": .tool("measure_thickness"),
         "diffraction.thickness.method": .tool("read_thickness"),
         "diffraction.thickness.sentence": .tool("read_thickness"),
+        "diffraction.thickness.unreliable": .tool("read_thickness"),
         "diffraction.thickness.useInSimulation": .tool("use_measured_thickness"),
         "diffraction.thickness.useInSimulationRefusal": .tool("use_measured_thickness"),
         "diffraction.tool": .tool("set_diffraction"),
