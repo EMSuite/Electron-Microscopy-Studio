@@ -106,6 +106,8 @@ package final class DiffractionAnalysis {
     // The facts
     package private(set) var centre: DiffractionCentre?
     package private(set) var crystal: DiffractionCrystal = .preset(StandardCrystals.all[0])
+    /// This analysis is a Simulation document's (set once, when its item is made): its standard is no specimen (`awaitsPhase`).
+    package var isSimulationDocument = false
     /// The standard a ring is calibrated on, and the index of its family in the list (the nearest few families).
     package private(set) var standard: StandardCrystal = StandardCrystals.all[0]
     package var familyIndex = 0
@@ -597,12 +599,12 @@ package final class DiffractionAnalysis {
     }
 
     /// The header's line for the drawn orientation once it was turned by hand, or while no Index answer is shown: "Al · 2.1° from
-    /// [001]", "Al [001]" within 0.5°; nil while the overlay is off.
+    /// [001]", "Al [001]" within 0.5°; nil while the overlay is off, and in a Simulation document with no phase yet.
     package var orientationLine: String? { orientationHeaderLine(locale: UnitDisplay.point) }
 
     /// `orientationLine` with its angle in `locale`: the reader's in the header row, the point (the door's) by default (#1039).
     package func orientationHeaderLine(locale: Locale) -> String? {
-        guard simulation.isShown, isTurnedByHand || indexOutcome == nil, let o = drawnOrientation,
+        guard simulation.isShown, !awaitsPhase, isTurnedByHand || indexOutcome == nil, let o = drawnOrientation,
               let near = o.nearestZoneAxis(cell: crystal.structure.cell) else { return nil }
         return PatternIndexing.place(phase: crystal.name, zoneAxis: near.uvw, angle: near.angle, locale: locale)
             + (isTurnedByHand ? " · set by hand" : "")

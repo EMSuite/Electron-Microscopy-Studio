@@ -7,7 +7,8 @@
 //        kit's bonds (`CrystalPaneModel`). In a Simulation document whose specimen builds, the pane shows the slab the multislice
 //        runs on instead (#897, plan row MA5): its atoms in the crystal's frame and its box, capped at the drawn-atom limit and at a
 //        depth no deeper than it is wide (the view frames a sphere round the drawing, #1020), with the count named under it
-//        (`SlabDrawing`), so the columns in the pane are the ones marked on the HRTEM image.
+//        (`SlabDrawing`), so the columns in the pane are the ones marked on the HRTEM image. A Simulation document with no phase yet
+//        draws no cell (#1111): the pane says the pattern's empty-state sentence.
 //
 
 import ShellCrystal
@@ -48,7 +49,7 @@ struct DiffractionCrystalPane: View {
                     }
                 }
             } else {
-                Text("Show the simulated spots, or Index, to see the crystal down the beam.")
+                Text(DiffractionCrystalScenes.emptySentence(analysis))
                     .font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.center).padding(12)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
@@ -61,9 +62,15 @@ struct DiffractionCrystalPane: View {
 @MainActor enum DiffractionCrystalScenes {
     private static var cache: (structure: CrystalStructure, scene: CrystalScene)?
 
-    /// The orientation the pane draws: the simulated spots', nil while they are off.
+    /// The orientation the pane draws: the simulated spots', nil while they are off, and in a Simulation document with no phase yet
+    /// (#1111: the room's standard, Au, is no specimen there).
     static func shown(_ analysis: DiffractionAnalysis) -> CrystalOrientation? {
-        analysis.simulation.isShown ? analysis.drawnOrientation : nil
+        analysis.simulation.isShown && !analysis.awaitsPhase ? analysis.drawnOrientation : nil
+    }
+
+    /// The sentence of an empty pane: a Simulation document's empty state, as its pattern beside says it, or how to fill the pane.
+    static func emptySentence(_ analysis: DiffractionAnalysis) -> String {
+        analysis.awaitsPhase ? SimulationEmptyState.sentence : "Show the simulated spots, or Index, to see the crystal down the beam."
     }
 
     /// One unit cell of the crystal as VESTA draws it, with its bonds.

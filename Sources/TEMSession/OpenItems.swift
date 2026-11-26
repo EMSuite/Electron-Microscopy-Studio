@@ -390,6 +390,7 @@ package final class OpenItem: Identifiable {
         self.url = url
         self.fileIdentity = fileIdentity
         self.lastSelected = lastSelected
+        diffraction.isSimulationDocument = DemoDocuments.isSimulation(url)
     }
 
     /// The sidecar's file name for this image, or nil when none can be named (a name over the limit, a sidecar itself).

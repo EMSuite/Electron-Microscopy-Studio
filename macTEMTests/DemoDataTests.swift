@@ -33,7 +33,8 @@ nonisolated final class DemoDataTests: XCTestCase {
     }
 
     /// #804: the recorded spot pattern opens as the selected file in the Diffraction room, and the silicon simulation is a Simulation
-    /// document whose crystal is the shipped CIF. Mutation: the simulation keeps the room's standard, the pattern is not selected - red.
+    /// document whose simulated phase is the shipped CIF's, with no Add Phase sheet over it (#1111). Mutation: the simulation keeps the
+    /// room's standard, the CIF is set as a loose crystal (no simulated phase), the pattern is not selected - red.
     @MainActor func testTheSpotPatternAndTheSiliconSimulation() async throws {
         let pattern = AppState(launch: LaunchOptions(arguments: []))
         await pattern.openDemo(.spotPattern)?.value
@@ -44,10 +45,31 @@ nonisolated final class DemoDataTests: XCTestCase {
         await simulation.openDemo(.siliconSimulation)?.value
         let item = try XCTUnwrap(simulation.openItems.selected)
         XCTAssertTrue(DemoDocuments.isSimulation(item.url))
-        XCTAssertEqual(item.diffraction.crystal.structure.sites.count, 8)
-        XCTAssertEqual(item.diffraction.crystal.structure.spaceGroupNumber, 227)
-        XCTAssertNotNil(item.diffraction.crystal.sha256, "the crystal is the CIF, not a standard")
+        let phase = try XCTUnwrap(item.diffraction.simulatedPhase, "the CIF is the simulated phase, not a loose crystal")
+        XCTAssertEqual(phase.structure.sites.count, 8)
+        XCTAssertEqual(phase.structure.spaceGroupNumber, 227)
+        XCTAssertEqual(phase.phaseID?.hasPrefix("cif-"), true, "the crystal is the CIF's phase, not a standard")
+        XCTAssertFalse(item.diffractionView.isAddingPhase, "no Add Phase sheet over the silicon pattern")
+        XCTAssertFalse(SimulationEmptyState.isShown(for: item))
+        XCTAssertEqual(item.diffraction.orientationLine, "\(phase.name) [001]", "the header names silicon, not Au")
         XCTAssertEqual(simulation.navigation.workspaceArea, .diffraction)
+    }
+
+    /// #1111: a window that holds a document opens the silicon simulation in a tab of its own, whose state is not the one that asked; the
+    /// demo's phase is held for the document and set by whichever state lands it. Red before: the phase was set on the asking window's
+    /// selected item after the open, so the new tab kept no phase (the Add Phase sheet up, an Au cell beside it).
+    @MainActor func testTheDemoPhaseLandsInTheTabThatOpensTheSimulation() async throws {
+        let al = try XCTUnwrap(StandardCrystals.named("Al"))
+        let crystal = DiffractionCrystal.phase(PhaseCrystal(id: "test-al", name: "Al", structure: al.structure))
+        let document = AppState.nextSimulationURL()
+        DemoSimulations.hold(crystal, for: document)
+        let tab = AppState(launch: LaunchOptions(arguments: []))   // the new tab's own state
+        await tab.open(urls: [document])?.value
+        let item = try XCTUnwrap(tab.openItems.selected)
+        XCTAssertEqual(item.url, document)
+        XCTAssertEqual(item.diffraction.simulatedPhase, crystal)
+        XCTAssertFalse(item.diffractionView.isAddingPhase)
+        XCTAssertEqual(tab.navigation.workspaceArea, .diffraction)
     }
 
     /// The generated SEM image goes through the app's own Open as a file from disk, so the Image room has it with the file's SEM
