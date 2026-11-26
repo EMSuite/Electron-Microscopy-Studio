@@ -46,6 +46,30 @@ nonisolated final class DiffractionAnalysisTests: XCTestCase {
         XCTAssertEqual(analysis.rings.count, 1)
     }
 
+    /// #1114: Calibrate on Ring after Fit Ring on the same annulus takes the ring already fitted: one row, the one that sets the scale,
+    /// the scale a Calibrate on Ring alone sets. Once the centre moved, the ring is fitted again about the new centre, a row of its own.
+    /// Red before: Calibrate on Ring always fitted again and added a second row of the same ring.
+    @MainActor func testCalibrateOnRingTakesTheRingAlreadyFittedInTheAnnulus() async throws {
+        let image = DemoDocuments.diffractionPattern()
+        let analysis = DiffractionAnalysis()
+        analysis.bind(image)
+        let family = try XCTUnwrap(analysis.standardFamilies().first { $0.name == "{111}" })
+        await analysis.fitRing(image: image, inner: 29, outer: 37)?.value
+        let fitted = try XCTUnwrap(analysis.rings.first)
+        XCTAssertFalse(fitted.isCalibrating)
+        await analysis.fitRing(image: image, inner: 29, outer: 37, calibrateOn: family.family)?.value
+        XCTAssertEqual(analysis.rings.map(\.id), [fitted.id], "no second row")
+        XCTAssertEqual(analysis.rings.first?.fit, fitted.fit, "the fit already made")
+        XCTAssertEqual(analysis.rings.first?.isCalibrating, true, "the row sets the scale")
+        let (direct, _) = try await calibrated()
+        XCTAssertEqual(analysis.calibration(for: image), direct.calibration(for: image), "the scale a Calibrate on Ring alone sets")
+
+        analysis.setCentre(row: 256.5, column: 256)
+        await analysis.fitRing(image: image, inner: 29, outer: 37, calibrateOn: family.family)?.value
+        XCTAssertEqual(analysis.rings.count, 2, "a ring fitted about another centre is fitted again")
+        XCTAssertEqual(analysis.rings.map(\.isCalibrating), [false, true])
+    }
+
     @MainActor func testTheCentreStartsAtTheImageCentreAndKMaxFromTheScale() {
         let image = DemoDocuments.diffractionPattern()
         let analysis = DiffractionAnalysis()
