@@ -770,9 +770,22 @@ struct Harness {
                     if case .failure(let e) = outcome, let r = e as? CrystalLoading.Refusal { report.check(r.name == "tooLarge", "R9 refuse", name, r.name) }
                     else { report.check(false, "R9 refuse", name, "not refused by name tooLarge") }
                     if case .failure(let e) = outcome { report.check(!e.localizedDescription.isEmpty, "R9 text", name, "empty text") }
-                } else if expect == "refuse-utf8" {
-                    if case .failure(let e) = outcome, let r = e as? CrystalLoading.Refusal { report.check(r.name == "notUTF8", "R9 refuse", name, r.name) }
-                    else { report.check(false, "R9 refuse", name, "not refused by name notUTF8") }
+                } else if expect == "read-latin1" {
+                    // DiffractoKit 0.19 reads bytes that are not UTF-8 as Windows-1252 (DiffractoKit#142), so the file is read,
+                    // fingerprinted over its own bytes, and is the kit's crystal of that decoding.
+                    guard case .success(let loaded) = outcome else {
+                        report.check(false, "R9 read", name, "refused: \(failureText(outcome))")
+                        continue
+                    }
+                    report.check(loaded.sha256 == str(f["sha256"]), "R9 hash", name, "\(loaded.sha256) vs \(str(f["sha256"]))")
+                    if loaded.sha256 != str(f["sha256"]) { separated.append(name) }
+                    report.check(loaded.byteCount == int(f["bytes"]), "R9 hash", "\(name) bytes", "\(loaded.byteCount) vs \(int(f["bytes"]))")
+                    let base = URL(fileURLWithPath: name).deletingPathExtension().lastPathComponent
+                    if let text = String(data: bytes, encoding: .windowsCP1252), let kit = try? CIFImport.read(text, fileBaseName: base) {
+                        report.check(loaded.structure == kit.structure && loaded.displayName == kit.displayName, "R9 read", name, "structure or name differs from CIFImport.read")
+                    } else {
+                        report.check(false, "R9 read", name, "the kit does not read the Windows-1252 text")
+                    }
                 } else if expect == "refuse-any" {
                     if case .failure(let e) = outcome {
                         let kit = e as? CIFImportError
