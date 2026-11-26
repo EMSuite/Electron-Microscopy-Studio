@@ -621,7 +621,9 @@ nonisolated enum AgentDoorCoverage {
     static let toolbarVerbs: [String: Reach] = [
         "Image · HRTEM image with frozen phonons · Simulate": .tool("run_simulation"),
         "Image · STEM image · Simulate": .tool("run_stem"),
+        "Diffraction · measured pattern, Calibrate part · Calibrate": .tool("set_diffraction"),
         "Diffraction · measured pattern · Index": .tool("index_pattern"),
+        "Diffraction · any pattern, Thickness part · Measure": .tool("measure_thickness"),
         "Diffraction · CBED pattern · Simulate": .tool("run_cbed"),
         "Stop (any verb)": .tool("stop_run"),
     ]

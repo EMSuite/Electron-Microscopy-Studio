@@ -728,6 +728,19 @@ to four toggles that looked alike. Tables need their width; one at a time reads.
 **What would reverse it.** A drive that needs two tables in view at once (Readout beside Spots); then the second goes into the
 room's centre, not back beside Output.
 
+## 2026-11-26 — The Diffraction toolbar's verb is the part's own
+
+**What.** The toolbar's verb (and Workspace > Run, ⌘R) is the main action of the Diffraction part shown, calling the inspector's
+own function: Calibrate (Calibrate on Ring, `DiffractionRingCalibration`) in Calibrate, Index in Index, Simulate in a CBED
+pattern's Simulate part, Measure (Measure Thickness) in Thickness. A Simulation document's Simulate (live, with three Show
+buttons), Tilt Plan (the plan follows the orientation; its Calibrate is the holder's set-up) and Powder (drawn from the phases)
+have no single run and show no verb, only the Cancel of a run still going. Off, a verb's help says what it lacks.
+
+**Why.** Design DNA 3, one verb per room with the blocker as its help, read per part since #1044: Calibrate, Powder and
+Thickness showed Index greyed, a verb of another part that told the person nothing about the part in front.
+
+**What would reverse it.** A part whose main run moves to the toolbar alone; then its inspector button goes, the verb stays.
+
 ## 2026-11-23 — CITATION.cff follows the release
 
 **What.** release-please writes `CITATION.cff`'s `version` (a `yaml` extra file in `release-please-config.json`), the file

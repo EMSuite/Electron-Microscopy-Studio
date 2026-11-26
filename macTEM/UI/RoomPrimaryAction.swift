@@ -1,9 +1,11 @@
 //
 //  RoomPrimaryAction.swift
 //  Role: the toolbar's one verb for the room that has one (design 2026-10-22, §2.2): EDS has Quantify, EELS has Run (the stages that are not current,
-//        in order), Patterns has Process, Indexing has Index, Maps has Segment, Diffraction has Index (#783), the Image room has Simulate for a
-//        frozen-phonon HRTEM image (#896) and a STEM image (#1047), and the Diffraction room has Simulate for a CBED pattern of a
-//        Simulation document while a Simulation document itself, live, has none (#1047); the FFT and Results rooms have none yet. The
+//        in order), Patterns has Process, Indexing has Index, Maps has Segment, the Image room has Simulate for a frozen-phonon HRTEM
+//        image (#896) and a STEM image (#1047). The Diffraction room's verb is the main action of the part shown (#1044), never another
+//        part's: Calibrate (Calibrate on Ring) in Calibrate, Index (#783) in Index, Simulate in Simulate for a CBED pattern of a
+//        Simulation document (#1047), Measure (Measure Thickness) in Thickness; a Simulation document's Simulate (live), Tilt Plan and
+//        Powder have none. The FFT and Results rooms have none yet. The
 //        button and its glass styles are ShellLayout's `PrimaryActionButton`; what the verb is, when it is enabled and what it says while blocked is this file's. Workspace > Run (⌘R)
 //        runs the same verb from the menu, on exactly when the button can run it (`canRun`). A room without a verb shows Cancel in the
 //        verb's place while a run left going in another room is the toolbar's busy line (`BusyOperation.backgroundRoom`).
@@ -140,34 +142,101 @@ enum RoomPrimaryAction {
             return backgroundCancel(appState)
         case .diffraction:
             guard let item = appState.openItems.selected, let image = item.session.image else { return nil }
-            switch DiffractionSections.kind(of: item.url) {
-            case .simulation:
-                // A Simulation document's pattern is live: no verb and no Index (#1047). The Cancel of its CBED run while that goes.
-                return cbedCancel(item) ?? backgroundCancel(appState)
-            case .cbed:
+            // The verb is the main action of the part shown (#1044's parts), never another part's greyed: Calibrate on Ring in
+            // Calibrate, Index in Index, a CBED pattern's Simulate in Simulate, Measure Thickness in Thickness. A Simulation document's
+            // Simulate is live (#1047; its Show buttons open three outputs), Tilt Plan's plan follows the orientation and Powder's
+            // pattern the phases: no single run, so no verb, and the Cancel of a run still going.
+            switch (appState.diffractionPart, DiffractionSections.kind(of: item.url)) {
+            case (.calibrate, .measured):
+                return calibrateAction(appState, item: item, image: image)
+            case (.index, .measured):
+                return indexAction(appState, item: item, image: image)
+            case (.simulate, .cbed):
                 // The CBED pattern of a Simulation document: Simulate computes it for the settings now (#1047).
-                guard let simulation = appState.simulationDocument(ofCBED: item) else { return backgroundCancel(appState) }
+                guard let simulation = appState.simulationDocument(ofCBED: item) else { return diffractionCancel(appState, item: item) }
                 return cbedAction(appState, simulation: simulation)
-            case .measured:
-                break
+            case (.thickness, _):
+                return thicknessAction(appState, item: item)
+            default:
+                return diffractionCancel(appState, item: item)
             }
-            // Index (#783): the kit finds the spots and the crystal's full orientation, off the main actor; Stop drops the answer.
-            let analysis = item.diffraction
-            let blocker = analysis.indexBlocker(image: image)
-            // A CBED run of the shown pattern's document is this room's work too (#1021): the button is its Stop while it runs.
-            let cbed = appState.runningCBEDDocument?.cbed
-            return PrimaryAction(
-                title: "Index",
-                isEnabled: blocker == nil,
-                help: blocker ?? "Find the spots and the full orientation of \(analysis.crystal.name)",
-                hint: "Finds the spots and the crystal's full orientation",
-                isRunning: analysis.isIndexing || analysis.isFitting || cbed != nil,
-                operationName: BusyOperation.name(room: .diffraction, appState: appState),
-                stop: { if let cbed { cbed.stop() } else { analysis.stop() } },
-                run: { PendingEdits.run { analysis.index(image: image) } })
         default:
             return backgroundCancel(appState)
         }
+    }
+
+    /// The Calibrate part's verb: Calibrate on Ring, the Calibration section's own call (`DiffractionRingCalibration`); off with what it
+    /// lacks as help; Stop while a ring fit runs.
+    @MainActor
+    private static func calibrateAction(_ appState: AppState, item: OpenItem, image: CalibratedImage) -> PrimaryAction {
+        let analysis = item.diffraction
+        let view = item.diffractionView
+        let blocker = DiffractionRingCalibration.blocker(analysis)
+        return PrimaryAction(
+            title: "Calibrate",
+            isEnabled: blocker == nil,
+            help: blocker ?? DiffractionRingCalibration.help,
+            hint: "Fits the ring in the annulus and takes the scale from the standard's spacing",
+            isRunning: analysis.isFitting,
+            operationName: BusyOperation.name(room: .diffraction, appState: appState),
+            stop: { analysis.stop() },
+            run: { DiffractionRingCalibration.run(analysis, view: view, image: image) })
+    }
+
+    /// The Index part's verb (#783): the kit finds the spots and the crystal's full orientation, off the main actor; Stop drops the
+    /// answer.
+    @MainActor
+    private static func indexAction(_ appState: AppState, item: OpenItem, image: CalibratedImage) -> PrimaryAction {
+        let analysis = item.diffraction
+        let blocker = analysis.indexBlocker(image: image)
+        // A CBED run of the shown pattern's document is this room's work too (#1021): the button is its Stop while it runs.
+        let cbed = appState.runningCBEDDocument?.cbed
+        return PrimaryAction(
+            title: "Index",
+            isEnabled: blocker == nil,
+            help: blocker ?? "Find the spots and the full orientation of \(analysis.crystal.name)",
+            hint: "Finds the spots and the crystal's full orientation",
+            isRunning: analysis.isIndexing || analysis.isFitting || cbed != nil,
+            operationName: BusyOperation.name(room: .diffraction, appState: appState),
+            stop: { if let cbed { cbed.stop() } else { analysis.stop() } },
+            run: { PendingEdits.run { analysis.index(image: image) } })
+    }
+
+    /// The Thickness part's verb (#916): Measure Thickness, the section's own call (`DiffractionThicknessSection.measure`); off with
+    /// the inputs' refusal as help. The measurement has no Stop (the shell draws a spinner); a Simulation document's CBED run is
+    /// this part's Stop while it goes.
+    @MainActor
+    private static func thicknessAction(_ appState: AppState, item: OpenItem) -> PrimaryAction {
+        let model = item.thickness
+        let refusal: String? = switch item.thicknessInputs {
+        case .failure(let why): why.sentence
+        case .success: nil
+        }
+        let cbed = appState.runningCBEDDocument?.cbed
+        var stop: (() -> Void)?
+        if let cbed { stop = { cbed.stop() } }
+        return PrimaryAction(
+            title: "Measure",
+            isEnabled: refusal == nil,
+            help: refusal ?? DiffractionThicknessSection.measureHelp,
+            hint: "Measures the specimen's thickness from the two-beam intensity across a disc",
+            isRunning: model.isMeasuring || cbed != nil,
+            operationName: cbed != nil ? BusyOperation.cbedSentence : model.isMeasuring ? "Measuring the thickness…" : nil,
+            stop: stop,
+            run: { DiffractionThicknessSection.measure(item) })
+    }
+
+    /// A part without a verb: the Cancel of the pattern's ring fit or Index still going, else of its Simulation document's CBED run,
+    /// else of a run left going in another room.
+    @MainActor
+    private static func diffractionCancel(_ appState: AppState, item: OpenItem) -> PrimaryAction? {
+        let analysis = item.diffraction
+        if analysis.isIndexing || analysis.isFitting {
+            return PrimaryAction(title: nil, isRunning: true, operationName: BusyOperation.name(room: .diffraction, appState: appState),
+                                 stop: { analysis.stop() }, run: {})
+        }
+        if let running = appState.runningCBEDDocument, let cancel = cbedCancel(running) { return cancel }
+        return backgroundCancel(appState)
     }
 
     /// A room without a verb keeps the Cancel of a run left going in another room, the one the toolbar's centre shows (ShellLayout's
@@ -255,7 +324,7 @@ enum RoomPrimaryAction {
             run: { Task { await appState.simulateCBED(of: simulation) } })
     }
 
-    /// The Cancel of a Simulation document's own CBED run while that document is shown (it has no verb, #1047); nil while none goes.
+    /// The Cancel of a Simulation document's own CBED run while a part without a verb is shown (#1047); nil while none goes.
     @MainActor
     private static func cbedCancel(_ document: OpenItem) -> PrimaryAction? {
         let model = document.cbed

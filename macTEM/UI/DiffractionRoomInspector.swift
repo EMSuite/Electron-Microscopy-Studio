@@ -124,6 +124,29 @@ private struct DiffractionCentreSection: View {
     }
 }
 
+/// Calibrate on Ring: the Calibration section's button and the Calibrate part's toolbar verb (`RoomPrimaryAction`) run this one call.
+enum DiffractionRingCalibration {
+    static let help = "Fit the ring in the annulus and take Δq from its radius and the family's listed spacing"
+
+    /// Why Calibrate on Ring cannot run now, in words; nil when it can. A ring fit in flight is not a blocker: the verb is its Stop.
+    @MainActor
+    static func blocker(_ analysis: DiffractionAnalysis) -> String? {
+        if analysis.centre == nil { return "Calibrate needs the pattern's centre" }
+        if analysis.standardFamilies().isEmpty { return "The standard lists no ring to calibrate on: choose another standard" }
+        return nil
+    }
+
+    /// Fits the ring in the annulus and calibrates against the picked family of the standard, after the pending edits commit.
+    @MainActor
+    static func run(_ analysis: DiffractionAnalysis, view: DiffractionViewState, image: CalibratedImage) {
+        PendingEdits.run {
+            let families = analysis.standardFamilies()
+            guard families.indices.contains(analysis.familyIndex) else { return }
+            analysis.fitRing(image: image, inner: view.annulusInner, outer: view.annulusOuter, calibrateOn: families[analysis.familyIndex].family)
+        }
+    }
+}
+
 private struct DiffractionCalibrationSection: View {
     let session: ImageSession
     private var image: CalibratedImage { session.imageOrBlank }
@@ -134,6 +157,7 @@ private struct DiffractionCalibrationSection: View {
     var body: some View {
         let calibration = analysis.calibration(for: image)
         let families = analysis.standardFamilies()
+        let ringBlocker = DiffractionRingCalibration.blocker(analysis)
         InspectorSection("Calibration") {
             InspectorValueRow("Scale", calibration.map { "\($0.sourceText) · \(Num.fixed($0.deltaQ, 5)) Å⁻¹/px" } ?? "none")
             if let fit = analysis.fitVersusFilePercent(for: image) {
@@ -152,12 +176,10 @@ private struct DiffractionCalibrationSection: View {
                 .labelsHidden().fixedSize().accessibilityIdentifier("diffraction.family")
             }
             InspectorActionRow {
-                Button("Calibrate on Ring") {
-                    PendingEdits.run { if families.indices.contains(analysis.familyIndex) { analysis.fitRing(image: image, inner: view.annulusInner, outer: view.annulusOuter, calibrateOn: families[analysis.familyIndex].family) } }
-                }
-                .disabled(analysis.isFitting || families.isEmpty)
-                .help("Fit the ring in the annulus and take Δq from its radius and the family's listed spacing")
-                .accessibilityIdentifier("diffraction.calibrate")
+                Button("Calibrate on Ring") { DiffractionRingCalibration.run(analysis, view: view, image: image) }
+                    .disabled(analysis.isFitting || ringBlocker != nil)
+                    .help(ringBlocker ?? DiffractionRingCalibration.help)
+                    .accessibilityIdentifier("diffraction.calibrate")
                 if analysis.ringCalibrationExists { Button("Clear") { DiffractionUndo.clearCalibration(in: analysis, undoManager: undoManager) }.accessibilityIdentifier("diffraction.calibration.clear") }
             }
             if let ring = calibration?.ring {

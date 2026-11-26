@@ -18,6 +18,15 @@ struct DiffractionThicknessSection: View {
     let item: OpenItem
     @Environment(AppState.self) private var appState
     private static let chartHeight: CGFloat = 120
+    static let measureHelp = "Fits the two-beam intensity across the diffracted disc (Kelly et al. 1975): tilt so one reflection is strong"
+
+    /// Measure Thickness on what `item` holds now: the section's button and the Thickness part's toolbar verb (`RoomPrimaryAction`)
+    /// run this one call.
+    static func measure(_ item: OpenItem) {
+        let model = item.thickness
+        let inputs = item.thicknessInputs
+        Task { await model.measure(inputs) }
+    }
 
     var body: some View {
         let model = item.thickness
@@ -25,9 +34,9 @@ struct DiffractionThicknessSection: View {
         // Open: it is the Thickness part's one job since #1044 (it sat closed at the foot of fifteen sections before).
         InspectorSection("Thickness") {
             InspectorActionRow {
-                Button("Measure Thickness") { Task { await model.measure(inputs) } }
+                Button("Measure Thickness") { Self.measure(item) }
                     .disabled(model.isMeasuring)
-                    .help("Fits the two-beam intensity across the diffracted disc (Kelly et al. 1975): tilt so one reflection is strong")
+                    .help(Self.measureHelp)
                     .accessibilityIdentifier("diffraction.thickness.measure")
             }
             if model.isMeasuring {

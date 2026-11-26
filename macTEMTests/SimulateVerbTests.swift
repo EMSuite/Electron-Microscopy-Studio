@@ -56,8 +56,8 @@ nonisolated final class SimulateVerbTests: XCTestCase {
 
     // MARK: On a window's state
 
-    /// A Simulation document has no verb (and so no Index); its CBED pattern's verb is Simulate, off with the beam Parallel and the
-    /// reason as help; its STEM image's verb is Simulate, off with the run's refusal as help; Workspace > Run follows.
+    /// A Simulation document has no verb (and so no Index); its CBED pattern's verb is Measure in Thickness, where it opens, and
+    /// Simulate in the Simulate part, off with the beam Parallel and the reason as help; its STEM image's verb is Simulate, off with the run's refusal as help; Workspace > Run follows.
     /// Mutation: Index on the Simulation document or the CBED pattern; no verb on the STEM image.
     @MainActor func testEachComputedDocumentHasItsVerb() async throws {
         let state = AppState(launch: LaunchOptions(arguments: []))
@@ -78,6 +78,11 @@ nonisolated final class SimulateVerbTests: XCTestCase {
             state.openItems.selected.map { DemoDocuments.isCBED($0.url) } ?? false
         }
         XCTAssertEqual(state.navigation.workspaceArea, .diffraction)
+        // It opens on Thickness, whose verb is Measure; Simulate is the Simulate part's (the verb is the part's own main action).
+        XCTAssertEqual(state.diffractionPart, .thickness)
+        XCTAssertEqual(RoomPrimaryAction.current(state)?.title, "Measure")
+        state.selectDiffractionPart(.simulate)
+        XCTAssertEqual(state.diffractionPart, .simulate)
         let cbed = try XCTUnwrap(RoomPrimaryAction.current(state))
         XCTAssertEqual(cbed.title, "Simulate")
         XCTAssertFalse(cbed.isEnabled)

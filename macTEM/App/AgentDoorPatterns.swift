@@ -25,8 +25,9 @@ extension MacTEMAgentDoor {
     static let verbTools: [AgentTool] = [
         AgentTool(name: "run_room", title: "Run the room's verb",
                   summary: "Presses the shown room's toolbar verb, as ⌘R does: Quantify (EDS), Run (EELS), Process (Patterns), Index "
-                      + "(Indexing, and Diffraction on a measured pattern), Segment (Maps), Simulate (a STEM or frozen-phonon HRTEM image, "
-                      + "a CBED pattern of a Simulation document; a Simulation document itself has none). Refused with the button's own words while it is disabled, and while a run is going. "
+                      + "(Indexing, and Diffraction's Index part), Calibrate and Measure (Diffraction's Calibrate and Thickness parts), "
+                      + "Segment (Maps), Simulate (a STEM or frozen-phonon HRTEM image, a CBED pattern of a Simulation document in the "
+                      + "Simulate part; a Simulation document itself, Tilt Plan and Powder have none). Refused with the button's own words while it is disabled, and while a run is going. "
                       + "It answers at once; the room's get tool says busy until the run ends.",
                   input: .window, acts: true) { call in
             guard let appState = call.window?.state as? AppState else { return notAWindowRefusal }

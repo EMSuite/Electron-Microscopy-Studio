@@ -71,7 +71,7 @@ extension MacTEMAgentDoor {
             4. Work the room. Topic eds for the EDS room, patterns for the EBSD Patterns room, indexing for the Indexing room, maps \
             for the Maps room, eels for the EELS room, image for the Image room (marks and particles), fft for the FFT room, diffraction for the Diffraction room. The other rooms' controls are the person's for now: look at their result with the get tools and ask the person to set and \
             run them.
-            5. Run. `run_room` presses the shown room's toolbar verb (Quantify, Run, Process, Index, Segment), as ⌘R does; it is \
+            5. Run. `run_room` presses the shown room's toolbar verb (Quantify, Run, Process, Index, Segment, Simulate; in Diffraction the part's: Calibrate, Index, Simulate, Measure), as ⌘R does; it is \
             refused with the button's own words while it cannot run. `stop_run` stops what runs, as ⌘. does.
 
             Ways of working the person expects:

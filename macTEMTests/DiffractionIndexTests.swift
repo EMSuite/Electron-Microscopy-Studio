@@ -430,6 +430,8 @@ nonisolated final class DiffractionIndexTests: XCTestCase {
         let analysis = try XCTUnwrap(state.openItems.selected?.diffraction)
         let image = try XCTUnwrap(state.openItems.selected?.session.image)
         analysis.bind(image)   // the room's view binds it on screen
+        state.selectDiffractionPart(.index)
+        XCTAssertEqual(state.diffractionPart, .index)
         let action = try XCTUnwrap(RoomPrimaryAction.current(state))
         XCTAssertEqual(action.title, "Index")
         XCTAssertEqual(RoomPrimaryAction.runTitle(state), "Index")
@@ -444,6 +446,60 @@ nonisolated final class DiffractionIndexTests: XCTestCase {
         XCTAssertFalse(analysis.isIndexing)
         await task.value
         XCTAssertNil(analysis.indexOutcome)
+    }
+
+    /// The toolbar's verb is the main action of the part shown, never another part's greyed: Calibrate (Calibrate on Ring's own call)
+    /// in Calibrate, Index in Index, Measure (Measure Thickness) in Thickness, none in Powder; Workspace > Run follows; a verb without
+    /// what it needs is off with that as its help. Red before: every part of a measured pattern showed Index.
+    @MainActor func testTheToolbarVerbIsThePartsOwn() async throws {
+        let state = AppState(launch: LaunchOptions(arguments: []))
+        await state.openDemo(.diffraction)?.value
+        state.navigation.workspaceArea = .diffraction
+        let item = try XCTUnwrap(state.openItems.selected)
+        let analysis = item.diffraction
+        let image = try XCTUnwrap(item.session.image)
+        analysis.bind(image)   // the room's view binds it on screen
+
+        state.selectDiffractionPart(.calibrate)
+        let calibrate = try XCTUnwrap(RoomPrimaryAction.current(state))
+        XCTAssertEqual(calibrate.title, "Calibrate")
+        XCTAssertEqual(RoomPrimaryAction.runTitle(state), "Calibrate")
+        XCTAssertTrue(calibrate.isEnabled, calibrate.help)
+        XCTAssertEqual(calibrate.help, DiffractionRingCalibration.help)
+        XCTAssertFalse(analysis.ringCalibrationExists)
+        RoomPrimaryAction.runActive(state)
+        try await waitUntil("Calibrate on Ring to set the scale", seconds: 60) { analysis.ringCalibrationExists && !analysis.isFitting }
+        XCTAssertEqual(try XCTUnwrap(analysis.calibration(for: image)?.deltaQ), DemoDocuments.Truth.patternDeltaQ,
+                       accuracy: 0.005 * DemoDocuments.Truth.patternDeltaQ, "the verb ran Calibrate on Ring on the demo's annulus")
+
+        state.selectDiffractionPart(.index)
+        XCTAssertEqual(RoomPrimaryAction.current(state)?.title, "Index")
+
+        state.selectDiffractionPart(.powder)
+        XCTAssertEqual(state.diffractionPart, .powder)
+        XCTAssertNil(RoomPrimaryAction.current(state)?.title, "Powder has no single run: no verb, and never Index greyed")
+        XCTAssertEqual(RoomPrimaryAction.runTitle(state), "Run")
+        XCTAssertFalse(RoomPrimaryAction.canRun(RoomPrimaryAction.current(state)))
+
+        state.selectDiffractionPart(.thickness)
+        let measure = try XCTUnwrap(RoomPrimaryAction.current(state))
+        XCTAssertEqual(measure.title, "Measure")
+        XCTAssertEqual(RoomPrimaryAction.runTitle(state), "Measure")
+        switch item.thicknessInputs {
+        case .failure(let refusal):
+            XCTAssertFalse(measure.isEnabled)
+            XCTAssertEqual(measure.help, refusal.sentence, "the inputs' refusal is the help")
+        case .success:
+            XCTAssertTrue(measure.isEnabled)
+            XCTAssertEqual(measure.help, DiffractionThicknessSection.measureHelp)
+        }
+    }
+
+    /// Calibrate on Ring before the pattern has a centre is off, in the toolbar and in the section, with that as the help.
+    @MainActor func testCalibrateSaysWhatItLacks() {
+        let analysis = DiffractionAnalysis()
+        XCTAssertNil(analysis.centre)
+        XCTAssertEqual(DiffractionRingCalibration.blocker(analysis), "Calibrate needs the pattern's centre")
     }
 }
 
