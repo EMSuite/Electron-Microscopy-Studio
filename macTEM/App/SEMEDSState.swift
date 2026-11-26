@@ -52,30 +52,23 @@ final class SEMEDSState {
         }
     }
 
+    /// Why the room gives an SEM spectrum's line intensities and no at%: exspy quantifies a TEM spectrum only (Cliff-Lorimer, zeta and
+    /// cross-section are `EDSTEMSpectrum`'s; `EDSSEMSpectrum` has line intensities alone), and the room's k-factors are thin-film ones,
+    /// which a bulk sample's absorption and fluorescence break (walk 2026-11-26: TM002 at 10 kV showed at% with ±, Zr left out silently).
+    static let intensitiesOnlyReason = "an SEM spectrum of a bulk sample: the room's thin-film k-factors do not apply, so it gives the line "
+        + "intensities and no composition, as exspy does for SEM spectra."
+
     /// Picks the elements the file names (`Sample.elements`, exspy's list) in the shared EDS room, once the room is at rest after its open
-    /// and Auto ID: an SEM spectrum is quantified by the room's own Quantify, as a TEM one is (D-SEM-107). Auto ID's picks stay; an
+    /// and Auto ID, and marks the spectrum intensities-only (`intensitiesOnlyReason`): the room's Quantify fits it and reports each
+    /// line's area with σ (D-SEM-107). Every file element is fitted and shown, Zr on Zr_La at 10 kV too. Auto ID's picks stay; an
     /// element already picked is left as it is. Runs once per file (the caller's task is keyed by the path), so an element the person
     /// takes out is not put back.
     func pickFileElements(in session: EDXSession) async {
         guard isSEMSpectrum, let elements = spectrum?.elements, !elements.isEmpty else { return }
         await session.settled()
         guard session.source?.metadata.filePath == path else { return }
-        let computedK = session.method.kFactorSource == .computed
-        for symbol in elements where !session.picks.contains(where: { $0.symbol == symbol }) {
-            session.toggle(symbol)
-            guard let axis = session.source?.energyAxis,
-                  Self.fileElementRole(symbol, axis: axis, beamEnergy: session.beamEnergy, computedK: computedK) == .fitOnly else { continue }
-            session.setRole(.fitOnly, of: symbol)
-        }
-    }
-
-    /// The role a file's element is picked with: Fit only where the computed k cannot quantify it, that is where the spectrum holds no
-    /// Kα under the beam (the computed k covers Kα lines only, `PooledQuantifier`). TM002 at 10 kV: Zr Kα (15.78 keV) is past the beam,
-    /// so Zr is fitted on Zr_La (exspy's tutorial line) and left out of at%; Al, C, Mn and Cu are quantified on Kα. Picked at Quantify,
-    /// Zr refused the whole composition, and the demo's first Quantify showed "–" for every at% (#1027). A typed k quantifies anything.
-    nonisolated static func fileElementRole(_ symbol: String, axis: EnergyAxis, beamEnergy: Double?, computedK: Bool) -> EDXRole {
-        guard computedK else { return .quantify }
-        return XRayLines.linesInRange([symbol + "_Ka"], axis: axis, beamEnergy: beamEnergy).isEmpty ? .fitOnly : .quantify
+        session.setIntensitiesOnly(Self.intensitiesOnlyReason)
+        for symbol in elements where !session.picks.contains(where: { $0.symbol == symbol }) { session.toggle(symbol) }
     }
 
     private func recompute() {

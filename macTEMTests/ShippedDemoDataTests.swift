@@ -201,30 +201,39 @@ nonisolated final class ShippedDemoDataTests: XCTestCase {
         XCTAssertEqual(state.edx.picks.count, 5)
     }
 
-    /// The demo's first Quantify gives at% (#1027): Zr, whose Kα (15.78 keV) is past the 10 kV beam, is picked Fit only, so the computed
-    /// k quantifies Al, C, Mn and Cu on their Kα and Zr is fitted on Zr_La. Red before: Zr was picked at Quantify, the computed k
-    /// refused the composition ("covers K lines only") and the header said "Quantified ✓" over a column of "–".
-    @MainActor func testTheSEMSpectrumsFirstQuantifyGivesAtPercent() async throws {
+    /// The demo's Quantify gives the line intensities and no composition, as exspy does for an SEM spectrum (walk 2026-11-26): every file
+    /// element is fitted and shown with its area and σ, Zr on Zr_La too, and the header says why there is no at%. Red before: thin-film
+    /// Cliff-Lorimer at% with ± on a bulk 10 kV spectrum, Zr picked Fit only and left out of the table without a word.
+    @MainActor func testTheSEMSpectrumsQuantifyGivesLineIntensitiesOnly() async throws {
         let state = AppState(launch: LaunchOptions(arguments: []))
         let url = try XCTUnwrap(DemoDocuments.Shipped.semEDSSpectrum.url)
         await state.edx.open(url: url).value
         await state.semEDS.load(path: state.edx.source?.metadata.filePath)
         await state.semEDS.pickFileElements(in: state.edx)
-        let roles = Dictionary(uniqueKeysWithValues: state.edx.picks.map { ($0.symbol, $0.role) })
-        XCTAssertEqual(roles, ["C": .quantify, "Al": .quantify, "Mn": .quantify, "Cu": .quantify, "Zr": .fitOnly])
+        XCTAssertEqual(state.edx.intensitiesOnly, SEMEDSState.intensitiesOnlyReason)
+        XCTAssertTrue(state.edx.picks.allSatisfy { $0.role == .quantify }, "\(state.edx.picks.map { ($0.symbol, $0.role) })")
         await state.edx.quantify()?.value
         await state.edx.settled()
         let fit = try XCTUnwrap(state.edx.fit, state.edx.fitFailure ?? "no fit")
-        XCTAssertTrue(fit.hasAbundance, fit.abundanceRefusal ?? "")
+        XCTAssertFalse(fit.hasAbundance)
+        XCTAssertEqual(fit.abundanceRefusal, SEMEDSState.intensitiesOnlyReason)
+        XCTAssertTrue(fit.rows.allSatisfy { $0.atomicPercent == nil && $0.weightPercent == nil })
+        XCTAssertEqual(Set(fit.rows.map(\.element)), ["Al", "C", "Cu", "Mn", "Zr"], "every file element is in the table")
+        let zr = try XCTUnwrap(fit.rows.first { $0.element == "Zr" })
+        XCTAssertGreaterThan(zr.net, 0, "Zr is fitted on its L line")
     }
 
-    /// A file element is Fit only exactly where the spectrum holds no Kα under the beam, and only for the computed k.
-    func testAFileElementWithNoKAlphaUnderTheBeamIsFitOnly() {
-        let axis = EnergyAxis(offset: -0.1, scale: 0.01, size: 1024)   // TM002: 1024 channels of 10 eV from -0.1 keV
-        XCTAssertEqual(SEMEDSState.fileElementRole("Zr", axis: axis, beamEnergy: 10, computedK: true), .fitOnly)
-        XCTAssertEqual(SEMEDSState.fileElementRole("Cu", axis: axis, beamEnergy: 10, computedK: true), .quantify)
-        XCTAssertEqual(SEMEDSState.fileElementRole("C", axis: axis, beamEnergy: 10, computedK: true), .quantify)
-        XCTAssertEqual(SEMEDSState.fileElementRole("Zr", axis: axis, beamEnergy: 10, computedK: false), .quantify, "a typed k quantifies L lines")
+    /// A TEM spectrum is quantified as before: opening one after the SEM demo clears the mark.
+    @MainActor func testATEMSpectrumAfterTheSEMDemoIsQuantifiedAgain() async throws {
+        let state = AppState(launch: LaunchOptions(arguments: []))
+        await state.edx.open(url: try XCTUnwrap(DemoDocuments.Shipped.semEDSSpectrum.url)).value
+        await state.semEDS.load(path: state.edx.source?.metadata.filePath)
+        await state.semEDS.pickFileElements(in: state.edx)
+        XCTAssertNotNil(state.edx.intensitiesOnly)
+        await state.edx.bind(DemoDocuments.edx()).value
+        await state.semEDS.load(path: state.edx.source?.metadata.filePath)
+        await state.semEDS.pickFileElements(in: state.edx)
+        XCTAssertNil(state.edx.intensitiesOnly)
     }
 
     @MainActor func testTheSpectrumOpensFromTheMenuAndTheLaunchArgument() async throws {
