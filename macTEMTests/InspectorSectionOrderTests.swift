@@ -58,6 +58,25 @@ nonisolated final class InspectorSectionOrderTests: XCTestCase {
         XCTAssertEqual(DiffractionSections.tools(.measured), [.ring, .spot, .tilt])
     }
 
+    /// A simulation's Rings and Spots section shows no Fit Ring and no annulus, a measurement on recorded patterns, as its Tools show
+    /// no Ring; the clicked spots keep Remove and Remove All. Red before: the Simulate part of a Simulation document and of its CBED
+    /// pattern offered Fit Ring.
+    func testASimulationShowsNoFitRing() throws {
+        XCTAssertTrue(DiffractionSections.fitsRings(.measured))
+        for kind in [DiffractionSections.Kind.simulation, .cbed] {
+            XCTAssertFalse(DiffractionSections.fitsRings(kind), "\(kind): no ring to fit")
+            XCTAssertTrue(DiffractionPart.sections(.simulate, kind: kind).contains(.rings), "\(kind): the clicked spots stay listed")
+        }
+        let inspector = try source("macTEM/UI/DiffractionRoomInspector.swift").split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        XCTAssertTrue(inspector.contains("case .rings: DiffractionRingsSection(session: item.session, analysis: analysis, view: view, fitsRings: DiffractionSections.fitsRings(kind))"))
+        let rings = try XCTUnwrap(inspector.components(separatedBy: "private struct DiffractionRingsSection").last?
+            .components(separatedBy: "private struct DiffractionToolsSection").first)
+        let measuredOnly = try XCTUnwrap(rings.components(separatedBy: "if fitsRings {").last?.components(separatedBy: "} else {").first)
+        XCTAssertTrue(measuredOnly.contains("Button(\"Fit Ring\")"), "Fit Ring only where rings are fitted")
+        XCTAssertTrue(measuredOnly.contains("InspectorRow(\"Inner\")") && measuredOnly.contains("InspectorRow(\"Outer\")"))
+        XCTAssertEqual(rings.components(separatedBy: "Button(\"Fit Ring\")").count, 2, "one Fit Ring, under the switch")
+    }
+
     /// The method lines left the HRTEM and STEM sections for the Info tab's Simulation section, with Copy Methods Paragraph.
     func testTheMethodLineIsInTheInfoTab() throws {
         let hrtem = try source("macTEM/UI/SimulationHRTEMSection.swift")

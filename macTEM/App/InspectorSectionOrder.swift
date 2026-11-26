@@ -76,8 +76,12 @@ nonisolated enum DiffractionSections {
         }
     }
 
+    /// Whether the pattern's rings are fitted (the Ring tool, the annulus, Fit Ring): a computed pattern's scale is the simulation's,
+    /// exact, so it has no ring to fit.
+    static func fitsRings(_ kind: Kind) -> Bool { !isComputed(kind) }
+
     /// The tools a pointer has on the pattern: a computed pattern has no ring to fit.
     static func tools(_ kind: Kind) -> [DiffractionViewState.Tool] {
-        isComputed(kind) ? [.spot, .tilt] : [.ring, .spot, .tilt]
+        fitsRings(kind) ? [.ring, .spot, .tilt] : [.spot, .tilt]
     }
 }

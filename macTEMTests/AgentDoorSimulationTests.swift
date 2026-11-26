@@ -191,6 +191,16 @@ nonisolated final class AgentDoorSimulationTests: XCTestCase {
         XCTAssertEqual(item.diffractionView.useLog, log, "a refused call changes nothing")
         item.diffractionView.showsCrystal = true
 
+        // A computed pattern has no ring to fit: its inspector shows no Fit Ring (`DiffractionSections.fitsRings`), and the door
+        // refuses one as it refuses Calibrate on Ring.
+        let ringCount = analysis.rings.count
+        for argument in ["fit_ring", "calibrate"] {
+            let fit = try await call("set_diffraction", [argument: true])
+            XCTAssertTrue(fit.refused, "\(argument): \(fit.text)")
+        }
+        XCTAssertEqual(analysis.rings.count, ringCount)
+        XCTAssertFalse(analysis.isFitting)
+
         // The Export section into the Agent folder.
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("agent-folder-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)

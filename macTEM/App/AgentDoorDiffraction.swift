@@ -249,6 +249,10 @@ extension MacTEMAgentDoor {
         if a["inner"] != nil || a["outer"] != nil, !(inner < outer) {
             return .refusal(status: 400, message: "The annulus needs inner < outer.")
         }
+        // A computed pattern has no ring to fit (its inspector shows no Fit Ring and no Calibrate on Ring).
+        if a["calibrate"] == "true" || a["fit_ring"] == "true", !DiffractionSections.fitsRings(DiffractionSections.kind(of: item.url)) {
+            return .refusal(status: 409, message: "A computed pattern has no ring to fit: its scale and centre are the simulation's.")
+        }
         if a["calibrate"] == "true" || a["fit_ring"] == "true", analysis.isFitting {
             return .refusal(status: 409, message: "A ring fit is running; ask again when get_diffraction says fitting false.")
         }
