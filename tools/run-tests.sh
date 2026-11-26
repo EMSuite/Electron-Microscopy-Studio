@@ -705,14 +705,14 @@ inventory() {
   # same rule: once no source declares it, its absence cannot fail on screen, and the journey asserts on what took its place.
   echo "== UI journey identifiers"
   # The shared package's sources: the sibling checkout during development, else the tag-pinned checkout SwiftPM made (the CI runner has no
-  # ../MacEMUI; nightly review 2026-10-23), else none and only this repo's sources are searched.
-  local shared="$ROOT/../MacEMUI/Sources" id parent grand
+  # ../EMSuiteUI; nightly review 2026-10-23), else none and only this repo's sources are searched.
+  local shared="$ROOT/../EMSuiteUI/Sources" id parent grand
   if [[ ! -d "$shared" ]]; then
     # (N): a pattern with no match drops out instead of stopping zsh with "no matches found" (CI, 2026-10-27).
-    local -a found=( "$ROOT"/.build/checkouts/MacEMUI/Sources(N/) "$ROOT"/../*/SourcePackages/checkouts/MacEMUI/Sources(N/) \
-                     "${MACTEM_GATE_DIR:-/nonexistent}"/*/SourcePackages/checkouts/MacEMUI/Sources(N/) )
+    local -a found=( "$ROOT"/.build/checkouts/EMSuiteUI/Sources(N/) "$ROOT"/../*/SourcePackages/checkouts/EMSuiteUI/Sources(N/) \
+                     "${MACTEM_GATE_DIR:-/nonexistent}"/*/SourcePackages/checkouts/EMSuiteUI/Sources(N/) )
     shared="${found[1]:-}"
-    [[ -n "$shared" ]] || echo "  (no MacEMUI checkout beside this repo: the shell's identifiers are not checked here)"
+    [[ -n "$shared" ]] || echo "  (no EMSuiteUI checkout beside this repo: the shell's identifiers are not checked here)"
   fi
   local -a where=("$ROOT/macTEM" "$ROOT/Sources"); [[ -n "$shared" ]] && where+=("$shared")
   # A dynamic identifier is declared with an interpolation, and resolves by the literal text around it, inside the

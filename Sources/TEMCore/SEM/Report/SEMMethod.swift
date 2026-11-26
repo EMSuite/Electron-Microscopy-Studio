@@ -242,10 +242,10 @@ package nonisolated enum SEMReferenceVersions {
     package static let builtWith: [SEMSessionField] = [
         SEMSessionField("FormatoKit", "0.20.0"),
         SEMSessionField("ImagoKit", "0.11.0"),
-        SEMSessionField("DiffractoKit", "0.24.0"),
-        SEMSessionField("SpectroKit", "0.16.0"),
+        SEMSessionField("DiffractoKit", "0.24.1"),
+        SEMSessionField("SpectroKit", "0.17.1"),
         SEMSessionField("SimulatoKit", "0.7.0"),
-        SEMSessionField("MacEMUI", "0.18.0"),
+        SEMSessionField("EMSuiteUI", "0.18.1"),
     ]
 
     /// "kikuchipy 0.13.1"; the bare name when the package is not pinned.

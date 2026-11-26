@@ -268,8 +268,8 @@ jobs:
             sudo xcodebuild -downloadComponent MetalToolchain
           fi
           xcrun -sdk macosx metal --version
-      - name: Resolve the pinned MacEMUI
-        # The inventory's UI-journey identifier check reads the shell's sources from .build/checkouts/MacEMUI (no ../MacEMUI here).
+      - name: Resolve the pinned EMSuiteUI
+        # The inventory's UI-journey identifier check reads the shell's sources from .build/checkouts/EMSuiteUI (no ../EMSuiteUI here).
         run: swift package resolve
       - name: The pins are still the commit's (nothing since checkout rewrote them)
         # #1105: on the Mac, a run whose tree was HEAD after checkout read a workspace Package.resolved with other pins in the

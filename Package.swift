@@ -12,13 +12,13 @@ let package = Package(
         .library(name: "TEMSession", targets: ["TEMSession"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/mac4DSTEM/FormatoKit", from: "0.20.0"),
-        .package(url: "https://github.com/mac4DSTEM/DiffractoKit", from: "0.24.0"),
-        .package(url: "https://github.com/mac4DSTEM/ImagoKit", from: "0.11.0"),
-        .package(url: "https://github.com/mac4DSTEM/SpectroKit", from: "0.16.0"),
+        .package(url: "https://github.com/EMSuite/FormatoKit", from: "0.20.0"),
+        .package(url: "https://github.com/EMSuite/DiffractoKit", from: "0.24.1"),
+        .package(url: "https://github.com/EMSuite/ImagoKit", from: "0.11.0"),
+        .package(url: "https://github.com/EMSuite/SpectroKit", from: "0.17.1"),
         // The window shell, controls and Metal image view both apps share. TEMSession takes ShellMetal (MetalEngine, ColormapKind); TEMCore and
         // TEMSession take ShellEDXModel (the shared EDS room; the EELS room reuses its regions and pins).
-        .package(url: "https://github.com/mac4DSTEM/MacEMUI", from: "0.18.0"),
+        .package(url: "https://github.com/EMSuite/EMSuiteUI", from: "0.18.1"),
         // The Simulation document's specimen and HRTEM image (2.5): the slab builder, the multislice and the transfer function.
         .package(url: "https://github.com/EMSuite/SimulatoKit", from: "0.7.0"),
     ],
@@ -46,8 +46,8 @@ let package = Package(
                 .product(name: "SpectroCore", package: "SpectroKit"),
                 .product(name: "SpectroEDX", package: "SpectroKit"),
                 .product(name: "SpectroEELS", package: "SpectroKit"),
-                .product(name: "ShellEDXModel", package: "MacEMUI"),
-                .product(name: "ShellExport", package: "MacEMUI"),
+                .product(name: "ShellEDXModel", package: "EMSuiteUI"),
+                .product(name: "ShellExport", package: "EMSuiteUI"),
                 .product(name: "SimulatoCore", package: "SimulatoKit"),
                 .product(name: "SimulatoMultislice", package: "SimulatoKit"),
                 .product(name: "SimulatoProbe", package: "SimulatoKit"),
@@ -77,8 +77,8 @@ let package = Package(
                 .product(name: "SpectroCore", package: "SpectroKit"),
                 .product(name: "SpectroEDX", package: "SpectroKit"),
                 .product(name: "SpectroEELS", package: "SpectroKit"),
-                .product(name: "ShellMetal", package: "MacEMUI"),
-                .product(name: "ShellEDXModel", package: "MacEMUI"),
+                .product(name: "ShellMetal", package: "EMSuiteUI"),
+                .product(name: "ShellEDXModel", package: "EMSuiteUI"),
             ],
             swiftSettings: [
                 .unsafeFlags(["-O"], .when(configuration: .debug)),
