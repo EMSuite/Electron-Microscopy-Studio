@@ -265,7 +265,7 @@ private struct DiffractionPhasesSection: View {
                     .help("Find a phase on the Materials Project, or open a CIF. Until a phase is shown, the room indexes against \(analysis.standard.name), the calibration standard.")
                     .accessibilityIdentifier("diffraction.phases.add")
                 Button("Find Phases…") { findingPhases = true }
-                    .help("Ranks the room's standards and the open crystals by how many of the measured rings or marked spots each explains")
+                    .help("Ranks your phases, the standards and the open crystals by how many of the measured rings or marked spots each explains")
                     .accessibilityIdentifier("diffraction.findPhases")
             }
             if let why = analysis.crystalFailure { InspectorWarning(why) }
