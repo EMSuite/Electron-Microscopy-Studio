@@ -103,17 +103,34 @@ extension AppState {
             guard let url = DemoDocuments.Shipped.nanowirePattern.url else { return nil }
             task = open(urls: [url])
         case .siliconSimulation:
-            // New Simulation's own call, then the shipped CIF as the room's crystal, as Open CIF… would set it.
+            // New Simulation's document with the shipped CIF as its shown phase (#1111). The phase is held for the document and set
+            // where it lands (`DemoSimulations`, from `landSimulation`): a window that holds a document opens it in a tab of its own,
+            // whose state is not this one. A loose `.cif` crystal is no simulated phase (`simulatedPhase`), so the phase is the CIF's,
+            // as Open CIF… shows it, without adding it to the person's phase library; with a phase, no Add Phase sheet comes up.
             guard let url = DemoDocuments.Shipped.siliconCIF.url, let bytes = try? Data(contentsOf: url),
                   let silicon = try? CrystalLoading.load(bytes: bytes, fileName: url.lastPathComponent) else { return nil }
-            let opening = newSimulation()
-            task = Task {
-                await opening?.value
-                if let item = openItems.selected, DemoDocuments.isSimulation(item.url) { item.diffraction.setCrystal(.cif(silicon)) }
-            }
+            let document = Self.nextSimulationURL()
+            DemoSimulations.hold(DiffractionPhases.crystal(forCIF: silicon), for: document)
+            task = open(urls: [document])
         }
         navigation.workspaceArea = demo.room
         return task
+    }
+}
+
+/// The phase a demo's Simulation document lands with, held under the document's URL until it lands (`AppState.landSimulation`), in
+/// whichever window's tab it opens (#1111), as a reopened session file waits (`SimulationSessions`).
+@MainActor
+enum DemoSimulations {
+    private static var pending: [URL: DiffractionCrystal] = [:]
+
+    /// `crystal` is shown in the document at `document` once it lands.
+    static func hold(_ crystal: DiffractionCrystal, for document: URL) { pending[document] = crystal }
+
+    /// A landing Simulation document a demo opened: its phase is set. Nothing for any other.
+    static func land(_ item: OpenItem) {
+        guard let crystal = pending.removeValue(forKey: item.url) else { return }
+        item.diffraction.setCrystal(crystal)
     }
 }
 

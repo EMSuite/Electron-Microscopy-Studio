@@ -75,9 +75,10 @@ nonisolated final class EDXJourney: Journey {
 
     /// Regions are compared: two rectangles and a line (the launch draws them with the room's own calls, `--demo-regions`; EDXRegionDragJourney draws one by dragging,
     /// #634). Since 1.0 there is no Regions list in the inspector: the Results area has a
-    /// Regions table with a row for each region and its pixel count (planted: 4 x 4 = 16 and 8 x 8 = 64 of the 16 x 16 scan) and, the pixels all alike, a net count
-    /// that scales with the pixels (64/16 = 4, within 30 %: the demo's Mg varies across the scan, the right region holds brighter pixels); a line is not a row; the
-    /// profile along the line (selected when drawn) is the inset over the spectrum.
+    /// Regions table with a row for each region and its pixel count (planted: 4 x 4 = 16 and 8 x 8 = 64 of the 16 x 16 scan) and a Mg net count that follows the
+    /// planted particle: Region 1 is a corner of the Al matrix (Mg 10 counts a pixel), Region 2 covers the Mg-rich particle (about 116 a pixel), so Region 2's Mg is
+    /// far more than the 4 times its pixels alone would give (planted: about 46 times); a line is not a row; the profile along the line (selected when drawn) is
+    /// the inset over the spectrum.
     @MainActor func testRegionsAreComparedInTheTableAndTheLineHasAProfile() throws {
         try step("launch with the demo spectrum image and two regions") { launch(["--demo-spectrum-fixture", "--demo-regions"]) }
         try step("go to the EDX room") {
@@ -90,10 +91,11 @@ nonisolated final class EDXJourney: Journey {
             XCTAssertEqual(waitValue("edx.regionTable.Region 2.pixels", timeout: 30) { !$0.isEmpty }, "64")
             XCTAssertFalse(element("edx.regionTable.Line 1.pixels").exists, "a line has a profile, not a row")
         }
-        try step("the net counts scale with the pixels") {
+        try step("the Mg net counts follow the particle") {
             let one = Double(waitValue("edx.regionTable.Region 1.Mg.net", timeout: 60) { !$0.isEmpty }) ?? .nan
             let two = Double(waitValue("edx.regionTable.Region 2.Mg.net", timeout: 60) { !$0.isEmpty }) ?? .nan
-            XCTAssertEqual(two / one, 4, accuracy: 1.2, "Mg net: \(one) in 16 pixels, \(two) in 64")
+            XCTAssertGreaterThan(two, 16 * one, "Mg net: \(one) in 16 pixels of matrix, \(two) in 64 over the particle")
+            XCTAssertGreaterThan(two, 0, "Mg net: \(two) over the particle")
         }
         try step("the line has a profile over the spectrum") {
             waitFor("profile.chart", timeout: 30)

@@ -55,7 +55,7 @@ door this one follows (4DSTEM Studio `docs/agent-door.md`). This app hands the d
 | `read_atom_model` | the Specimen section's source (Phase or Atom Model), a file being read or why the last one was not opened, and with a model its file, atoms by element, the beam axis, its own thickness along the beam, the box, the summary and the notes |
 | `get_abtem_script` | the Python script Export abTEM Script… writes for the HRTEM image (name and text), once the exit waves are current |
 | `get_indexing_picture` | `which` map (the layer as Export's Map PNG… draws it), pattern (as indexed, without the band overlay) or best_match (a Dictionary run's) |
-| `get_crystal_view` | the Diffraction room's crystal pane: shown or hidden, the phase, the zone axis nearest the drawn orientation and the tilt off it, the orientation as the 3 by 3 matrix the simulated spots are drawn with, the unit cell switch and the scene (atoms and bonds by element, cell lengths); with `picture`, the pane's picture (the first ask starts the drawing and answers 409, ask again) |
+| `get_crystal_view` | the Diffraction room's crystal pane: shown or hidden, the phase, the zone axis nearest the drawn orientation and the tilt off it, the orientation as the 3 by 3 matrix the simulated spots are drawn with, the unit cell switch and the scene (atoms and bonds by element, cell lengths); with `picture`, the pane's picture (the first ask starts the drawing and answers 409, ask again); empty, said in words, while the spots are off or a Simulation document has no phase yet |
 
 Every picture and number comes from the code that draws or exports it for the person, so the agent judges what the
 person sees. Numbers in JSON fields use a point; the status and Output lines are the window's own text, in the Mac's Region.
@@ -112,7 +112,7 @@ Behind "Let agents run analyses". Each goes through the entry point its control 
 | `measure_thickness` | Measure Thickness on the pattern shown: the two-beam fit across the diffracted disc (Kelly et al. 1975), on a measured pattern or a simulated CBED pattern run at a hand tilt to one strong reflection; `read_thickness` gives the verdict |
 | `use_measured_thickness` | Use in Simulation: the thickness found becomes the Simulation document's specimen thickness; refused while the document simulates an atom model (its thickness is the model's own) |
 | `set_stem` | the STEM section: semiangle, defocus or Scherzer, scan step or Nyquist, Collect to, and the detector (a preset, or Custom with inner and outer angles on whole rings) |
-| `run_stem` | Show STEM Image and its toolbar Simulate or Continue; the image fills as it is computed; refused with the section's words while it cannot run |
+| `run_stem` | Show STEM Image, which runs the image's toolbar Simulate or Continue as the section's button does; the image fills as it is computed; refused with the section's words while it cannot run |
 | `stop_stem` | the STEM image's toolbar Stop; the positions done stay and `run_stem` continues |
 | `set_atom_model` | the Specimen section's Source: an atom model file of the Agent folder (CIF, XYZ or POSCAR) read as Atom Model… does, back to the phase, and Beam along (c, a or b); answers at once, `read_atom_model` says when the file is in or why it was refused |
 | `select_grains` | selects grains as the grain table does, or none |

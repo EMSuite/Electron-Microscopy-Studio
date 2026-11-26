@@ -24,7 +24,8 @@ extension MacTEMAgentDoor {
     static let simulationTools: [AgentTool] = [
         said(AgentTool(name: "new_simulation", title: "New Simulation",
                        summary: "File > New Simulation: a simulated diffraction pattern with no measured one under it, in the "
-                           + "Diffraction room with the simulated spots on (Au at [0 0 1], 200 kV typed, 0.0125 Å⁻¹/px). A window that "
+                           + "Diffraction room with the simulated spots on ([0 0 1], 200 kV typed, 0.0125 Å⁻¹/px) and no phase yet "
+                           + "(add_phase gives it one; until then get_crystal_view answers that the pane is empty). A window that "
                            + "holds a file gives it a tab of its own, which list_windows then names. set_diffraction (crystal, "
                            + "beam_kv) and set_zone_axis set it; get_diffraction_picture and get_crystal_view show it. Answers at once "
                            + "with opens_in_new_window; get_window says the simulation is open once it is.",
@@ -55,6 +56,10 @@ extension MacTEMAgentDoor {
     static func crystalView(_ item: OpenItem, picture: Bool) -> AgentToolOutput {
         let analysis = item.diffraction, view = item.diffractionView
         guard let orientation = DiffractionCrystalScenes.shown(analysis) else {
+            if analysis.awaitsPhase {
+                return .refusal(status: 404, message: "The crystal pane is empty: this Simulation document has no phase yet; add one "
+                    + "(add_phase) first.")
+            }
             return .refusal(status: 404, message: "The crystal pane is empty: show the simulated spots (simulate_pattern overlay true) "
                 + "or Index first.")
         }

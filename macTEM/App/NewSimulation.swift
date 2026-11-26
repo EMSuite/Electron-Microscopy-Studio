@@ -37,6 +37,8 @@ extension AppState {
         if openItems.selected?.id != item.id { openItems.select(item.id) }
         // A reopened session file (#908): its phase and settings first, so what follows keeps them.
         SimulationSessions.landReopened(item)
+        // A demo's document (#1111): its phase, so it opens on the phase's pattern with no Add Phase sheet.
+        DemoSimulations.land(item)
         // The beam energy is typed, not the file's, so the Calibration section changes it: 200 kV to start, the demo pattern's.
         if item.diffraction.typedBeamKV == nil { item.diffraction.typedBeamKV = DemoDocuments.Truth.patternVolts / 1000 }
         item.diffraction.simulation.isShown = true

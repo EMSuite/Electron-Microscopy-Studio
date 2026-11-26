@@ -806,6 +806,10 @@ extension DiffractionAnalysis {
     /// CIF ("Add a phase to simulate.").
     package var simulatedPhase: DiffractionCrystal? { crystal.phaseID == nil ? nil : crystal }
 
+    /// A Simulation document with no phase shown (#1111): the room's calibration standard is no specimen there, so its crystal pane and
+    /// orientation line name none (no Au cell, no "Au [001]") until a phase is shown. Never true for a measured pattern.
+    package var awaitsPhase: Bool { isSimulationDocument && simulatedPhase == nil }
+
     /// The simulated phase's `count` strongest kinematic families (name and d, Å), strongest first (ties: the longer spacing first), for the transfer function
     /// strip; empty without a phase or a list.
     package func strongestSpacings(count: Int = 3) -> [(label: String, d: Double)] {
