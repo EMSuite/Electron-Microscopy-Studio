@@ -378,9 +378,18 @@ package nonisolated enum PatternIndexing {
     /// Fit scale's window: Index fits the measured |q| over |g| within ±3 % (the kit's default), or holds it at 1 when Fit scale is off.
     package static let scaleWindow = 0.03
 
-    /// The solver's settings for Index: the kit's, with the scale window open (Fit scale on) or shut.
-    package static func solverSettings(fitScale: Bool) -> ZoneAxisSolver.Settings {
-        ZoneAxisSolver.Settings(scaleWindow: fitScale ? scaleWindow : 0)
+    /// The kit's floor on how far a spot may sit from its reflection, Å⁻¹ (`ZoneAxisSolver.Settings.floor`'s default).
+    package static let kitFloor = 0.004
+    /// A found spot's centre is good to about this many pixels on a small frame (the nanowire demo's scatter is 0.35 px): the floor
+    /// of Index's window is half a pixel of the pattern's scale, never below the kit's.
+    package static let floorPixels = 0.5
+
+    /// The solver's settings for Index: the room's Tolerance (% of |q|) and a floor of half a pixel at `deltaQ` (Å⁻¹ per pixel), so a
+    /// small detector frame whose spots are good to a fraction of a pixel, not to 1 % of |q|, is matched as pyxem's vector matching
+    /// matches it (a magnitude tolerance in pixels); the scale window open (Fit scale on) or shut.
+    package static func solverSettings(fitScale: Bool, tolerancePercent: Double = 1, deltaQ: Double? = nil) -> ZoneAxisSolver.Settings {
+        let floor = max(kitFloor, floorPixels * (deltaQ.flatMap { $0.isFinite && $0 > 0 ? $0 : nil } ?? 0))
+        return ZoneAxisSolver.Settings(tolerance: max(tolerancePercent, 0.01) / 100, floor: floor, scaleWindow: fitScale ? scaleWindow : 0)
     }
 
     /// The most solutions the Index section steps through.
