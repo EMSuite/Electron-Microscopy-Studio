@@ -28,6 +28,7 @@ nonisolated final class DiffractionSimulationTests: XCTestCase {
     @MainActor private func shown(_ image: CalibratedImage, zone: SIMD3<Int> = SIMD3(0, 0, 1), turn: Double = 0) -> DiffractionAnalysis {
         let analysis = DiffractionAnalysis()
         analysis.bind(image)
+        analysis.setCrystal(.preset(analysis.standard))
         analysis.typedDeltaQ = 0.01
         analysis.simulation.isShown = true
         analysis.simulation.zoneAxis = zone
@@ -132,6 +133,19 @@ nonisolated final class DiffractionSimulationTests: XCTestCase {
         analysis.typedDeltaQ = 0.02
         let rescaled = try XCTUnwrap(try spots(analysis, image).first { $0.hkl == MillerIndex(2, 0, 0) })
         XCTAssertEqual(hypot(rescaled.row - 120, rescaled.column - 130), 2 / 4.0495 / 0.02, accuracy: 1e-9)
+    }
+
+    /// #1139. Mutation: the simulated spots drawn for the fallen-back calibration standard - red.
+    @MainActor func testAMeasuredPatternSimulatesOnlyAChosenPhase() throws {
+        let image = blankPattern()
+        let analysis = shown(image)
+        analysis.clearCrystal()
+        guard case .failure(let waiting)? = analysis.simulatedSpots(image: image) else { return XCTFail("Au drawn on an unknown pattern") }
+        XCTAssertTrue(waiting.sentence.hasPrefix("Show the specimen's phase under Phases"), waiting.sentence)
+        XCTAssertNil(analysis.orientationLine, "no \"Au [001]\" in the header before a phase is chosen")
+        analysis.setCrystal(.preset(analysis.standard))
+        guard case .success? = analysis.simulatedSpots(image: image) else { return XCTFail("the chosen crystal is drawn") }
+        XCTAssertEqual(analysis.orientationLine, "Au [001]")
     }
 
     @MainActor func testTheOverlayNamesWhatItNeeds() throws {

@@ -130,7 +130,7 @@ extension MacTEMAgentDoor {
         AgentParameter("beam_kv", .number(1...10_000), summary: "A typed beam energy, kV (a file with no voltage)."),
         AgentParameter("camera", .choice(["none"] + CameraPitches.all.map(\.name)), summary: "The camera, for its pixel pitch."),
         AgentParameter("pixel_pitch", .number(0.0001...10), summary: "The camera's pixel pitch, mm."),
-        AgentParameter("crystal", .choice(StandardCrystals.all.map(\.name)), summary: "The crystal to index against."),
+        AgentParameter("crystal", .choice(StandardCrystals.all.map(\.name)), summary: "A standard as the specimen's crystal, to index against (a library phase: list_phases, then show it)."),
         AgentParameter("k_max", .number(0.2...4), summary: "The reflection list's reach, Å⁻¹."),
         AgentParameter("tolerance", .number(0.01...100), summary: "The indexing tolerance, % of q."),
         AgentParameter("inner", .number(0.1...100_000), summary: "The annulus' inner radius, px."),

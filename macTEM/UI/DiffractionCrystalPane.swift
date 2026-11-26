@@ -63,14 +63,16 @@ struct DiffractionCrystalPane: View {
     private static var cache: (structure: CrystalStructure, scene: CrystalScene)?
 
     /// The orientation the pane draws: the simulated spots', nil while they are off, and in a Simulation document with no phase yet
-    /// (#1111: the room's standard, Au, is no specimen there).
+    /// (#1111: the room's standard, Au, is no specimen there), nor on a measured pattern before a phase is chosen (#1139).
     static func shown(_ analysis: DiffractionAnalysis) -> CrystalOrientation? {
-        analysis.simulation.isShown && !analysis.awaitsPhase ? analysis.drawnOrientation : nil
+        analysis.simulation.isShown && !analysis.awaitsPhase && analysis.phaseBlocker == nil ? analysis.drawnOrientation : nil
     }
 
     /// The sentence of an empty pane: a Simulation document's empty state, as its pattern beside says it, or how to fill the pane.
     static func emptySentence(_ analysis: DiffractionAnalysis) -> String {
-        analysis.awaitsPhase ? SimulationEmptyState.sentence : "Show the simulated spots, or Index, to see the crystal down the beam."
+        if analysis.awaitsPhase { return SimulationEmptyState.sentence }
+        if let why = analysis.phaseBlocker { return why + "." }
+        return "Show the simulated spots, or Index, to see the crystal down the beam."
     }
 
     /// One unit cell of the crystal as VESTA draws it, with its bonds.
