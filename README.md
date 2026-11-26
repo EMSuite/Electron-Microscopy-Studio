@@ -14,7 +14,7 @@ Apple silicon.
 ## Download
 
 Get the signed and notarised DMG from the [latest release](https://github.com/EMSuite/Electron-Microscopy-Studio/releases/latest). It needs
-macOS 26 or later on an Apple silicon Mac. Release 2.1.1 has everything below, the SEM and EBSD rooms included.
+macOS 26 or later on an Apple silicon Mac. The latest release has everything below.
 
 From 2.1 the download checks for updates itself (Microscopy Studio > Check for Updates…, and a daily check you can turn off
 in Settings); the App Store version updates through the store.

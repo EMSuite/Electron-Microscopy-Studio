@@ -90,7 +90,7 @@ private struct InspectorSettingsTab: View {
                         ResultsSessionSettings()
                             .environment(\.inspectorScope, "settings.results")
                     case .diffraction:
-                        if let item = appState.openItems.selected {
+                        if let item = appState.openItems.selected, DiffractionSections.notAPattern(item.url) == nil {
                             DiffractionRoomSettings(item: item)
                                 .environment(\.inspectorScope, "settings.diffraction")
                         }

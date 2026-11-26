@@ -197,7 +197,7 @@ private struct IndexingPhasesSection: View {
                     ForEach(IndexingPhase.presets) { Text($0.name).tag($0.name) }
                 }
                 .labelsHidden()
-                .help("The built-in phases, with DiffractoKit's lattice constants")
+                .help("Common phases with their room-temperature lattice constants")
                 .accessibilityIdentifier("indexing.preset")
             }
             InspectorActionRow {
@@ -211,6 +211,12 @@ private struct IndexingPhasesSection: View {
                 Button("Add from CIF…") { importing = true }
                     .help("Add the structure of a CIF; it needs the space group number")
                     .accessibilityIdentifier("indexing.addCIF")
+            }
+            if session.method == .hough {
+                ForEach(session.phasesOn.compactMap(\.houghCaveat), id: \.self) { caveat in
+                    InspectorWarning(caveat)
+                        .accessibilityIdentifier("indexing.phase.houghCaveat")
+                }
             }
             if !session.skippedPhases.isEmpty {
                 InspectorNote("The file's \(session.skippedPhases.joined(separator: ", ")) states no space group or lattice, so it is left out.")
@@ -370,12 +376,16 @@ private struct IndexingDictionarySection: View {
             InspectorActionRow {
                 Button("Reset Dictionary") { session.resetDictionarySettings() }
                     .disabled(settings == defaults)
-                    .help(settings == defaults ? "The settings are figure F9's: 4°, NCC, keep 5, no mask" : "Back to figure F9's settings: 4°, NCC, keep 5, no mask")
+                    .help(settings == defaults ? "The settings are the defaults: 4°, NCC, keep 5, no mask" : "Back to the defaults: 4°, NCC, keep 5, no mask")
                     .accessibilityIdentifier("indexing.dictionary.reset")
             }
             if let why = session.dictionaryRefusal {
                 InspectorWarning(why)
                     .accessibilityIdentifier("indexing.dictionary.refusal")
+            } else if let warning = session.masterWarnings.first {
+                // A master pattern of another phase of the same space group (the demo's Ni on an Al scan): it runs, and says whose it is.
+                InspectorWarning(warning)
+                    .accessibilityIdentifier("indexing.dictionary.masterWarning")
             } else if session.phasesOn.count > 1 {
                 InspectorNote("kikuchipy's dictionary indexing, one dictionary per phase on; each point takes the phase whose best match scores highest (merge_crystal_maps).")
             } else {

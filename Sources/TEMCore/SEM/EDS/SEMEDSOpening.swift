@@ -85,9 +85,19 @@ package nonisolated enum SEMEDSOpening {
         }
     }
 
+    /// The mode rsciio gives the file ("SEM" or "TEM": EDAX always SEM, Bruker and JEOL SEM up to 30 kV), as the room's instrument
+    /// line ends with it: "Bruker Esprit (SEM)".
+    static func modeSuffix(_ mode: String) -> String { " (\(mode))" }
+
+    /// The opened file is an SEM acquisition as rsciio reads it (eXSpy then makes it an `EDSSEMSpectrum`, which gives line intensities
+    /// and no composition). False for a TEM file and for any file these readers did not open.
+    package static func isSEM(_ meta: SpectrumImageMetadata) -> Bool {
+        opensInEDS(path: meta.filePath) && meta.instrument?.hasSuffix(modeSuffix("SEM")) == true
+    }
+
     static func fill(_ meta: inout SpectrumImageMetadata, _ md: SEMEDSMetadata, vendor: String) {
         meta.beamEnergyKeV = md.beamEnergy.flatMap { $0 > 0 ? $0 : nil }
-        meta.instrument = vendor + (md.mode.map { " (\($0))" } ?? "")
+        meta.instrument = vendor + (md.mode.map(modeSuffix) ?? "")
         meta.alphaTiltDegrees = md.tiltAlpha
         if md.detectorType != nil || md.elevationAngle != nil || md.liveTime != nil || md.realTime != nil {
             meta.detectors = [SpectrumDetectorSegment(name: md.detectorType ?? "EDS", azimuthDegrees: md.azimuthAngle,

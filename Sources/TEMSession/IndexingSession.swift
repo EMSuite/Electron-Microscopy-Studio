@@ -296,7 +296,16 @@ package final class IndexingSession {
         compareB = fileIndexing == nil ? .dictionary : .file
         refreshMap()
         loadKeys()
-        openShippedMasterPattern()
+        if Self.isDemoScan(document) { openShippedMasterPattern() }
+    }
+
+    /// The dataset is one of the app's demo scans (the shipped kikuchipy Ni scan, or the generated demo answered from memory): the only
+    /// datasets the shipped Ni master pattern opens for. Review 2026-11-26: it opened for every scan, and any phase of space group 225
+    /// (Al, Cu, Au, austenite) then took nickel's patterns.
+    package static func isDemoScan(_ document: EBSDSession.Document) -> Bool {
+        guard let url = document.url else { return true }
+        guard let shipped = DemoDocuments.Shipped.nickelEBSD.url else { return false }
+        return url.standardizedFileURL.path == shipped.standardizedFileURL.path
     }
 
     /// The dataset was closed: the room goes back to its door.
@@ -427,8 +436,8 @@ package final class IndexingSession {
         openMasterPattern(url: url, quietly: false)
     }
 
-    /// The shipped Ni 20 kV master pattern (kikuchipy's), opened once when the first dataset binds, so Dictionary runs on the demo
-    /// scan without a file to find (D-SEM-91). Outside the app bundle there is none.
+    /// The shipped Ni 20 kV master pattern (kikuchipy's), opened once when a demo scan binds (`isDemoScan`), so Dictionary runs on the
+    /// demo without a file to find (D-SEM-91). Any other scan opens its own. Outside the app bundle there is none.
     private func openShippedMasterPattern() {
         guard masterPatterns.isEmpty, let url = DemoDocuments.Shipped.nickelMasterPattern.url else { return }
         openMasterPattern(url: url, quietly: true)
@@ -571,6 +580,12 @@ package final class IndexingSession {
             DictionaryIndexingPlan.chunking(points: perBlock * source.scanColumns, keptPixels: kept, dictionary: $0, options: options)
         }
         return (cuts.map(\.size).max() ?? 0, cuts.reduce(0) { $0 + $1.chunks }, (source.scanRows + perBlock - 1) / max(perBlock, 1))
+    }
+
+    /// One sentence per phase on whose master pattern is of another phase (same space group, another name): the dictionary is then
+    /// that phase's patterns. A warning, not a refusal (kikuchipy projects any master pattern it is given; a name may differ in spelling).
+    package var masterWarnings: [String] {
+        phasesOn.compactMap { p in master(for: p).flatMap { $0.phaseMismatch(for: p) } }
     }
 
     /// Why a dictionary cannot run now (the Dictionary section's warning); nil when it can. Every phase on needs a master pattern of

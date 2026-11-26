@@ -150,6 +150,7 @@ extension MacTEMAgentDoor {
                 ["name": phase.name, "on": phase.isOn, "space_group": phase.spaceGroup,
                  "point_group": AgentJSON.orNull(phase.pointGroupName), "reflectors": phase.reflectors.rawValue,
                  "source": phase.source.rawValue, "lattice": phase.lattice, "refusal": AgentJSON.orNull(phase.refusal),
+                 "hough_caveat": AgentJSON.orNull(phase.houghCaveat),
                  "master": AgentJSON.orNull(session.master(for: phase)?.fileName)]
             },
             "phases_skipped": session.skippedPhases,
@@ -162,7 +163,8 @@ extension MacTEMAgentDoor {
                            "signal_mask": d.signalMask.rawValue, "size": AgentJSON.orNull(session.dictionarySize),
                            "master_patterns": session.masterPatterns.map { ["file_name": $0.fileName, "summary": $0.summary(locale: indexingPoint)] },
                            "reading_master": session.isLoadingMaster,
-                           "refusal": AgentJSON.orNull(session.dictionaryRefusal)] as [String: Any],
+                           "refusal": AgentJSON.orNull(session.dictionaryRefusal),
+                           "master_warnings": session.masterWarnings] as [String: Any],
             "refine": refineAnswer(session, r),
             "layer": session.layer.rawValue,
             "available_layers": session.availableLayers.map(\.rawValue),

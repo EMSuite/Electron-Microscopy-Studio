@@ -155,6 +155,16 @@ package nonisolated struct IndexingMasterPattern: Sendable, Identifiable {
         return sameGroup.last { $0.master.phase.name.lowercased() == phase.name.lowercased() } ?? sameGroup.last ?? masters.last
     }
 
+    /// Why this master pattern is not `phase`'s although its space group is (its phase has another name, ignoring case): the dictionary
+    /// would be the other phase's patterns. nil when the names agree, or when the space groups differ (`DictionaryIndexingPlan.refusal`
+    /// refuses that).
+    package func phaseMismatch(for phase: IndexingPhase) -> String? {
+        let own = master.phase.name
+        guard master.phase.spaceGroup == phase.spaceGroup, own.lowercased() != phase.name.lowercased() else { return nil }
+        return "\(phase.name) takes the master pattern of \(own) (\(fileName)): the dictionary is \(own)'s patterns, so the orientations "
+            + "and scores are against \(own). Open an EMsoft master pattern of \(phase.name) for a result of \(phase.name)."
+    }
+
     /// Reads `url` (call it off the main actor: an HDF5 read of a few to some hundred megabytes). Refuses a file that is not an EMsoft
     /// master pattern, an ECP master pattern, and one a projection cannot take.
     package static func load(_ url: URL) throws -> IndexingMasterPattern {

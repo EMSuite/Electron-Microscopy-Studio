@@ -5,7 +5,8 @@
 //        counts) at the tutorial's widths, shown read-only in Info; the spectrum is quantified by the shared EDS room, with the file's
 //        elements picked on open (D-SEM-107). The numbers are TEMCore's `SEMEDSLines` (the exspy port, parity in SEMEDSParityTests).
 //        Composed by `AppState`; window-wide, not saved.
-//        A file that is not an SEM `.hspy` clears it, and the inspector shows nothing of it.
+//        A file that is not an SEM `.hspy` clears it, and the inspector shows nothing of it. A Bruker, EDAX or JEOL file that rsciio reads
+//        as SEM (map or spectrum) is marked intensities-only in the room too, as eXSpy does for every `EDS_SEM` signal.
 //
 
 import Foundation
@@ -55,7 +56,7 @@ final class SEMEDSState {
     /// Why the room gives an SEM spectrum's line intensities and no at%: exspy quantifies a TEM spectrum only (Cliff-Lorimer, zeta and
     /// cross-section are `EDSTEMSpectrum`'s; `EDSSEMSpectrum` has line intensities alone), and the room's k-factors are thin-film ones,
     /// which a bulk sample's absorption and fluorescence break (walk 2026-11-26: TM002 at 10 kV showed at% with ±, Zr left out silently).
-    static let intensitiesOnlyReason = "an SEM spectrum of a bulk sample: the room's thin-film k-factors do not apply, so it gives the line "
+    static let intensitiesOnlyReason = "an SEM acquisition of a bulk sample: the room's thin-film k-factors do not apply, so it gives the line "
         + "intensities and no composition, as exspy does for SEM spectra."
 
     /// Picks the elements the file names (`Sample.elements`, exspy's list) in the shared EDS room, once the room is at rest after its open
@@ -63,11 +64,21 @@ final class SEMEDSState {
     /// line's area with σ (D-SEM-107). Every file element is fitted and shown, Zr on Zr_La at 10 kV too. Auto ID's picks stay; an
     /// element already picked is left as it is. Runs once per file (the caller's task is keyed by the path), so an element the person
     /// takes out is not put back.
+    /// A Bruker `.bcf`/`.spx`, EDAX `.spd`/`.lsd`/`.spc` or JEOL `.pts`/`.asw`/`.eds` whose mode rsciio reads as SEM is marked
+    /// intensities-only too (review 2026-11-26: such files went through thin-film Cliff-Lorimer on a bulk sample, which eXSpy never does);
+    /// its elements are left to Auto ID, as the vendor files name none the room reads.
     func pickFileElements(in session: EDXSession) async {
-        guard isSEMSpectrum, let elements = spectrum?.elements, !elements.isEmpty else { return }
+        guard let path else { return }
+        let vendorFile = !isSEMSpectrum && SEMEDSOpening.opensInEDS(path: path)
+        guard isSEMSpectrum || vendorFile else { return }
         await session.settled()
-        guard session.source?.metadata.filePath == path else { return }
+        guard let source = session.source, source.metadata.filePath == path else { return }
+        if vendorFile {
+            if SEMEDSOpening.isSEM(source.metadata) { session.setIntensitiesOnly(Self.intensitiesOnlyReason) }
+            return
+        }
         session.setIntensitiesOnly(Self.intensitiesOnlyReason)
+        guard let elements = spectrum?.elements, !elements.isEmpty else { return }
         for symbol in elements where !session.picks.contains(where: { $0.symbol == symbol }) { session.toggle(symbol) }
     }
 

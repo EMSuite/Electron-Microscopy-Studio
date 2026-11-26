@@ -94,7 +94,7 @@ struct DiffractionPowderSection: View {
             // The pattern, its headlines and its peaks are results: the Powder Pattern pane beside the pattern and the peaks table
             // under it in Powder, the part this section is shown in (#921, #1044).
             if table.patterns.contains(where: { $0 == nil }) {
-                InspectorWarning("The kit drew no pattern for a phase: the pane says why.")
+                InspectorWarning("No pattern could be computed for a phase: the pane says why.")
             }
             InspectorNote("A line pattern for planning and comparison: no instrument profile, no texture, no absorption, no thermal motion.")
         }

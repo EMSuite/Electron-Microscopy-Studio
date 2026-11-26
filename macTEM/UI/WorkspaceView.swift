@@ -151,7 +151,11 @@ struct WorkspaceView: View {
                     } else if appState.navigation.workspaceArea == .results {
                         ResultsRoom(item: item)
                     } else if appState.navigation.workspaceArea == .diffraction {
-                        DiffractionRoom(item: item)
+                        if let why = DiffractionSections.notAPattern(item.url) {
+                            notAPatternState(why)
+                        } else {
+                            DiffractionRoom(item: item)
+                        }
                     } else {
                         ImagePane(item: item)
                     }
@@ -177,6 +181,21 @@ struct WorkspaceView: View {
         } else {
             WelcomeWorkspace()
         }
+    }
+
+    /// A real-space image chosen in the Diffraction room (#1096): one sentence, and the rooms that take it.
+    private func notAPatternState(_ why: String) -> some View {
+        ContentUnavailableView {
+            Label("Not a diffraction pattern", systemImage: "photo")
+        } description: {
+            Text(why)
+        } actions: {
+            Button("Show in Image") { appState.selectWorkspace(.image) }
+                .accessibilityIdentifier("diffraction.notAPattern.image")
+            Button("Show in FFT") { appState.selectWorkspace(.fft) }
+                .accessibilityIdentifier("diffraction.notAPattern.fft")
+        }
+        .accessibilityIdentifier("diffraction.notAPattern")
     }
 
     private func unreadableState(_ item: OpenItem, _ failure: String) -> some View {

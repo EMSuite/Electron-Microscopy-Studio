@@ -275,6 +275,22 @@ nonisolated final class ShippedDemoDataTests: XCTestCase {
         XCTAssertNil(state.edx.intensitiesOnly)
     }
 
+    /// A Bruker SEM map is marked intensities-only as the SEM demo is, and its TEM file is quantified (review 2026-11-26). Red before:
+    /// only an SEM `.hspy` was marked, so a `.bcf` from an SEM got thin-film at% on a bulk sample.
+    @MainActor func testAVendorSEMMapGivesIntensitiesOnlyAndATEMMapIsQuantified() async throws {
+        let state = AppState(launch: LaunchOptions(arguments: []))
+        let root = SEMParityReference.fixturesRoot.appendingPathComponent("rsciio/bruker")
+        await state.edx.open(url: root.appendingPathComponent("P45_the_default_job.bcf")).value
+        await state.semEDS.load(path: state.edx.source?.metadata.filePath)
+        await state.semEDS.pickFileElements(in: state.edx)
+        XCTAssertEqual(state.edx.intensitiesOnly, SEMEDSState.intensitiesOnlyReason)
+        XCTAssertFalse(state.semEDS.isSEMSpectrum, "the exspy line table is the .hspy's alone")
+        await state.edx.open(url: root.appendingPathComponent("test_TEM.bcf")).value
+        await state.semEDS.load(path: state.edx.source?.metadata.filePath)
+        await state.semEDS.pickFileElements(in: state.edx)
+        XCTAssertNil(state.edx.intensitiesOnly)
+    }
+
     /// The Results room reports the SEM spectrum's lines as the EDS room shows them: once Quantify has run, the room's fitted areas with σ
     /// on the room's lines, under "SEM-EDS line intensities". Red before (walk 2026-11-26): Results kept exspy's window sums of open time
     /// (Cu Lα 83,885, Zr Lα 82,216 counts) under "SEM-EDS composition" beside the room's fit (Cu Kα 1,256), two answers for one spectrum.

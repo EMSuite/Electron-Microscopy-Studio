@@ -273,6 +273,8 @@ nonisolated final class IndexingDictionaryRoomTests: XCTestCase {
         XCTAssertEqual(indexing.master(for: indexing.phases[1])?.fileName, "ni_mc_mp_20kv_uint8_gzip_opts9.h5",
                        "the latest master pattern opened of the phase's space group")
         XCTAssertNil(indexing.refusal, indexing.refusal ?? "")
+        XCTAssertEqual(indexing.masterWarnings.count, 1, "Al on nickel's master pattern is said (#1141)")
+        XCTAssertTrue(indexing.masterWarnings.first?.hasPrefix("Al takes the master pattern of ni") ?? false, "\(indexing.masterWarnings)")
         XCTAssertTrue(indexing.verbHelp.contains("patterns with Dictionary (ni, Al)"), indexing.verbHelp)
         try await waitUntil("indexing.dictionarySize != nil", seconds: 20) { indexing.dictionarySize != nil }
         XCTAssertEqual(indexing.dictionarySize, 2 * single, "one dictionary per phase")
@@ -531,5 +533,28 @@ nonisolated final class IndexingDictionaryRoomTests: XCTestCase {
         XCTAssertEqual(failures, 1)
         XCTAssertEqual(indexing.masterPatterns.count, 1)
         XCTAssertEqual(indexing.master(for: try XCTUnwrap(indexing.phases.first))?.fileName, "ni_mc_mp_20kv_uint8_gzip_opts9.h5")
+    }
+
+    // MARK: - The demo's master pattern (#1141)
+
+    /// The shipped Ni master pattern is the demo's: it opens for the shipped scan and the generated demo, never for a user's scan; a master
+    /// of another phase of the same space group is said, the phase's own is not. Red before: it opened for every scan, and Al, Cu, Au or
+    /// austenite took nickel's patterns without a word (review 2026-11-26).
+    @MainActor func testTheDemoMasterPatternIsTheDemosAndAnotherPhasesIsSaid() async throws {
+        let demo = try DemoDocuments.ebsd()
+        XCTAssertTrue(IndexingSession.isDemoScan(demo), "the generated demo, answered from memory")
+        let shipped = try XCTUnwrap(DemoDocuments.Shipped.nickelEBSD.url)
+        XCTAssertTrue(IndexingSession.isDemoScan(EBSDSession.Document(fileName: "patterns_v2.h5", url: shipped, dataset: demo.dataset,
+                                                                      access: demo.access)))
+        let users = FileManager.default.temporaryDirectory.appendingPathComponent("my-aluminium-scan.h5")
+        XCTAssertFalse(IndexingSession.isDemoScan(EBSDSession.Document(fileName: "my-aluminium-scan.h5", url: users, dataset: demo.dataset,
+                                                                       access: demo.access)))
+
+        let master = try IndexingMasterPattern.load(try XCTUnwrap(DemoDocuments.Shipped.nickelMasterPattern.url))
+        let al = try XCTUnwrap(IndexingPhase.presets.first { $0.name == "Al" })
+        let ni = try XCTUnwrap(IndexingPhase.presets.first { $0.name == "Ni" })
+        XCTAssertNil(master.phaseMismatch(for: ni), "kikuchipy's \"ni\" is the preset Ni")
+        let words = try XCTUnwrap(master.phaseMismatch(for: al))
+        XCTAssertTrue(words.hasPrefix("Al takes the master pattern of ni (ni_mc_mp_20kv_uint8_gzip_opts9.h5)"), words)
     }
 }

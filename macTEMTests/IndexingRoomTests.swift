@@ -439,6 +439,25 @@ nonisolated final class IndexingRoomTests: XCTestCase {
 
     // MARK: - The phases
 
+    /// A phase neither cubic nor hexagonal takes the FCC list as pyEBSDindex's `addphase` does with no pole families, and says so: cementite
+    /// (Pnma, 62), tetragonal zirconia (P4₂/nmc, 137) and a trigonal cell (R-3c, 167) carry the caveat; the presets and a cubic or
+    /// hexagonal CIF do not, nor a phase whose list the person changed. Red before (#1142): the FCC list on any lower-symmetry phase, silently.
+    func testALowerSymmetryPhaseSaysHoughTakesTheFCCList() throws {
+        let cells: [(String, Int, [Double])] = [("Fe3C", 62, [5.09, 6.74, 4.53, 90, 90, 90]), ("ZrO2", 137, [3.64, 3.64, 5.27, 90, 90, 90]),
+                                                 ("Al2O3", 167, [4.76, 4.76, 12.99, 90, 90, 120])]
+        for (name, group, cell) in cells {
+            let phase = IndexingPhase(name: name, spaceGroup: group, lattice: cell, source: .cif)
+            XCTAssertEqual(phase.reflectors, .fcc, name)
+            let words = try XCTUnwrap(phase.houghCaveat, name)
+            XCTAssertTrue(words.hasPrefix("\(name) is neither cubic nor hexagonal"), words)
+            XCTAssertNoThrow(try phase.library(angleTolerance: 2, earlyExitBands: 10), "pyEBSDindex builds a library for \(name) too")
+        }
+        for phase in IndexingPhase.presets { XCTAssertNil(phase.houghCaveat, phase.name) }
+        var bcc = IndexingPhase(name: "Fe3C", spaceGroup: 62, lattice: [5.09, 6.74, 4.53, 90, 90, 90], source: .cif)
+        bcc.reflectors = .bcc
+        XCTAssertNil(bcc.houghCaveat, "a list the person picked is theirs")
+    }
+
     /// The reflector lists follow pyEBSDindex's defaults by lattice; the presets carry DiffractoKit's cells; a name already in the list
     /// is numbered; a phase without a crystal map phase's space group is refused. Red under: HCP on a cubic group, BCC for iron missing.
     @MainActor func testPhasesTakePyEBSDindexsReflectorListsAndThePresetsBuild() async throws {
