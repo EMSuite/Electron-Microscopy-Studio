@@ -79,4 +79,31 @@ nonisolated final class SimulationEmptyStateTests: XCTestCase {
         XCTAssertTrue(inspector.contains("Button(\"Add Phase…\") { SimulationEmptyState.addPhase(item.diffractionView) }"))
         XCTAssertFalse(inspector.contains("AddPhaseSheet("), "one sheet, the room's")
     }
+
+    /// The Powder Pattern pane, its Peaks table and its exports drew the calibration standard (Au) while the document showed no phase,
+    /// beside a library that held only Si (stabilization walk). Mutation: the table built from the standard in the empty state; the
+    /// panes or the header not asking the empty state; the door's powder_pattern answering with Au.
+    @MainActor func testNoPhaseShownDrawsNoStandardInThePowderAndCrystalPanes() async throws {
+        let state = AppState(launch: LaunchOptions(arguments: []))
+        await state.newSimulation()?.value
+        let item = try XCTUnwrap(state.openItems.selected)
+        XCTAssertTrue(SimulationEmptyState.isShown(for: item))
+        XCTAssertTrue(DiffractionPowderSection.table(of: item, openItems: state.openItems).phases.isEmpty, "no Au in the empty state")
+
+        item.diffraction.setCrystal(.phase(PhaseCrystal(id: "test-si", name: "Si", structure: CrystalPresets.silicon)))
+        XCTAssertEqual(DiffractionPowderSection.table(of: item, openItems: state.openItems).phases.map(\.name), ["Si"])
+
+        // A measured pattern keeps its standard as the crystal to compare against.
+        await state.open(urls: [DemoDocuments.patternURL])?.value
+        let pattern = try XCTUnwrap(state.openItems.items.first { $0.url == DemoDocuments.patternURL })
+        XCTAssertEqual(DiffractionPowderSection.table(of: pattern, openItems: state.openItems).phases.map(\.name), ["Au"])
+
+        let pane = try Self.source("macTEM/UI/DiffractionSidePane.swift")
+        XCTAssertTrue(pane.contains("case .crystal where SimulationEmptyState.isShown(for: item):"))
+        XCTAssertTrue(pane.contains("case .powder where SimulationEmptyState.isShown(for: item):"))
+        let room = try Self.source("macTEM/UI/DiffractionRoom.swift")
+        XCTAssertTrue(room.contains("if !SimulationEmptyState.isShown(for: item), let line = analysis.orientationHeaderLine("))
+        let door = try Self.source("macTEM/App/AgentDoorDiffractionScience.swift")
+        XCTAssertTrue(door.contains("if SimulationEmptyState.isShown(for: item) { return .refusal(status: 409, message: SimulationEmptyState.paneSentence) }"))
+    }
 }

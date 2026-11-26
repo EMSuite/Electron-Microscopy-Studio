@@ -25,6 +25,9 @@ import TEMSession
 @MainActor
 enum SimulationEmptyState {
     static let sentence = "No phase yet. Add a phase to simulate its pattern."
+    /// The Crystal and Powder Pattern panes while no phase is shown: they draw the phase, never the calibration standard the room
+    /// falls back to (Au), which a Simulation document has no use for.
+    static let paneSentence = "No phase shown. Show a phase in the Phases section, or add one, to see it here."
 
     /// A Simulation document with no library phase shown (`DiffractionAnalysis.simulatedPhase`); never a measured pattern.
     static func isShown(for item: OpenItem) -> Bool {

@@ -103,13 +103,23 @@ extension AppState {
             guard let url = DemoDocuments.Shipped.nanowirePattern.url else { return nil }
             task = open(urls: [url])
         case .siliconSimulation:
-            // New Simulation's own call, then the shipped CIF as the room's crystal, as Open CIF… would set it.
+            // New Simulation's own call, then the shipped CIF added to the library and shown, as Open CIF… in the Add Phase sheet adds
+            // and shows one: the Phases list, the spots, the crystal and the powder pattern all name Si, and the sheet goes down. Set
+            // as the room's crystal only, it was no library phase, so the document stayed in its empty state and the room drew the
+            // calibration standard (Au) beside it.
             guard let url = DemoDocuments.Shipped.siliconCIF.url, let bytes = try? Data(contentsOf: url),
                   let silicon = try? CrystalLoading.load(bytes: bytes, fileName: url.lastPathComponent) else { return nil }
             let opening = newSimulation()
             task = Task {
                 await opening?.value
-                if let item = openItems.selected, DemoDocuments.isSimulation(item.url) { item.diffraction.setCrystal(.cif(silicon)) }
+                guard let item = openItems.selected, DemoDocuments.isSimulation(item.url) else { return }
+                do {
+                    let phase = try DiffractionPhases.addCIF(silicon, bytes: bytes, fileName: url.lastPathComponent, to: PhaseServices.library)
+                    DiffractionPhases.set(phase, shown: true, in: item.diffraction)
+                    item.diffractionView.isAddingPhase = false
+                } catch {
+                    item.diffraction.crystalRefused(error.localizedDescription)
+                }
             }
         }
         navigation.workspaceArea = demo.room
