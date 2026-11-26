@@ -212,6 +212,12 @@ private struct IndexingPhasesSection: View {
                     .help("Add the structure of a CIF; it needs the space group number")
                     .accessibilityIdentifier("indexing.addCIF")
             }
+            if session.method == .hough {
+                ForEach(session.phasesOn.compactMap(\.houghCaveat), id: \.self) { caveat in
+                    InspectorWarning(caveat)
+                        .accessibilityIdentifier("indexing.phase.houghCaveat")
+                }
+            }
             if !session.skippedPhases.isEmpty {
                 InspectorNote("The file's \(session.skippedPhases.joined(separator: ", ")) states no space group or lattice, so it is left out.")
             } else if count == 0 {

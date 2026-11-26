@@ -150,6 +150,7 @@ extension MacTEMAgentDoor {
                 ["name": phase.name, "on": phase.isOn, "space_group": phase.spaceGroup,
                  "point_group": AgentJSON.orNull(phase.pointGroupName), "reflectors": phase.reflectors.rawValue,
                  "source": phase.source.rawValue, "lattice": phase.lattice, "refusal": AgentJSON.orNull(phase.refusal),
+                 "hough_caveat": AgentJSON.orNull(phase.houghCaveat),
                  "master": AgentJSON.orNull(session.master(for: phase)?.fileName)]
             },
             "phases_skipped": session.skippedPhases,

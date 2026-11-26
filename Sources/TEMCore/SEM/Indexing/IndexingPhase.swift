@@ -99,6 +99,22 @@ package nonisolated struct IndexingPhase: Sendable, Equatable, Identifiable, Cod
         return .fcc
     }
 
+    /// The cubic space groups (Laue groups m-3 and m-3m), for which the FCC and BCC lists are written.
+    package static let cubicSpaceGroups = 195...230
+
+    /// Why Hough's orientations of this phase need checking, in a sentence; nil for a cubic or hexagonal phase and for a list the
+    /// person picked other than FCC. pyEBSDindex 0.3.10.1 indexes any Laue group, and `addphase` with a space group and no pole
+    /// families takes the FCC list ({002}, {111}, {022}, {113}) whatever the lattice, as the room does; for a lower-symmetry phase
+    /// (cementite, zirconia, a CIF of any tetragonal, trigonal, orthorhombic or lower cell) those need not be its strong bands
+    /// (review 2026-11-26, #1142). Dictionary indexing simulates the phase's own bands from its master pattern.
+    package var houghCaveat: String? {
+        guard reflectors == .fcc, !Self.cubicSpaceGroups.contains(spaceGroup), !Self.hexagonalSpaceGroups.contains(spaceGroup),
+              (1...230).contains(spaceGroup) else { return nil }
+        return "\(name) is neither cubic nor hexagonal: Hough takes the FCC reflector list ({002}, {111}, {022}, {113}), as pyEBSDindex "
+            + "does when no pole families are named, and those may not be \(name)'s strong bands. Check its orientations with Dictionary "
+            + "and a master pattern of \(name)."
+    }
+
     /// The point group as orix names it ("m-3m", "6/mmm"), from the space group.
     package var pointGroupName: String? { SpaceGroupPointGroup.pointGroup(ofSpaceGroup: spaceGroup)?.name }
 
