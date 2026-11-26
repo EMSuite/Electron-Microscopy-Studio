@@ -140,6 +140,8 @@ nonisolated final class AgentDoorSimulationTests: XCTestCase {
         }
         let item = try XCTUnwrap(state.openItems.selected)
         let analysis = item.diffraction
+        // The specimen's phase first: a Simulation document lists no spots and no zone axis without one (#1152).
+        analysis.setCrystal(try auPhase())
 
         // The Microscope section: a value out of range is refused whole, the rest of the call with it.
         let kV = analysis.typedBeamKV
