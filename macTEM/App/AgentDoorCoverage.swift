@@ -58,6 +58,7 @@ nonisolated enum AgentDoorCoverage {
         "diffraction.centre.useRing": .tool("set_diffraction"),
         "diffraction.crystalPane": .tool("get_crystal_view"),
         "diffraction.sidePane": .personOnly(layoutReason),
+        "diffraction.sidePane.empty": .tool("powder_pattern"),
         "diffraction.holder.sentence": .tool("plan_tilt"),
         "diffraction.powder.pane": .tool("powder_pattern"),
         "diffraction.powder.peaks": .tool("powder_pattern"),
