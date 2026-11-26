@@ -39,7 +39,7 @@ nonisolated final class AppWindowsTests: XCTestCase {
     }
 
     /// File > Open with the only window minimised (#762, the 2.1.1 walk): the minimised window is still on screen and takes the action,
-    /// so no second, empty window opens; with every window closed one does. Red before: Open Image… opened a window whenever none
+    /// so no second, empty window opens; with every window closed one does. Red before: Open… opened a window whenever none
     /// was focused.
     @MainActor func testAMenuActionWithTheOnlyWindowMinimisedOpensNoSecondWindow() throws {
         let windows = AppWindows()

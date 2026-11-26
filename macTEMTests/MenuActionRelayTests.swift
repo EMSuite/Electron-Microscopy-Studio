@@ -1,6 +1,6 @@
 //
 //  MenuActionRelayTests.swift
-//  Pins `MenuActionRelay`, the hand-off of "Open Image…" (⌘O) to a window that does not exist yet: a request is
+//  Pins `MenuActionRelay`, the hand-off of "Open…" (⌘O) to a window that does not exist yet: a request is
 //  taken exactly once (a second window appearing later does not repeat it), a second request before the take
 //  replaces the first, `run` asks the window's AppState for the open panel, and `isEnabled` is enabled with no
 //  focused window and with one unless that window is blocked (an open in flight). A Help > Open Demo Data entry is
@@ -50,7 +50,7 @@ nonisolated final class MenuActionRelayTests: XCTestCase {
         XCTAssertEqual(state.openImageRequest, before &+ 1)
     }
 
-    /// Help > Open Demo Data with no window (#355): the entry is handed over as Open Image… is, taken once by the window that
+    /// Help > Open Demo Data with no window (#355): the entry is handed over as Open… is, taken once by the window that
     /// appears, and run there it opens the document in its room. Red before: `MenuAction` had no such action.
     @MainActor func testARequestedDemoIsTakenOnceAndRun() async {
         let relay = MenuActionRelay()
@@ -78,7 +78,7 @@ nonisolated final class MenuActionRelayTests: XCTestCase {
         }
     }
 
-    /// Help > Open Demo Data goes through the relay as Open Image… does, so it is enabled and works with no window focused (#355).
+    /// Help > Open Demo Data goes through the relay as Open… does, so it is enabled and works with no window focused (#355).
     /// Red under: the entries calling the focused window's `openDemo`, disabled with no window.
     func testTheDemoMenuGoesThroughTheRelay() throws {
         let root = URL(fileURLWithPath: #filePath).resolvingSymlinksInPath().deletingLastPathComponent().deletingLastPathComponent()
@@ -87,5 +87,17 @@ nonisolated final class MenuActionRelayTests: XCTestCase {
         XCTAssertTrue(app.contains("Menu(\"Open Demo Data\") { ForEach(DemoDocument.allCases) { demo in Button(demo.title) { perform(.openDemo(demo)) } } }"
             + " .disabled(!MenuActionRelay.isEnabled( hasFocusedWindow: appState != nil, blocked: appState?.imageSession.isLoading == true))"))
         XCTAssertFalse(app.contains("appState?.openDemo(demo)"))
+    }
+
+    /// File > Open… and the welcome canvas's button open every kind of file the app reads (images, spectra, EBSD files, patterns), so
+    /// they carry the macOS title of File > Open, not "Open Image…". Red before: both said "Open Image…".
+    func testTheOpenItemIsTitledOpen() throws {
+        let root = URL(fileURLWithPath: #filePath).resolvingSymlinksInPath().deletingLastPathComponent().deletingLastPathComponent()
+        let app = try String(contentsOf: root.appendingPathComponent("macTEM/App/macTEMApp.swift"), encoding: .utf8)
+        let welcome = try String(contentsOf: root.appendingPathComponent("macTEM/UI/WorkspaceView.swift"), encoding: .utf8)
+        XCTAssertTrue(app.contains("Button(\"Open…\") { perform(.openImage) }"), "File > Open…")
+        XCTAssertTrue(welcome.contains("Button(\"Open…\") { appState.requestOpenImage() }"), "the welcome canvas's Open…")
+        for source in [app, welcome] { XCTAssertFalse(source.contains("Open Image…")) }
+        XCTAssertEqual(app.components(separatedBy: "Button(\"Open…\")").count, 2, "one File > Open… item")
     }
 }

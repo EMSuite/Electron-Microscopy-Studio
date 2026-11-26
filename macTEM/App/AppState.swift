@@ -138,7 +138,7 @@ final class AppState {
     /// The question up before files with unsaved marks close (`requestClose`, CloseGuard.swift); nil when none is asked.
     var closeRequest: CloseRequest?
 
-    /// Bumped by every "Open Image…" gesture; `ContentView` presents the open panel when it changes.
+    /// Bumped by every "Open…" gesture; `ContentView` presents the open panel when it changes.
     private(set) var openImageRequest = 0
 
     var hasImage: Bool { imageSession.image != nil }

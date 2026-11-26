@@ -644,7 +644,7 @@ nonisolated enum AgentDoorCoverage {
         // File
         "New Window": .personOnly(windowReason),
         "New Simulation": .tool("new_simulation"),
-        "Open Image…": .tool("open_file"),
+        "Open…": .tool("open_file"),
         "recents.title(of: entry)": .personOnly(openReason),
         "Clear Menu": .personOnly(openCloseReason),
         "Reopen Last Session": .personOnly(openCloseReason),

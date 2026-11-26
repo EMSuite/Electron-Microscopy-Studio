@@ -7,7 +7,7 @@
 //  The three clicks: Try Demo Data, the shipped SEM-EDS spectrum (BAM TM002), the toolbar's Quantify. The result is the composition
 //  table with a weight percent for each element. Each click is counted; a fourth fails the journey.
 //
-//  The empty states: on a fresh launch every room can be entered, and each shows the one button that fills it: Open Image… for the
+//  The empty states: on a fresh launch every room can be entered, and each shows the one button that fills it: Open… for the
 //  rooms that read images (the welcome canvas), Open Spectrum Image… (EDS), Open EELS Spectrum Image…, Open EBSD Dataset… (Patterns,
 //  Indexing) and Open Orientation Map….
 //

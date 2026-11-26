@@ -272,7 +272,7 @@ struct WelcomeWorkspace: View {
                         .frame(maxWidth: LayoutPolicy.readableWidth)
                 }
                 HStack(spacing: 12) {
-                    Button("Open Image…") { appState.requestOpenImage() }
+                    Button("Open…") { appState.requestOpenImage() }
                         .buttonStyle(.borderedProminent)
                         .controlSize(.large)
                         .keyboardShortcut(.defaultAction)
