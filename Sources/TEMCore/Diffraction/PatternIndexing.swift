@@ -125,13 +125,18 @@ package nonisolated enum PatternIndexing {
 
     /// The kit's spot finder on the pattern about `centre`, at its defaults (py4DSTEM's `find_Bragg_disks` values, a 10 px
     /// spacing) but for the direct beam: maxima nearer the centre than half the crystal's shortest reflection (at least 5 px) are
-    /// the beam, not a spot.
+    /// the beam, not a spot. A pattern of discs (a direct beam of at least `DiscSpots.discRadiusThreshold` px, NBED) is found by its
+    /// discs instead (`DiscSpots.find`, #1153).
     package static func findSpots(pattern: DiffractionPattern, centre: DiffractionCentre, shortestG: Double,
                                   calibration: DiffractionCalibration) throws -> [FoundSpot] {
         var settings = PatternSpots.Settings()
         let beam = ZoneAxisOverlay.radius(q: shortestG / 2, calibration: calibration)
         settings.beamExclusionRadius = max(5, beam.isFinite ? beam : 5)
-        return try PatternSpots.find(in: pattern, centre: SIMD2(centre.row, centre.column), settings: settings)
+        let at = SIMD2(centre.row, centre.column)
+        if let radius = DiscSpots.beamRadius(pattern: pattern, centre: at), radius >= DiscSpots.discRadiusThreshold {
+            return try DiscSpots.find(pattern: pattern, centre: at, radius: radius, beamExclusionRadius: settings.beamExclusionRadius)
+        }
+        return try PatternSpots.find(in: pattern, centre: at, settings: settings)
     }
 
     /// (qx, qy) of a pixel: its direction from the centre, its length the readout's q of its radius. nil at the centre.
