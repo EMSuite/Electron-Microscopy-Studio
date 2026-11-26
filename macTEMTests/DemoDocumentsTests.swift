@@ -52,14 +52,15 @@ nonisolated final class DemoDocumentsTests: XCTestCase {
         await session.settled()
         let fit = try XCTUnwrap(session.fit, session.fitFailure ?? "no fit")
         for e in ["Al", "Mg", "Si"] { XCTAssertNotNil(fit.rows.first { $0.element == e }?.weightPercent, e) }
-        // Al is the matrix: far above Mg and Si, as planted (120 : 40 : 47 counts per pixel).
+        // Al is the matrix: far above Mg and Si over the whole map, as planted (about 120 : 40 : 47 counts per pixel on average).
         let wt = Dictionary(uniqueKeysWithValues: fit.rows.compactMap { r in r.weightPercent.map { (r.element, $0) } })
         XCTAssertGreaterThan(try XCTUnwrap(wt["Al"]), try XCTUnwrap(wt["Si"]))
         XCTAssertGreaterThan(try XCTUnwrap(wt["Si"]), try XCTUnwrap(wt["Mg"]))
     }
 
-    /// The EELS demo recovers the planted t/λ = 0.5 at every pixel through the room with a fixed threshold, and through the default
-    /// (estimated) rule within the kit's stated bias. Red under: the plasmon or the zero-loss area moved.
+    /// The EELS demo recovers the planted t/λ at every pixel through the room with a fixed threshold, 0.5 above the interface across the
+    /// middle and 0.8 below it, so the t/λ map shows two halves; and through the default (estimated) rule within the kit's stated bias.
+    /// Red under: the plasmon or the zero-loss area moved; a map flat over the scan (the uniform demo before, a plain grey map).
     @MainActor func testTheEELSDemoRecoversThePlantedThickness() async throws {
         let session = EELSSession()
         await session.bind(try DemoDocuments.eels()).value
@@ -67,11 +68,45 @@ nonisolated final class DemoDocumentsTests: XCTestCase {
         await session.settled()
         let map = try XCTUnwrap(session.map, session.failure ?? "no map")
         XCTAssertEqual(map.pixels.count, 256)
-        for p in map.pixels { XCTAssertEqual(try XCTUnwrap(p.tOverLambda), DemoDocuments.Truth.eelsTOverLambda, accuracy: 2e-3, "the fixed 4 eV threshold leaves a plasmon tail of about 1e-4 in I_0") }
+        let side = DemoDocuments.Truth.eelsSide
+        for (k, p) in map.pixels.enumerated() {
+            XCTAssertEqual(try XCTUnwrap(p.tOverLambda), DemoDocuments.Truth.eelsTOverLambda(x: k % side, y: k / side), accuracy: 2e-3,
+                           "pixel \(k): the fixed 4 eV threshold leaves a plasmon tail of about 1e-4 in I_0")
+        }
+        XCTAssertEqual(DemoDocuments.Truth.eelsTOverLambda(x: 3, y: 2), 0.5)
+        XCTAssertEqual(DemoDocuments.Truth.eelsTOverLambda(x: 3, y: 12), 0.8)
+        let above = try XCTUnwrap(map.pixels[2 * side + 3].tOverLambda), below = try XCTUnwrap(map.pixels[12 * side + 3].tOverLambda)
+        XCTAssertGreaterThan(below - above, 0.25, "the map is not flat: the lower half is thicker")
         session.setThreshold(.estimated)
         await session.settled()
         let estimated = try XCTUnwrap(session.map?.pixels.first?.tOverLambda, session.failure ?? "no estimated map")
-        XCTAssertEqual(estimated, 0.5, accuracy: 0.01, "the estimated rule on the noise-free demo")
+        XCTAssertEqual(estimated, 0.5, accuracy: 0.01, "the estimated rule on the noise-free demo, at the first pixel (the thinner half)")
+    }
+
+    /// The EDX demo has structure: a Mg- and Si-rich particle at the centre of an Al matrix, so the element maps differ and the colour mix
+    /// shows the particle. The counts in each K alpha window, summed over the particle's middle pixels and over a matrix corner of the same
+    /// size, follow the planted areas (`Truth.edxAreas`): Mg and Si far higher in the particle, Al far higher in the matrix. Red under: a
+    /// uniform demo (every pixel alike: the colour mix plain white).
+    func testTheEDXDemoHasAParticleInAMatrix() throws {
+        let demo = DemoDocuments.edx()
+        let n = DemoDocuments.Truth.edxSide
+        XCTAssertEqual(DemoDocuments.Truth.edxParticleShare(x: 7, y: 7), 1)
+        XCTAssertEqual(DemoDocuments.Truth.edxParticleShare(x: 0, y: 0), 0)
+        let middle = [(7, 7), (8, 7), (7, 8), (8, 8)], corner = [(0, 0), (1, 0), (0, 1), (1, 1)]
+        for (x, y) in middle { XCTAssertEqual(DemoDocuments.Truth.edxAreas(x: x, y: y).map { $0.area }, [30, 130, 113]) }
+        for (x, y) in corner { XCTAssertEqual(DemoDocuments.Truth.edxAreas(x: x, y: y).map { $0.area }, [150, 10, 25]) }
+        // The counts of a K alpha window (±100 eV about the line, 10 eV channels from 0) summed over the pixels.
+        func window(_ keV: Double, _ pixels: [(Int, Int)]) -> Double {
+            var mask = PixelMask(repeating: false, count: n * n)
+            for (x, y) in pixels { mask[y * n + x] = true }
+            let summed = demo.image.sum(mask: mask)
+            let lo = Int(((keV - 0.1) / 0.01).rounded()), hi = Int(((keV + 0.1) / 0.01).rounded())
+            return (lo...hi).reduce(0) { $0 + Double(summed[$1]) }
+        }
+        let al = 1.4865, mg = 1.2536, si = 1.7398   // K alpha, keV
+        XCTAssertGreaterThan(window(mg, middle), 3 * window(mg, corner), "Mg is the particle's")
+        XCTAssertGreaterThan(window(si, middle), 2 * window(si, corner), "Si is mostly the particle's")
+        XCTAssertGreaterThan(window(al, corner), 2 * window(al, middle), "Al is the matrix's")
     }
 
     /// The five planted discs are found and counted by the Particles defaults (a threshold at half the range, no smoothing, minimum 4 px): five

@@ -1,7 +1,8 @@
 //
 //  EELSRegionsTests.swift
-//  The EELS room's regions, on the planted demo (`DemoDocuments`): t/λ = 0.5 at every pixel of a noise-free 16 x 16 image, so a summed region read as one pixel must
-//  give 0.5 whatever its shape and size (SpectroKit's `EELSThickness.logRatio` on the 1 x 1 sum), and a profile along a line over the t/λ map is flat at 0.5.
+//  The EELS room's regions, on the planted demo (`DemoDocuments`): a noise-free 16 x 16 image whose t/λ is planted at every pixel (0.5 above the interface across
+//  the middle, 0.8 below it) with one zero-loss area everywhere, so a summed region read as one pixel must give ln of the mean of e^(t/λ) over its pixels whatever
+//  its shape and size (SpectroKit's `EELSThickness.logRatio` on the 1 x 1 sum), and a profile along a line over the t/λ map reads the planted value under it.
 //
 //  WHAT IS PINNED (D12, D17): the room has no arithmetic of its own. A region's pixel count is the kit's mask; its t/λ is the kit's on the sum; the planted truth
 //  is the generator's. Red under: a region summed with the wrong mask (pixels differ); a layer kept for a hidden region; a profile that reads the map shifted.
@@ -25,7 +26,17 @@ nonisolated final class EELSRegionsTests: XCTestCase {
         return session
     }
 
-    /// Three shapes are three regions; each reads t/λ = 0.5 and holds its own pixels; hiding one drops its layer, not its row; a deleted region's name is not reused.
+    /// The t/λ of the summed spectrum of `region`'s pixels, from the planted truth: I_total / I_0 summed is the mean of e^(t/λ) (I_0 is the same at every pixel).
+    private func plantedTOverLambda(_ region: EDXRegion) -> Double {
+        let side = DemoDocuments.Truth.eelsSide
+        let mask = region.mask(nx: side, ny: side) ?? [Bool](repeating: true, count: side * side)
+        let inside = (0..<(side * side)).filter { mask[$0] }
+        let ratios = inside.map { exp(DemoDocuments.Truth.eelsTOverLambda(x: $0 % side, y: $0 / side)) }
+        return log(ratios.reduce(0, +) / Double(inside.count))
+    }
+
+    /// Three shapes are three regions; each reads its planted t/λ (the ellipse straddles the interface: between 0.5 and 0.8) and holds its own pixels; hiding one
+    /// drops its layer, not its row; a deleted region's name is not reused.
     @MainActor func testRegionsReadThePlantedThicknessWhateverTheirShape() async throws {
         let session = try await openRoom()
         session.drawRegion(.rectangle(PixelRect(x0: 0, y0: 0, x1: 4, y1: 4)))
@@ -37,8 +48,10 @@ nonisolated final class EELSRegionsTests: XCTestCase {
         XCTAssertEqual(session.pinRows.map(\.pixels), [16, EDXRegion.ellipse(PixelRect(x0: 4, y0: 4, x1: 12, y1: 12)).pixelCount(nx: 16, ny: 16),
                                                       EDXRegion.polygon([PixelPoint(x: 8, y: 0), PixelPoint(x: 16, y: 0), PixelPoint(x: 16, y: 8)]).pixelCount(nx: 16, ny: 16)])
         for row in session.pinRows {
-            XCTAssertEqual(try XCTUnwrap(row.tOverLambda, "\(row.pin.name): no t/λ"), DemoDocuments.Truth.eelsTOverLambda, accuracy: 2e-3, row.pin.name)
+            XCTAssertEqual(try XCTUnwrap(row.tOverLambda, "\(row.pin.name): no t/λ"), plantedTOverLambda(row.pin.region), accuracy: 2e-3, row.pin.name)
         }
+        let straddling = plantedTOverLambda(.ellipse(PixelRect(x0: 4, y0: 4, x1: 12, y1: 12)))
+        XCTAssertTrue(straddling > 0.55 && straddling < 0.75, "the ellipse holds both sides of the interface: \(straddling)")
         let channels = try XCTUnwrap(session.source?.image.channels)
         XCTAssertEqual(session.pinSpectra.values.map(\.count), [channels, channels, channels])
 
@@ -61,14 +74,14 @@ nonisolated final class EELSRegionsTests: XCTestCase {
         XCTAssertTrue(session.pins.isEmpty)
     }
 
-    /// A line over the t/λ map reads 0.5 along its whole length, and is clamped to the scan.
+    /// A line along the row y = 8.5 (the first row below the interface) reads the lower side's planted t/λ along its whole length, and is clamped to the scan.
     @MainActor func testAProfileAlongALineOverThicknessIsFlatAtThePlantedValue() async throws {
         let session = try await openRoom()
         let line = try XCTUnwrap(session.drawLine(from: PixelPoint(x: -2, y: 8.5), to: PixelPoint(x: 30, y: 8.5)))
         XCTAssertEqual(line.from.x, 0); XCTAssertEqual(line.to.x, 16)
         let thickness = try XCTUnwrap(session.profiles().first { $0.id == "tOverLambda" })
         XCTAssertEqual(thickness.samples.count, 17, "a line of length 16 pixels has a sample at each end and one per pixel between")
-        for v in thickness.samples { XCTAssertEqual(v, DemoDocuments.Truth.eelsTOverLambda, accuracy: 2e-3) }
+        for v in thickness.samples { XCTAssertEqual(v, DemoDocuments.Truth.eelsTOverLambdaBelow, accuracy: 2e-3) }
         XCTAssertNil(session.drawLine(from: PixelPoint(x: 1, y: 1), to: PixelPoint(x: 1.2, y: 1)), "shorter than a pixel")
     }
 
