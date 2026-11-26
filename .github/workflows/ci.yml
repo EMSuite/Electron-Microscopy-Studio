@@ -252,6 +252,21 @@ jobs:
       - name: Resolve the pinned MacEMUI
         # The inventory's UI-journey identifier check reads the shell's sources from .build/checkouts/MacEMUI (no ../MacEMUI here).
         run: swift package resolve
+      - name: The pins are still the commit's (nothing since checkout rewrote them)
+        # #1105: on the Mac, a run whose tree was HEAD after checkout read a workspace Package.resolved with other pins in the
+        # inventory. This names what changed since checkout (so the log says which earlier step, or which outside process,
+        # wrote it), puts both Package.resolved files back as committed, and fails if they still differ.
+        run: |
+          set -euo pipefail
+          changed=$(git status --porcelain --untracked-files=no)
+          if [ -n "$changed" ]; then
+            echo "::warning::tracked files changed since checkout (restored now):"; echo "$changed"
+            git diff --stat HEAD
+            git diff HEAD -- '*Package.resolved' | head -80
+          fi
+          git checkout --force HEAD -- Package.resolved macTEM.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+          git diff --exit-code --stat HEAD -- '*Package.resolved'
+          ps -axo pid,etime,command | grep -E 'xcodebuild|SWBBuildService|XCBBuildService|swift-package|Xcode.app' | grep -v grep || true
       - name: Run the inventory (cheapest first)
         run: tools/run-tests.sh inventory
       - name: Build the package layers standalone (core)
