@@ -165,6 +165,37 @@ nonisolated final class FigureExportTests: XCTestCase {
         XCTAssertFalse(plain.scene.layers.contains { if case .legend = $0 { true } else if case .table = $0 { true } else { false } })
     }
 
+    /// An indexed pattern's figure tabulates and labels Index's answer, not the ring readout's nearest family (#1148, nanowire demo:
+    /// 7 of 29 spots disagreed): an explained spot takes Index's hkl, d, expected d and misfit; an unexplained one is blank though
+    /// the readout named a family; a ring keeps the readout's. The number starts its column so "1" and "{111}" never run together.
+    /// Red before: the figure took `readout` alone. Mutation: unexplained spots keep the readout's family; Index's d left out.
+    func testAnIndexedFigureTakesIndexsRows() {
+        let explained = UUID(), unexplained = UUID(), ring = UUID()
+        let readout = [
+            DiffractionReadoutRow(id: ring, kind: .ring, number: 1, radiusPx: 40, q: 0.3, d: 3.3, family: "{111}", dListed: 3.26,
+                                  deltaPercent: 1.2, oddsText: nil, verdict: "accepted", validation: ""),
+            DiffractionReadoutRow(id: explained, kind: .spot, number: 1, radiusPx: 50, q: 0.36, d: 2.78, family: "{200}", dListed: 2.83,
+                                  deltaPercent: -1.8, oddsText: "odds", verdict: "accepted", validation: ""),
+            DiffractionReadoutRow(id: unexplained, kind: .spot, number: 2, radiusPx: 60, q: 0.45, d: 2.2, family: "{220}", dListed: 2.0,
+                                  deltaPercent: -1.37, oddsText: nil, verdict: "accepted", validation: "")]
+        let index = [
+            PatternIndexing.SpotRow(id: explained, number: 1, hkl: MillerIndex(-1, -1, 1), radiusPx: 50, q: 0.3, d: 3.42, dExpected: 3.26,
+                                    deltaPercent: 4.86, phase: "GaAs"),
+            PatternIndexing.SpotRow(id: unexplained, number: 2, hkl: nil, radiusPx: 60, q: 0.45, d: 2.21, dExpected: nil,
+                                    deltaPercent: nil, phase: "")]
+        let rows = DiffractionReadoutRow.takingIndex(readout, spots: index)
+        XCTAssertEqual(rows[0], readout[0], "a ring keeps the readout")
+        XCTAssertEqual(rows[1].family, ZoneAxisText.label(MillerIndex(-1, -1, 1)))
+        XCTAssertEqual(rows[1].d, 3.42)
+        XCTAssertEqual(rows[1].dListed, 3.26)
+        XCTAssertEqual(rows[1].deltaPercent, 4.86)
+        XCTAssertNil(rows[2].family, "Index left it unexplained")
+        XCTAssertNil(rows[2].dListed)
+        XCTAssertNil(rows[2].deltaPercent)
+        XCTAssertEqual(FigureExport.tableRows(rows)[2], ["2", "", "2.210", "", ""])
+        XCTAssertEqual(Array(FigureExport.tableAnchors.prefix(2)), [FigureTextAnchor.start, .start], "the number and the hkl both start their columns")
+    }
+
     /// The Diffraction room's snapshot is the pattern on screen as the room displays it, with the room's scale on its axes.
     /// Mutation: the snapshot taken outside the room, or the axes left the file's - red.
     @MainActor func testTheDiffractionRoomsSnapshotIsThePatternOnScreen() async throws {
@@ -190,7 +221,7 @@ nonisolated final class FigureExportTests: XCTestCase {
         XCTAssertNotNil(PDFDocument(url: url))
 
         // Copy Figure's two types and the door's PNG: the same figure, its table with the readout's rows (#823).
-        XCTAssertEqual(snapshot.table, FigureExport.tableRows(item.diffraction.readout(image: image)))
+        XCTAssertEqual(snapshot.table, FigureExport.tableRows(item.diffraction.figureReadout(image: image)))
         let pictures = try await snapshot.pictures()
         let copied = try XCTUnwrap(PDFDocument(data: pictures.pdf))
         if !snapshot.table.isEmpty { XCTAssertTrue(copied.string?.contains("d listed (Å)") == true, copied.string ?? "") }

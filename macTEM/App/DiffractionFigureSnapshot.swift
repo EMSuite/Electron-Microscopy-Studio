@@ -7,7 +7,7 @@
 //        on screen since #1045), the centre, and a scale bar in Å⁻¹
 //        from the room's scale. Taken when the panel opens, so the figure is what was on screen then.
 //        A figure carries its key and its spot table (#823, plan row X7): Legend draws one row per kind of mark under the picture, Spot
-//        table the readout's rows (number, family, d, listed d, misfit). Edit > Copy Figure, ⌘C on the pattern and its context menu put
+//        table the readout's rows (number, family, d, listed d, misfit), a spot's from Index once it has answered (#1148). Edit > Copy Figure, ⌘C on the pattern and its context menu put
 //        the figure on the clipboard as PDF and PNG; the header's figure handle drags it out as a file; `get_diffraction_figure` gives
 //        an agent the same figure as PNG. Those three draw it as the panel's defaults do: 90 mm, bar, labels, legend and table.
 //
@@ -98,7 +98,7 @@ extension ExportSnapshot {
             source.x = AxisCalibration(scale: deltaQ, unit: "Å⁻¹", origin: header.centreColumn)
             source.y = AxisCalibration(scale: deltaQ, unit: "Å⁻¹", origin: header.centreRow)
         }
-        let rows = analysis.readout(image: image)
+        let rows = analysis.figureReadout(image: image)
         let labels = Dictionary(uniqueKeysWithValues: rows.map { ($0.id, figureLabel($0)) })
         let rings = analysis.rings.compactMap { ring -> FigureExport.PatternOverlay.Measured? in
             guard let ellipse = ring.ellipse else { return nil }
