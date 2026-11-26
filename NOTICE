@@ -205,7 +205,7 @@ table eXSpy uses, values unchanged (SpectroKit's NOTICE). Its eXSpy/HyperSpy and
 FormatoKit (a Swift package the app is built with)
 ================================================================================
 
-The app links FormatoKit (https://github.com/EMSuite/FormatoKit, tag 0.20.0, commit
+The app links FormatoKit (https://github.com/EMSuite/FormatoKit, tag 0.20.1, commit
 5d1f0a69fcbebf09c3b57711ffce3863e2a29c80), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only, for its DM3/DM4, Velox EMD, TIFF,
 MRC and TIA readers and its HDF5 layer, which SpectroKit held until 0.4.0, including the root-attribute file layer
 (`HDF5RootAttributes`) the session sidecar is written and read through since FormatoKit 0.5.0: it was this app's own HDF5 binding (an adapted
@@ -256,8 +256,8 @@ histogram. Its references are NumPy, SciPy and scikit-image; none of their code 
 EMSuiteUI (a Swift package the app is built with)
 ================================================================================
 
-The app links EMSuiteUI (https://github.com/EMSuite/EMSuiteUI, tag 0.20.0, commit
-84d99ca80cf3e0f2434c1bb1ed843804a14d725c), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only: the window shell, the
+The app links EMSuiteUI (https://github.com/EMSuite/EMSuiteUI, tag 0.20.1, commit
+c02d6b5932b0af0733cf885fbf6d78f31fb5836a), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only: the window shell, the
 inspector, the controls, the Metal image view, the EDS room, the agent door, the phase library and its Materials Project
 client macEM shares with mac4DSTEM.
 
