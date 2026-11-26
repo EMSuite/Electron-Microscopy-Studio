@@ -6,8 +6,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/EMSuite/DiffractoKit",
       "state" : {
-        "revision" : "516bc2833661803ceabb977fab4b8809bda5dc16",
-        "version" : "0.24.0"
+        "revision" : "782a08fae1d42bb57d6751963e0f4da691ed0e64",
+        "version" : "0.24.1"
       }
     },
     {
@@ -15,8 +15,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/EMSuite/EMSuiteUI",
       "state" : {
-        "revision" : "9d26fe64ecaa789fc6e9fdbead7084436f3a1a9f",
-        "version" : "0.18.0"
+        "revision" : "73181ddd408fd9cdd44324cb060d905d9c0eb288",
+        "version" : "0.18.1"
       }
     },
     {
@@ -51,8 +51,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/EMSuite/SpectroKit",
       "state" : {
-        "revision" : "b9707367ea3a7e688fe9c638826824686f7d4f8c",
-        "version" : "0.16.0"
+        "revision" : "025c564450cd3ce00ebcc06e81b7d73af8b6f1a9",
+        "version" : "0.17.1"
       }
     }
   ],
