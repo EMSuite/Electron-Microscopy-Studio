@@ -256,6 +256,15 @@ nonisolated final class DiffractionSimulationTests: XCTestCase {
         XCTAssertEqual(PatternIndexing.scaleWindow, 0.03)
         XCTAssertEqual(PatternIndexing.solverSettings(fitScale: true).scaleWindow, 0.03)
         XCTAssertEqual(PatternIndexing.solverSettings(fitScale: false).scaleWindow, 0)
+        // The room's Tolerance reaches Index, and the floor is half a pixel of the pattern's scale, never below the kit's 0.004 Å⁻¹
+        // (walk of 26 Nov 2026: the nanowire demo's spots, good to 0.35 px at 0.0285 Å⁻¹ per pixel, sat outside a 1 % window).
+        let defaults = PatternIndexing.solverSettings(fitScale: true)
+        XCTAssertEqual(defaults.tolerance, 0.01)
+        XCTAssertEqual(defaults.floor, 0.004)
+        let small = PatternIndexing.solverSettings(fitScale: true, tolerancePercent: 3, deltaQ: 0.0285)
+        XCTAssertEqual(small.tolerance, 0.03, accuracy: 1e-12)
+        XCTAssertEqual(small.floor, 0.01425, accuracy: 1e-12)
+        XCTAssertEqual(PatternIndexing.solverSettings(fitScale: true, deltaQ: 0.00125).floor, 0.004, "a fine pattern keeps the kit's floor")
         let o = try CrystalOrientation(zoneAxis: SIMD3(0, 0, 1), cell: try XCTUnwrap(StandardCrystals.named("Al")).structure.cell)
         func outcome(_ alternatives: Int, found: Bool = true) -> PatternIndexing.Outcome {
             PatternIndexing.Outcome(phase: "Al", verdict: .tied(count: alternatives + 1), spots: [], explained: 0, indexed: 0,

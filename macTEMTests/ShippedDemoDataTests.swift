@@ -25,7 +25,7 @@ nonisolated final class ShippedDemoDataTests: XCTestCase {
     /// Every shipped file is in the bundle (the `DemoData` folder reference copies the whole folder) at the pinned size and md5.
     /// Mutation: a file replaced, truncated or renamed; the folder reference dropped from the project.
     func testEveryShippedFileIsInTheBundleAtItsPinnedSizeAndMD5() throws {
-        XCTAssertEqual(DemoDocuments.Shipped.all.count, 6)
+        XCTAssertEqual(DemoDocuments.Shipped.all.count, 7)
         for file in DemoDocuments.Shipped.all {
             let url = try XCTUnwrap(file.url, "\(file.relativePath) is not in the bundle's DemoData/")
             let size = try XCTUnwrap(FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int)
@@ -80,7 +80,7 @@ nonisolated final class ShippedDemoDataTests: XCTestCase {
         XCTAssertNoThrow(try MasterPatternProjection.checkSuitable(mp))
     }
 
-    /// The recorded spot pattern (#804): a HyperSpy file of one 144 x 144 2D signal, which the Open route takes as an image (the Image,
+    /// The recorded spot pattern (#804): a HyperSpy file of one 100 x 100 2D signal, which the Open route takes as an image (the Image,
     /// FFT and Diffraction rooms), with the scan's 300 kV. Mutation: the frame cut wrong (a 4D or 3D signal), the file replaced - red.
     func testTheSpotPatternIsOneImageOfTheNanowireScan() throws {
         let url = try XCTUnwrap(DemoDocuments.Shipped.nanowirePattern.url)
@@ -91,12 +91,12 @@ nonisolated final class ShippedDemoDataTests: XCTestCase {
         XCTAssertEqual(FileRouting.inventory(path: url.path), FileInventory(image: true))
     }
 
-    /// The spot pattern is the distortion-corrected frame (pyxem tutorial 01's affine, x 0.99 and y 0.69 about the centre, order 1, uint8;
-    /// tools/lib/extract-spot-pattern.py) and carries its scale (2026-11-26): both axes in Å⁻¹ at `nanowirePatternDeltaQ`, the zero at
-    /// pixel 0 as the scan's axes had it, the scan's 300 kV. Pixels as h5py reads them: sum 174,088, maximum 254 at two pixels, the
-    /// first at (row 72, column 71), and the 0.69 squeeze leaves rows 0 to 21 and 122 to 143 black.
-    /// Mutation: the raw frame back (sum 264,228, max 255, no black rows), the axes in pixels again, the scale's unit in 1/nm - red.
-    func testTheSpotPatternIsTheCorrectedFrameWithItsScale() throws {
+    /// The spot pattern is the mean of 64 like frames, distortion-corrected (pyxem tutorial 01's affine, x 0.99 and y 0.69 about the
+    /// centre, order 1) and cropped to the 100 x 100 pixels the correction fills, kept as float32 (tools/lib/extract-spot-pattern.py,
+    /// #1133), and carries its scale: both axes in Å⁻¹ at `nanowirePatternDeltaQ`, the zero at pixel 0 as the scan's axes had it, the
+    /// scan's 300 kV. Pixels as h5py reads them: sum 142,867.07, maximum 254.964 at (row 50, column 50), minimum 5.48, no black row.
+    /// Mutation: the single frame back (uint8, 144 px, black rows), the axes in pixels again, the scale's unit in 1/nm - red.
+    func testTheSpotPatternIsTheCorrectedMeanWithItsScale() throws {
         let url = try XCTUnwrap(DemoDocuments.Shipped.nanowirePattern.url)
         let image = try ImageOpening.openNow(path: url.path)
         let side = DemoDocuments.Shipped.nanowirePatternSide
@@ -109,14 +109,13 @@ nonisolated final class ShippedDemoDataTests: XCTestCase {
             XCTAssertEqual(axis?.origin, 0)
         }
         XCTAssertEqual(UnitDisplay.reciprocalAngstromsPerPixel(image.x), DemoDocuments.Shipped.nanowirePatternDeltaQ)
-        guard case .uint8(let pixels) = image.stored else { return XCTFail("the frame is 8 bit") }
-        XCTAssertEqual(pixels.reduce(0) { $0 + Int($1) }, 174_088)
-        XCTAssertEqual(pixels.max(), 254)
-        XCTAssertEqual(pixels.firstIndex(of: 254), 72 * side + 71)
-        XCTAssertEqual(pixels.filter { $0 == 254 }.count, 2)
-        let rowSums = (0..<side).map { row in pixels[(row * side)..<((row + 1) * side)].reduce(0) { $0 + Int($1) } }
-        XCTAssertEqual(rowSums.indices.filter { rowSums[$0] > 0 }.first, 22)
-        XCTAssertEqual(rowSums.indices.filter { rowSums[$0] > 0 }.last, 121)
+        guard case .float32(let pixels) = image.stored else { return XCTFail("the mean is float32") }
+        XCTAssertEqual(pixels.count, side * side)
+        XCTAssertEqual(pixels.reduce(0.0) { $0 + Double($1) }, 142_867.07, accuracy: 0.05)
+        let maximum = try XCTUnwrap(pixels.max())
+        XCTAssertEqual(Double(maximum), 254.964, accuracy: 0.001)
+        XCTAssertEqual(pixels.firstIndex(of: maximum), 50 * side + 50)
+        XCTAssertEqual(Double(try XCTUnwrap(pixels.min())), 5.483, accuracy: 0.001)
     }
 
     /// The silicon CIF of the demo simulation (#804): Fd-3m, eight atoms in the cell, a = 5.4309 Å, as the kit reads it.
@@ -127,6 +126,17 @@ nonisolated final class ShippedDemoDataTests: XCTestCase {
         XCTAssertTrue(loaded.structure.sites.allSatisfy { $0.z == 14 })
         XCTAssertEqual(loaded.structure.cell.a, 5.4309)
         XCTAssertEqual(loaded.structure.spaceGroupNumber, 227)
+    }
+
+    /// The GaAs CIF the nanowire demo lands with: F-43m, four Ga and four As in the cell, a = 5.6533 Å, as the kit reads it.
+    func testTheGaAsCIFIsTheZincBlendeStructure() throws {
+        let url = try XCTUnwrap(DemoDocuments.Shipped.gaAsCIF.url)
+        let loaded = try CrystalLoading.load(bytes: Data(contentsOf: url), fileName: url.lastPathComponent)
+        XCTAssertEqual(loaded.structure.sites.count, 8)
+        XCTAssertEqual(loaded.structure.sites.filter { $0.z == 31 }.count, 4)
+        XCTAssertEqual(loaded.structure.sites.filter { $0.z == 33 }.count, 4)
+        XCTAssertEqual(loaded.structure.cell.a, 5.6533)
+        XCTAssertEqual(loaded.structure.spaceGroupNumber, 216)
     }
 
     /// The BAM TM002 spectrum through the HyperSpy reader: 1024 channels of 0.01 keV from -0.1 keV, 10 kV, the counts exact (their total,

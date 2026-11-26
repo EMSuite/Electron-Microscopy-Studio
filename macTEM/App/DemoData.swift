@@ -144,9 +144,15 @@ extension AppState {
     /// `landSimulation` is, so the pattern lands there in this window and in a tab of its own (a window that holds a document opens
     /// the demo in a new tab, whose room started in Image).
     /// The nanowire spot pattern lands there too (#1086), on Calibrate: it opened in a new tab's Image room. Its file holds its
-    /// scale (`DemoDocuments.Shipped.nanowirePatternDeltaQ`, the file's axis), so Index runs without a typed Δq.
+    /// scale (`DemoDocuments.Shipped.nanowirePatternDeltaQ`, the file's axis), so Index runs without a typed Δq, and its crystal is the
+    /// wire's GaAs (`DemoDocuments.Shipped.gaAsCIF`, as the Silicon demo holds silicon, #1111): without it Index tried the room's Au
+    /// standard (walk of 26 Nov 2026). Nothing is added to the person's phase library.
     func landDemoPattern(_ made: [(id: OpenItem.ID, url: URL)]) {
         if let spots = made.first(where: { $0.url.resolvingSymlinksInPath() == DemoDocuments.Shipped.nanowirePattern.url?.resolvingSymlinksInPath() }), let item = openItems.item(spots.id) {
+            if let url = DemoDocuments.Shipped.gaAsCIF.url, let bytes = try? Data(contentsOf: url),
+               let gaAs = try? CrystalLoading.load(bytes: bytes, fileName: url.lastPathComponent) {
+                item.diffraction.setCrystal(DiffractionPhases.crystal(forCIF: gaAs))
+            }
             if openItems.selected?.id != item.id { openItems.select(item.id) }
             selectWorkspace(.diffraction)
             return

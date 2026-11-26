@@ -464,7 +464,8 @@ package final class DiffractionAnalysis {
         }
         let structure = crystal.structure, phase = crystal.name
         let fit = fitScale
-        let key = "\(crystal.identity)|\(volts)" + (fit ? "" : "|fixed scale")
+        let settings = PatternIndexing.solverSettings(fitScale: fit, tolerancePercent: tolerancePercent, deltaQ: calibration.deltaQ)
+        let key = "\(crystal.identity)|\(volts)|tolerance \(settings.tolerance)|floor \(settings.floor)" + (fit ? "" : "|fixed scale")
         let shortest = list()?.families.first.map { 1 / $0.family.d } ?? 0.2
         let task = Task.detached(priority: .userInitiated) { [weak self] in
             // Quality bar: Index answers for one 2048² pattern within 2 s on the reference Mac (#797, docs/performance.md).
@@ -483,7 +484,7 @@ package final class DiffractionAnalysis {
                 if Task.isCancelled { return }
                 let indexer = try PatternIndexerCache.shared.indexer(key: key) {
                     try PatternOrientation(structure: structure, volts: volts, kMax: PatternIndexing.reach,
-                                           solverSettings: PatternIndexing.solverSettings(fitScale: fit))
+                                           solverSettings: settings)
                 }
                 if Task.isCancelled { return }
                 outcome = PatternIndexing.index(marks: marks, centre: centre, calibration: calibration, indexer: indexer, phase: phase)

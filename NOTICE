@@ -229,8 +229,8 @@ Both texts ship in the application bundle at `Contents/Resources/Licenses/` with
 DiffractoKit (a Swift package the app is built with)
 ================================================================================
 
-The app links DiffractoKit (https://github.com/EMSuite/DiffractoKit, tag 0.24.1, commit
-782a08fae1d42bb57d6751963e0f4da691ed0e64), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only, for crystal structures, the CIF
+The app links DiffractoKit (https://github.com/EMSuite/DiffractoKit, tag 0.24.2, commit
+3daeaad577d27d72ae5e1899410c7d152c10974a), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only, for crystal structures, the CIF
 import, kinematic reflection lists, ring and ellipse calibration, the indexing of a measured |q|, simulated spot patterns, double diffraction and
 the orientation of a spot pattern, and the two-beam thickness fit. Its scattering table and lattice conventions are py4DSTEM's (GPL-3.0); pymatgen (MIT) was
 its oracle and none of its code is copied. Its own third-party notices are in its NOTICE.
@@ -303,8 +303,8 @@ Demo data shipped in the app (Contents/Resources/DemoData/)
 
 Four public datasets ship in the application bundle unchanged, so that anyone can try the SEM rooms without a microscope file
 (Help > Open Demo Data, the welcome window's Try Demo Data). Each is the copy its source publishes; the repository's
-DemoData/ folder holds them and `DemoDocuments.Shipped` pins their size and md5. Two more files, one frame taken from a public
-4D-STEM scan and a silicon CIF the kit wrote, are listed after them.
+DemoData/ folder holds them and `DemoDocuments.Shipped` pins their size and md5. Three more files, one pattern made from a public
+4D-STEM scan and two CIFs (silicon, which the kit wrote, and gallium arsenide), are listed after them.
 
 nickel_ebsd_large/patterns_v2.h5 (15,368,325 bytes, md5 51d6bc0f5ff23dcb0c1a8e1f4c52d4d4)
     4125 electron backscatter diffraction patterns (55 x 75 scan, 60 x 60 pixels, 8 bit) from polycrystalline nickel, acquired
@@ -341,22 +341,26 @@ sdss_ferrite_austenite.ang (651,687 bytes, md5 0c45548b82445657fbd52d882a27f2fd)
     `data.sdss_ferrite_austenite()` fetches; doi:10.5281/zenodo.3625780), licensed under CC BY 4.0 (text in
     `Licenses/orix-data-sdss_ferrite_austenite-LICENSE.txt`). macEM reads it with its own port of orix's .ang reader.
 
-twinned_nanowire_frame.hspy (38,169 bytes, md5 04560cb3c84b205c0271d1f0ab7ac97b)
-    One precession electron diffraction pattern (300 kV, 144 x 144 pixels, 8 bit): the frame at scan position (y 84, x 26) of
-    the twinned nanowire 4D-STEM scan of Carter Francis, "Pyxem 4D STEM Demo Data" [Data set], Zenodo (2025),
-    https://doi.org/10.5281/zenodo.15490547 (`twinned_nanowire.hdf5`, the file pyxem's `data.twinned_nanowire()` loads),
-    licensed under the Creative Commons Attribution 4.0 International licence (CC BY 4.0,
-    https://creativecommons.org/licenses/by/4.0/; text in `Licenses/kikuchipy-data-nickel_ebsd_large-LICENSE.txt`, the same
-    licence). Changed: one frame of the 100 x 30 scan was taken and written, with the scan's metadata, as a HyperSpy file of
-    one 2D signal by tools/lib/extract-spot-pattern.py; distortion-corrected as in pyxem's tutorial (pyxem-demos notebook 01,
-    "GaAs Nanowire": its affine matrix x 0.99, y 0.69 about the pattern centre, skimage warp convention, order 1, back to
-    8 bit); its axes carry a scale of 0.028471 1/Å per pixel, calibrated on GaAs {111} of this frame itself (a = 5.6535 Å),
-    not an independent calibration (the tutorial's own 0.02687 1/Å per pixel, read off the scan's mean pattern, puts {111}
-    5.6 % short in this frame).
+twinned_nanowire_frame.hspy (63,113 bytes, md5 247ebdf686bd5ed9a7167edb4a251a58)
+    One precession electron diffraction pattern (300 kV, 100 x 100 pixels, float32) made from the twinned nanowire 4D-STEM
+    scan of Carter Francis, "Pyxem 4D STEM Demo Data" [Data set], Zenodo (2025), https://doi.org/10.5281/zenodo.15490547
+    (`twinned_nanowire.hdf5`, the file pyxem's `data.twinned_nanowire()` loads), licensed under the Creative Commons
+    Attribution 4.0 International licence (CC BY 4.0, https://creativecommons.org/licenses/by/4.0/; text in
+    `Licenses/kikuchipy-data-nickel_ebsd_large-LICENSE.txt`, the same licence). Changed: the 64 frames of the 100 x 30 scan
+    whose spots match the frame at scan position (y 84, x 26) best were averaged and written, with the scan's metadata, as a
+    HyperSpy file of one 2D signal by tools/lib/extract-spot-pattern.py; distortion-corrected as in pyxem's tutorial
+    (pyxem-demos notebook 01, "GaAs Nanowire": its affine matrix x 0.99, y 0.69 about the pattern centre, skimage warp
+    convention, order 1) and cropped to the 100 x 100 pixels the correction fills; its axes carry a scale of 0.028326 1/Å per
+    pixel, calibrated on GaAs {111} of this pattern itself (a = 5.6535 Å), not an independent calibration (the tutorial's own
+    0.02687 1/Å per pixel, read off the scan's mean pattern, puts {111} 5.1 % short in this pattern).
 
 silicon_Fd-3m.cif (4,317 bytes, md5 b82db5cc152bea24a6418080a99bbd5c)
     Silicon (diamond structure, Fd-3m, a = 5.4309 Å) as CIF, written by DiffractoKit's CIFExport (EMSuite/DiffractoKit 0.22.0,
     GPL-3.0-only, the same author); the crystal of the demo simulation.
+
+gallium_arsenide_F-43m.cif (2,245 bytes, md5 ce0815bcba9f1043ad202bd2146e4618)
+    Gallium arsenide (zinc blende, F-43m, a = 5.6533 Å at room temperature after J. S. Blakemore, J. Appl. Phys. 53 (1982) R123)
+    as CIF, written for the app (GPL-3.0-only, the same author); the crystal the nanowire spot pattern lands with.
 
 ================================================================================
 RosettaSciIO (the SEM-EDS map readers are ported from it; its test files are fixtures)

@@ -245,7 +245,7 @@ package nonisolated enum SEMReferenceVersions {
     package static let builtWith: [SEMSessionField] = [
         SEMSessionField("FormatoKit", "0.20.0"),
         SEMSessionField("ImagoKit", "0.11.0"),
-        SEMSessionField("DiffractoKit", "0.24.1"),
+        SEMSessionField("DiffractoKit", "0.24.2"),
         SEMSessionField("SpectroKit", "0.17.1"),
         SEMSessionField("SimulatoKit", "0.7.0"),
         SEMSessionField("EMSuiteUI", "0.20.0"),

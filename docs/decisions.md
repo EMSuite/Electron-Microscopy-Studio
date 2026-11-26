@@ -771,3 +771,19 @@ two (the script's `SCALE`, the app's one constant).
 
 **What would reverse it.** Paul choosing the tutorial's scale or none: `SCALE = 'tutorial'` or `None` in the script, run it on the
 raw frame again, and update NOTICE and the constant with the new md5, size and scale.
+
+## 2026-11-26 — The nanowire demo is a mean of like frames, and Index's tolerance has a pixel floor
+
+**What.** `DemoData/twinned_nanowire_frame.hspy` is now the mean of the 64 frames of pyxem's twinned nanowire scan whose spots
+match frame (y 84, x 26) best (3 by 3 smoothed, background-subtracted annulus, Pearson 0.73 or more), distortion-corrected as
+before, cropped to the 100 x 100 pixels the correction fills, float32, at 0.028326189107119697 Å⁻¹ per pixel (calibrated on its own
+GaAs {111}, as before). The demo lands with the shipped GaAs CIF as the room's crystal. Index takes the room's Tolerance, and its
+length floor is half a pixel of the image's scale where that is wider than the kit's 0.004 Å⁻¹ (`PatternIndexing.solverSettings`).
+
+**Why.** The 2.6.0 re-walk (26 Nov 2026): Index on the single 144 px frame answered Au, the room's standard. Its {111} sit about
+11 px from the centre, so a 1 % window is a tenth of a pixel while the spots scatter by 0.2 to 0.35 px; the kit's seed pairs ignored
+the floor (DiffractoKit#249). Paul: the pattern lacks resolution. Averaging like frames, as pyxem's tutorial does with its region
+means, cuts the noise (lattice rms 0.197 to 0.115 px) but cannot add pixels; the floor makes Index honest about the pixel.
+
+**What would reverse it.** A demo pattern recorded at a larger camera length or on more pixels: drop the mean and the crop in the
+script and update the pins with the new file.

@@ -21,7 +21,10 @@ nonisolated enum DiffractionEventLine {
         case .calibrationRefused(let why):
             return "Calibrate on Ring set no scale on \(fileName): \(why)"
         case .indexed(let outcome, let solutions):
-            return "Index on \(fileName): \(PatternIndexing.header(outcome, locale: locale))" + (solutions > 1 ? " · \(solutions) solutions" : "")
+            // Always ending on the count: a line ending in "%" (the misfit) is taken for a progress tick and kept out of Output
+            // (EMSuiteUI's `ActivityLog.record`).
+            let count = solutions == 1 ? " · 1 solution" : solutions > 1 ? " · \(solutions) solutions" : ""
+            return "Index on \(fileName): \(PatternIndexing.header(outcome, locale: locale))" + count
         }
     }
 }

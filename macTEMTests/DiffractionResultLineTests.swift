@@ -15,6 +15,7 @@ import DiffractoScattering
 import FormatoCore
 import TEMCore
 import TEMSession
+import ShellLayout
 @testable import macTEM
 
 /// What the list's callback heard, kept on the main actor.
@@ -66,9 +67,18 @@ nonisolated final class DiffractionResultLineTests: XCTestCase {
 
     func testIndexsLineNamesThePhaseTheZoneAxisTheMisfitAndTheSpots() {
         XCTAssertEqual(DiffractionEventLine.line(.indexed(outcome(.found), solutions: 1), fileName: "al.dm4", locale: german),
-                       "Index on al.dm4: Al · 2,1° from [001] · 22 of 24 spots explained · misfit 0,07 %")
+                       "Index on al.dm4: Al · 2,1° from [001] · 22 of 24 spots explained · misfit 0,07 % · 1 solution")
         XCTAssertEqual(DiffractionEventLine.line(.indexed(outcome(.found), solutions: 2), fileName: "al.dm4", locale: UnitDisplay.point),
                        "Index on al.dm4: Al · 2.1° from [001] · 22 of 24 spots explained · misfit 0.07 % · 2 solutions")
+    }
+
+    /// Index's line reaches Output (walk of 26 Nov 2026: the infobar showed it, Output did not). The shell's log keeps out a line
+    /// ending in "%" as a progress tick, and the header ends on the misfit; the line now ends on the count of solutions.
+    /// Red before: the one-solution line ended "misfit 0,07 %" and the log stayed empty.
+    @MainActor func testIndexsLineIsKeptByTheOutputLog() {
+        let log = ActivityLog(announce: { _ in })
+        log.record(DiffractionEventLine.line(.indexed(outcome(.found), solutions: 1), fileName: "al.dm4", locale: german))
+        XCTAssertEqual(log.lines.count, 1)
     }
 
     /// A calibration on the Au demo pattern's {111} ring, on an item of the list: the list's callback hears it once, with the scale

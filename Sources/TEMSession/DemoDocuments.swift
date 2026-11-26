@@ -285,24 +285,31 @@ package nonisolated enum DemoDocuments {
         package static let duplexSteelMap = ShippedFile(relativePath: "sdss_ferrite_austenite.ang", bytes: 651_687,
                                                         md5: "0c45548b82445657fbd52d882a27f2fd", title: "Duplex Steel Orientation Map (orix)")
 
-        /// One recorded spot pattern (#804, plan row Q21): the frame at scan position (y 84, x 26) of pyxem's twinned nanowire 4D-STEM
-        /// scan (precession electron diffraction, 300 kV, 144 x 144 px, 8 bit; pyxem data 0.9.0 `twinned_nanowire.hdf5`), the frame with
-        /// the most spot pixels, written as a HyperSpy file of one 2D signal by tools/lib/extract-spot-pattern.py.
-        /// C. Francis, "Pyxem 4D STEM Demo Data", Zenodo 10.5281/zenodo.15490547, CC BY 4.0. Distortion-corrected as pyxem's tutorial
-        /// 01 does (x 0.99, y 0.69 about the centre), its axes in Å⁻¹ at `nanowirePatternDeltaQ` (2026-11-26).
-        package static let nanowirePattern = ShippedFile(relativePath: "twinned_nanowire_frame.hspy", bytes: 38_169,
-                                                         md5: "04560cb3c84b205c0271d1f0ab7ac97b", title: "Nanowire Spot Pattern (pyxem)")
-        /// The scale both axes of `nanowirePattern` carry, Å⁻¹ per pixel: calibrated on GaAs {111} of the frame itself (a = 5.6535 Å,
+        /// One recorded spot pattern (#804, plan row Q21) from pyxem's twinned nanowire 4D-STEM scan (precession electron diffraction,
+        /// 300 kV, 144 x 144 px, 8 bit; pyxem data 0.9.0 `twinned_nanowire.hdf5`): the mean of the 64 frames whose spots match the frame
+        /// at scan position (y 84, x 26) best, distortion-corrected as pyxem's tutorial 01 does (x 0.99, y 0.69 about the centre),
+        /// cropped to the 100 x 100 pixels the correction fills, float32, its axes in Å⁻¹ at `nanowirePatternDeltaQ`; written as a
+        /// HyperSpy file of one 2D signal by tools/lib/extract-spot-pattern.py (2026-11-26, #1133: one frame was too noisy to index).
+        /// C. Francis, "Pyxem 4D STEM Demo Data", Zenodo 10.5281/zenodo.15490547, CC BY 4.0.
+        package static let nanowirePattern = ShippedFile(relativePath: "twinned_nanowire_frame.hspy", bytes: 63_113,
+                                                         md5: "247ebdf686bd5ed9a7167edb4a251a58", title: "Nanowire Spot Pattern (pyxem)")
+        /// The scale both axes of `nanowirePattern` carry, Å⁻¹ per pixel: calibrated on GaAs {111} of the pattern itself (a = 5.6535 Å,
         /// tools/lib/extract-spot-pattern.py's `SCALE`), not an independent calibration. pyxem's tutorial states 0.026874375407392053,
-        /// read off the whole scan's mean, which puts {111} of this frame 5.6 % short.
-        package static let nanowirePatternDeltaQ = 0.028471335881638242
-        package static let nanowirePatternSide = 144
+        /// read off the whole scan's mean, which puts {111} of this pattern 5.1 % short.
+        package static let nanowirePatternDeltaQ = 0.028326189107119697
+        package static let nanowirePatternSide = 100
         /// Silicon (diamond structure, Fd-3m, a = 5.4309 Å) as CIF, the crystal of the demo simulation (#804): written by DiffractoKit's
         /// `CIFExport` (its pin corpus's `silicon_Fd-3m.cif`), GPL-3.0-only.
         package static let siliconCIF = ShippedFile(relativePath: "silicon_Fd-3m.cif", bytes: 4_317,
                                                     md5: "b82db5cc152bea24a6418080a99bbd5c", title: "Silicon Simulation (CIF)")
 
-        package static let all = [nickelEBSD, semEDSSpectrum, nickelMasterPattern, duplexSteelMap, nanowirePattern, siliconCIF]
+        /// Gallium arsenide (zinc blende, F-43m, a = 5.6533 Å at room temperature, Blakemore 1982) as CIF: the crystal the nanowire spot
+        /// pattern lands with, so its Index runs on the wire's own phase (walk of 26 Nov 2026: with none, Index tried the Au standard).
+        /// Written for the app, GPL-3.0-only.
+        package static let gaAsCIF = ShippedFile(relativePath: "gallium_arsenide_F-43m.cif", bytes: 2_245,
+                                                 md5: "ce0815bcba9f1043ad202bd2146e4618", title: "GaAs (CIF)")
+
+        package static let all = [nickelEBSD, semEDSSpectrum, nickelMasterPattern, duplexSteelMap, nanowirePattern, siliconCIF, gaAsCIF]
     }
 
     /// The md5 of a file, as `md5sum` prints it: how a shipped file is pinned to the copy its source publishes.

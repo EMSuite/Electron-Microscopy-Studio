@@ -46,6 +46,15 @@ TUTORIAL_SCALE = np.sqrt(3 / GAAS_A**2) / 11.4  # Å⁻¹ per pixel, tutorial ce
 # The scale the file carries: 'frame-111' (the frame's own GaAs {111}, the default), 'tutorial' (TUTORIAL_SCALE), or None (no scale:
 # the axes stay in pixels, as the scan's). A change here is a new file: run the script again and update NOTICE and the app's pins.
 SCALE = 'frame-111'
+# The mean pattern (owner, 26 Nov 2026: one 144 px frame is too noisy for a demo): the frames of the scan whose spots correlate with the
+# chosen frame's at MEAN_CORRELATION or more (background-subtracted annulus, Pearson), at most MEAN_FRAMES of the best, are averaged
+# before the correction, as pyxem's tutorial averages frames of one region; the mean is kept as float32 (no cast back to uint8).
+# None keeps the single frame.
+MEAN_CORRELATION = 0.5
+MEAN_FRAMES = 64
+# The correction leaves rows 0 to 21 and 122 to 143 empty (rows x 0.69, cval 0), and their zero background puts false spots at the
+# band edges: the file keeps the central square rows and columns CROP[0] to CROP[1] - 1 (the pattern's centre stays the square's).
+CROP = (22, 122)
 CORRECTED_NOTE = 'Distortion-corrected with pyxem tutorial 01'
 
 source, out = sys.argv[1], sys.argv[2]
@@ -117,7 +126,8 @@ def lattice(image):
     print(f'lattice: centre (row {centre[0]:.3f}, column {centre[1]:.3f}), {on.sum()} of {len(points)} spots, rms {rms:.3f} px; '
           f'|g1| {n1:.4f} px, |g2| {n2:.4f} px, ratio {n1 / n2:.4f}, angle {angle:.2f} deg (GaAs 111 to 11-1 in <110>: 70.53)')
     # GaAs <110>: two {111} of equal length at 70.53 degrees. A frame or a correction that is not refuses here.
-    assert on.sum() >= 15 and rms < 1.0, 'the spots are not one lattice'
+    # The cropped 100 px mean pattern holds fewer maxima above the 98.5th percentile (10 on 26 Nov 2026, rms 0.2 px): 8 will do.
+    assert on.sum() >= 8 and on.sum() >= 0.6 * len(points) and rms < 1.0, 'the spots are not one lattice'
     assert abs(n1 / n2 - 1) < 0.03 and abs(angle - 70.53) < 2, 'the lattice is not two {111} at 70.5 degrees: not GaAs <110>'
     return centre, g1, g2
 
@@ -162,6 +172,30 @@ with h5py.File(source, 'r') as f:
             iy, ix = int(sys.argv[3]), int(sys.argv[4])
             print('named', (iy, ix), 'score', score[iy, ix])
         raw = data[iy, ix, :, :]
+        averaged = None
+        if MEAN_CORRELATION is not None:
+            # Correlate 3 by 3 box-smoothed frames: a raw 144 px frame is shot noise around 10-pixel spots, so a pixel-wise Pearson of
+            # two frames of the same grain sits near zero (26 Nov 2026: no other frame reached 0.5 unsmoothed).
+            padded = np.pad(stack, ((0, 0), (0, 0), (1, 1), (1, 1)), mode='edge')
+            smooth = sum(padded[:, :, 1 + dy:1 + dy + sy, 1 + dx:1 + dx + sx] for dy in (-1, 0, 1) for dx in (-1, 0, 1)) / 9
+            smooth_annulus = smooth[:, :, ring]
+            del padded, smooth
+            background = np.median(smooth_annulus, axis=2, keepdims=True)
+            signal = smooth_annulus - background
+            signal -= signal.mean(axis=2, keepdims=True)
+            norm = np.sqrt((signal ** 2).sum(axis=2))
+            chosen = signal[iy, ix]
+            corr = (signal * chosen).sum(axis=2) / np.maximum(norm * norm[iy, ix], 1e-12)
+            ranked = np.argsort(corr, axis=None)[::-1]
+            print('correlation, the best 30:', ' '.join(f'{corr.flat[k]:.2f}' for k in ranked[:30]))
+            print('correlation around the chosen frame (7 by 7 scan positions):')
+            for y in range(max(0, iy - 3), min(ny, iy + 4)):
+                print('   ', ' '.join(f'{corr[y, x]:5.2f}' for x in range(max(0, ix - 3), min(nx, ix + 4))))
+            take = [k for k in ranked[:MEAN_FRAMES] if corr.flat[k] >= MEAN_CORRELATION]
+            assert len(take) >= 8, f'only {len(take)} frames correlate {MEAN_CORRELATION} or more with the chosen one'
+            positions = [tuple(int(v) for v in np.unravel_index(k, corr.shape)) for k in take]
+            print(f'mean of {len(take)} frames, correlation {corr.flat[take[-1]]:.3f} to 1 with the chosen one:', positions)
+            averaged = stack.reshape(ny * nx, sy, sx)[take].mean(axis=0)
     else:
         # The raw frame the demo first shipped: its position is the one its title names.
         assert data.ndim == 2, 'a 4D scan or one raw 2D frame'
@@ -170,8 +204,15 @@ with h5py.File(source, 'r') as f:
         iy, ix = 84, 26
         assert f'frame (y {iy}, x {ix})' in str(general['title']), 'the raw demo frame (y 84, x 26)'
         raw = data[...]
+        averaged = None
     print('chosen', (int(iy), int(ix)), 'min', raw.min(), 'max', raw.max(), 'sum', float(np.asarray(raw, dtype=np.float64).sum()))
-    frame = correct(raw)
+    if averaged is not None:
+        frame = correct(averaged).astype(np.float32)
+    else:
+        frame = correct(raw)
+    if CROP is not None:
+        assert np.all(frame[CROP[0]:CROP[1]].sum(axis=1) > 0), 'the crop holds an empty row'
+        frame = frame[CROP[0]:CROP[1], CROP[0]:CROP[1]]
     print('corrected', frame.shape, frame.dtype, 'max', frame.max(), 'sum', float(np.asarray(frame, dtype=np.float64).sum()))
     scale = scale_of(frame)
     print('scale', repr(scale), 'Å⁻¹ per pixel', f'(the tutorial: {TUTORIAL_SCALE!r})')
@@ -196,6 +237,7 @@ with h5py.File(source, 'r') as f:
             for key, value in axis.attrs.items():
                 ga.attrs[key] = value
             ga.attrs['navigate'] = False
+            ga.attrs['size'] = np.int64(frame.shape[j])  # the crop's size, not the scan's 144 (HyperSpy and the app check it)
             if scale is not None:
                 ga.attrs['scale'] = np.float64(scale)
                 ga.attrs['offset'] = np.float64(0.0)
@@ -206,7 +248,8 @@ with h5py.File(source, 'r') as f:
             if key in ('data',) or key.startswith('axis-'):
                 continue
             exp.copy(key, gexp)
-        title = (f'Twinned nanowire, frame (y {int(iy)}, x {int(ix)}) of pyxem twinned_nanowire, distortion-corrected '
+        what = f'mean of {len(take)} frames like frame (y {int(iy)}, x {int(ix)})' if averaged is not None else f'frame (y {int(iy)}, x {int(ix)})'
+        title = (f'Twinned nanowire, {what} of pyxem twinned_nanowire, distortion-corrected '
                  f'(CC BY 4.0, doi:10.5281/zenodo.15490547)')
         general = gexp.require_group('metadata').require_group('General')
         general.attrs['title'] = title
@@ -221,7 +264,10 @@ with h5py.File(source, 'r') as f:
         general.attrs['notes'] = (
             f'{CORRECTED_NOTE} (pyxem-demos, "01 GaAs Nanowire - Data Inspection - Preprocessing - Unsupervised Machine Learning"): '
             'apply_affine_transformation([[0.99,0,0],[0,0.69,0],[0,0,1]], keep_dtype=True), skimage warp convention (x 0.99, '
-            'y 0.69 about the pattern centre ((144-1)/2, (144-1)/2)), order 1, cast back to uint8. ' + how
+            'y 0.69 about the pattern centre ((144-1)/2, (144-1)/2)), order 1'
+            + (f', of the mean of the {len(take)} frames whose spots correlate {MEAN_CORRELATION} or more with frame '
+               f'(y {int(iy)}, x {int(ix)}), kept as float32' if averaged is not None else ', cast back to uint8')
+            + (f'; cropped to rows and columns {CROP[0]} to {CROP[1] - 1}, the rows the correction fills. ' if CROP else '. ') + how
             + ' Written by tools/lib/extract-spot-pattern.py (Electron Microscopy Studio).')
         print('written', out)
 
