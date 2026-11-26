@@ -148,7 +148,7 @@ nonisolated final class AgentDoorDiffractionScienceTests: XCTestCase {
         XCTAssertNotNil(precipitate["refusal"] as? String, "no matrix orientation before Index: \(precipitate)")
         let hideNone = try await call("set_relationship", ["precipitate": "Si", "hide": "1"])
         XCTAssertTrue(hideNone.refused, "no variant is placed to hide")
-        XCTAssertEqual(item.diffractionVariants.precipitate.name, "Al", "a refused call changes nothing, the precipitate given beside it too")
+        XCTAssertEqual(item.diffractionVariants.precipitate?.name, "Al", "a refused call changes nothing, the precipitate given beside it too")
     }
 
     /// Mutation: Rank going ahead without a ring, use taking an unranked name, or the rows not the finder's - red.
