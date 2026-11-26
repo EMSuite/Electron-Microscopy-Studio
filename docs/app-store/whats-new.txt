@@ -1,8 +1,8 @@
-- Opening a large image shows its stage and time, and Stop cancels it.
-- DM4 spectrum images open, and a second EELS Align runs, in far less memory.
-- EDS Auto ID offers what it nearly found (a minor element, carbon, a FIB gallium) as one-click Adds; it still adds only what it confirms.
-- Export and session sheets open on the window that asked, and one window's export no longer blocks another.
-- File > Open with every window minimised brings that window back and no longer opens an extra empty one.
-- Better keyboard and VoiceOver use: the sidebar rooms, the EDS spectrum's zoom and pan, the sliders and the map tiles.
-- Exported files name Electron Microscopy Studio as their writer (macEM before).
-- Results change: an EDS element found by its L line is quantified on its Kα when the spectrum holds it well excited.
+- Diffraction simulation: take a phase from the Materials Project or a CIF and see its spot pattern over the measured one, and its crystal in 3D.
+- Index finds the full orientation of a spot pattern.
+- Tilt planning: a zone-axis map and the α and β that bring a zone axis on, with the holder's tilt axis and β sense calibrated from two patterns.
+- Precipitate variants over the matrix, powder rings and X-ray patterns, and Find Phases to rank which phase explains the rings.
+- HRTEM: a slab from a phase, an image with live defocus and thickness, beside the measured one.
+- CBED with a thickness series, STEM images with detector bands, atom models from XYZ and POSCAR files, thickness from a two-beam CBED disc, and strain maps from a lattice image.
+- Export Figure… writes vector figures; HyperSpy files, CIF and a methods record go out too.
+- Results change: the EDS energy axis is refined from 0.6 keV up, so strong C, N or O lines no longer tilt it.
