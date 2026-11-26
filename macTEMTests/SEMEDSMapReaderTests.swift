@@ -247,6 +247,17 @@ nonisolated final class SEMEDSMapReaderTests: XCTestCase {
         }
     }
 
+    /// The mode rsciio reads decides whether the room may give a composition (review 2026-11-26): an SEM map or spectrum from every
+    /// vendor is SEM; Bruker's TEM file, its M6 Jetstream spectrum and the JEOL fixtures (200 kV) are TEM. Red before: no `isSEM`; only an SEM `.hspy` was marked.
+    func testTheFilesModeSaysSEMAsRsciioReadsIt() throws {
+        let sem = ["bruker/P45_the_default_job.bcf", "bruker/bruker_nano.spx", "edax/spd_map_crop8.spd", "edax/single_spect.spc"]
+        for path in sem { XCTAssertTrue(SEMEDSOpening.isSEM(try EDXOpening.open(url: Self.fixture(path)).metadata), path) }
+        for path in ["bruker/test_TEM.bcf", "bruker/bruker_m6_jetstream_file_example.spx", "jeol/View000_0000006_4frames.pts",
+                     "jeol/met03.EDS"] {
+            XCTAssertFalse(SEMEDSOpening.isSEM(try EDXOpening.open(url: Self.fixture(path)).metadata), path)
+        }
+    }
+
     /// A JEOL image opens in the Image room with its µm per pixel.
     func testAJEOLImageOpensInTheImageRoom() throws {
         let url = Self.fixture("jeol/InvalidFrame/Dummy-Data_0000000.img")
