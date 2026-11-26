@@ -141,7 +141,8 @@ enum RoomPrimaryAction {
             if let action = simulateAction(appState) ?? stemAction(appState) { return action }
             return backgroundCancel(appState)
         case .diffraction:
-            guard let item = appState.openItems.selected, let image = item.session.image else { return nil }
+            guard let item = appState.openItems.selected, let image = item.session.image,
+                  DiffractionSections.notAPattern(item.url) == nil else { return nil }
             // The verb is the main action of the part shown (#1044's parts), never another part's greyed: Calibrate on Ring in
             // Calibrate, Index in Index, a CBED pattern's Simulate in Simulate, Measure Thickness in Thickness. A Simulation document's
             // Simulate is live (#1047; its Show buttons open three outputs), Tilt Plan's plan follows the orientation and Powder's

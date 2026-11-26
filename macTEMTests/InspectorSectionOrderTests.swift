@@ -22,6 +22,25 @@ nonisolated final class InspectorSectionOrderTests: XCTestCase {
 
     private let simulation = URL(fileURLWithPath: "/macTEM-demo/Simulation 1")
 
+    /// The Diffraction room takes no simulated real-space image as a pattern (#1096): an HRTEM or STEM image is refused in one sentence
+    /// that names Image and FFT; a Simulation document, its CBED pattern and a recorded file are patterns. Red before: no refusal, the
+    /// HRTEM image drawn in Calibrate with "no scale yet" and the gold-ring calibration.
+    func testTheDiffractionRoomTakesNoSimulatedImageAsAPattern() throws {
+        for url in [DemoDocuments.hrtemURL(of: simulation), DemoDocuments.stemURL(of: simulation)] {
+            let why = try XCTUnwrap(DiffractionSections.notAPattern(url), url.path)
+            XCTAssertTrue(why.hasPrefix("\(url.lastPathComponent) is a simulated real-space image, not a diffraction pattern."), why)
+            XCTAssertTrue(why.contains("Image measures it") && why.contains("FFT"), why)
+        }
+        for url in [simulation, DemoDocuments.cbedURL(of: simulation), URL(fileURLWithPath: "/data/Au_rings.dm4")] {
+            XCTAssertNil(DiffractionSections.notAPattern(url), url.path)
+        }
+        // The room, its inspector, its verb and the door all ask.
+        XCTAssertTrue(try source("macTEM/UI/WorkspaceView.swift").contains("DiffractionSections.notAPattern(item.url)"))
+        XCTAssertTrue(try source("macTEM/UI/WorkspaceInspector.swift").contains("DiffractionSections.notAPattern(item.url) == nil"))
+        XCTAssertTrue(try source("macTEM/UI/RoomPrimaryAction.swift").contains("DiffractionSections.notAPattern(item.url) == nil"))
+        XCTAssertTrue(try source("macTEM/App/AgentDoorDiffraction.swift").contains("DiffractionSections.notAPattern(item.url)"))
+    }
+
     func testEachDocumentKnowsItsKind() {
         XCTAssertEqual(ImageSections.kind(of: DemoDocuments.hrtemURL(of: simulation)), .hrtem)
         XCTAssertEqual(ImageSections.kind(of: DemoDocuments.stemURL(of: simulation)), .stem)

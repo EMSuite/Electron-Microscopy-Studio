@@ -50,6 +50,16 @@ nonisolated enum DiffractionSections {
              specimen, crystalView, precipitate, powder, rings, thickness
     }
 
+    /// Why the room does not take the item at `url` as a pattern (#1096): a Simulation document's HRTEM or STEM image is a real-space
+    /// image, which the Image room measures and the FFT room transforms; nil for anything else. Route found: the room shows the
+    /// selected item whatever it is, and the HRTEM image is an item of its own beside its Simulation document, so selecting it (or
+    /// choosing Diffraction with it selected) drew it as a pattern with "no scale yet".
+    static func notAPattern(_ url: URL) -> String? {
+        guard DemoDocuments.isHRTEM(url) || DemoDocuments.isSTEM(url) else { return nil }
+        return "\(url.lastPathComponent) is a simulated real-space image, not a diffraction pattern. Image measures it; FFT shows its "
+            + "diffractogram. The simulated pattern is its Simulation document's."
+    }
+
     /// The kind of the document at `url`: a Simulation document, the CBED pattern derived from one, or a measured pattern.
     static func kind(of url: URL) -> Kind {
         if DemoDocuments.isSimulation(url) { return .simulation }

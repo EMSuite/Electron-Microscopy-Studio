@@ -114,6 +114,7 @@ extension MacTEMAgentDoor {
             return .refused(.refusal(status: 409, message: "The window shows the \(appState.navigation.workspaceArea.title) room; "
                 + "select_room diffraction first."))
         }
+        if let why = DiffractionSections.notAPattern(item.url) { return .refused(.refusal(status: 409, message: why)) }
         item.diffraction.bind(image)
         return .item(item)
     }
