@@ -201,7 +201,7 @@ extension MacTEMAgentDoor {
             "processing": processingAnswer(session),
             "fitting": [
                 "model": session.fitModel.rawValue, "fit_to": AgentJSON.number(session.fitToEV), "background": session.backgroundChoice.rawValue,
-                "convolve": session.effectiveConvolve, "blocker": AgentJSON.orNull(session.fitBlocker),
+                "convolve": session.effectiveConvolve, "convolve_blocker": AgentJSON.orNull(session.convolveBlocker), "blocker": AgentJSON.orNull(session.fitBlocker),
                 "refusal": AgentJSON.orNull(session.fitRefusal), "fit_to_notice": AgentJSON.orNull(session.fitToNotice),
                 "background_notice": AgentJSON.orNull(session.backgroundNotice),
                 "references": session.references.map(\.name), "reference_notice": AgentJSON.orNull(session.referenceNotice),

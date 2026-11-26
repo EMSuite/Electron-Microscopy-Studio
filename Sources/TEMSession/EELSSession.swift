@@ -308,7 +308,18 @@ package final class EELSSession {
     }
     /// Convolve with the low loss as the fit does it: never on a Fourier-ratio deconvolved core loss (the low loss is divided out already).
     /// A file with no zero-loss peak (`hasLowLoss` false, a core loss alone) has nothing to convolve with.
-    package var effectiveConvolve: Bool { convolveLowLoss && !deconvolutionChoice.feedsTheFit && hasLowLoss && workingLowLoss != nil }
+    /// A low loss on another dispersion than the core loss is never convolved: exSpy's model refuses it ("the same spectral dispersion"), and so does
+    /// the kit. The demo pairs a 0.25 eV low loss with a 1 eV core loss, and its fit was refused at the defaults (walk 2026-11-26).
+    package var effectiveConvolve: Bool {
+        convolveLowLoss && !deconvolutionChoice.feedsTheFit && hasLowLoss && workingLowLoss != nil && convolveBlocker == nil
+    }
+    /// Why the low loss cannot be convolved with this core loss (their dispersions differ); nil when it can, or when there is nothing to convolve.
+    package var convolveBlocker: String? {
+        guard let low = workingLowLoss, let core = workingCoreLoss else { return nil }
+        guard abs(low.energyScaleEV - core.energyScaleEV) > 1e-9 * core.energyScaleEV else { return nil }
+        return "The low loss has \(EELSRoomFormat.sig(low.energyScaleEV, 4)) eV per channel and the core loss \(EELSRoomFormat.sig(core.energyScaleEV, 4)) eV: "
+            + "the convolution needs one dispersion, so the fit runs without the low loss."
+    }
 
     /// Run does every stage that is not current, in order; nothing to do when all are. Fit joins them only when it can run.
     package var canRun: Bool {
@@ -1110,6 +1121,8 @@ package final class EELSSession {
     package func run() -> Task<Void, Never> {
         let task = Task { [weak self] in
             guard let self, !Task.isCancelled, self.canRun else { return }
+            // An earlier refusal ends that Run only: this one starts over, and each stage sets its own failure again if it still refuses.
+            self.failure = nil
             if self.alignState != .current { await self.align()?.value }
             guard !Task.isCancelled, self.failure == nil else { return }
             if self.thicknessState != .current { await self.refresh()?.value }
