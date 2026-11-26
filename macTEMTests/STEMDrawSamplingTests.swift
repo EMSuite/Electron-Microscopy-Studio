@@ -11,7 +11,7 @@ import TEMSession
 import XCTest
 @testable import macTEM
 
-final class STEMDrawSamplingTests: XCTestCase {
+nonisolated final class STEMDrawSamplingTests: XCTestCase {
     /// Red before: every image was drawn nearest, so the Nyquist-step scan read as a checkerboard.
     @MainActor func testOnlyASimulatedSTEMScanIsDrawnSmooth() {
         let simulation = URL(fileURLWithPath: "/macTEM-demo/Simulation 1")
