@@ -138,7 +138,7 @@ final class AppState {
     /// The question up before files with unsaved marks close (`requestClose`, CloseGuard.swift); nil when none is asked.
     var closeRequest: CloseRequest?
 
-    /// Bumped by every "Open Image…" gesture; `ContentView` presents the open panel when it changes.
+    /// Bumped by every "Open…" gesture; `ContentView` presents the open panel when it changes.
     private(set) var openImageRequest = 0
 
     var hasImage: Bool { imageSession.image != nil }
@@ -211,6 +211,10 @@ final class AppState {
         openItems.onReadFailure = { [weak self] _, error in self?.present(FileOpenFailure(error)) }
         // A stack frame that could not be read: the status line, Output and VoiceOver say which and why (the slider is back on the frame shown).
         openItems.onFrameFailure = { [weak self] in self?.report(event: $0, in: nil) }
+        // A Diffraction room result (#1113): Calibrate on Ring and Index leave their line in Output, as the EBSD rooms' runs do.
+        openItems.onDiffractionEvent = { [weak self] item, event in
+            self?.report(event: DiffractionEventLine.line(event, fileName: item.session.image?.fileName ?? item.url.lastPathComponent), in: nil)
+        }
         // Every session's event line: the infobar, the SEM rooms' session record, and VoiceOver for a line that ends something.
         edx.onEvent = { [weak self] in self?.report(event: $0, in: nil) }
         edx.onFailure = { [weak self] in self?.present($0) }

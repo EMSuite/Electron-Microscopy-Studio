@@ -6,10 +6,11 @@
 //        not saved; composed by `AppState` as `PatternsRoomState` is. P5-04 adds the results pane's tab, the grain table as CSV and the
 //        texture figures as one PNG.
 //
-//  The room's tables, Grains and Slip, are panes of the shell's bottom area beside Output (#1095; `ProcessTab`s supplied by
-//  `WorkspaceView`), as the Diffraction room's are (#1094, `DiffractionRoomState`): the bar above them drags, each has its toggle at
-//  the infobar's right end, and the window shows each on its own the first time it has something to list (`offer`), once; after
-//  that the person's toggles and the bar are theirs. Nothing of it is saved, so a new window starts as the first did.
+//  The room's tables, Grains and Slip, are tabs of the shell's bottom area beside Output (#1095, #1112; `ProcessTab`s supplied by
+//  `WorkspaceView`), as the Diffraction room's are (#1094, `DiffractionRoomState`): one at a time at full width, chosen in the area's
+//  header, under the bar the person drags, with one toggle for the area at the infobar's right end; the window selects each on its
+//  own the first time it has something to list (`offer`), once; after that the tab, the toggle and the bar are the person's.
+//  Nothing of it is saved, so a new window starts as the first did.
 //
 
 import CoreGraphics
@@ -39,7 +40,7 @@ final class MapsRoomState {
     /// The Detail panel's picture (the centre's trailing panel, #1089): the picked point with the colour key, the pole figures, the ODF
     /// or the histogram.
     var detailTab = MapsDetailTab.point
-    /// The tables this window has shown on its own in the bottom area (`offer`), each once.
+    /// The tables this window has selected on its own in the bottom area (`offer`), each once.
     private(set) var offeredTables: Set<MapsTable> = []
     /// What the Histogram tab counts.
     var histogramKind = MapAnalysis.HistogramKind.kam
@@ -62,22 +63,14 @@ final class MapsRoomState {
 
     func requestImport() { importRequest &+= 1 }
 
-    /// Shows `table` in the bottom area the first time the window is asked to (`MapsTable.opening`): its pane joins the shown panes and
-    /// the area opens if it was shut (`toggleProcessPane`). A table asked for again, or one the person already shows, is left as it is,
-    /// so a toggle or a drag of theirs is never undone. As `DiffractionRoomState.offer`.
+    /// Selects `table`'s tab in the bottom area the first time the window is asked to (`MapsTable.opening`), and opens the area if it
+    /// was shut (`selectProcessPane`). A table asked for again is left as it is, so a tab the person picked since, the area they shut
+    /// or a drag of theirs is never undone. As `DiffractionRoomState.offer`, and as there a selection left when the room or its map
+    /// goes is harmless: the area draws Output for a tab it does not hold (`ProcessAreaLayout.shownTab`).
     func offer(_ table: MapsTable?, in panels: PanelNavigation) {
         guard let table, !offeredTables.contains(table) else { return }
         offeredTables.insert(table)
-        guard !panels.shownProcessPanes.contains(table.paneID) else { return }
-        panels.toggleProcessPane(table.paneID)
-    }
-
-    /// The bottom area never stands open and empty (the shell's rule): when the tables on offer change (another room, the map closed)
-    /// and no pane shown is still among them or Output, Output is shown. As `DiffractionRoomState.keepAPaneShown`.
-    static func keepAPaneShown(supplied: [MapsTable], in panels: PanelNavigation) {
-        let offered = Set(supplied.map(\.paneID)).union([ProcessPaneID.output])
-        guard panels.shownProcessPanes.isDisjoint(with: offered) else { return }
-        panels.shownProcessPanes.insert(.output)
+        panels.selectProcessPane(table.paneID)
     }
 
     /// Makes the map figure of the shown layer and opens the save panel, or, with `directory` (the UI journeys' export folder), writes it
@@ -1007,12 +1000,12 @@ nonisolated enum MapsFigure {
     }
 }
 
-/// One of the Maps room's tables (#1095): a pane of the shell's bottom area beside Output, shown and hidden by its own toggle at the
-/// infobar's right end, as Output is. Grains lists every grain of the last Segment; Slip the picked grain's slip planes.
+/// One of the Maps room's tables (#1095): a tab of the shell's bottom area beside Output, chosen in the area's header (#1112), as
+/// Output is. Grains lists every grain of the last Segment; Slip the picked grain's slip planes.
 nonisolated enum MapsTable: String, CaseIterable, Sendable {
     case grains, slip
 
-    /// The pane's name: the infobar toggle's help ("Grains pane") and VoiceOver label.
+    /// The tab's name in the area's header, and its VoiceOver label.
     var title: String {
         switch self {
         case .grains: "Grains"
@@ -1020,7 +1013,7 @@ nonisolated enum MapsTable: String, CaseIterable, Sendable {
         }
     }
 
-    /// The infobar toggle's symbol.
+    /// The tab's symbol (`ProcessTab`'s; the header names the tab by its title, the shell's `.panes` style drew it on a toggle).
     var systemImage: String {
         switch self {
         case .grains: "tablecells"
@@ -1028,10 +1021,10 @@ nonisolated enum MapsTable: String, CaseIterable, Sendable {
         }
     }
 
-    /// The table's pane in the shell's bottom area: "maps.table.grains", "maps.table.slip".
+    /// The table's tab in the shell's bottom area: "maps.table.grains", "maps.table.slip".
     var paneID: ProcessPaneID { ProcessPaneID("maps.table.\(rawValue)") }
 
-    /// The tables the window shows on its own once (`MapsRoomState.offer`): Grains once Segment has found grains (the results pane showed
+    /// The tables the window selects on its own once (`MapsRoomState.offer`): Grains once Segment has found grains (the results pane showed
     /// them then), Slip once a picked grain has slip planes to list (they sat under the grain table).
     static func opening(hasGrains: Bool, hasSlip: Bool) -> [MapsTable] {
         guard hasGrains else { return [] }

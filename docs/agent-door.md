@@ -55,7 +55,7 @@ door this one follows (4DSTEM Studio `docs/agent-door.md`). This app hands the d
 | `read_atom_model` | the Specimen section's source (Phase or Atom Model), a file being read or why the last one was not opened, and with a model its file, atoms by element, the beam axis, its own thickness along the beam, the box, the summary and the notes |
 | `get_abtem_script` | the Python script Export abTEM Script… writes for the HRTEM image (name and text), once the exit waves are current |
 | `get_indexing_picture` | `which` map (the layer as Export's Map PNG… draws it), pattern (as indexed, without the band overlay) or best_match (a Dictionary run's) |
-| `get_crystal_view` | the Diffraction room's crystal pane: shown or hidden, the phase, the zone axis nearest the drawn orientation and the tilt off it, the orientation as the 3 by 3 matrix the simulated spots are drawn with, the unit cell switch and the scene (atoms and bonds by element, cell lengths); with `picture`, the pane's picture (the first ask starts the drawing and answers 409, ask again) |
+| `get_crystal_view` | the Diffraction room's crystal pane: shown or hidden, the phase, the zone axis nearest the drawn orientation and the tilt off it, the orientation as the 3 by 3 matrix the simulated spots are drawn with, the unit cell switch and the scene (atoms and bonds by element, cell lengths); with `picture`, the pane's picture (the first ask starts the drawing and answers 409, ask again); empty, said in words, while the spots are off or a Simulation document has no phase yet |
 
 Every picture and number comes from the code that draws or exports it for the person, so the agent judges what the
 person sees. Numbers in JSON fields use a point; the status and Output lines are the window's own text, in the Mac's Region.
@@ -73,7 +73,7 @@ Behind "Let agents run analyses". Each goes through the entry point its control 
 | `open_file` | opens a file of the Agent folder (Settings > Agents) as File > Open does, in the room that fits it; paths outside the folder are refused; `room` (eds or eels) answers the question File > Open asks for TIA spectra no `.emi` places, and such spectra are refused without it |
 | `set_eds` | picks and removes elements, sets an element's role (quantify or fit only), chooses the region (whole, rectangle, ellipse, polygon, a kept region), keeps the selected region as Pin Region does, and draws a line profile as the Line tool does |
 | `run_eds` | Auto ID, Quantify or Stop; answers at once, `get_eds` says busy until done |
-| `run_room` | presses the shown room's toolbar verb, as ⌘R does (Quantify, Run, Process, Index, Segment, Simulate); refused with the button's own words while it cannot run |
+| `run_room` | presses the shown room's toolbar verb, as ⌘R does (Quantify, Run, Process, Index, Segment, Simulate; in Diffraction the part's own: Calibrate, Index, Simulate for a CBED pattern, Measure in Thickness, none in Tilt Plan and Powder or for a Simulation document); refused with the button's own words while it cannot run |
 | `stop_run` | Stop, as ⌘. does: the shown room's run or open, or a run left going in another room |
 | `select_scan_position` | picks a scan position (x column, y row) as a click on the Patterns, Indexing or Maps room's map does; in the Indexing room the pattern pane shows it as indexed, in the Maps room the grain under it is selected |
 | `set_patterns` | the Virtual images section (grid, map, tile, colour mix, tiles pane), the pattern's Raw/Processed switch and the Simulation section (overlay, Min d, Band width, Zone axes, Labels, Blend); says when a new grid also dropped the tile map or the mix |
@@ -90,7 +90,7 @@ Behind "Let agents run analyses". Each goes through the entry point its control 
 | `set_particles` | the Particles section's settings (bright or dark, manual level or Otsu, smoothing, connectivity, minimum area, region, mask tint), Show Objects, Hide, and the object selected |
 | `set_fft` | the FFT room's Region (a square, centred, whole), taper (the Window menu), smoothing and band-pass, the source pane's view, the mask's radius and edge, the spot finder's settings, the HRTEM filters' parameters, and Filter, the strain reference and Map Strain |
 | `set_fft_spots` | Find Spots, Measure at… (whole bins from the centre), selects and removes spots, puts spots in or out of the mask |
-| `set_diffraction` | the Diffraction room's Centre (typed, or a fitted ring's), Calibration (standard, ring, Calibrate on Ring, Clear, typed Δq and kV for a file without them, camera and pixel pitch), Phases (a standard as the crystal, k_max, tolerance; a library phase through `add_phase`), the annulus, Fit Ring, the tool, the log display and the Crystal View's Unit cell switch (refused, as the switch is off, while the pane is hidden) |
+| `set_diffraction` | the Diffraction room's Centre (typed, or a fitted ring's), Calibration (standard, ring, Calibrate on Ring, Clear, typed Δq and kV for a file without them, camera and pixel pitch), Phases (a standard as the crystal, k_max, tolerance; a library phase through `add_phase`), the annulus, Fit Ring (it and Calibrate on Ring refused on a computed pattern, which has no ring to fit), the tool, the log display and the Crystal View's Unit cell switch (refused, as the switch is off, while the pane is hidden) |
 | `save_diffraction` | writes the Export section's Spots CSV (a Simulation document's simulated spots), Readout CSV, or the pattern's PNG with its marked and simulated spots into the Agent folder; refused while the section's button is off |
 | `set_diffraction_marks` | adds a spot as a click on the pattern does, selects a ring or spot, removes one or all |
 | `new_simulation` | File > New Simulation: a simulated pattern with no measured one, in the Diffraction room with the simulated spots on and the Add Phase sheet in front (add_phase takes it down); a window that holds a file gives it a tab of its own |
@@ -112,7 +112,7 @@ Behind "Let agents run analyses". Each goes through the entry point its control 
 | `measure_thickness` | Measure Thickness on the pattern shown: the two-beam fit across the diffracted disc (Kelly et al. 1975), on a measured pattern or a simulated CBED pattern run at a hand tilt to one strong reflection; `read_thickness` gives the verdict |
 | `use_measured_thickness` | Use in Simulation: the thickness found becomes the Simulation document's specimen thickness; refused while the document simulates an atom model (its thickness is the model's own) |
 | `set_stem` | the STEM section: semiangle, defocus or Scherzer, scan step or Nyquist, Collect to, and the detector (a preset, or Custom with inner and outer angles on whole rings) |
-| `run_stem` | Show STEM Image and its toolbar Simulate or Continue; the image fills as it is computed; refused with the section's words while it cannot run |
+| `run_stem` | Show STEM Image, which runs the image's toolbar Simulate or Continue as the section's button does; the image fills as it is computed; refused with the section's words while it cannot run |
 | `stop_stem` | the STEM image's toolbar Stop; the positions done stay and `run_stem` continues |
 | `set_atom_model` | the Specimen section's Source: an atom model file of the Agent folder (CIF, XYZ or POSCAR) read as Atom Model… does, back to the phase, and Beam along (c, a or b); answers at once, `read_atom_model` says when the file is in or why it was refused |
 | `select_grains` | selects grains as the grain table does, or none |
@@ -126,7 +126,10 @@ reaches it: the tool that does it, already seen in a get tool's answer, left to 
 gap with its open issue. `AgentDoorCoverageTests` fails when a control has no row, a row names a tool the door does not have,
 or a row outlives its control, so a new control cannot ship undecided. The menu bar has its own table beside it, `menuItems`: every item of the File, View, Image, Workspace and Help menus by its title as the source writes it, held by the same test. Every tool that acts is in the table above, and the test fails when one is not. A feature that adds a room action adds its row in the same PR, and the release walk reads the gaps. The release walk reads the gaps left in the table, each with its open issue. A room's open panel is the
 person's; `open_file` opens a file of the Agent folder and `open_demo` the shipped demos. The EDS room's own controls are
-EMSuiteUI's and are reached through its tools.
+EMSuiteUI's and are reached through its tools. The bottom area's tabs (Output and the room's tables, one at a time at full width,
+chosen in the area's header, #1112) and its one toggle are the person's layout, as the sidebar and the inspector are: no tool picks
+a tab, and none needs to, because `get_diffraction` (the readout), `get_spot_table` (the spots), `powder_pattern` (the peaks),
+`get_grains` (the grains) and `get_maps` (the slip planes) answer every table's rows whichever tab is shown.
 
 ## Code
 

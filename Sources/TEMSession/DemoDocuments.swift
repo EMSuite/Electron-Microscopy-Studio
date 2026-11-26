@@ -34,20 +34,46 @@ package nonisolated enum DemoDocuments {
         package static let edxChannels = 2048
         package static let edxDispersionEV = 10.0
         package static let edxBeamKeV = 200.0
-        package static let edxAreasPerPixel: [String: Double] = ["Al": 120, "Mg": 40, "Si": 47]
-        /// `--demo-regions`: two rectangles drawn on the EDX scan, in pixels (x0, y0, x1, y1), and a line across it; the pixels every pixel alike, so counts scale with them.
+        /// Its structure: a round particle rich in Mg and Si in an Al matrix, with a soft edge, so the three element maps differ and the
+        /// colour mix shows the particle. Each element's K alpha area per pixel (counts) in the matrix and in the particle, in this order
+        /// (the generator adds them in it, so two runs add the same numbers). Synthetic: no real alloy is modelled. Over the whole map
+        /// the means are about 120 : 40 : 47 (Al : Mg : Si), the uniform demo's areas before.
+        package static let edxElementAreas: [(element: String, matrix: Double, particle: Double)] = [("Al", 150, 30), ("Mg", 10, 130), ("Si", 25, 113)]
+        package static let edxParticleCentre = (x: 8.0, y: 8.0)
+        package static let edxParticleRadius = 4.5
+        /// The width (pixels) over which the particle's share falls from 1 to 0 across its edge.
+        package static let edxParticleEdge = 2.0
+        /// The particle's share of the pixel at (x, y), 0 to 1: 1 inside, 0 in the matrix, linear over `edxParticleEdge` about the radius
+        /// (the distance from the pixel's centre).
+        package static func edxParticleShare(x: Int, y: Int) -> Double {
+            let dx = Double(x) + 0.5 - edxParticleCentre.x, dy = Double(y) + 0.5 - edxParticleCentre.y
+            let r = (dx * dx + dy * dy).squareRoot()
+            return min(max((edxParticleRadius - r) / edxParticleEdge + 0.5, 0), 1)
+        }
+        /// The K alpha area (counts) of each element at the pixel (x, y), in `edxElementAreas`' order, before the gentle thickness ramp.
+        package static func edxAreas(x: Int, y: Int) -> [(element: String, area: Double)] {
+            let f = edxParticleShare(x: x, y: y)
+            return edxElementAreas.map { (element: $0.element, area: $0.matrix * (1 - f) + $0.particle * f) }
+        }
+        /// `--demo-regions`: two rectangles drawn on the EDX scan, in pixels (x0, y0, x1, y1), and a line across it: the first in the
+        /// matrix (a corner), the second over the particle, so their compositions differ.
         package static let edxRegionBoxes = [(0, 0, 4, 4), (4, 4, 12, 12)]
         package static let edxLine = (from: (0.5, 8.0), to: (15.5, 8.0))
-        /// The EELS spectrum image: 16 x 16 pixels, 1024 channels of 0.25 eV from -10 eV; t/λ planted at every pixel.
+        /// The EELS spectrum image: 16 x 16 pixels, 1024 channels of 0.25 eV from -10 eV; t/λ planted at every pixel: an interface across
+        /// the middle, thinner above (`eelsTOverLambdaAbove`, where the N K edge is) than below (`eelsTOverLambdaBelow`), so the t/λ map
+        /// shows two halves. Synthetic: the core loss does not follow the thickness.
         package static let eelsSide = 16
         package static let eelsChannels = 1024
         package static let eelsDispersionEV = 0.25
         package static let eelsOffsetEV = -10.0
         package static let eelsZeroLossCounts = 100_000.0
-        package static let eelsTOverLambda = 0.5
+        package static let eelsTOverLambdaAbove = 0.5
+        package static let eelsTOverLambdaBelow = 0.8
+        /// The t/λ planted at the pixel (x, y): the upper half (y < 8) is the thinner side.
+        package static func eelsTOverLambda(x: Int, y: Int) -> Double { y < eelsSide / 2 ? eelsTOverLambdaAbove : eelsTOverLambdaBelow }
         /// Its core loss (#1088): 700 channels of 1 eV from 200 eV, a power-law background A E^-3 under the C, N and O K edges
         /// (exSpy's model, `EELSEdgeQuantification`'s cross sections at 200 kV and 10 mrad), each edge's amount per pixel planted:
-        /// carbon everywhere (a support film), oxygen in a disc at the centre (a particle), nitrogen in the top half.
+        /// carbon everywhere (a support film), oxygen in a disc at the centre (a particle), nitrogen in the top half (the thinner side).
         package static let eelsCoreChannels = 700
         package static let eelsCoreOffsetEV = 200.0
         package static let eelsCoreBackground = 1e10
@@ -492,38 +518,48 @@ package nonisolated enum DemoDocuments {
 
     // MARK: The EDX spectrum image
 
-    /// 16 x 16 x 2048: an Al matrix with Mg and Si K lines on a bremsstrahlung continuum; per-pixel areas in `Truth.edxAreasPerPixel`.
+    /// 16 x 16 x 2048: an Al matrix round a Mg- and Si-rich particle, the K lines on a bremsstrahlung continuum; per-pixel areas in
+    /// `Truth.edxAreas(x:y:)`.
     package static func edx() -> LoadedSpectrumImage {
         let n = Truth.edxSide, channels = Truth.edxChannels
         let axis = EnergyAxis(offset: 0, scale: Truth.edxDispersionEV / 1000, size: channels)
         let energies = (0..<channels).map { axis.energy(ofChannel: $0) }
-        // The expected counts per channel for one pixel: continuum plus Gaussians (an SDD's resolution: 130 eV FWHM at Mn K alpha, narrower below). The continuum is
-        // the kit's planted one (0.4 over one pixel) divided by the 256 pixels, so the pooled spectrum has the planted peak-to-continuum ratio.
-        var mu = energies.map { e -> Double in
+        // The expected counts per channel for one pixel: continuum plus Gaussians (an SDD's resolution: 130 eV FWHM at Mn K alpha, narrower below), the
+        // Gaussians each pixel's own (below). The continuum is the kit's planted one (0.4 over one pixel) divided by the 256 pixels, so the pooled spectrum has
+        // the planted peak-to-continuum ratio.
+        let mu = energies.map { e -> Double in
             let x = max(e, 0.05)
             return e >= 0.2 ? 0.0016 * max(Truth.edxBeamKeV - e, 0) / x * exp(-pow(0.3 / x, 3)) : 0
         }
-        for (element, area) in Truth.edxAreasPerPixel {
+        // Each element's lines for a K alpha area of one count: K alpha and a 2 % K beta.
+        var shapes: [[Double]] = []
+        for (element, _, _) in Truth.edxElementAreas {
+            var shape = [Double](repeating: 0, count: channels)
             for (suffix, share) in [("Ka", 1.0), ("Kb", 0.02)] {
                 guard let line = XRayLines.line("\(element)_\(suffix)") else { continue }
                 let sigma = 0.0553 * (0.2 + 0.8 * line.energy / 5.895).squareRoot()     // 130 eV at Mn K alpha, about 83 eV at Al K alpha
                 var weights = energies.map { exp(-0.5 * pow(($0 - line.energy) / sigma, 2)) }
                 let total = weights.reduce(0, +)
                 weights = weights.map { $0 / total }
-                for c in 0..<channels { mu[c] += area * share * weights[c] }
+                for c in 0..<channels { shape[c] += share * weights[c] }
             }
+            shapes.append(shape)
         }
         var g = Generator(seed: 1_021)
         var counts = [UInt32](repeating: 0, count: n * n * channels)
         for p in 0..<(n * n) {
             let scale = 0.8 + 0.4 * Double((p % n) + (p / n)) / Double(2 * (n - 1))     // a gentle thickness ramp
+            var pixel = mu
+            for (k, (_, area)) in Truth.edxAreas(x: p % n, y: p / n).enumerated() {
+                for c in 0..<channels { pixel[c] += area * shapes[k][c] }
+            }
             for c in 0..<channels {
-                let expected = mu[c] * scale
+                let expected = pixel[c] * scale
                 let whole = expected.rounded(.down)
                 counts[p * channels + c] = UInt32(whole) + (g.uniform() < expected - whole ? 1 : 0)
             }
         }
-        var meta = SpectrumImageMetadata(fileName: "Demo EDX", filePath: "", scanWidth: n, scanHeight: n, channelCount: channels,
+        var meta = SpectrumImageMetadata(fileName: "Demo EDS", filePath: "", scanWidth: n, scanHeight: n, channelCount: channels,
                                          energyOffsetEV: 0, energyDispersionEV: Truth.edxDispersionEV)
         meta.origin = .veloxEMD
         meta.beamEnergyKeV = Truth.edxBeamKeV
@@ -531,21 +567,21 @@ package nonisolated enum DemoDocuments {
                                    scanImage: (0..<(n * n)).map { Float(100 + $0 % n) })
     }
 
-    /// The demo EDX image's pooled spectrum as an `.msa` file in the temporary folder (what a person would open from the File menu),
+    /// The demo EDS image's pooled spectrum as an `.msa` file in the temporary folder (what a person would open from the File menu),
     /// written atomically as the other demo files are.
     package static func spectrumFile() throws -> URL {
         let demo = edx()
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(writtenFolders[2])
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let url = dir.appendingPathComponent("Demo EDX spectrum.msa")
-        try EDXExports.msa(counts: demo.image.sum(mask: nil), axis: demo.energyAxis, title: "Demo EDX spectrum", beamEnergyKeV: Truth.edxBeamKeV, host: .macTEM).write(to: url, options: .atomic)
+        let url = dir.appendingPathComponent("Demo EDS spectrum.msa")
+        try EDXExports.msa(counts: demo.image.sum(mask: nil), axis: demo.energyAxis, title: "Demo EDS spectrum", beamEnergyKeV: Truth.edxBeamKeV, host: .macTEM).write(to: url, options: .atomic)
         return url
     }
 
     // MARK: The EELS spectrum image
 
     /// 16 x 16 x 1024: a narrow zero-loss peak holding `eelsZeroLossCounts` and one plasmon at 15 eV whose area makes ln(I_total / I_0)
-    /// equal `eelsTOverLambda` at every pixel (both normalised over the channels, so the answer is exact by construction).
+    /// equal `eelsTOverLambda(x:y:)` at each pixel (both normalised over the channels, so the answer is exact by construction).
     package static func eels() throws -> LoadedEELS {
         let n = Truth.eelsSide, channels = Truth.eelsChannels
         let energies = (0..<channels).map { Truth.eelsOffsetEV + Truth.eelsDispersionEV * Double($0) }
@@ -555,12 +591,16 @@ package nonisolated enum DemoDocuments {
             return w.map { $0 / total }
         }
         let zlp = normalised(centre: 0, sigma: 0.6), plasmon = normalised(centre: 15, sigma: 3)
-        let plasmonCounts = Truth.eelsZeroLossCounts * (exp(Truth.eelsTOverLambda) - 1)
-        var spectrum = [Double](repeating: 0, count: channels)
-        for c in 0..<channels { spectrum[c] = Truth.eelsZeroLossCounts * zlp[c] + plasmonCounts * plasmon[c] }
+        func spectrum(tOverLambda: Double) -> [Double] {
+            let plasmonCounts = Truth.eelsZeroLossCounts * (exp(tOverLambda) - 1)
+            return (0..<channels).map { Truth.eelsZeroLossCounts * zlp[$0] + plasmonCounts * plasmon[$0] }
+        }
+        let above = spectrum(tOverLambda: Truth.eelsTOverLambdaAbove), below = spectrum(tOverLambda: Truth.eelsTOverLambdaBelow)
         var counts = [Double]()
         counts.reserveCapacity(n * n * channels)
-        for _ in 0..<(n * n) { counts.append(contentsOf: spectrum) }
+        for y in 0..<n {
+            for x in 0..<n { counts.append(contentsOf: Truth.eelsTOverLambda(x: x, y: y) == Truth.eelsTOverLambdaAbove ? above : below) }
+        }
         let image = try LowLossSpectrumImage(nx: n, ny: n, channels: channels, counts: counts,
                                              energyOffsetEV: Truth.eelsOffsetEV, energyScaleEV: Truth.eelsDispersionEV)
         return LoadedEELS(fileName: "Demo EELS", image: image, beamEnergyKeV: 200, convergenceMrad: 0, collectionMrad: 10, origin: "generated demo",

@@ -120,7 +120,7 @@ private struct ImageWindow: View {
             // The minimum sits ABOVE ContentView: `WindowFillingLayout` answers a finite proposal with itself.
             .frame(minWidth: LayoutPolicy.datasetWindowMinimumSize.width,
                    minHeight: LayoutPolicy.datasetWindowMinimumSize.height)
-            // "Open Image…" chosen with no window focused opened this one; a `.task`, so the content's own
+            // "Open…" chosen with no window focused opened this one; a `.task`, so the content's own
             // request observer exists before the action fires. The relay's handler is set here too, which
             // delivers a Finder open that arrived before the window did, and the delegate's hook for the quit question. Both go
             // through the app's windows: a batch opens in the window in front, the question is asked over all of them.
@@ -164,7 +164,7 @@ private struct ImageCommands: Commands {
             // A window per file: an empty one to open a file in, also as a tab (the system's Window > Merge All Windows and tab bar).
             Button("New Window") { openWindow(id: "image") }
                 .keyboardShortcut("n", modifiers: .command)
-            // A simulated pattern with no measured one, in the Diffraction room (#788): as Open Image…, with no window focused it opens
+            // A simulated pattern with no measured one, in the Diffraction room (#788): as Open…, with no window focused it opens
             // one and the simulation there (`MenuActionRelay`); a window that holds a file gives it a tab of its own.
             Button("New Simulation") { perform(.newSimulation) }
                 .keyboardShortcut("n", modifiers: [.command, .shift])
@@ -172,12 +172,12 @@ private struct ImageCommands: Commands {
                     hasFocusedWindow: appState != nil,
                     blocked: appState?.imageSession.isLoading == true))
             // With no window focused it opens one and runs there (`MenuActionRelay`), so it is enabled then too.
-            Button("Open Image…") { perform(.openImage) }
+            Button("Open…") { perform(.openImage) }
                 .keyboardShortcut("o", modifiers: .command)
                 .disabled(!MenuActionRelay.isEnabled(
                     hasFocusedWindow: appState != nil,
                     blocked: appState?.imageSession.isLoading == true))
-            // The last eight files opened (`RecentFiles`), two of one name told apart by their folders. As Open Image…, with no window
+            // The last eight files opened (`RecentFiles`), two of one name told apart by their folders. As Open…, with no window
             // focused it opens the window and the file there (`MenuActionRelay`).
             Menu("Open Recent") {
                 ForEach(recents.entries) { entry in
@@ -191,7 +191,7 @@ private struct ImageCommands: Commands {
                 blocked: appState?.imageSession.isLoading == true))
             // The files, the selected one and the room the last launch had open (`LastSession`), listed only when that launch left a
             // record (mac4DSTEM's Reopen ⇧⌘O). Offered, never opened at launch: a mapped multi-GB file must not load before the person
-            // asks. As Open Image…, with no window focused it opens the window and runs there (`MenuActionRelay`).
+            // asks. As Open…, with no window focused it opens the window and runs there (`MenuActionRelay`).
             if lastSession.previous != nil {
                 Button("Reopen Last Session") { perform(.reopenLastSession) }
                     .keyboardShortcut("o", modifiers: [.command, .shift])
@@ -333,7 +333,7 @@ private struct ImageCommands: Commands {
         }
         // Generated documents for someone with no microscope file at hand, App Review first (macTEM#105, DemoData.swift).
         CommandGroup(after: .help) {
-            // As Open Image…: with no window focused it opens one and the document there (`MenuActionRelay`).
+            // As Open…: with no window focused it opens one and the document there (`MenuActionRelay`).
             Menu("Open Demo Data") {
                 ForEach(DemoDocument.allCases) { demo in
                     Button(demo.title) { perform(.openDemo(demo)) }
@@ -411,8 +411,9 @@ struct macTEMApp: App {
             // handed to it again by path, which the sandbox does not grant: refused, with an empty tab (driven 2026-11-11). A launch
             // presents one window (`defaultLaunchBehavior`).
             .restorationBehavior(.disabled)
-            .defaultSize(width: LayoutPolicy.datasetWindowIdealSize.width,
-                         height: LayoutPolicy.datasetWindowIdealSize.height)
+            // The app's own opening size (`LayoutPolicy.windowDefaultSize`), larger than the shell's.
+            .defaultSize(width: LayoutPolicy.windowDefaultSize.width,
+                         height: LayoutPolicy.windowDefaultSize.height)
             .windowStyle(.titleBar)
             .windowToolbarStyle(.unified)
             .commands {

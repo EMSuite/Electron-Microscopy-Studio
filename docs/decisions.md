@@ -701,8 +701,8 @@ one segmented control; Point shows the picked point's pattern or unit cell with 
 starts at 60 % for the map under its own key (`workspace.centre.maps.fraction`). The map is fitted to its panel; nothing is drawn
 over it but the boundaries, the picked grain's outline and slip traces (lines, no label plates), the marker, the scale bar and the
 zoom badge. The Grains table and the picked grain's slip planes (a sortable table: plane with its trace's colour swatch, Schmid
-factor, trace angle, colour, inclination) are panes of the shell's bottom area beside Output, each shown once per window when it
-first has rows, as the Diffraction tables are (#1094). Display › Pattern inset and `set_maps show_inset` go (Display is listed only
+factor, trace angle, colour, inclination) are tabs of the shell's bottom area beside Output (panes side by side until #1112, below),
+each selected once per window when it first has rows, as the Diffraction tables are (#1094). Display › Pattern inset and `set_maps show_inset` go (Display is listed only
 for a value layer, the one with rows left); `set_maps tab` takes point, pole_figures, odf or histogram. This replaces the inset
 of #1064 and the key on the map's footer of #1065.
 
@@ -711,6 +711,35 @@ was a band across the middle, the inset, the two IPF keys and thirty slip-label 
 the grain table to three rows. One frame for every room.
 
 **What would reverse it.** A drive that needs the key or the picked point beside the map while another Detail tab is shown.
+
+## 2026-11-26 — The bottom area's tables are tabs: one at full width, one toggle (#1112)
+
+**What.** The bottom area shows Output and the room's tables (Diffraction: Readout, Spots, Peaks by part; Maps: Grains, Slip) as
+tabs, one at a time at the area's full width, chosen in a segmented header (ShellLayout's `ProcessAreaStyle.tabs`, `process.tabs`);
+the infobar keeps one toggle for the whole area. The window selects a table the first time it has something to show
+(`DiffractionRoomState.offer`, `MapsRoomState.offer`, through `PanelNavigation.selectProcessPane`, which opens a shut area), once
+per table; after that the person's tab, toggle and drag win. A tab left selected when its room or part goes shows as Output
+(`ProcessAreaLayout.shownTab`), so the app's own fallback (`keepAPaneShown`) went. The tab header takes 27 pt, so at the area's
+ideal height in a 1400 × 876 window a Diffraction table shows seven rows where it showed eight.
+
+**Why.** Approved by Paul (#1112): side by side, Output and two tables were about 180 pt wide each and clipped, and the bar had up
+to four toggles that looked alike. Tables need their width; one at a time reads.
+
+**What would reverse it.** A drive that needs two tables in view at once (Readout beside Spots); then the second goes into the
+room's centre, not back beside Output.
+
+## 2026-11-26 — The Diffraction toolbar's verb is the part's own
+
+**What.** The toolbar's verb (and Workspace > Run, ⌘R) is the main action of the Diffraction part shown, calling the inspector's
+own function: Calibrate (Calibrate on Ring, `DiffractionRingCalibration`) in Calibrate, Index in Index, Simulate in a CBED
+pattern's Simulate part, Measure (Measure Thickness) in Thickness. A Simulation document's Simulate (live, with three Show
+buttons), Tilt Plan (the plan follows the orientation; its Calibrate is the holder's set-up) and Powder (drawn from the phases)
+have no single run and show no verb, only the Cancel of a run still going. Off, a verb's help says what it lacks.
+
+**Why.** Design DNA 3, one verb per room with the blocker as its help, read per part since #1044: Calibrate, Powder and
+Thickness showed Index greyed, a verb of another part that told the person nothing about the part in front.
+
+**What would reverse it.** A part whose main run moves to the toolbar alone; then its inspector button goes, the verb stays.
 
 ## 2026-11-23 — CITATION.cff follows the release
 

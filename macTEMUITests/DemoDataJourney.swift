@@ -1,7 +1,7 @@
 //
 //  DemoDataJourney.swift
 //  Help > Open Demo Data (macTEM#108), the way App Review meets it: launch with no file, open each of the four generated documents from
-//  the menu, and see each land in its room with its data drawn (the lattice image, the Au pattern, the EDX maps, the EELS t/λ map); then
+//  the menu, and see each land in its room with its data drawn (the lattice image, the Au pattern, the EDS maps, the EELS t/λ map); then
 //  the shipped SEM-EDS spectrum (a real file in the bundle) lands in the EDS room with Quantify offered. The welcome canvas's Try Demo
 //  Data opens the same list. The menu items have no identifiers (SwiftUI commands), so they are found by their titles, `DemoDocument.title`.
 //  Before every click the journey checks that macTEM is the frontmost app and its window is on screen, and stops otherwise: a click on
@@ -25,8 +25,8 @@ nonisolated final class DemoDataJourney: Journey {
             waitFor("diffraction.pane", timeout: 60)
             waitValue("diffraction.view", timeout: 60) { (Journey.number($0) ?? 0) > 0 }
         }
-        try step("EDX Spectrum Image opens in the EDX room with its maps") {
-            try openDemoData("EDX Spectrum Image")
+        try step("EDS Spectrum Image opens in the EDS room with its maps") {
+            try openDemoData("EDS Spectrum Image")
             waitFor("edx.room", timeout: 30)
             waitFor("maps.scaleBar.HAADF", timeout: 60)
         }
@@ -36,7 +36,7 @@ nonisolated final class DemoDataJourney: Journey {
             let tile = app.groups.matching(NSPredicate(format: "label BEGINSWITH %@", "t/\u{03BB} map")).firstMatch
             XCTAssertTrue(tile.waitForExistence(timeout: 90), "the t/λ map never appeared")
         }
-        try step("SEM-EDS Spectrum (BAM TM002) opens in the EDX room from the bundle") {
+        try step("SEM-EDS Spectrum (BAM TM002) opens in the EDS room from the bundle") {
             try openDemoData("SEM-EDS Spectrum (BAM TM002)")
             waitFor("edx.room", timeout: 30)
             waitStatus(containing: ["EDS_SEM_TM002.hspy"], timeout: 60)

@@ -74,10 +74,19 @@ enum DiffractionPhases {
         return inUse.fingerprint != CrystalStructure.Snapshot(phase.structure()).fingerprint || inUse.name != phase.name
     }
 
+    /// The library id of a CIF's phase: its content hash.
+    static func phaseID(ofCIF loaded: LoadedCrystal) -> String { "cif-" + loaded.sha256.prefix(16) }
+
+    /// A CIF shown as a phase without adding it to the library (the silicon demo's, #1111): the crystal `addCIF` then `set` would
+    /// show, with the same id, so the library's copy, if the person added the file, is the one ticked.
+    static func crystal(forCIF loaded: LoadedCrystal) -> DiffractionCrystal {
+        .phase(PhaseCrystal(id: phaseID(ofCIF: loaded), name: loaded.displayName, structure: loaded.structure))
+    }
+
     /// A CIF the person chose in the Add Phase sheet's Open CIF…, added to the library with its bytes (it then works offline
     /// like any phase). Its id is its content hash, so the same file added twice is one phase.
     static func addCIF(_ loaded: LoadedCrystal, bytes: Data, fileName: String, to library: PhaseLibrary) throws -> Phase {
-        let id = "cif-" + loaded.sha256.prefix(16)
+        let id = phaseID(ofCIF: loaded)
         if let existing = library.phases.first(where: { $0.id == id }) { return existing }
         let phase = Phase(id: id, name: loaded.displayName, source: .cif(fileName: fileName), structure: loaded.structure)
         try library.add(phase, source: bytes, sourceExtension: "cif")

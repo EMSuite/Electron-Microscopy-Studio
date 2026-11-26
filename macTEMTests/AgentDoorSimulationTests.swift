@@ -3,7 +3,8 @@
 //  The agent door's Simulation tools (#846, plan row R8b), through a real door over MCP: new_simulation opens File > New
 //  Simulation's document in the Diffraction room, and get_crystal_view reads the crystal pane beside it: the phase, the zone axis,
 //  the orientation as the simulated spots' matrix (at [0 0 1] and no turn the kit's lab frame is the crystal's: the identity), the
-//  scene (Au: 14 atoms, no bond), and the words for an empty pane. Red before: the door had neither tool.
+//  scene (Au as a phase: 14 atoms, no bond), and the words for an empty pane, with no phase yet (#1111) and with the spots off. Red
+//  before: the door had neither tool.
 //
 //  The Microscope section, the Unit cell switch and the Export section (#846's last gaps): set_simulation sets the voltage and the
 //  camera length the Diffraction room's Microscope section types, and read_simulation and get_spot_table read the Spots table with R
@@ -63,6 +64,11 @@ nonisolated final class AgentDoorSimulationTests: XCTestCase {
         return (result["isError"] as? Bool ?? false, (content?["text"] as? String) ?? "")
     }
 
+    /// The room's standard, Au, as a shown phase: a Simulation document's crystal pane draws a phase only (#1111).
+    @MainActor private func auPhase() throws -> DiffractionCrystal {
+        .phase(PhaseCrystal(id: "test-au", name: "Au", structure: try XCTUnwrap(StandardCrystals.named("Au")).structure))
+    }
+
     @MainActor private func json(_ text: String) throws -> [String: Any] {
         try XCTUnwrap(try JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any], text)
     }
@@ -80,6 +86,12 @@ nonisolated final class AgentDoorSimulationTests: XCTestCase {
             state.openItems.selected?.session.image != nil && state.navigation.workspaceArea == .diffraction
         }
         XCTAssertEqual(state.navigation.workspaceArea, .diffraction)
+
+        // No phase yet (#1111): the pane draws no cell, said in words; Au as a phase fills it.
+        let none = try await call("get_crystal_view")
+        XCTAssertTrue(none.refused)
+        XCTAssertTrue(none.text.contains("no phase yet"), none.text)
+        try XCTUnwrap(state.openItems.selected).diffraction.setCrystal(try auPhase())
 
         let view = try await call("get_crystal_view")
         XCTAssertFalse(view.refused, view.text)
@@ -164,7 +176,8 @@ nonisolated final class AgentDoorSimulationTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(spots.first?["r_mm"] as? Double), expected, accuracy: expected * 1e-9)
         XCTAssertNotEqual(expected, first)
 
-        // The Unit cell switch, and off limits while the pane is hidden.
+        // The Unit cell switch, and off limits while the pane is hidden; the pane needs a phase (#1111).
+        analysis.setCrystal(try auPhase())
         let off = try await call("set_diffraction", ["unit_cell": false])
         XCTAssertFalse(off.refused, off.text)
         XCTAssertFalse(item.diffractionView.showsUnitCell)
@@ -177,6 +190,16 @@ nonisolated final class AgentDoorSimulationTests: XCTestCase {
         XCTAssertFalse(item.diffractionView.showsUnitCell)
         XCTAssertEqual(item.diffractionView.useLog, log, "a refused call changes nothing")
         item.diffractionView.showsCrystal = true
+
+        // A computed pattern has no ring to fit: its inspector shows no Fit Ring (`DiffractionSections.fitsRings`), and the door
+        // refuses one as it refuses Calibrate on Ring.
+        let ringCount = analysis.rings.count
+        for argument in ["fit_ring", "calibrate"] {
+            let fit = try await call("set_diffraction", [argument: true])
+            XCTAssertTrue(fit.refused, "\(argument): \(fit.text)")
+        }
+        XCTAssertEqual(analysis.rings.count, ringCount)
+        XCTAssertFalse(analysis.isFitting)
 
         // The Export section into the Agent folder.
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("agent-folder-\(UUID().uuidString)")

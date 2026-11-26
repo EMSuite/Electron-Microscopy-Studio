@@ -101,11 +101,25 @@ package nonisolated enum DiffractionCrystal: Sendable, Equatable {
     }
 }
 
+/// A result of the room that the Output pane records (#1113), as the EBSD rooms record each run: a calibration on a standard's ring,
+/// or Index's answer. The app writes the line (`DiffractionEventLine`).
+package nonisolated enum DiffractionEvent: Sendable, Equatable {
+    /// Calibrate on Ring set the scale: the standard and its family, the fitted ring's radius (px), Δq (Å⁻¹/px), and Δq_fit / Δq_file − 1
+    /// in percent when the file has a reciprocal axis.
+    case calibrated(standard: String, family: String, radius: Double, deltaQ: Double, versusFilePercent: Double?)
+    /// Calibrate on Ring set no scale, in words.
+    case calibrationRefused(String)
+    /// Index answered (any verdict), with how many solutions the pattern cannot tell apart.
+    case indexed(PatternIndexing.Outcome, solutions: Int)
+}
+
 @Observable
 package final class DiffractionAnalysis {
     // The facts
     package private(set) var centre: DiffractionCentre?
     package private(set) var crystal: DiffractionCrystal = .preset(StandardCrystals.all[0])
+    /// This analysis is a Simulation document's (set once, when its item is made): its standard is no specimen (`awaitsPhase`).
+    package var isSimulationDocument = false
     /// The standard a ring is calibrated on, and the index of its family in the list (the nearest few families).
     package private(set) var standard: StandardCrystal = StandardCrystals.all[0]
     package var familyIndex = 0
@@ -134,9 +148,13 @@ package final class DiffractionAnalysis {
     package var crystalFailure: String? { cifRefusal ?? listResult().failure }
     /// The simulated spots of a typed zone axis over the pattern (#782): shown or not, the zone axis, its turn, the labels.
     package var simulation = ZoneAxisOverlay.Settings()
+    /// Told of each calibration on a ring and each Index answer that lands (#1113); the app writes it as an Output line.
+    @ObservationIgnored package var onEvent: (@MainActor (DiffractionEvent) -> Void)?
 
     @ObservationIgnored private var generation = 0
     @ObservationIgnored private var fitTask: Task<Void, Never>?
+    /// The centre each ring was fitted about, by id: Calibrate on Ring takes a ring already fitted only about the centre now (#1114).
+    @ObservationIgnored private var ringCentres: [UUID: DiffractionCentre] = [:]
     @ObservationIgnored private var indexTask: Task<Void, Never>?
     @ObservationIgnored private var indexGeneration = 0
     /// The scales Index ran under (a ring's calibration, the typed Δq; the file's axis does not change): its measured |q| over |g|
@@ -302,56 +320,101 @@ package final class DiffractionAnalysis {
 
     // MARK: Rings
 
-    /// Fits the ring in the annulus; with `calibrate`, also calibrates against that family of the standard. Newest wins.
+    /// Fits the ring in the annulus; with `calibrate`, also calibrates against that family of the standard. Newest wins. To calibrate,
+    /// a ring already fitted in this very annulus about this centre is taken as it is (#1114): no second fit and no second row, and nil
+    /// is returned, as nothing runs.
     @discardableResult
     package func fitRing(image: CalibratedImage, inner: Double, outer: Double, calibrateOn family: ReflectionFamily? = nil) -> Task<Void, Never>? {
         guard let centre, inner.isFinite, outer.isFinite, outer > inner, inner > 0 else { return nil }
+        let volts = volts(for: image), pitch = pitchMM, fileQ = fileDeltaQ(image)
+        let standardName = standard.name
+        if let family, let fitted = fittedRing(inner: inner, outer: outer, centre: centre), let fit = fitted.fit {
+            stopFit()
+            failure = nil
+            let answer = Self.ringScale(of: fit, family: family, standard: standardName, volts: volts, pitch: pitch)
+            if let scale = answer.calibration { take(scale, family: family, fromRing: fitted.id) }
+            if let refusal = answer.refusal { failure = refusal }
+            onEvent?(calibrationEvent(standard: standardName, refusal: answer.refusal, fileDeltaQ: fileQ))
+            return nil
+        }
         generation += 1
         let gen = generation
         fitTask?.cancel()
         failure = nil
         isFitting = true
-        let volts = volts(for: image), pitch = pitchMM
-        let standardName = standard.name
         let task = Task.detached(priority: .userInitiated) { [weak self] in
             // A uint8 or uint16 image's Float32 copy is made here, off the main actor (#928).
             let pattern = DiffractionCompute.pattern(of: image)
             let result = DiffractionCompute.fitRing(pattern: pattern, centre: centre, inner: inner, outer: outer, isCancelled: { Task.isCancelled })
             if Task.isCancelled { return }
-            await self?.landRing(result, inner: inner, outer: outer, family: family, standard: standardName, volts: volts, pitch: pitch, generation: gen)
+            await self?.landRing(result, inner: inner, outer: outer, centre: centre, family: family, standard: standardName, volts: volts,
+                                 pitch: pitch, fileDeltaQ: fileQ, generation: gen)
         }
         fitTask = task
         return task
     }
 
-    private func landRing(_ result: (fit: RingRadiusFit?, refusal: String?), inner: Double, outer: Double, family: ReflectionFamily?,
-                          standard name: String, volts: Double?, pitch: Double?, generation gen: Int) {
+    private func landRing(_ result: (fit: RingRadiusFit?, refusal: String?), inner: Double, outer: Double, centre: DiffractionCentre,
+                          family: ReflectionFamily?, standard name: String, volts: Double?, pitch: Double?, fileDeltaQ: Double?,
+                          generation gen: Int) {
         guard gen == generation else { return }
         isFitting = false
         var refusal = result.refusal
-        var calibrating = false
+        var scale: DiffractionCalibration?
         if let family, let fit = result.fit, refusal == nil {
-            do {
-                let calibrated = try DiffractionCompute.calibrate(fit, d: family.d, volts: volts, pitchMM: pitch)
-                if let ring = calibrated.calibration {
-                    ringCalibration = DiffractionCalibration(source: .ringFit(standard: name, family: DiffractionCompute.familyName(family)),
-                                                             deltaQ: ring.deltaQ, ring: ring)
-                    calibratedFamily = DiffractionCompute.familyName(family)
-                    calibrating = true
-                } else {
-                    refusal = calibrated.refusals.first?.reason ?? "the ring could not calibrate the scale"
-                }
-            } catch {
-                refusal = error.localizedDescription
-            }
+            let answer = Self.ringScale(of: fit, family: family, standard: name, volts: volts, pitch: pitch)
+            scale = answer.calibration
+            refusal = answer.refusal
         } else if family != nil, refusal == nil, result.fit == nil {
             refusal = "no ring was fitted"
         }
-        if calibrating { for i in rings.indices { rings[i].isCalibrating = false } }
-        let ring = MeasuredRing(innerRadius: inner, outerRadius: outer, fit: result.fit, refusal: refusal, isCalibrating: calibrating)
+        let ring = MeasuredRing(innerRadius: inner, outerRadius: outer, fit: result.fit, refusal: refusal, isCalibrating: false)
         rings.append(ring)
+        ringCentres[ring.id] = centre
+        if let family, let scale { take(scale, family: family, fromRing: ring.id) }
         lastAdded = ring.id
         if let refusal { failure = refusal }
+        if family != nil { onEvent?(calibrationEvent(standard: name, refusal: refusal, fileDeltaQ: fileDeltaQ)) }
+    }
+
+    /// The ring fitted last in exactly this annulus about this centre, usable and refusing nothing (#1114); nil when there is none.
+    private func fittedRing(inner: Double, outer: Double, centre: DiffractionCentre) -> MeasuredRing? {
+        rings.last { ring in
+            ring.innerRadius == inner && ring.outerRadius == outer && ring.refusal == nil && ring.fit?.isUsable == true
+                && ringCentres[ring.id] == centre
+        }
+    }
+
+    /// The scale a fitted ring gives against the spacing of `family` of the standard `name`, by the kit, or why it gives none.
+    private static func ringScale(of fit: RingRadiusFit, family: ReflectionFamily, standard name: String, volts: Double?,
+                                  pitch: Double?) -> (calibration: DiffractionCalibration?, refusal: String?) {
+        do {
+            let calibrated = try DiffractionCompute.calibrate(fit, d: family.d, volts: volts, pitchMM: pitch)
+            guard let ring = calibrated.calibration else {
+                return (nil, calibrated.refusals.first?.reason ?? "the ring could not calibrate the scale")
+            }
+            return (DiffractionCalibration(source: .ringFit(standard: name, family: DiffractionCompute.familyName(family)), deltaQ: ring.deltaQ,
+                                           ring: ring), nil)
+        } catch {
+            return (nil, error.localizedDescription)
+        }
+    }
+
+    /// The scale a ring set: the room's calibration, and that ring alone marked as the one that set it.
+    private func take(_ calibration: DiffractionCalibration, family: ReflectionFamily, fromRing id: UUID) {
+        ringCalibration = calibration
+        calibratedFamily = DiffractionCompute.familyName(family)
+        for i in rings.indices { rings[i].isCalibrating = rings[i].id == id }
+    }
+
+    /// What a Calibrate on Ring that landed tells the Output pane (#1113): the scale it set, else why it set none.
+    private func calibrationEvent(standard name: String, refusal: String?, fileDeltaQ: Double?) -> DiffractionEvent {
+        guard refusal == nil, let calibration = ringCalibration, let ring = calibration.ring, let family = calibratedFamily else {
+            return .calibrationRefused(refusal ?? "the ring could not calibrate the scale")
+        }
+        let versus = fileDeltaQ.map { 100 * RingScale.fitVersusFile(fitDeltaQ: calibration.deltaQ, fileDeltaQ: $0) }
+        return .calibrated(standard: name, family: family, radius: ring.radius, deltaQ: calibration.deltaQ,
+                           versusFilePercent: versus.flatMap { $0.isFinite ? $0 : nil })
     }
 
     /// Stop (⌘.): the ring fit and Index in flight.
@@ -455,6 +518,7 @@ package final class DiffractionAnalysis {
         indexScaleKey = started
         indexedSpots = spots.map(\.id)
         solutionIndex = 0
+        onEvent?(.indexed(outcome, solutions: solutions.count))
         guard let orientation = outcome.orientation else { return }
         isTurnedByHand = false
         simulation.indexed = orientation
@@ -535,14 +599,20 @@ package final class DiffractionAnalysis {
     package var indexLine: String? { indexHeaderLine(locale: UnitDisplay.point) }
 
     /// `indexLine` with its numbers in `locale`.
-    package func indexHeaderLine(locale: Locale) -> String? {
-        guard let outcome = indexOutcome else { return nil }
-        var line = PatternIndexing.header(outcome, locale: locale)
+    package func indexHeaderLine(locale: Locale) -> String? { indexHeaderLevels(locale: locale).first }
+
+    /// The header's line at each length, longest first (#1113): the whole line, then without the count of spots explained and the
+    /// solution's number, so a narrow header drops those whole and keeps the place, the verdict's words, the misfit and what changed
+    /// since. Empty before Index answered.
+    package func indexHeaderLevels(locale: Locale) -> [String] {
+        guard let outcome = indexOutcome else { return [] }
         let n = solutions.count
-        if n > 1 { line += " · solution \(solutionIndex + 1) of \(n)" }
-        if indexIsStale { line += " · the scale changed since: Index again" }
-        if indexSpotsChanged { line += " · the spots changed since: Index again" }
-        return line
+        var since = ""
+        if indexIsStale { since += " · the scale changed since: Index again" }
+        if indexSpotsChanged { since += " · the spots changed since: Index again" }
+        let full = PatternIndexing.header(outcome, locale: locale) + (n > 1 ? " · solution \(solutionIndex + 1) of \(n)" : "") + since
+        let short = PatternIndexing.header(outcome, locale: locale, spotCount: false) + since
+        return short == full ? [full] : [full, short]
     }
 
     /// The zone axis typed: the simulated spots are this zone axis's, no longer Index's orientation.
@@ -597,12 +667,12 @@ package final class DiffractionAnalysis {
     }
 
     /// The header's line for the drawn orientation once it was turned by hand, or while no Index answer is shown: "Al · 2.1° from
-    /// [001]", "Al [001]" within 0.5°; nil while the overlay is off.
+    /// [001]", "Al [001]" within 0.5°; nil while the overlay is off, and in a Simulation document with no phase yet.
     package var orientationLine: String? { orientationHeaderLine(locale: UnitDisplay.point) }
 
     /// `orientationLine` with its angle in `locale`: the reader's in the header row, the point (the door's) by default (#1039).
     package func orientationHeaderLine(locale: Locale) -> String? {
-        guard simulation.isShown, isTurnedByHand || indexOutcome == nil, let o = drawnOrientation,
+        guard simulation.isShown, !awaitsPhase, isTurnedByHand || indexOutcome == nil, let o = drawnOrientation,
               let near = o.nearestZoneAxis(cell: crystal.structure.cell) else { return nil }
         return PatternIndexing.place(phase: crystal.name, zoneAxis: near.uvw, angle: near.angle, locale: locale)
             + (isTurnedByHand ? " · set by hand" : "")

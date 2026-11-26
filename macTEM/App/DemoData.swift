@@ -38,7 +38,7 @@ nonisolated enum DemoDocument: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .lattice: "Lattice Image"
         case .diffraction: "Au Diffraction Pattern"
-        case .edx: "EDX Spectrum Image"
+        case .edx: "EDS Spectrum Image"
         case .eels: "EELS Spectrum Image"
         case .semImage: "SEM Image (generated)"
         case .semSpectrum: DemoDocuments.Shipped.semEDSSpectrum.title
@@ -103,27 +103,34 @@ extension AppState {
             guard let url = DemoDocuments.Shipped.nanowirePattern.url else { return nil }
             task = open(urls: [url])
         case .siliconSimulation:
-            // New Simulation's own call, then the shipped CIF added to the library and shown, as Open CIF… in the Add Phase sheet adds
-            // and shows one: the Phases list, the spots, the crystal and the powder pattern all name Si, and the sheet goes down. Set
-            // as the room's crystal only, it was no library phase, so the document stayed in its empty state and the room drew the
-            // calibration standard (Au) beside it.
+            // New Simulation's document with the shipped CIF as its shown phase (#1111). The phase is held for the document and set
+            // where it lands (`DemoSimulations`, from `landSimulation`): a window that holds a document opens it in a tab of its own,
+            // whose state is not this one. A loose `.cif` crystal is no simulated phase (`simulatedPhase`), so the phase is the CIF's,
+            // as Open CIF… shows it, without adding it to the person's phase library; with a phase, no Add Phase sheet comes up.
             guard let url = DemoDocuments.Shipped.siliconCIF.url, let bytes = try? Data(contentsOf: url),
                   let silicon = try? CrystalLoading.load(bytes: bytes, fileName: url.lastPathComponent) else { return nil }
-            let opening = newSimulation()
-            task = Task {
-                await opening?.value
-                guard let item = openItems.selected, DemoDocuments.isSimulation(item.url) else { return }
-                do {
-                    let phase = try DiffractionPhases.addCIF(silicon, bytes: bytes, fileName: url.lastPathComponent, to: PhaseServices.library)
-                    DiffractionPhases.set(phase, shown: true, in: item.diffraction)
-                    item.diffractionView.isAddingPhase = false
-                } catch {
-                    item.diffraction.crystalRefused(error.localizedDescription)
-                }
-            }
+            let document = Self.nextSimulationURL()
+            DemoSimulations.hold(DiffractionPhases.crystal(forCIF: silicon), for: document)
+            task = open(urls: [document])
         }
         navigation.workspaceArea = demo.room
         return task
+    }
+}
+
+/// The phase a demo's Simulation document lands with, held under the document's URL until it lands (`AppState.landSimulation`), in
+/// whichever window's tab it opens (#1111), as a reopened session file waits (`SimulationSessions`).
+@MainActor
+enum DemoSimulations {
+    private static var pending: [URL: DiffractionCrystal] = [:]
+
+    /// `crystal` is shown in the document at `document` once it lands.
+    static func hold(_ crystal: DiffractionCrystal, for document: URL) { pending[document] = crystal }
+
+    /// A landing Simulation document a demo opened: its phase is set. Nothing for any other.
+    static func land(_ item: OpenItem) {
+        guard let crystal = pending.removeValue(forKey: item.url) else { return }
+        item.diffraction.setCrystal(crystal)
     }
 }
 

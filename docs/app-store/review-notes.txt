@@ -12,7 +12,7 @@ How to try it:
 With the generated TEM documents:
 - Lattice Image: Image (measure a distance, change the contrast) and FFT (the transform and its spots).
 - Au Diffraction Pattern: Diffraction (calibrate on the ring pattern).
-- EDX Spectrum Image: EDS (elements, maps; click Quantify in the toolbar for the composition).
+- EDS Spectrum Image: EDS (elements, maps; click Quantify in the toolbar for the composition).
 - EELS Spectrum Image: EELS (the thickness map is drawn on open; click Run in the toolbar to align the zero-loss peak and map it again).
 
 With the shipped SEM datasets:

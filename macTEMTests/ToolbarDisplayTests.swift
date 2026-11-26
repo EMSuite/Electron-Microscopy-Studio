@@ -84,7 +84,7 @@ nonisolated final class ToolbarDisplayTests: XCTestCase {
         guard case let .idle(file, room, detail, help)? = ToolbarDisplay.state(state) else {
             return XCTFail("the EDS room at rest shows its file")
         }
-        XCTAssertEqual(file, "Demo EDX")
+        XCTAssertEqual(file, "Demo EDS")
         XCTAssertEqual(room, "EDS")
         XCTAssertEqual(detail, EDXRoomFormat.capsuleDetail(state.edx))
         XCTAssertTrue(detail.hasPrefix("16 × 16 px · "), detail)

@@ -64,7 +64,7 @@ struct DiffractionRoomSettings: View {
         case .crystalView: DiffractionCrystalViewSection(view: view)
         case .precipitate: DiffractionPrecipitateSection(item: item)
         case .powder: DiffractionPowderSection(item: item)
-        case .rings: DiffractionRingsSection(session: item.session, analysis: analysis, view: view)
+        case .rings: DiffractionRingsSection(session: item.session, analysis: analysis, view: view, fitsRings: DiffractionSections.fitsRings(kind))
         case .thickness: DiffractionThicknessSection(item: item)
         }
     }
@@ -124,6 +124,29 @@ private struct DiffractionCentreSection: View {
     }
 }
 
+/// Calibrate on Ring: the Calibration section's button and the Calibrate part's toolbar verb (`RoomPrimaryAction`) run this one call.
+enum DiffractionRingCalibration {
+    static let help = "Fit the ring in the annulus and take Δq from its radius and the family's listed spacing"
+
+    /// Why Calibrate on Ring cannot run now, in words; nil when it can. A ring fit in flight is not a blocker: the verb is its Stop.
+    @MainActor
+    static func blocker(_ analysis: DiffractionAnalysis) -> String? {
+        if analysis.centre == nil { return "Calibrate needs the pattern's centre" }
+        if analysis.standardFamilies().isEmpty { return "The standard lists no ring to calibrate on: choose another standard" }
+        return nil
+    }
+
+    /// Fits the ring in the annulus and calibrates against the picked family of the standard, after the pending edits commit.
+    @MainActor
+    static func run(_ analysis: DiffractionAnalysis, view: DiffractionViewState, image: CalibratedImage) {
+        PendingEdits.run {
+            let families = analysis.standardFamilies()
+            guard families.indices.contains(analysis.familyIndex) else { return }
+            analysis.fitRing(image: image, inner: view.annulusInner, outer: view.annulusOuter, calibrateOn: families[analysis.familyIndex].family)
+        }
+    }
+}
+
 private struct DiffractionCalibrationSection: View {
     let session: ImageSession
     private var image: CalibratedImage { session.imageOrBlank }
@@ -134,6 +157,7 @@ private struct DiffractionCalibrationSection: View {
     var body: some View {
         let calibration = analysis.calibration(for: image)
         let families = analysis.standardFamilies()
+        let ringBlocker = DiffractionRingCalibration.blocker(analysis)
         InspectorSection("Calibration") {
             InspectorValueRow("Scale", calibration.map { "\($0.sourceText) · \(Num.fixed($0.deltaQ, 5)) Å⁻¹/px" } ?? "none")
             if let fit = analysis.fitVersusFilePercent(for: image) {
@@ -152,12 +176,10 @@ private struct DiffractionCalibrationSection: View {
                 .labelsHidden().fixedSize().accessibilityIdentifier("diffraction.family")
             }
             InspectorActionRow {
-                Button("Calibrate on Ring") {
-                    PendingEdits.run { if families.indices.contains(analysis.familyIndex) { analysis.fitRing(image: image, inner: view.annulusInner, outer: view.annulusOuter, calibrateOn: families[analysis.familyIndex].family) } }
-                }
-                .disabled(analysis.isFitting || families.isEmpty)
-                .help("Fit the ring in the annulus and take Δq from its radius and the family's listed spacing")
-                .accessibilityIdentifier("diffraction.calibrate")
+                Button("Calibrate on Ring") { DiffractionRingCalibration.run(analysis, view: view, image: image) }
+                    .disabled(analysis.isFitting || ringBlocker != nil)
+                    .help(ringBlocker ?? DiffractionRingCalibration.help)
+                    .accessibilityIdentifier("diffraction.calibrate")
                 if analysis.ringCalibrationExists { Button("Clear") { DiffractionUndo.clearCalibration(in: analysis, undoManager: undoManager) }.accessibilityIdentifier("diffraction.calibration.clear") }
             }
             if let ring = calibration?.ring {
@@ -593,26 +615,38 @@ private struct DiffractionRingsSection: View {
     private var image: CalibratedImage { session.imageOrBlank }
     let analysis: DiffractionAnalysis
     let view: DiffractionViewState
+    /// The pattern's rings are fitted here (`DiffractionSections.fitsRings`): a computed pattern (a Simulation document, its CBED
+    /// pattern) has no ring to fit, so no annulus and no Fit Ring, as its Tools have no Ring.
+    let fitsRings: Bool
     @Environment(\.undoManager) private var undoManager
 
     var body: some View {
         InspectorSection("Rings and Spots") {
-            InspectorNote("Ring tool: drag from the inner to the outer edge of a ring. Spot tool: click a spot.")
-            InspectorRow("Inner") {
-                OptionalNumericField(title: "Inner radius", value: view.annulusInner, format: pixelFormat, unit: "px") { view.setAnnulus(inner: $0, outer: view.annulusOuter) }
-            }
-            InspectorRow("Outer") {
-                OptionalNumericField(title: "Outer radius", value: view.annulusOuter, format: pixelFormat, unit: "px") { view.setAnnulus(inner: view.annulusInner, outer: $0) }
-            }
-            InspectorActionRow {
-                Button("Fit Ring") { PendingEdits.run { analysis.fitRing(image: image, inner: view.annulusInner, outer: view.annulusOuter) } }
-                    .disabled(analysis.isFitting).accessibilityIdentifier("diffraction.fitRing")
-                Button("Remove") { if let id = view.selection { DiffractionUndo.remove(id, in: analysis, undoManager: undoManager); view.selection = nil } }.disabled(view.selection == nil).accessibilityIdentifier("diffraction.remove")
+            if fitsRings {
+                InspectorNote("Ring tool: drag from the inner to the outer edge of a ring. Spot tool: click a spot.")
+                InspectorRow("Inner") {
+                    OptionalNumericField(title: "Inner radius", value: view.annulusInner, format: pixelFormat, unit: "px") { view.setAnnulus(inner: $0, outer: view.annulusOuter) }
+                }
+                InspectorRow("Outer") {
+                    OptionalNumericField(title: "Outer radius", value: view.annulusOuter, format: pixelFormat, unit: "px") { view.setAnnulus(inner: view.annulusInner, outer: $0) }
+                }
+                InspectorActionRow {
+                    Button("Fit Ring") { PendingEdits.run { analysis.fitRing(image: image, inner: view.annulusInner, outer: view.annulusOuter) } }
+                        .disabled(analysis.isFitting).accessibilityIdentifier("diffraction.fitRing")
+                    removeButton
+                }
+            } else {
+                InspectorNote("Spot tool: click a spot.")
+                InspectorActionRow { removeButton }
             }
             InspectorActionRow {
                 Button("Remove All") { DiffractionUndo.removeAll(in: analysis, undoManager: undoManager) }.disabled(analysis.rings.isEmpty && analysis.spots.isEmpty)
             }
         }
+    }
+
+    private var removeButton: some View {
+        Button("Remove") { if let id = view.selection { DiffractionUndo.remove(id, in: analysis, undoManager: undoManager); view.selection = nil } }.disabled(view.selection == nil).accessibilityIdentifier("diffraction.remove")
     }
 }
 

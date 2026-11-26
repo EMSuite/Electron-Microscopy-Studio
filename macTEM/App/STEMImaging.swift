@@ -26,18 +26,43 @@ extension AppState {
         return openItems.items.first { $0.stem.isRunning }
     }
 
-    /// Show STEM Image: opens (or brings forward) the image of `simulation` in the Image room, here or in a tab of its own. The run
-    /// is the image's toolbar Simulate (#1047): a STEM scan takes minutes, so opening the image does not start one, and its
-    /// placeholder says "not computed yet: press Simulate" until a run goes (#1022; Show CBED Pattern starts its run, which takes seconds).
-    func showSTEMImage(of simulation: OpenItem) {
+    /// Show STEM Image: opens (or brings forward) the image of `simulation` in the Image room, here or in a tab of its own, which then
+    /// runs its verb (`simulateSTEM`, the image's toolbar Simulate, #1047), as Show HRTEM Image and Show CBED Pattern compute on Show:
+    /// the image fills as positions land, the run's progress and Stop are that window's toolbar's, and the section's plan line states
+    /// the run's size before it. Nothing runs while the verb is refused or already running (`stemVerbRefusal`); the image's toolbar says
+    /// why, and its placeholder says "not computed yet: press Simulate" (#1022). An image opened by itself (a reopened tab) runs nothing.
+    /// Returns the task that ends when both are done.
+    @discardableResult
+    func showSTEMImage(of simulation: OpenItem) -> Task<Void, Never>? {
         let url = DemoDocuments.stemURL(of: simulation.url)
+        let opening: Task<Void, Never>?
         if let held = pairedItem(at: url) {
             held.state.openItems.select(held.item.id)
             held.state.selectWorkspace(.image)
             held.state.showWindow?()
             refreshSTEMImage(of: simulation)
+            opening = nil
         } else {
-            _ = open(urls: [url])
+            opening = open(urls: [url])
+        }
+        return Task {
+            await opening?.value
+            guard stemVerbRefusal(of: simulation) == nil else { return }
+            await simulateSTEM(of: simulation)
+        }
+    }
+
+    /// Why the STEM image's Simulate does not run for `simulation` now, as its toolbar verb is off (`RoomPrimaryAction`): the run's
+    /// refusal (`stemRun`), another document's run (`STEMModel.blocker`), a run already going, or an image complete for these settings.
+    func stemVerbRefusal(of simulation: OpenItem) -> String? {
+        let model = simulation.stem
+        if model.isRunning { return "The STEM run is going." }
+        switch stemRun(of: simulation) {
+        case .failure(let refusal): return refusal.sentence
+        case .success(let run):
+            if let blocker = model.blocker { return blocker }
+            if model.holds(run.key), model.scan?.isComplete == true { return "The image is complete for these settings: change one to simulate again" }
+            return nil
         }
     }
 

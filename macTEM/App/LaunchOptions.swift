@@ -6,14 +6,14 @@
 //          --ui-testing            ignore the saved window and split geometry and the saved application state, so every launch is the same window
 //          --demo-fixture          open the generated "Demo lattice" image (DemoDocuments, in memory)
 //          --demo-diffraction-fixture open the generated "Demo Au pattern" (a ring pattern with planted centre and scale) in the Diffraction room
-//          --demo-spectrum-fixture open the generated "Demo EDX" spectrum image in the EDX room
+//          --demo-spectrum-fixture open the generated "Demo EDS" spectrum image in the EDS room
 //          --demo-eels-fixture     open the generated "Demo EELS" spectrum image in the EELS room
 //          --demo-ebsd-fixture     open the generated "Demo EBSD" pattern dataset in the Patterns room (the menu opens the shipped nickel scan)
-//          --demo-regions          with the EDX fixture: two rectangles (4 x 4 and 8 x 8 pixels) and a line across the maps, as if drawn
+//          --demo-regions          with the EDS fixture: two rectangles (4 x 4 and 8 x 8 pixels) and a line across the maps, as if drawn
 //          --demo-stack-fixture    open the generated "Demo stack" (24 frames, a multi-page TIFF written to the temporary folder)
-//          --demo-msa-fixture      open the demo EDX spectrum as an .msa file through the app's Open (routed by content to the EDX room)
+//          --demo-msa-fixture      open the demo EDS spectrum as an .msa file through the app's Open (routed by content to the EDS room)
 //          --demo-sem-tiff-fixture open the generated "Demo SEM image" (a Thermo-style SEM TIFF with a databar, written to the temporary folder)
-//          --demo-sem-eds          open the shipped SEM-EDS spectrum (DemoData/EDS_SEM_TM002.hspy) through the app's Open, into the EDX room
+//          --demo-sem-eds          open the shipped SEM-EDS spectrum (DemoData/EDS_SEM_TM002.hspy) through the app's Open, into the EDS room
 //          --demo-ang              open the shipped orientation map (DemoData/sdss_ferrite_austenite.ang) through the app's Open, into the Maps room
 //          --demo-large-image <n>  open a generated n x n 16-bit TIFF (64 to 8192, written to the temporary folder) through the app's Open:
 //                                  the launch and first-picture budgets (PerformanceJourney, docs/performance.md)

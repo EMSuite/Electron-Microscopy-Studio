@@ -141,7 +141,7 @@ nonisolated final class AgentDoorCoverageTests: XCTestCase {
     /// The reader takes literals, interpolations and expressions as written.
     func testTheMenuReaderReadsTitlesAsWritten() {
         let text = #"""
-        Button("Open Image…") { perform(.openImage) }
+        Button("Open…") { perform(.openImage) }
         Button("Go to \(group.title)") { x() }
         Button(recents.title(of: entry)) { y() }
         Toggle(tool.title, isOn: Binding(get: { a }, set: { b }))
@@ -149,7 +149,7 @@ nonisolated final class AgentDoorCoverageTests: XCTestCase {
         CheckForUpdatesButton(update: update)
         """#
         XCTAssertEqual(Self.menuTitles(in: text), [
-            "Open Image…", #"Go to \(group.title)"#, "recents.title(of: entry)", "tool.title",
+            "Open…", #"Go to \(group.title)"#, "recents.title(of: entry)", "tool.title",
             #"appState.map { RoomPrimaryAction.stopTitle($0) } ?? "Stop""#,
         ])
     }

@@ -9,6 +9,10 @@ import ShellLayout
 import SwiftUI
 
 extension LayoutPolicy {
+    /// A new window's size (review of 2026-11-26): at ShellLayout's `datasetWindowIdealSize` (1280 × 800) the two-panel rooms drew
+    /// 350 pt pictures in mostly empty panes. ShellLayout's size stays the other app's.
+    static let windowDefaultSize = CGSize(width: 1440, height: 900)
+
     /// The rooms' row height per system sidebar size, a little more than the system's own (23, 30, 38 pt) so the list breathes (Paul,
     /// 2026-10-22: the sidebar was cramped). The list itself fills the column: with the Open Files list gone (2026-11-10) it has no
     /// height of its own to keep.
@@ -29,10 +33,12 @@ extension LayoutPolicy {
     static let ebsdFamilyColumn: (min: CGFloat, ideal: CGFloat) = (36, 44)
     /// The HRTEM defocus by thickness table sheet's least height, with its readable width (rule 4).
     static let hrtemTableMinimumHeight: CGFloat = 480
-    /// The Diffraction room's tables (#1041), panes of the shell's bottom area since #1094: the table's header and
+    /// The Diffraction room's tables (#1041), tabs of the shell's bottom area since #1094 and #1112: the table's header and
     /// `diffractionTableRows` rows at the system table's row height, which the bottom area at its ideal height holds in a 1400 × 876
-    /// window, so an indexed pattern's Spots table shows eight rows, not four and a half. The area's height is the person's to drag.
-    static let diffractionTableRows = 8
+    /// window under the area's tab header (`LayoutPolicy.paneHeaderHeight` and a divider), so an indexed pattern's Spots table shows
+    /// seven rows, not four and a half (eight before #1112, when the area had no header of its own). The area's height is the
+    /// person's to drag.
+    static let diffractionTableRows = 7
     static let diffractionTableRowHeight: CGFloat = 24
     static let diffractionTableHeaderHeight: CGFloat = 28
     /// The colour dot before a region's name in the Table tab.

@@ -70,7 +70,7 @@ nonisolated final class ToolbarExportTests: XCTestCase {
         XCTAssertEqual(ToolbarExport.help, "Export from this room")
     }
 
-    /// `toolbar.export` replaces `toolbar.datasetMenu`, in the view and in the door's coverage; File > Open Image… keeps its row.
+    /// `toolbar.export` replaces `toolbar.datasetMenu`, in the view and in the door's coverage; File > Open… keeps its row.
     func testTheIdentifierIsExport() throws {
         let view = try source("macTEM/UI/ContentView.swift")
         XCTAssertTrue(view.contains(".accessibilityIdentifier(\"toolbar.export\")"))
@@ -78,7 +78,7 @@ nonisolated final class ToolbarExportTests: XCTestCase {
         XCTAssertFalse(view.contains("struct ImageMenu"), "the menu that repeated Open and Close is gone")
         XCTAssertEqual(AgentDoorCoverage.controls["toolbar.export"], .personOnly(AgentDoorCoverage.exportReason))
         XCTAssertNil(AgentDoorCoverage.controls["toolbar.datasetMenu"])
-        XCTAssertEqual(AgentDoorCoverage.menuItems["Open Image…"], .tool("open_file"))
+        XCTAssertEqual(AgentDoorCoverage.menuItems["Open…"], .tool("open_file"))
     }
 
     /// Off with its reason while the room holds no document. Mutation: on in an empty window.

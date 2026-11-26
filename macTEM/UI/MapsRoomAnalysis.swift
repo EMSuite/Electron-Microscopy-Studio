@@ -2,7 +2,7 @@
 //  MapsRoomAnalysis.swift
 //  Role: what the Maps room shows of its grain analysis and texture (docs/sem/design/orientation-maps-room.md §3-§4, brief P5-04): the
 //        boundaries, the selected grain's outline and its slip traces over the map; the Detail panel beside the map (the picked point
-//        with the colour key, Pole figures, ODF, Histogram; #1089); the Grains and Slip tables, panes of the shell's bottom area (#1095);
+//        with the colour key, Pole figures, ODF, Histogram; #1089); the Grains and Slip tables, tabs of the shell's bottom area (#1095);
 //        and the inspector's Misorientation, Grains, Slip and Texture sections. Presentation only: the numbers are `MapAnalysis` and
 //        `MapTexture`'s (TEMCore), the state `OrientationMapSession`'s (TEMSession), the words `MapsRoomFormat`'s.
 //
@@ -149,7 +149,7 @@ struct MapsDetailPane: View {
 
 // MARK: - The tables in the bottom area
 
-/// A table of the room as a pane of the shell's bottom area beside Output (#1095), supplied by `WorkspaceView` while the room shows a map.
+/// A table of the room as a tab of the shell's bottom area beside Output (#1095, #1112), supplied by `WorkspaceView` while the room shows a map.
 struct MapsTablePane: View {
     let table: MapsTable
     @Environment(AppState.self) private var appState

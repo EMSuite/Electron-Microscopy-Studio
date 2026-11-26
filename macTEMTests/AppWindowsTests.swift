@@ -9,6 +9,7 @@
 
 import XCTest
 import ImagoCore
+import ShellLayout
 @testable import macTEM
 import TEMCore
 import TEMSession
@@ -38,7 +39,7 @@ nonisolated final class AppWindowsTests: XCTestCase {
     }
 
     /// File > Open with the only window minimised (#762, the 2.1.1 walk): the minimised window is still on screen and takes the action,
-    /// so no second, empty window opens; with every window closed one does. Red before: Open Image… opened a window whenever none
+    /// so no second, empty window opens; with every window closed one does. Red before: Open… opened a window whenever none
     /// was focused.
     @MainActor func testAMenuActionWithTheOnlyWindowMinimisedOpensNoSecondWindow() throws {
         let windows = AppWindows()
@@ -54,6 +55,19 @@ nonisolated final class AppWindowsTests: XCTestCase {
             .split(whereSeparator: \.isWhitespace).joined(separator: " ")
         XCTAssertTrue(app.contains("menuRelay.request(action) if windows.menuActionNeedsNewWindow { openWindow(id: \"image\") }"),
                       "the File menu opens a window for its action only when none is on screen")
+    }
+
+    /// A new window opens at 1440 × 900 (review of 2026-11-26): at the shell's 1280 × 800 the two-panel rooms drew 350 pt pictures in
+    /// mostly empty panes. The size is the app's own; ShellLayout's stays the other app's. Red before: the window group's default size
+    /// was `LayoutPolicy.datasetWindowIdealSize`.
+    @MainActor func testANewWindowOpensAt1440By900() throws {
+        XCTAssertEqual(LayoutPolicy.windowDefaultSize, CGSize(width: 1440, height: 900))
+        let root = URL(fileURLWithPath: #filePath).resolvingSymlinksInPath().deletingLastPathComponent().deletingLastPathComponent()
+        let app = try String(contentsOf: root.appendingPathComponent("macTEM/App/macTEMApp.swift"), encoding: .utf8)
+            .split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        XCTAssertTrue(app.contains(".defaultSize(width: LayoutPolicy.windowDefaultSize.width, height: LayoutPolicy.windowDefaultSize.height)"),
+                      "the window group opens at the app's size")
+        XCTAssertFalse(app.contains("datasetWindowIdealSize"), "not at the shell's")
     }
 
     /// Red under: the front window staying the first one; a closed front window still named as front.

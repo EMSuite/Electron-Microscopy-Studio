@@ -1,7 +1,8 @@
 //
 //  EELSJourney.swift
-//  The EELS room on the demo spectrum image (t/λ planted at 0.5 at every pixel): enter the room, let the map compute, point at a tile and
-//  read the pixel's t/λ, which is the planted 0.50 within the kit's stated bias of the estimated threshold, with the Methods tag (each method and its reference) shown.
+//  The EELS room on the demo spectrum image (t/λ planted at 0.5 in the upper half and 0.8 in the lower, an interface across the middle): enter the room, let
+//  the map compute, point at the upper half of a tile and read the pixel's t/λ, which is the planted 0.50 within the kit's stated bias of the estimated
+//  threshold, with the Methods tag (each method and its reference) shown.
 //  Since 1.0 the maps block is the colour mix (the anchor, where regions are drawn) and the maps the Maps control picks (t/λ by default, the ZLP shift
 //  after Align unless it is flat, the fitted edges); I₀, I total and the ZLP centres are not drawn (`EELSMapsComposition.compose`), and the regions are rows
 //  of the Results area's Regions table, not a list in the inspector.
@@ -10,12 +11,12 @@
 import XCTest
 
 nonisolated final class EELSJourney: Journey {
-    /// The pointer rests on the t/λ map (the readout stands in the status line while it is over a map, control placement §7).
+    /// The pointer rests on the t/λ map's upper half, the thinner side (the readout stands in the status line while it is over a map, control placement §7).
     @MainActor func pointAtTheThicknessMap() {
         waitFor("eels.maps", timeout: 60)
         let tile = app.groups.matching(NSPredicate(format: "label BEGINSWITH %@", "t/\u{03BB} map")).firstMatch
         XCTAssertTrue(tile.waitForExistence(timeout: 60), "the t/λ map never appeared")
-        tile.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.4)).hover()
+        tile.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.25)).hover()
     }
 
     /// The t/λ the status line reads under the pointer ("row 4 · col 3 · t/λ 0.5 · …", the room's one readout since the maps block
@@ -121,8 +122,9 @@ nonisolated final class EELSJourney: Journey {
 
     /// Regions are compared: two rectangles and a line (the launch draws them with the room's own calls, `--demo-regions`; a drag with real mouse events is checked by
     /// hand). The Results area's Regions table has a row for each region with its pixel count (planted: 4 x 4 = 16 and 8 x 8 = 64 of the 16 x 16 scan) and its t/λ from
-    /// the summed spectrum, the planted 0.5 at every pixel and so in every region (the kit's estimated rule: within 0.01); a line is not a row; the profile along the
-    /// line (selected when drawn) is the inset over the spectrum. No Regions list in the inspector and no Table or Profile tab since 1.0.
+    /// the summed spectrum (the kit's estimated rule: within 0.01): Region 1, a corner of the upper half, the planted 0.5; Region 2, half above and half below the
+    /// interface, ln((e^0.5 + e^0.8) / 2) = 0.661 (one zero-loss area everywhere, so the sum's ratio is the mean of e^(t/λ)); a line is not a row; the profile
+    /// along the line (selected when drawn) is the inset over the spectrum. No Regions list in the inspector and no Table or Profile tab since 1.0.
     @MainActor func testRegionsEachReadThePlantedHalf() throws {
         try step("launch with the demo EELS image and two regions") { launch(["--demo-eels-fixture", "--demo-regions"]) }
         try step("go to the EELS room") {
@@ -134,10 +136,10 @@ nonisolated final class EELSJourney: Journey {
             XCTAssertEqual(waitValue("eels.regionTable.Region 1.pixels", timeout: 30) { !$0.isEmpty }, "16")
             XCTAssertEqual(waitValue("eels.regionTable.Region 2.pixels", timeout: 30) { !$0.isEmpty }, "64")
             XCTAssertFalse(element("eels.regionTable.Line 1.pixels").exists, "a line has a profile, not a row")
-            for region in ["Region 1", "Region 2"] {
+            for (region, planted) in [("Region 1", 0.5), ("Region 2", 0.661)] {
                 let value = waitValue("eels.regionTable.\(region).tOverLambda", timeout: 60) { !$0.isEmpty }
                 let t = try XCTUnwrap(Double(value.replacingOccurrences(of: ",", with: ".")), "no number in \"\(value)\"")
-                XCTAssertEqual(t, 0.5, accuracy: 0.01, "\(region): t/λ = \(t)")
+                XCTAssertEqual(t, planted, accuracy: 0.01, "\(region): t/λ = \(t)")
             }
         }
         try step("the line has a profile over the spectrum") {

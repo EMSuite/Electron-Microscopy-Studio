@@ -24,6 +24,9 @@ struct WorkspaceView: View {
         WorkspaceColumn(
             navigation: appState.navigation.panels,
             tabs: [ProcessTab.output { OutputPane(log: appState.activityLog) }] + diffractionTabs + mapsTabs,
+            // One tab at a time at full width, chosen in the area's header, one toggle for the area (#1112): side by side, two tables
+            // and Output were about 180 pt each and clipped, under up to four look-alike toggles.
+            processAreaStyle: .tabs,
             hasDocument: hasDocument,
             statusText: cursorReadout ?? appState.statusText,
             isRunning: showsRun,
@@ -37,10 +40,6 @@ struct WorkspaceView: View {
                 await appState.semEDS.load(path: appState.edx.source?.metadata.filePath)
                 await appState.semEDS.pickFileElements(in: appState.edx)
             }
-            // Another part or another room takes the Diffraction tables away: the area never stands open with none of its panes.
-            .onChange(of: diffractionTables) { DiffractionRoomState.keepAPaneShown(supplied: diffractionTables, in: appState.navigation.panels) }
-            // The same for the Maps tables, when the room or its map goes.
-            .onChange(of: mapsTables) { MapsRoomState.keepAPaneShown(supplied: mapsTables, in: appState.navigation.panels) }
     }
 
     /// The Maps room's tables (#1095): Grains and Slip while the room shows a map, none elsewhere.
@@ -49,8 +48,9 @@ struct WorkspaceView: View {
         return MapsTable.allCases
     }
 
-    /// The Maps room's tables as panes of the bottom area beside Output, each with its toggle in the infobar, under the bar the person
-    /// drags (#1095); the window shows each on its own once it has something to list (`MapsRoomState.offer`).
+    /// The Maps room's tables as tabs of the bottom area beside Output, under the bar the person drags (#1095, #1112); the window
+    /// selects each on its own once it has something to list (`MapsRoomState.offer`). When the room or its map goes, a table left
+    /// selected shows as Output (`ProcessAreaLayout.shownTab`).
     private var mapsTabs: [ProcessTab] {
         mapsTables.map { table in
             ProcessTab(id: table.paneID, title: table.title, systemImage: table.systemImage) {
@@ -65,8 +65,9 @@ struct WorkspaceView: View {
         return DiffractionPart.tables(appState.diffractionPart)
     }
 
-    /// The Diffraction room's tables as panes of the bottom area beside Output, each with its toggle in the infobar, under the bar
-    /// the person drags (#1094); the window shows the part's first table on its own once (`DiffractionRoomState.offer`).
+    /// The Diffraction room's tables as tabs of the bottom area beside Output, under the bar the person drags (#1094, #1112); the
+    /// window selects the part's opening table on its own once (`DiffractionRoomState.offer`). When another part or room takes the
+    /// tables away, a table left selected shows as Output (`ProcessAreaLayout.shownTab`).
     private var diffractionTabs: [ProcessTab] {
         diffractionTables.map { table in
             ProcessTab(id: table.paneID, title: table.title, systemImage: table.systemImage) {
@@ -271,7 +272,7 @@ struct WelcomeWorkspace: View {
                         .frame(maxWidth: LayoutPolicy.readableWidth)
                 }
                 HStack(spacing: 12) {
-                    Button("Open Image…") { appState.requestOpenImage() }
+                    Button("Open…") { appState.requestOpenImage() }
                         .buttonStyle(.borderedProminent)
                         .controlSize(.large)
                         .keyboardShortcut(.defaultAction)

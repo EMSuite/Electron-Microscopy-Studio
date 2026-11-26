@@ -8,9 +8,11 @@
 //  (its Simulate was a button in the STEM section), so Workspace > Run read "Index" or "Run" in them.
 //
 
+import DiffractoCore
 import Foundation
 import ShellAgentDoor
 import ShellLayout
+import TEMCore
 import TEMSession
 import XCTest
 @testable import macTEM
@@ -54,8 +56,8 @@ nonisolated final class SimulateVerbTests: XCTestCase {
 
     // MARK: On a window's state
 
-    /// A Simulation document has no verb (and so no Index); its CBED pattern's verb is Simulate, off with the beam Parallel and the
-    /// reason as help; its STEM image's verb is Simulate, off with the run's refusal as help; Workspace > Run follows.
+    /// A Simulation document has no verb (and so no Index); its CBED pattern's verb is Measure in Thickness, where it opens, and
+    /// Simulate in the Simulate part, off with the beam Parallel and the reason as help; its STEM image's verb is Simulate, off with the run's refusal as help; Workspace > Run follows.
     /// Mutation: Index on the Simulation document or the CBED pattern; no verb on the STEM image.
     @MainActor func testEachComputedDocumentHasItsVerb() async throws {
         let state = AppState(launch: LaunchOptions(arguments: []))
@@ -76,6 +78,11 @@ nonisolated final class SimulateVerbTests: XCTestCase {
             state.openItems.selected.map { DemoDocuments.isCBED($0.url) } ?? false
         }
         XCTAssertEqual(state.navigation.workspaceArea, .diffraction)
+        // It opens on Thickness, whose verb is Measure; Simulate is the Simulate part's (the verb is the part's own main action).
+        XCTAssertEqual(state.diffractionPart, .thickness)
+        XCTAssertEqual(RoomPrimaryAction.current(state)?.title, "Measure")
+        state.selectDiffractionPart(.simulate)
+        XCTAssertEqual(state.diffractionPart, .simulate)
         let cbed = try XCTUnwrap(RoomPrimaryAction.current(state))
         XCTAssertEqual(cbed.title, "Simulate")
         XCTAssertFalse(cbed.isEnabled)
@@ -100,6 +107,39 @@ nonisolated final class SimulateVerbTests: XCTestCase {
         }
         XCTAssertFalse(stem.isRunning, "opening the image starts no scan")
         XCTAssertEqual(RoomPrimaryAction.runTitle(state), "Simulate")
+    }
+
+    /// Show STEM Image computes on Show, as Show HRTEM Image and Show CBED Pattern do (review 2026-11-26: it opened a black tab that waited
+    /// for the toolbar's Simulate): the image opens in the Image room and its scan starts, its Stop the toolbar's; with the verb refused
+    /// (no phase yet) Show opens the image and runs nothing. Mutation: Show STEM Image opening the image only; Show running past a refusal.
+    @MainActor func testShowSTEMImageRunsTheScan() async throws {
+        let state = AppState(launch: LaunchOptions(arguments: []))
+        await state.newSimulation()?.value
+        let simulation = try XCTUnwrap(state.openItems.selected)
+        XCTAssertTrue(DemoDocuments.isSimulation(simulation.url))
+        XCTAssertNotNil(state.stemVerbRefusal(of: simulation), "no phase yet")
+        await state.showSTEMImage(of: simulation)?.value
+        XCTAssertEqual(state.navigation.workspaceArea, .image)
+        XCTAssertEqual(state.openItems.selected.map { DemoDocuments.isSTEM($0.url) }, true)
+        XCTAssertNil(simulation.stem.scan, "a refused verb runs nothing on Show")
+
+        // A small run (Si [1 1 0], 0.5 nm, a 20 mrad probe at 1 Å steps): Show again starts it; Stop keeps what it did.
+        simulation.diffraction.setCrystal(.phase(PhaseCrystal(id: "mp-149", name: "Si", structure: CrystalPresets.silicon)))
+        simulation.diffraction.setZoneAxis(SIMD3(1, 1, 0))
+        simulation.multislice.setThickness(nm: 0.5)
+        simulation.stem.changeSettings {
+            $0.semiangleMrad = 20
+            $0.scanStepAngstrom = 1
+            $0.collectMrad = 100
+            $0.defocusNM = 0
+        }
+        XCTAssertNil(state.stemVerbRefusal(of: simulation), "the run can go")
+        let shown = state.showSTEMImage(of: simulation)
+        try await waitUntil("the scan to start", seconds: 60) { simulation.stem.isRunning || simulation.stem.scan != nil }
+        simulation.stem.stop()
+        await shown?.value
+        XCTAssertNotNil(simulation.stem.scan, "Show STEM Image ran the scan")
+        XCTAssertFalse(simulation.stem.isRunning, "the toolbar's Stop ended it")
     }
 
     /// The STEM section keeps its plan line and loses the button and its progress bar; the CBED rows lose Stop and the progress bar

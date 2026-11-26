@@ -75,11 +75,11 @@ nonisolated final class MenuKeyTableTests: XCTestCase {
         XCTAssertTrue(app.contains("if let appState, appState.navigation.workspaceArea == .edx, appState.edx.hasImage {"))
     }
 
-    /// Every toolbar verb (Quantify, Run, Process, Index, Segment) has a menu item with a key: Workspace › Run (⌘R) takes the shown
+    /// Every toolbar verb (Quantify, Run, Process, Index, Segment, and the Diffraction parts' Calibrate and Measure) has a menu item with a key: Workspace › Run (⌘R) takes the shown
     /// room's verb as its title and runs it (RoomRunMenuTests runs it), and Workspace › Stop (⌘.) stops it.
     func testEveryToolbarVerbHasTheRunItem() throws {
         let verbs = squeezed(try source("macTEM/UI/RoomPrimaryAction.swift"))
-        for verb in ["Quantify", "Run", "Process", "Index", "Segment"] {
+        for verb in ["Quantify", "Run", "Process", "Index", "Segment", "Calibrate", "Measure"] {
             XCTAssertTrue(verbs.contains("title: \"\(verb)\""), "\(verb) is a room's toolbar verb")
         }
         XCTAssertTrue(verbs.contains("static func runTitle(_ appState: AppState?) -> String { appState.flatMap { current($0)?.title } ?? \"Run\" }"))

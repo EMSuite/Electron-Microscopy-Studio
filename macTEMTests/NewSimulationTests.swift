@@ -44,6 +44,30 @@ nonisolated final class NewSimulationTests: XCTestCase {
         XCTAssertEqual(s200.column, 256, accuracy: 1e-9)
     }
 
+    /// #1111: with no phase yet the crystal pane draws no cell and the header names no crystal, as the pattern's empty state says: the
+    /// room's standard (Au) is no specimen in a Simulation document. A phase shown fills both; a measured pattern keeps its standard.
+    /// Red before: the pane drew an Au cell beside "No phase yet" and the header read "Au [001]".
+    @MainActor func testASimulationWithNoPhaseNamesNoCrystal() async throws {
+        let state = AppState(launch: LaunchOptions(arguments: []))
+        await state.newSimulation()?.value
+        let analysis = try XCTUnwrap(state.openItems.selected).diffraction
+        XCTAssertTrue(analysis.simulation.isShown)
+        XCTAssertTrue(analysis.awaitsPhase)
+        XCTAssertNil(DiffractionCrystalScenes.shown(analysis), "no Au cell in the crystal pane")
+        XCTAssertEqual(DiffractionCrystalScenes.emptySentence(analysis), SimulationEmptyState.sentence)
+        XCTAssertNil(analysis.orientationLine, "no \"Au [001]\" in the header")
+
+        let al = try XCTUnwrap(StandardCrystals.named("Al"))
+        analysis.setCrystal(.phase(PhaseCrystal(id: "test-al", name: "Al", structure: al.structure)))
+        XCTAssertFalse(analysis.awaitsPhase)
+        XCTAssertNotNil(DiffractionCrystalScenes.shown(analysis))
+        XCTAssertEqual(analysis.orientationLine, "Al [001]")
+
+        let measured = DiffractionAnalysis()
+        measured.simulation.isShown = true
+        XCTAssertFalse(measured.awaitsPhase, "a measured pattern's standard is its specimen")
+    }
+
     /// A second New Simulation is a document of its own, never the first one brought forward; a measured pattern is no simulation.
     @MainActor func testEachNewSimulationIsADocumentOfItsOwn() async throws {
         let state = AppState(launch: LaunchOptions(arguments: []))

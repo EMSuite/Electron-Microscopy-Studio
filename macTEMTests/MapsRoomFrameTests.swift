@@ -2,8 +2,8 @@
 //  MapsRoomFrameTests.swift
 //  The Maps room sits on the frame (#1089, #1095): its centre is the shell's `WorkspaceCentre`, the Map and Detail panels each a
 //  `CentrePanel`; the map is fitted to its panel and nothing is placed over it but what is the map's; the Grains table and the picked
-//  grain's slip planes are tables of the shell's bottom area beside Output, each shown by the window on its own once, as the Diffraction
-//  tables are (#1094). Red before: a `PaneSplit` of the room's own with the results pane, the picked point's inset and the colour key
+//  grain's slip planes are tabs of the shell's bottom area beside Output (#1112: one at a time at full width), each selected by the
+//  window on its own once, as the Diffraction tables are (#1094). Red before: a `PaneSplit` of the room's own with the results pane, the picked point's inset and the colour key
 //  over the map, the slip planes as lines of text under the Grains table, no Maps tab in the bottom area, no `MapsRoomLayout.mapBox`.
 //
 
@@ -86,14 +86,16 @@ nonisolated final class MapsRoomFrameTests: XCTestCase {
 
     // MARK: The tables
 
-    /// Grains and Slip are tables of the bottom area while the room shows a map, and only then; Slip is a real, sortable table of the
-    /// picked grain's planes with a one-line state for no grain. Mutation: the tabs dropped, or the planes back as text.
+    /// Grains and Slip are tabs of the bottom area while the room shows a map, and only then; Slip is a real, sortable table of the
+    /// picked grain's planes with a one-line state for no grain. Mutation: the tabs dropped, the area back to panes side by side, or
+    /// the planes back as text.
     func testTheTablesAreTabsOfTheBottomArea() throws {
         let workspace = try ui("WorkspaceView.swift")
         XCTAssertTrue(workspace.contains("tabs: [ProcessTab.output { OutputPane(log: appState.activityLog) }] + diffractionTabs + mapsTabs,"))
         XCTAssertTrue(workspace.contains("guard appState.navigation.workspaceArea == .maps, appState.maps.document != nil else { return [] } return MapsTable.allCases"))
         XCTAssertTrue(workspace.contains("ProcessTab(id: table.paneID, title: table.title, systemImage: table.systemImage) { MapsTablePane(table: table) }"))
-        XCTAssertTrue(workspace.contains(".onChange(of: mapsTables) { MapsRoomState.keepAPaneShown(supplied: mapsTables, in: appState.navigation.panels) }"))
+        XCTAssertTrue(workspace.contains("processAreaStyle: .tabs,"), "one tab at a time at full width, one toggle for the area")
+        XCTAssertFalse(workspace.contains("keepAPaneShown"), "nothing puts Output back: a stale selection shows as Output (`shownTab`)")
         let analysis = try ui("MapsRoomAnalysis.swift")
         XCTAssertTrue(analysis.contains("case .grains: MapsGrainsTable(session: appState.maps) case .slip: MapsSlipTable(session: appState.maps)"))
         let slip = try slice(analysis, from: "struct MapsSlipTable: View {", to: "extension GrainRow {")
@@ -127,7 +129,7 @@ nonisolated final class MapsRoomFrameTests: XCTestCase {
         XCTAssertEqual([none, some].sorted(using: KeyPathComparator(\MapsSlipRow.traceOrder)).map(\.id), [1, 0])
     }
 
-    /// Each table has a pane of its own, never Output's or a Diffraction table's, with a name and a symbol for its toggle.
+    /// Each table has a tab of its own, never Output's or a Diffraction table's, with a name for the area's header and a symbol.
     @MainActor func testEachTableHasItsOwnPane() {
         let ids = MapsTable.allCases.map(\.paneID)
         XCTAssertEqual(ids.map(\.rawValue), ["maps.table.grains", "maps.table.slip"])
@@ -137,7 +139,7 @@ nonisolated final class MapsRoomFrameTests: XCTestCase {
         XCTAssertTrue(MapsTable.allCases.allSatisfy { !$0.systemImage.isEmpty })
     }
 
-    /// The window shows Grains once Segment has grains, Slip once a picked grain has planes, nothing before. Mutation: Grains before
+    /// The window selects Grains once Segment has grains, Slip once a picked grain has planes, nothing before. Mutation: Grains before
     /// Segment, or Slip without a grain.
     func testWhatTheWindowOffers() throws {
         XCTAssertEqual(MapsTable.opening(hasGrains: false, hasSlip: false), [])
@@ -149,27 +151,27 @@ nonisolated final class MapsRoomFrameTests: XCTestCase {
         XCTAssertTrue(room.contains(".modifier(MapsOffersTables(session: session, state: state))"))
     }
 
-    /// A fresh window (the area shut) shows Grains with the area open; a table the person hid, or an area they shut, stays so when
-    /// it is offered again. Mutation: `offer` showing a table every time, or never.
-    @MainActor func testATableIsShownOnceAndThePersonsToggleWins() {
+    /// A fresh window (the area shut) selects Grains with the area open; once the person picks Output, or shuts the area, a second
+    /// offer leaves their choice. Slip is selected once too. Mutation: `offer` selecting a table every time, or never.
+    @MainActor func testATableIsSelectedOnceAndThePersonsChoiceWins() {
         let state = MapsRoomState()
         let panels = PanelNavigation()
         XCTAssertFalse(panels.showProcessArea, "a fresh window's area is shut")
         state.offer(nil, in: panels)
         XCTAssertFalse(panels.showProcessArea, "no table, nothing shown")
+        XCTAssertEqual(panels.selectedProcessPane, .output)
 
         state.offer(.grains, in: panels)
-        XCTAssertTrue(panels.shownProcessPanes.contains(MapsTable.grains.paneID))
-        XCTAssertTrue(panels.shownProcessPanes.contains(.output), "Output stays as the person had it")
+        XCTAssertEqual(panels.selectedProcessPane, MapsTable.grains.paneID, "Segment found grains: the Grains tab is shown")
         XCTAssertTrue(panels.showProcessArea, "the area opens with it")
 
-        panels.toggleProcessPane(MapsTable.grains.paneID)
+        panels.selectProcessPane(.output)
         state.offer(.grains, in: panels)
-        XCTAssertFalse(panels.shownProcessPanes.contains(MapsTable.grains.paneID), "hidden by the person, it stays hidden")
+        XCTAssertEqual(panels.selectedProcessPane, .output, "the person chose Output: a second offer leaves it")
 
         panels.showProcessArea = false
         state.offer(.slip, in: panels)
-        XCTAssertTrue(panels.shownProcessPanes.contains(MapsTable.slip.paneID), "a grain picked: Slip shows once")
+        XCTAssertEqual(panels.selectedProcessPane, MapsTable.slip.paneID, "a grain picked: Slip is selected once")
         XCTAssertTrue(panels.showProcessArea)
         panels.showProcessArea = false
         state.offer(.slip, in: panels)
@@ -177,13 +179,11 @@ nonisolated final class MapsRoomFrameTests: XCTestCase {
         XCTAssertEqual(state.offeredTables, [.grains, .slip])
     }
 
-    /// The area never stands open with none of its panes: when the Maps tables go and only they were shown, Output comes back.
-    @MainActor func testTheAreaKeepsAPaneWhenTheTablesGo() {
-        let panels = PanelNavigation()
-        panels.shownProcessPanes = [MapsTable.grains.paneID]
-        MapsRoomState.keepAPaneShown(supplied: MapsTable.allCases, in: panels)
-        XCTAssertEqual(panels.shownProcessPanes, [MapsTable.grains.paneID], "still on offer: left alone")
-        MapsRoomState.keepAPaneShown(supplied: [], in: panels)
-        XCTAssertTrue(panels.shownProcessPanes.contains(.output), "the tables went: Output shows")
+    /// When the room or its map goes, a Maps table left selected shows as Output (the shell's `ProcessAreaLayout.shownTab`), so
+    /// nothing of the app's puts Output back. Mutation: the area drawing a tab it does not hold.
+    @MainActor func testASelectionLeftWhenTheMapGoesShowsOutput() {
+        XCTAssertEqual(ProcessAreaLayout.shownTab(selected: MapsTable.slip.paneID, in: [.output]), .output)
+        XCTAssertEqual(ProcessAreaLayout.shownTab(selected: MapsTable.slip.paneID, in: [ProcessPaneID.output] + MapsTable.allCases.map(\.paneID)),
+                       MapsTable.slip.paneID)
     }
 }

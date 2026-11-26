@@ -2,7 +2,7 @@
 //  DiffractionRoom.swift
 //  Role: the Diffraction room's centre: the pattern (log display), the centre, the
 //        annulus being dragged, the fitted rings and the clicked spots drawn over it, and the room's tables (the readout, the spots),
-//        which are panes of the shell's bottom area (`DiffractionTablePane`, #1094). The selected file
+//        which are tabs of the shell's bottom area (`DiffractionTablePane`, #1094, #1112). The selected file
 //        is the pattern; the state is `DiffractionAnalysis` (TEMSession, `OpenItem.diffraction`), every number DiffractoKit's.
 //
 //        The centre is the shell's (`WorkspaceCentre`, EMSuiteUI): the side pane of the part (the crystal, the zone-axis map, the
@@ -87,8 +87,8 @@ struct DiffractionRoom: View {
             }
         }
         // The part: the scene's when the window comes back, else the one the document opens on; another document opens on its own.
-        // The part's tables are the bottom area's panes (`WorkspaceView`): the table the strip under the pattern showed is shown the
-        // first time a part asks for it, once the part is settled, and the person's toggles rule after that (`DiffractionRoomState.offer`).
+        // The part's tables are the bottom area's tabs (`WorkspaceView`): the table the strip under the pattern showed is selected the
+        // first time a part asks for it, once the part is settled, and the person's choice of tab rules after that (`DiffractionRoomState.offer`).
         .onAppear {
             appState.settleDiffractionPart(restored: DiffractionPart(rawValue: storedPart))
             offerTable()
@@ -117,7 +117,7 @@ extension DiffractionRoom {
         DemoDocuments.isSimulation(item.url) || item.diffraction.indexOutcome != nil
     }
 
-    /// Shows the part's opening table in the bottom area if the window has not shown it on its own before.
+    /// Selects the part's opening table in the bottom area if the window has not selected it on its own before.
     private func offerTable() {
         appState.diffractionRoom.offer(DiffractionPart.openingTable(appState.diffractionPart, hasSpots: Self.hasSpots(item)),
                                        in: appState.navigation.panels)
@@ -140,7 +140,8 @@ extension DiffractionRoom {
 // MARK: - Header
 
 /// The pattern panel's readout slot (`CentrePanel`): the fullest summary of the pattern that fits, the least needed parts dropped
-/// first (#1090), never a word cut mid-way. The panel sets it in the caption, secondary, on one line.
+/// first (#1090), never a word cut mid-way, and none at all when Index's verdict at the right needs the room (#1113). The panel sets it
+/// in the caption, secondary, on one line.
 private struct DiffractionHeaderScale: View {
     let item: OpenItem
     /// Read from the item, never stored: SwiftUI keeps a view's closures (hover, gestures, commands) after the view is gone, and a stored
@@ -151,8 +152,8 @@ private struct DiffractionHeaderScale: View {
     var body: some View {
         let calibration = analysis.calibration(for: image)
         let volts = analysis.volts(for: image)
-        let levels = DiffractionHeaderText.levels(width: image.width, height: image.height, volts: volts, voltsFromFile: image.voltage != nil,
-                                                  calibration: calibration)
+        let levels = DiffractionHeaderText.readoutLevels(width: image.width, height: image.height, volts: volts, voltsFromFile: image.voltage != nil,
+                                                         calibration: calibration)
         ViewThatFits(in: .horizontal) {
             ForEach(levels.indices, id: \.self) { i in
                 Text(levels[i]).lineLimit(1).truncationMode(.tail)
@@ -167,7 +168,8 @@ private struct DiffractionHeaderScale: View {
 }
 
 /// The pattern panel's right end (`CentrePanel`'s controls): Index's verdict, the hand-set orientation, the view's half-side and the
-/// figure handle, as the room's header row had them.
+/// figure handle, as the room's header row had them. It is laid out before the readout slot beside it (#1113): the scale's summary
+/// gives way, whole, before the verdict is shortened, and the verdict drops its spot count, whole, before it is ever cut.
 private struct DiffractionHeaderFacts: View {
     @Environment(AppState.self) private var appState
     let item: OpenItem
@@ -180,15 +182,22 @@ private struct DiffractionHeaderFacts: View {
     var body: some View {
         HStack(spacing: 8) {
             // Index's verdict in words (#783): "Al · 2.1° from [001] · 22 of 24 spots explained · misfit 0.07 %".
+            // At each length (#1113): the whole line, then without the spot count and the solution's number.
             if let outcome = analysis.indexOutcome, let line = analysis.indexHeaderLine(locale: .autoupdatingCurrent) {
-                Text(line)
-                    .font(.callout.monospacedDigit()).lineLimit(1).truncationMode(.tail).layoutPriority(2)
-                    .foregroundStyle(outcome.verdict == .found && !outcome.zoneAxisOnly && !analysis.indexIsStale && !analysis.indexSpotsChanged
-                                     ? Color.primary : Color.orange)
-                    .help(line)
-                    .accessibilityIdentifier("diffraction.index.verdict")
-                    .accessibilityLabel("Index, \(outcome.verdict.word)")
-                    .accessibilityValue(line)
+                let levels = analysis.indexHeaderLevels(locale: .autoupdatingCurrent)
+                ViewThatFits(in: .horizontal) {
+                    ForEach(levels.indices, id: \.self) { i in
+                        Text(levels[i]).lineLimit(1).truncationMode(.tail)
+                    }
+                }
+                .font(.callout.monospacedDigit()).layoutPriority(2)
+                .foregroundStyle(outcome.verdict == .found && !outcome.zoneAxisOnly && !analysis.indexIsStale && !analysis.indexSpotsChanged
+                                 ? Color.primary : Color.orange)
+                .help(line)
+                .accessibilityElement(children: .ignore)
+                .accessibilityIdentifier("diffraction.index.verdict")
+                .accessibilityLabel("Index, \(outcome.verdict.word)")
+                .accessibilityValue(line)
             }
             // The drawn orientation's nearest zone axis once it was tilted, turned or flipped by hand, or while no Index answer is
             // shown (#787): "Al · 2.1° from [001] · set by hand".
@@ -216,6 +225,8 @@ private struct DiffractionHeaderFacts: View {
                 .accessibilityIdentifier("diffraction.figureDrag")
                 .accessibilityAction(named: "Copy Figure") { ExportPanels.copyDiffractionFigure(appState: appState) }
         }
+        // Above the readout slot's 0 (#1113): the panel's header offers these their width first, and the slot keeps what is left.
+        .layoutPriority(1)
     }
 }
 
@@ -243,6 +254,12 @@ nonisolated enum DiffractionHeaderText {
                    line(lengths: false, fileMark: false, size: false, deltaQ: true),
                    line(lengths: false, fileMark: false, size: false, deltaQ: false)]
         return all.reduce(into: [String]()) { out, l in if out.last != l { out.append(l) } }
+    }
+
+    /// The readout slot's lines (#1113): `levels`, then none. The slot keeps what the header's right end leaves (Index's verdict comes
+    /// first), so when even the shortest summary does not fit it is left out whole, never cut.
+    static func readoutLevels(width: Int, height: Int, volts: Double?, voltsFromFile: Bool, calibration: DiffractionCalibration?) -> [String] {
+        levels(width: width, height: height, volts: volts, voltsFromFile: voltsFromFile, calibration: calibration) + [""]
     }
 }
 
@@ -961,12 +978,12 @@ private struct VariantSpotsOverlay: View {
     }
 }
 
-// MARK: - The tables, panes of the bottom area
+// MARK: - The tables, tabs of the bottom area
 
-/// One of the room's tables as a pane of the shell's bottom area (#1094): `WorkspaceView` registers one `ProcessTab` per table of the
-/// part (`DiffractionPart.tables`) beside Output, each with its toggle in the infobar, under the bar the person drags. The selected
-/// document is read here, at each draw, and never held by the tab. Readout and Spots sit side by side when both are shown, where the
-/// strip under the pattern switched between them; Powder lists its peaks.
+/// One of the room's tables as a tab of the shell's bottom area (#1094, #1112): `WorkspaceView` registers one `ProcessTab` per table
+/// of the part (`DiffractionPart.tables`) beside Output, under the bar the person drags; the area's header picks the one shown, at
+/// the area's full width. The selected document is read here, at each draw, and never held by the tab. Readout and Spots are two
+/// tabs, where the strip under the pattern switched between them; Powder lists its peaks.
 struct DiffractionTablePane: View {
     let table: DiffractionTable
     @Environment(AppState.self) private var appState

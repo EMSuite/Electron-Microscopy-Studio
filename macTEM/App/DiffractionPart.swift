@@ -5,7 +5,7 @@
 //        inspector shows that part's few sections. HIG Layout: "Use progressive disclosure… An interface with too much content and
 //        too many choices makes it harder to find information quickly" — the room stacked up to fifteen sections in one inspector.
 //        A regrouping of what exists: no new feature, no changed number. The pattern stays in the centre in every part (zoom,
-//        selection and overlays carry over); only the inspector's sections, the side pane and the tables (panes of the shell's
+//        selection and overlays carry over); only the inspector's sections, the side pane and the tables (tabs of the shell's
 //        bottom area, #1094) follow the part.
 //
 //        One `WorkspaceArea.diffraction` stays, so no switch over the rooms changes; the part the window shows is
@@ -109,8 +109,8 @@ nonisolated enum DiffractionPart: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    /// The part's tables, left to right after Output in the shell's bottom area (#1094: panes of the bottom area behind its draggable
-    /// bar, each with its toggle in the infobar, where a fixed strip under the pattern held one at a time): Calibrate's readout;
+    /// The part's tables, left to right after Output in the bottom area's header (#1094, #1112: tabs of the bottom area behind its
+    /// draggable bar, one at a time at full width, where a fixed strip under the pattern held one at a time): Calibrate's readout;
     /// Index's and Simulate's readout and spots; Powder's peaks (#921); none in Tilt Plan and Thickness.
     static func tables(_ part: DiffractionPart) -> [DiffractionTable] {
         switch part {
@@ -121,7 +121,7 @@ nonisolated enum DiffractionPart: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    /// The table the strip under the pattern showed in `part` before #1094, which the window shows on its own the first time
+    /// The table the strip under the pattern showed in `part` before #1094, which the window selects on its own the first time
     /// (`DiffractionRoomState.offer`): the readout in Calibrate, and in Index and Simulate until there are spots to list
     /// (`hasSpots`: a Simulation document's, or Index's once it answers), then the spots; Powder's peaks; none elsewhere.
     static func openingTable(_ part: DiffractionPart, hasSpots: Bool) -> DiffractionTable? {
@@ -279,12 +279,12 @@ extension AppState {
     }
 }
 
-/// One of the Diffraction room's tables (#1094): a pane of the shell's bottom area beside Output, shown and hidden by its own toggle
-/// at the infobar's right end, as Output is. Its pane identity is `DiffractionRoomState`'s (`paneID`).
+/// One of the Diffraction room's tables (#1094): a tab of the shell's bottom area beside Output, chosen in the area's header (#1112),
+/// as Output is. Its tab identity is `DiffractionRoomState`'s (`paneID`).
 nonisolated enum DiffractionTable: String, CaseIterable, Sendable {
     case readout, spots, peaks
 
-    /// The pane's name: the infobar toggle's help ("Readout pane") and VoiceOver label.
+    /// The tab's name in the area's header, and its VoiceOver label.
     var title: String {
         switch self {
         case .readout: "Readout"
@@ -293,7 +293,7 @@ nonisolated enum DiffractionTable: String, CaseIterable, Sendable {
         }
     }
 
-    /// The infobar toggle's symbol.
+    /// The tab's symbol (`ProcessTab`'s; the header names the tab by its title, the shell's `.panes` style drew it on a toggle).
     var systemImage: String {
         switch self {
         case .readout: "tablecells"
