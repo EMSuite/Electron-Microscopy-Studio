@@ -218,6 +218,31 @@ nonisolated final class ShippedDemoDataTests: XCTestCase {
         XCTAssertTrue(fit.hasAbundance, fit.abundanceRefusal ?? "")
     }
 
+    /// The Results room reports the SEM spectrum's lines as the EDS room shows them: once Quantify has run, the room's fitted areas with σ
+    /// on the room's lines, under "SEM-EDS line intensities". Red before (walk 2026-11-26): Results kept exspy's window sums of open time
+    /// (Cu Lα 83,885, Zr Lα 82,216 counts) under "SEM-EDS composition" beside the room's fit (Cu Kα 1,256), two answers for one spectrum.
+    @MainActor func testResultsReportTheEDSRoomsFitOfTheSEMSpectrum() async throws {
+        let state = AppState(launch: LaunchOptions(arguments: []))
+        let url = try XCTUnwrap(DemoDocuments.Shipped.semEDSSpectrum.url)
+        await state.edx.open(url: url).value
+        await state.semEDS.load(path: state.edx.source?.metadata.filePath)
+        await state.semEDS.pickFileElements(in: state.edx)
+        let before = SEMSessionLedger.rows(of: state).filter { $0.kind == .composition }
+        XCTAssertEqual(before.map(\.methods), Array(repeating: [.edsLines], count: before.count), "exspy's windows before Quantify")
+        await state.edx.quantify()?.value
+        await state.edx.settled()
+        let fit = try XCTUnwrap(state.edx.fit, state.edx.fitFailure ?? "no fit")
+        let rows = SEMSessionLedger.rows(of: state, locale: Locale(identifier: "en_US_POSIX")).filter { $0.kind == .composition }
+        let fitted = fit.rows.filter { $0.failure == nil && !$0.groupID.isEmpty }
+        XCTAssertFalse(fitted.isEmpty)
+        XCTAssertEqual(rows.map(\.label), fitted.map { ElementWindows.label(ofLineID: $0.groupID) })
+        for (row, f) in zip(rows, fitted) {
+            XCTAssertEqual(row.methods, [.edsModelFit])
+            XCTAssertTrue(row.value.hasPrefix(SEMEDSFormat.counts(f.net, locale: Locale(identifier: "en_US_POSIX")) + " ± "), "\(row.value) for \(f.net)")
+        }
+        XCTAssertEqual(SEMSessionRow.Kind.composition.title, "SEM-EDS line intensities")
+    }
+
     /// A file element is Fit only exactly where the spectrum holds no Kα under the beam, and only for the computed k.
     func testAFileElementWithNoKAlphaUnderTheBeamIsFitOnly() {
         let axis = EnergyAxis(offset: -0.1, scale: 0.01, size: 1024)   // TM002: 1024 channels of 10 eV from -0.1 keV

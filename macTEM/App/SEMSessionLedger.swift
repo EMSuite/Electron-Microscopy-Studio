@@ -20,6 +20,7 @@
 //
 
 import Foundation
+import SpectroEDX
 import TEMCore
 import TEMSession
 
@@ -32,12 +33,14 @@ enum SEMSessionLedger {
 
     /// The window's SEM rows, their numbers in `locale` (the session report passes `ExportSnapshot.labelLocale`).
     static func rows(of appState: AppState, locale: Locale = .autoupdatingCurrent) -> [SEMSessionRow] {
-        rows(patterns: appState.ebsd, indexing: appState.indexing, maps: appState.maps, eds: appState.semEDS, record: appState.semRecord,
-             locale: locale)
+        // The room's fit counts only for the SEM file the line table was read from.
+        let fit = appState.edx.source?.metadata.filePath == appState.semEDS.path ? appState.edx.fit : nil
+        return rows(patterns: appState.ebsd, indexing: appState.indexing, maps: appState.maps, eds: appState.semEDS, edsFit: fit,
+                    record: appState.semRecord, locale: locale)
     }
 
     static func rows(patterns: EBSDSession, indexing: IndexingSession, maps: OrientationMapSession, eds: SEMEDSState,
-                     record: SEMSessionRecord, locale: Locale = .autoupdatingCurrent) -> [SEMSessionRow] {
+                     edsFit: PooledQuantification? = nil, record: SEMSessionRecord, locale: Locale = .autoupdatingCurrent) -> [SEMSessionRow] {
         var rows: [SEMSessionRow] = []
         var since: Date?
         if let document = patterns.document {
@@ -51,7 +54,7 @@ enum SEMSessionLedger {
         if let row = mapRow(maps, record: record, locale: locale) { rows.append(row) }
         if let row = grainsRow(maps, record: record, locale: locale) { rows.append(row) }
         if let row = textureRow(maps, locale: locale) { rows.append(row) }
-        rows += compositionRows(eds, locale: locale)
+        rows += compositionRows(eds, fit: edsFit, locale: locale)
         rows += exportRows(record)
         return rows
     }
@@ -352,11 +355,25 @@ enum SEMSessionLedger {
 
     // MARK: - SEM-EDS
 
-    /// One row per X-ray line of the SEM spectrum the EDS room shows: its energy, exspy's integration and background windows and the
-    /// counts in them (Info › Line Windows). The composition is the shared EDS room's (D-SEM-107), reported with the room's results.
-    static func compositionRows(_ eds: SEMEDSState, locale: Locale = .autoupdatingCurrent) -> [SEMSessionRow] {
-        guard eds.isSEMSpectrum, let path = eds.path, !eds.rows.isEmpty else { return [] }
+    /// The SEM spectrum's line intensities, as the EDS room shows them. Once the room has quantified the file, its fit's rows: each line's
+    /// fitted area with σ, the numbers on the room's table (walk 2026-11-26: Results showed the window sums of open time under "composition"
+    /// beside the room's fit, two answers for one spectrum). Before that, exspy's line windows (Info › Line Windows): each line's energy,
+    /// its integration and background windows and the counts in them.
+    static func compositionRows(_ eds: SEMEDSState, fit: PooledQuantification? = nil, locale: Locale = .autoupdatingCurrent) -> [SEMSessionRow] {
+        guard eds.isSEMSpectrum, let path = eds.path else { return [] }
         let url = URL(fileURLWithPath: path)
+        if let fit {
+            return fit.rows.filter { $0.failure == nil && !$0.groupID.isEmpty }.map { row in
+                let line = ElementWindows.label(ofLineID: row.groupID)
+                let counts = "\(SEMEDSFormat.counts(row.net, locale: locale)) ± \(SEMEDSFormat.counts(row.sigma, locale: locale)) counts"
+                var fields = [SEMSessionField("Intensity", counts), SEMSessionField("Fit", fit.qualityText)]
+                if row.atBound { fields.append(SEMSessionField("Note", "held at 0 by the fit: an upper limit, not a measurement")) }
+                if let note = row.lineNote { fields.append(SEMSessionField("Line", note)) }
+                if let why = fit.abundanceRefusal { fields.append(SEMSessionField("at%", "not computed: \(why)")) }
+                return SEMSessionRow(id: "eds:\(row.groupID)", kind: .composition, label: line, value: counts,
+                                     source: "EDS · \(url.lastPathComponent)", fields: fields, methods: [.edsModelFit], file: url)
+            }
+        }
         return eds.rows.map { row in
             let counts = "\(SEMEDSFormat.counts(row.intensity, locale: locale)) counts"
             let fields = [
