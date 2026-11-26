@@ -9,6 +9,10 @@ import ShellLayout
 import SwiftUI
 
 extension LayoutPolicy {
+    /// A new window's size (review of 2026-11-26): at ShellLayout's `datasetWindowIdealSize` (1280 × 800) the two-panel rooms drew
+    /// 350 pt pictures in mostly empty panes. ShellLayout's size stays the other app's.
+    static let windowDefaultSize = CGSize(width: 1440, height: 900)
+
     /// The rooms' row height per system sidebar size, a little more than the system's own (23, 30, 38 pt) so the list breathes (Paul,
     /// 2026-10-22: the sidebar was cramped). The list itself fills the column: with the Open Files list gone (2026-11-10) it has no
     /// height of its own to keep.

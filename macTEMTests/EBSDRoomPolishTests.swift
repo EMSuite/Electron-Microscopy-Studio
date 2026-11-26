@@ -50,8 +50,9 @@ nonisolated final class EBSDRoomPolishTests: XCTestCase {
         }
     }
 
-    /// The Bands table's seven columns fit the Bands pane at the opening window size (1280 pt less the sidebar and the inspector, halved,
-    /// less the pane's padding), with the table's spacing between columns; every column of both tables has its width.
+    /// The Bands table's seven columns fit the Bands pane in a 1280 pt window (less the sidebar and the inspector, halved, less the pane's
+    /// padding), with the table's spacing between columns; every column of both tables has its width. 1280 pt was the opening width
+    /// until a new window opened at 1440 pt (2026-11-26); the narrower window is kept, so the columns fit at both.
     @MainActor func testTheBandsTableShowsEveryColumn() throws {
         let pane: CGFloat = (1280 - 220 - 310) / 2 - 16
         let columns = [LayoutPolicy.ebsdIndexColumn] + Array(repeating: LayoutPolicy.ebsdNumberColumn, count: 5) + [LayoutPolicy.ebsdFamilyColumn]

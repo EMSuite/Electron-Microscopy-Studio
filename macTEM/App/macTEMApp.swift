@@ -411,8 +411,9 @@ struct macTEMApp: App {
             // handed to it again by path, which the sandbox does not grant: refused, with an empty tab (driven 2026-11-11). A launch
             // presents one window (`defaultLaunchBehavior`).
             .restorationBehavior(.disabled)
-            .defaultSize(width: LayoutPolicy.datasetWindowIdealSize.width,
-                         height: LayoutPolicy.datasetWindowIdealSize.height)
+            // The app's own opening size (`LayoutPolicy.windowDefaultSize`), larger than the shell's.
+            .defaultSize(width: LayoutPolicy.windowDefaultSize.width,
+                         height: LayoutPolicy.windowDefaultSize.height)
             .windowStyle(.titleBar)
             .windowToolbarStyle(.unified)
             .commands {
