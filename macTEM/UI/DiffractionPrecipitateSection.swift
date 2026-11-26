@@ -5,8 +5,8 @@
 //        the ones that look alike in this view grouped, a Show switch per variant, and the shown variants' spots over the pattern.
 //        Without a matrix orientation the section says so. Presentation only: the variants are `VariantPlacement`'s over
 //        DiffractoKit. Nothing is chosen for the person (#1137): the precipitate is any phase the room can use (the library's,
-//        a standard, another open pattern's crystal), the relationship is typed, and a literature example fills both, named
-//        with its paper and flagged when the matrix is not the paper's.
+//        a standard, another open pattern's crystal) and the relationship is typed as a paper states it; no literature example
+//        is built in (#1147, #1152).
 //
 
 import ShellInspector
@@ -45,12 +45,6 @@ struct DiffractionPrecipitateSection: View {
                 .labelsHidden().fixedSize()
                 .help("The precipitate placed in \(analysis.crystal.name): a phase of the library, a standard, or the crystal of another open pattern")
                 .accessibilityIdentifier("diffraction.precipitate.phase")
-            }
-            if let example = variants.example {
-                InspectorNote("\(example.precipitate.name) in \(example.matrixName) as \(example.citation) states it.")
-            }
-            if let warning = variants.exampleWarning(matrix: analysis.crystal.name, matrixStructure: analysis.crystal.structure) {
-                InspectorWarning(warning)
             }
             InspectorRow("Double diffraction") {
                 Toggle("Double diffraction", isOn: Binding(get: { variants.doubleDiffraction }, set: { variants.doubleDiffraction = $0 }))

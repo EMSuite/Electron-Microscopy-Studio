@@ -82,6 +82,9 @@ nonisolated final class AgentDoorHRTEMTests: XCTestCase {
         let simulation = try XCTUnwrap(state.openItems.selected)
         let before = try await read()
         XCTAssertEqual(before["specimen_refusal"] as? String, SimulationSpecimen.Refusal.noPhase.sentence)
+        // No phase shown: the screen's Spots table is empty, so the door lists no spots and no zone axis of the fallback standard (#1152).
+        XCTAssertEqual((before["spots"] as? [Any])?.count, 0, "\(before)")
+        XCTAssertNil(before["nearest_zone_axis"], "\(before)")
         let noPhase = try await call("set_simulation", ["frozen_phonons": true])
         XCTAssertTrue(noPhase.refused)
         XCTAssertEqual(noPhase.text, SimulationSpecimen.Refusal.noPhase.sentence)

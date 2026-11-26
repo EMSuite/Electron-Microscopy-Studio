@@ -100,6 +100,11 @@ nonisolated final class AgentDoorCBEDSTEMTests: XCTestCase {
         XCTAssertTrue((now["method"] as? String)?.hasPrefix("Dynamical · Si [1 1 0]") == true, "\(now)")
         let beams = try XCTUnwrap(now["beams"] as? [[String: Any]], "\(now)")
         XCTAssertFalse(beams.isEmpty)
+        // The Spots table's rows of the document with their dynamical column (#1152: Index's rows, always empty here, before).
+        simulation.diffraction.simulation.isShown = true
+        let rows = try XCTUnwrap(try await read("read_dynamical")["spots"] as? [[String: Any]])
+        XCTAssertFalse(rows.isEmpty, "the Spots table's rows")
+        XCTAssertTrue(rows.contains { $0["dynamical_percent"] is Double }, "\(rows)")
         let count = try XCTUnwrap(now["thicknesses_nm"] as? [Double], "\(now)").count
         let past = try await call("set_dynamical", ["thickness_index": count])
         XCTAssertTrue(past.refused, past.text)

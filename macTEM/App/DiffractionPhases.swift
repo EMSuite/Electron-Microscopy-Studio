@@ -95,7 +95,7 @@ enum DiffractionPhases {
 
     /// The precipitates the Precipitate section and the door's `set_relationship` offer (#1137): the library's phases, the
     /// standards, then the crystals of the other open patterns, each name once and the matrix left out. Nothing sample-specific:
-    /// a literature example comes only through `DiffractionVariants.Example`.
+    /// no literature example is built in (#1152).
     static func precipitates(besides matrix: String, library: [Phase], others: [(name: String, structure: CrystalStructure)])
         -> [DiffractionVariants.Precipitate] {
         var seen: Set<String> = [matrix]
