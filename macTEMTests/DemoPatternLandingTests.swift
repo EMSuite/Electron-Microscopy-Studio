@@ -49,8 +49,8 @@ nonisolated final class DemoPatternLandingTests: XCTestCase {
         XCTAssertEqual(state.navigation.workspaceArea, .diffraction)
     }
 
-    /// 2026-11-26: the nanowire demo carries its scale in the file (`DemoDocuments.Shipped.nanowirePatternDeltaQ`, 0.0285 Å⁻¹ per pixel,
-    /// calibrated on the frame's GaAs {111}), so it opens with the scale marked as the file's and Index is not held for want of a
+    /// 2026-11-26: the nanowire demo carries its scale in the file (`DemoDocuments.Shipped.nanowirePatternDeltaQ`, 0.0283 Å⁻¹ per pixel,
+    /// calibrated on the pattern's GaAs {111}), so it opens with the scale marked as the file's and Index is not held for want of a
     /// scale or a beam energy. Red before: the frame's axes were in pixels and the room said "Index needs a scale".
     @MainActor func testTheNanowireDemoOpensWithTheFilesScaleSoIndexIsNotBlockedOnIt() async throws {
         let state = AppState(launch: LaunchOptions(arguments: []))
