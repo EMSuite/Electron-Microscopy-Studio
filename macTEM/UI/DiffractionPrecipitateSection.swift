@@ -4,11 +4,14 @@
 //        paper states it (two parallel pairs, the first kept exact), every variant placed from Index's matrix orientation with
 //        the ones that look alike in this view grouped, a Show switch per variant, and the shown variants' spots over the pattern.
 //        Without a matrix orientation the section says so. Presentation only: the variants are `VariantPlacement`'s over
-//        DiffractoKit. Until the multi-phase room (A2) holds the precipitate as a phase, it is chosen here.
+//        DiffractoKit. Nothing is chosen for the person (#1137): the precipitate is any phase the room can use (the library's,
+//        a standard, another open pattern's crystal), the relationship is typed, and a literature example fills both, named
+//        with its paper and flagged when the matrix is not the paper's.
 //
 
 import ShellInspector
 import ShellLayout
+import ShellPhaseLibrary
 import SwiftUI
 import DiffractoCore
 import TEMCore
@@ -34,13 +37,30 @@ struct DiffractionPrecipitateSection: View {
                     .accessibilityIdentifier("diffraction.precipitate.show")
             }
             InspectorRow("Precipitate") {
-                Picker("Precipitate", selection: Binding(get: { variants.precipitate.name },
-                                                         set: { name in if let chosen = options.first(where: { $0.name == name }) { variants.setPrecipitate(chosen) } })) {
+                Picker("Precipitate", selection: Binding(get: { variants.precipitate?.name ?? "" },
+                                                         set: { name in variants.setPrecipitate(options.first { $0.name == name }) })) {
+                    Text("None").tag("")
                     ForEach(options, id: \.name) { Text($0.name).tag($0.name) }
                 }
                 .labelsHidden().fixedSize()
-                .help("The precipitate placed in this crystal: β″, a standard, or the crystal of another open pattern")
+                .help("The precipitate placed in \(analysis.crystal.name): a phase of the library, a standard, or the crystal of another open pattern")
                 .accessibilityIdentifier("diffraction.precipitate.phase")
+            }
+            InspectorRow("Example") {
+                Menu(variants.example?.title ?? "Literature Example") {
+                    ForEach(DiffractionVariants.Example.all) { example in
+                        Button("\(example.title), \(example.citation)") { variants.use(example) }
+                    }
+                }
+                .fixedSize()
+                .help("Fills the precipitate and its relationship as a paper states them, for the matrix the paper names")
+                .accessibilityIdentifier("diffraction.precipitate.example")
+            }
+            if let example = variants.example {
+                InspectorNote("\(example.precipitate.name) in \(example.matrixName) as \(example.citation) states it.")
+            }
+            if let warning = variants.exampleWarning(matrix: analysis.crystal.name, matrixStructure: analysis.crystal.structure) {
+                InspectorWarning(warning)
             }
             InspectorRow("Double diffraction") {
                 Toggle("Double diffraction", isOn: Binding(get: { variants.doubleDiffraction }, set: { variants.doubleDiffraction = $0 }))
@@ -86,33 +106,33 @@ struct DiffractionPrecipitateSection: View {
         }
     }
 
-    /// β″ first, then the room's standards and the crystals of the other open patterns, the matrix itself left out.
+    /// The library's phases, the standards and the crystals of the other open patterns, the matrix left out; the chosen one stays
+    /// offered even when nothing else names it any more.
     private func precipitates(besides matrix: String) -> [DiffractionVariants.Precipitate] {
-        var seen: Set<String> = [matrix]
-        var out: [DiffractionVariants.Precipitate] = []
-        func add(_ p: DiffractionVariants.Precipitate) { if seen.insert(p.name).inserted { out.append(p) } }
-        add(.betaDoublePrime)
-        StandardCrystals.all.forEach { add(.init(name: $0.name, structure: $0.structure)) }
-        appState.openItems.items.filter { $0.id != item.id }.forEach {
-            add(.init(name: $0.diffraction.crystal.name, structure: $0.diffraction.crystal.structure))
+        var out = DiffractionPhases.precipitates(
+            besides: matrix, library: PhaseServices.library.phases,
+            others: appState.openItems.items.filter { $0.id != item.id }.map { ($0.diffraction.crystal.name, $0.diffraction.crystal.structure) })
+        if let chosen = item.diffractionVariants.precipitate, chosen.name != matrix, !out.contains(where: { $0.name == chosen.name }) {
+            out.append(chosen)
         }
-        // The chosen one stays offered even when nothing else names it any more.
-        add(item.diffractionVariants.precipitate)
         return out
     }
 }
 
-/// The relationship's two pairs as four fields, "(h k l)" or "[u v w]" each, committed on Return. A field that is not a plane or a
-/// direction is named and the last relationship stays.
+/// The relationship's two pairs as four fields, "(h k l)" or "[u v w]" each, committed on Return once all four are typed. A field
+/// that is not a plane or a direction is named and the last relationship stays. Empty until the person types one or picks an
+/// example.
 private struct DiffractionRelationshipFields: View {
-    let relationship: PrecipitateRelationship
+    let relationship: PrecipitateRelationship?
     let matrix: String
-    let commit: (PrecipitateRelationship) -> Void
+    let commit: (PrecipitateRelationship?) -> Void
     @State private var texts: [String] = []
     @State private var refusal: String?
 
     private var current: [String] {
-        [relationship.firstPrecipitate.text, relationship.firstMatrix.text, relationship.secondPrecipitate.text, relationship.secondMatrix.text]
+        guard let relationship else { return ["", "", "", ""] }
+        return [relationship.firstPrecipitate.text, relationship.firstMatrix.text, relationship.secondPrecipitate.text,
+                relationship.secondMatrix.text]
     }
 
     var body: some View {
@@ -141,7 +161,7 @@ private struct DiffractionRelationshipFields: View {
             var t = shown
             t[i] = value
             texts = t
-        }))
+        }), prompt: Text("[u v w]"))
         .textFieldStyle(.roundedBorder)
         .frame(width: LayoutPolicy.precipitateIndexFieldWidth)
         .onSubmit(apply)
@@ -150,6 +170,16 @@ private struct DiffractionRelationshipFields: View {
     }
 
     private func apply() {
+        guard texts.count == 4 else { return }
+        if texts.allSatisfy({ $0.trimmingCharacters(in: .whitespaces).isEmpty }) {
+            refusal = nil
+            commit(nil)
+            return
+        }
+        if texts.contains(where: { $0.trimmingCharacters(in: .whitespaces).isEmpty }) {
+            refusal = "Type all four: a plane (h k l) or a direction [u v w] in each field."
+            return
+        }
         let parsed = texts.map(RelationshipVector.parse)
         guard parsed.count == 4, let fp = parsed[0], let fm = parsed[1], let sp = parsed[2], let sm = parsed[3] else {
             let bad = zip(texts, parsed).first { $0.1 == nil }?.0 ?? ""

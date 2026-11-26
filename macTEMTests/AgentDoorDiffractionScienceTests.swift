@@ -130,13 +130,25 @@ nonisolated final class AgentDoorDiffractionScienceTests: XCTestCase {
         XCTAssertFalse(item.diffractionVariants.isShown, "a refused call changes nothing")
         let matrix = try await call("set_relationship", ["precipitate": "Au"])
         XCTAssertTrue(matrix.refused, "the matrix is not its own precipitate")
-        let precipitate = try json(try await call("set_relationship", ["precipitate": "Al", "second": "(0 0 1) ∥ (1 -3 0)"]).text)
+        let empty = try json(try await call("set_relationship", [:]).text)
+        XCTAssertEqual(empty["precipitate"] as? String, "none", "nothing chosen by default (#1137)")
+        XCTAssertEqual(empty["relationship"] as? String, "none")
+        let half = try await call("set_relationship", ["precipitate": "Al", "second": "(0 0 1) ∥ (1 -3 0)"])
+        XCTAssertTrue(half.refused, "one pair is not a relationship")
+        XCTAssertNil(item.diffractionVariants.precipitate, "a refused call changes nothing")
+        let example = try json(try await call("set_relationship", ["example": "beta_double_prime_in_al"]).text)
+        XCTAssertEqual(example["precipitate"] as? String, "β″")
+        XCTAssertNotNil(example["warning"] as? String, "the paper states it for Al, the crystal is Au: \(example)")
+        let precipitate = try json(try await call("set_relationship", ["precipitate": "Al", "first": "[1 0 0] || [3 2 0]",
+                                                                       "second": "(0 0 1) ∥ (1 -3 0)"]).text)
         XCTAssertEqual(precipitate["precipitate"] as? String, "Al")
-        XCTAssertEqual(item.diffractionVariants.relationship.secondMatrix, RelationshipVector(.plane, 1, -3, 0))
+        XCTAssertNil(precipitate["example"], "a new precipitate leaves the example")
+        XCTAssertNil(precipitate["warning"])
+        XCTAssertEqual(item.diffractionVariants.relationship?.secondMatrix, RelationshipVector(.plane, 1, -3, 0))
         XCTAssertNotNil(precipitate["refusal"] as? String, "no matrix orientation before Index: \(precipitate)")
         let hideNone = try await call("set_relationship", ["precipitate": "Si", "hide": "1"])
         XCTAssertTrue(hideNone.refused, "no variant is placed to hide")
-        XCTAssertEqual(item.diffractionVariants.precipitate.name, "Al", "a refused call changes nothing, the precipitate given beside it too")
+        XCTAssertEqual(item.diffractionVariants.precipitate?.name, "Al", "a refused call changes nothing, the precipitate given beside it too")
     }
 
     /// Mutation: Rank going ahead without a ring, use taking an unranked name, or the rows not the finder's - red.
