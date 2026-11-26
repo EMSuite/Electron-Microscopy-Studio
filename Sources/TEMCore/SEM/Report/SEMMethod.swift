@@ -18,7 +18,7 @@ package nonisolated enum SEMMethod: String, Sendable, Equatable, CaseIterable, I
     case orientationMap, ipfColours
     case grains, kam, gos, gnd, schmid, texture
     case angWriter, ctfWriter
-    case edsLines, cliffLorimer
+    case edsLines, edsModelFit, cliffLorimer
 
     package var id: String { rawValue }
 
@@ -54,6 +54,7 @@ package nonisolated enum SEMMethod: String, Sendable, Equatable, CaseIterable, I
         case .angWriter: "EDAX .ang writer"
         case .ctfWriter: "Oxford .ctf writer"
         case .edsLines: "Line intensities"
+        case .edsModelFit: "Line intensities by model fit"
         case .cliffLorimer: "Cliff-Lorimer"
         }
     }
@@ -119,6 +120,8 @@ package nonisolated enum SEMMethod: String, Sendable, Equatable, CaseIterable, I
             "The crystal map written as an Oxford HKL Channel 5 .ctf file (Euler angles in degrees), read back by orix's .ctf reader."
         case .edsLines:
             "The X-ray line intensities of the spectrum summed over each line's window, with the background estimated from windows on either side, as exspy's get_lines_intensity does."
+        case .edsModelFit:
+            "Each line's area from one fit of the whole spectrum, Gaussian lines on a bremsstrahlung continuum, as exspy's EDS model fit and its get_lines_intensity give it."
         case .cliffLorimer:
             "The weight and atomic fractions from the line intensities and k-factors by the Cliff-Lorimer ratio method, as exspy's quantification does."
         }
@@ -179,7 +182,7 @@ package nonisolated enum SEMMethod: String, Sendable, Equatable, CaseIterable, I
             ["Hielscher and Schaeben 2008, J. Appl. Cryst. 41, 1024", Self.orix]
         case .angWriter, .ctfWriter:
             [Self.orix]
-        case .edsLines:
+        case .edsLines, .edsModelFit:
             [Self.exspy]
         case .cliffLorimer:
             ["Cliff and Lorimer 1975, J. Microsc. 103, 203", Self.exspy]
@@ -208,7 +211,7 @@ package nonisolated enum SEMMethod: String, Sendable, Equatable, CaseIterable, I
             SEMReferenceVersions.label("orix")
         case .grains, .kam, .gos, .gnd, .schmid:
             SEMReferenceVersions.label("defdap")
-        case .edsLines, .cliffLorimer:
+        case .edsLines, .edsModelFit, .cliffLorimer:
             SEMReferenceVersions.label("exspy")
         }
     }
