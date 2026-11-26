@@ -355,7 +355,7 @@ extension MacTEMAgentDoor {
             guard let ellipse = ring.ellipse else { return nil }
             return DiffractionPicture.Ring(points: RingOverlay.polyline(ellipse).map { ImagePoint(x: $0.x, y: $0.y) }, label: labels[ring.id] ?? "")
         }
-        let annulus = analysis.centre.map {
+        let annulus = analysis.centre.flatMap { DiffractionViewState.drawsAnnulus(url: item.url) ? $0 : nil }.map {
             DiffractionPicture.Annulus(centre: ImagePoint(x: $0.column, y: $0.row), inner: view.annulusInner, outer: view.annulusOuter)
         }
         let marks = DiffractionPicture.marks(annulus: annulus, rings: rings, spots: analysis.spots, simulated: simulated,

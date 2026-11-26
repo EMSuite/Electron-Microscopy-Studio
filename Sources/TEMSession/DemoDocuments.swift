@@ -173,6 +173,10 @@ package nonisolated enum DemoDocuments {
     /// the HRTEM image is; its pixels are computed, never read, and before the first slice lands it holds the HRTEM placeholder.
     package static func stemURL(of simulation: URL) -> URL { URL(fileURLWithPath: "/macTEM-demo/STEM of " + simulation.lastPathComponent) }
     package static func isSTEM(_ url: URL) -> Bool { url.path.hasPrefix("/macTEM-demo/STEM of ") }
+
+    /// A simulated document of any kind (a Simulation, or its HRTEM, CBED or STEM result): nothing measured, so nothing to
+    /// calibrate (#1149).
+    package static func isSimulated(_ url: URL) -> Bool { isSimulation(url) || isHRTEM(url) || isCBED(url) || isSTEM(url) }
     /// The Simulation document a STEM image belongs to.
     package static func simulationURL(ofSTEM url: URL) -> URL {
         URL(fileURLWithPath: "/macTEM-demo/" + url.lastPathComponent.replacingOccurrences(of: "STEM of ", with: ""))
