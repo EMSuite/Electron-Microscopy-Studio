@@ -215,6 +215,22 @@ jobs:
           # job could never pass until this was set (mac4DSTEM, 2026-09-09). Kept so a rule that compares
           # against the previous commit does not repeat that.
           fetch-depth: 2
+      - name: The checkout is the commit (a reused workspace keeps nothing)
+        # On the self-hosted Mac the workspace and its .git persist between jobs, and on 25 Nov the workspace Package.resolved
+        # read after checkout held an earlier job's pins, not the commit's (#1104's runs, #1105). This prints each tracked
+        # file's index flags (h = assume-unchanged, S = skip-worktree: git then never rewrites the file), clears both flags,
+        # restores every tracked file from HEAD and fails if the tree still differs from it, so stale state cannot pass a gate.
+        run: |
+          set -euo pipefail
+          flagged=$(git ls-files -v | grep -E '^([a-z]|S) ' || true)
+          if [ -n "$flagged" ]; then echo "::warning::index flags on tracked files (cleared now):"; echo "$flagged"; fi
+          # Two passes: one update-index call with both options leaves a skip-worktree flag set (git 2.43, tried).
+          git ls-files -z | xargs -0 git update-index --no-assume-unchanged --
+          git ls-files -z | xargs -0 git update-index --no-skip-worktree --
+          git ls-files -v -- '*Package.resolved'
+          git checkout --force HEAD -- .
+          git diff --exit-code --stat HEAD
+          echo "the tree is HEAD ($(git rev-parse --short HEAD))"
       - name: Toolchain on record
         run: |
           sw_vers
@@ -236,6 +252,21 @@ jobs:
       - name: Resolve the pinned MacEMUI
         # The inventory's UI-journey identifier check reads the shell's sources from .build/checkouts/MacEMUI (no ../MacEMUI here).
         run: swift package resolve
+      - name: The pins are still the commit's (nothing since checkout rewrote them)
+        # #1105: on the Mac, a run whose tree was HEAD after checkout read a workspace Package.resolved with other pins in the
+        # inventory. This names what changed since checkout (so the log says which earlier step, or which outside process,
+        # wrote it), puts both Package.resolved files back as committed, and fails if they still differ.
+        run: |
+          set -euo pipefail
+          changed=$(git status --porcelain --untracked-files=no)
+          if [ -n "$changed" ]; then
+            echo "::warning::tracked files changed since checkout (restored now):"; echo "$changed"
+            git diff --stat HEAD
+            git diff HEAD -- '*Package.resolved' | head -80
+          fi
+          git checkout --force HEAD -- Package.resolved macTEM.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+          git diff --exit-code --stat HEAD -- '*Package.resolved'
+          ps -axo pid,etime,command | grep -E 'xcodebuild|SWBBuildService|XCBBuildService|swift-package|Xcode.app' | grep -v grep || true
       - name: Run the inventory (cheapest first)
         run: tools/run-tests.sh inventory
       - name: Build the package layers standalone (core)
