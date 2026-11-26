@@ -256,8 +256,8 @@ histogram. Its references are NumPy, SciPy and scikit-image; none of their code 
 EMSuiteUI (a Swift package the app is built with)
 ================================================================================
 
-The app links EMSuiteUI (https://github.com/EMSuite/EMSuiteUI, tag 0.18.1, commit
-73181ddd408fd9cdd44324cb060d905d9c0eb288), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only: the window shell, the
+The app links EMSuiteUI (https://github.com/EMSuite/EMSuiteUI, tag 0.19.0, commit
+7ffc0c2ab95efaae644a02f40e65d16d357f35de), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only: the window shell, the
 inspector, the controls, the Metal image view, the EDS room, the agent door, the phase library and its Materials Project
 client macEM shares with mac4DSTEM.
 
