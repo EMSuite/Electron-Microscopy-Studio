@@ -99,10 +99,12 @@ struct DiffractionPowderSection: View {
         }
     }
 
-    /// The powder pattern the section draws and the Export section writes: the room's crystal and the phase it is compared with.
+    /// The powder pattern the section draws and the Export section writes: the room's crystal and the phase it is compared with; none
+    /// in a Simulation document that shows no phase (`SimulationEmptyState`), whose crystal is only the calibration standard.
     static func table(of item: OpenItem, openItems: OpenItems) -> PowderTable {
         let analysis = item.diffraction
-        let phases = item.diffractionPowder.phases(crystal: analysis.crystal, others: comparable(for: item, openItems: openItems))
+        let phases = SimulationEmptyState.isShown(for: item) ? []
+            : item.diffractionPowder.phases(crystal: analysis.crystal, others: comparable(for: item, openItems: openItems))
         return item.diffractionPowder.table(phases: phases, volts: analysis.volts(for: item.session.imageOrBlank))
     }
 

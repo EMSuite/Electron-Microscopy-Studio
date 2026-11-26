@@ -58,6 +58,10 @@ struct DiffractionThicknessSection: View {
             InspectorNote(m.sentence).accessibilityIdentifier("diffraction.thickness.sentence")
         } else {
             InspectorWarning(m.sentence).accessibilityIdentifier("diffraction.thickness.sentence")
+            // A poor fit's number, greyed under the warning: seen, never taken as the result.
+            if let line = m.unreliableThicknessLine {
+                InspectorNote(line).accessibilityIdentifier("diffraction.thickness.unreliable")
+            }
         }
         ThicknessProfileChart(measurement: m)
             .frame(height: Self.chartHeight)

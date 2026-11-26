@@ -24,9 +24,9 @@
 # `changes` asks the Actions API first. The Mac takes the job unless it already holds MAC_DEPTH jobs (running and waiting)
 # AND no job of this repo waits for a GitHub macOS runner; only then does it overflow to macos-26. So the Mac is never idle
 # while unit jobs wait on GitHub (25 Nov: routing on "any Mac job" sent ten to GitHub's five shared slots and left the Mac
-# idle), and GitHub is used only while it has room. It sees only this repo's jobs (4DSTEM Studio's and EMSuiteUI's on the
-# same Mac are not counted), and two pull requests deciding in the same second can both pick one side; either way the job
-# still runs, it only waits. An API error picks the Mac. The job's log says which and why.
+# idle), and GitHub is used only while it has room. It counts this repo's jobs and those of EMSuiteUI and 4DSTEM Studio,
+# which share the Mac (public repos, readable with this run's token; #1117). Two pull requests deciding in the same second
+# can both pick one side; either way the job still runs, it only waits. An API error picks the Mac. The job's log says which and why.
 #
 # DOCS ONLY: a pull request that changes only the root's Markdown files (README, CONTRIBUTING, ...), files under docs/
 # (the store texts in docs/app-store/ among them) or the issue templates runs no macOS job (process item 3 again). The
@@ -172,19 +172,23 @@ jobs:
           MAC_DEPTH: 3
         run: |
           set -uo pipefail
-          # Every queued or running job of this repo's other runs (any workflow, any event), as "status label-kind".
+          # Every queued or running job of the other runs (any workflow, any event) of this repo and of the two other public repos
+          # whose jobs share the Mac (EMSuiteUI and 4DSTEM Studio, #1117), as "status label-kind". The kit runner's jobs
+          # (macem-kit) are another machine's and not counted.
           jobs=""
+          for repo in "$GITHUB_REPOSITORY" EMSuite/EMSuiteUI EMSuite/4DSTEM-Studio; do
           for status in queued in_progress; do
-            runs=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?status=$status&per_page=100" \
+            runs=$(gh api "repos/$repo/actions/runs?status=$status&per_page=100" \
                      --jq ".workflow_runs[] | select(.id != $GITHUB_RUN_ID) | .id") \
-              || { echo "the API did not answer: the Mac"; echo "mac=true" >> "$GITHUB_OUTPUT"; exit 0; }
+              || { echo "the API did not answer for $repo: the Mac"; echo "mac=true" >> "$GITHUB_OUTPUT"; exit 0; }
             for run in $runs; do
-              jobs+=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run/jobs?per_page=100" --jq '.jobs[]
+              jobs+=$(gh api "repos/$repo/actions/runs/$run/jobs?per_page=100" --jq '.jobs[]
                   | select(.status == "queued" or .status == "in_progress")
-                  | "\(.status) \(if (.labels | index("self-hosted")) then "mac"
+                  | "\(.status) \(if (.labels | index("self-hosted")) and ((.labels | index("macem-kit")) | not) then "mac"
                                   elif ([.labels[] | select(startswith("macos"))] | length) > 0 then "github" else "linux" end)"' \
                   || true)$'\n'
             done
+          done
           done
           mac=$(grep -c ' mac$' <<< "$jobs" || true)
           github_waiting=$(grep -c '^queued github$' <<< "$jobs" || true)

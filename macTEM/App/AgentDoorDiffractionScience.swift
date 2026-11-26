@@ -62,6 +62,7 @@ extension MacTEMAgentDoor {
                            AgentParameter("file", .text, summary: "The file to write, relative to the Agent folder."),
                        ], acts: true) { call in
             withDiffraction(call) { item, image in
+                if SimulationEmptyState.isShown(for: item) { return .refusal(status: 409, message: SimulationEmptyState.paneSentence) }
                 let others = openCrystals(call, besides: item)
                 if let refusal = applyPowder(call.arguments, to: item, others: others) { return refusal }
                 let table = powderTable(item, image: image, others: others)

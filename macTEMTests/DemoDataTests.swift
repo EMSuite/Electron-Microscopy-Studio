@@ -6,12 +6,25 @@
 
 import DiffractoCore
 import ShellEDXModel
+import ShellPhaseLibrary
 import TEMCore
 import TEMSession
 import XCTest
 @testable import macTEM
 
 nonisolated final class DemoDataTests: XCTestCase {
+    @MainActor private var saved: PhaseLibrary!
+
+    /// A phase library of its own in a temporary folder, never this Mac's: the silicon simulation must leave it empty.
+    @MainActor override func setUp() async throws {
+        saved = PhaseServices.library
+        PhaseServices.library = PhaseLibrary(store: PhaseLibraryStore(folder: FileManager.default.temporaryDirectory
+            .appending(path: "DemoDataTests-\(UUID().uuidString)", directoryHint: .isDirectory)))
+    }
+
+    @MainActor override func tearDown() async throws {
+        PhaseServices.library = saved
+    }
 
     /// Mutation: point any case's `openDemo` at the wrong document, or drop the room switch - red.
     @MainActor func testEveryDemoOpensInItsRoomWithDataThere() async throws {
@@ -67,6 +80,9 @@ nonisolated final class DemoDataTests: XCTestCase {
         XCTAssertFalse(item.diffractionView.isAddingPhase, "no Add Phase sheet over the silicon pattern")
         XCTAssertFalse(SimulationEmptyState.isShown(for: item))
         XCTAssertEqual(item.diffraction.orientationLine, "\(phase.name) [001]", "the header names silicon, not Au")
+        XCTAssertTrue(PhaseServices.library.phases.isEmpty, "the demo adds nothing to the person's phase library")
+        XCTAssertEqual(DiffractionPowderSection.table(of: item, openItems: simulation.openItems).phases.count, 1)
+        XCTAssertEqual(DiffractionPowderSection.table(of: item, openItems: simulation.openItems).phases.first?.structure.spaceGroupNumber, 227)
         XCTAssertEqual(simulation.navigation.workspaceArea, .diffraction)
     }
 

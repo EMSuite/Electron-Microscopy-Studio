@@ -201,7 +201,7 @@ private struct DiffractionHeaderFacts: View {
             }
             // The drawn orientation's nearest zone axis once it was tilted, turned or flipped by hand, or while no Index answer is
             // shown (#787): "Al · 2.1° from [001] · set by hand".
-            if let line = analysis.orientationHeaderLine(locale: .autoupdatingCurrent) {
+            if !SimulationEmptyState.isShown(for: item), let line = analysis.orientationHeaderLine(locale: .autoupdatingCurrent) {
                 Text(line)
                     .font(.callout.monospacedDigit()).lineLimit(1).truncationMode(.tail).layoutPriority(2)
                     .help(line)

@@ -73,6 +73,18 @@ package nonisolated enum CBEDThickness {
                 + "two-beam value \(nm(fit.twoBeamExtinctionDistance)) nm). Residual \(residual) % of the peak." + line + edge
         }
 
+        /// A poor fit's number, said as not reliable: the section shows it greyed under the warning, never as the result (Use in
+        /// Simulation stays off). DM's log-ratio and exSpy's `estimate_thickness` show every estimate beside its quality rather than
+        /// hide it; the door already returns it with the verdict "poor". Nil for a good fit or two candidates.
+        package var unreliableThicknessLine: String? {
+            guard isPoor, let nm = thicknessNM else { return nil }
+            return Self.unreliableLine(thicknessNM: nm)
+        }
+
+        package static func unreliableLine(thicknessNM nm: Double) -> String {
+            "Fitted thickness \(UnitDisplay.number(nm, digits: 3)) nm, not reliable at this residual."
+        }
+
         /// The verdict in one word for the header and the door: found, ambiguous, poor.
         package var verdict: String { fit.isAmbiguous ? "ambiguous" : (isPoor ? "poor" : "found") }
 
