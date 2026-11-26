@@ -8,7 +8,8 @@
 //        template (here the synthetic one of the direct beam's own radius, `get_probe_synthetic`, with a zero-sum ring as
 //        `get_probe_kernel_edge_sigmoid` makes it), then get_maxima_2D on the correlation at py4DSTEM's values (σ_cc 2, 0.005 of the
 //        brightest, edge 20, 70 peaks), the spacing at least 1.5 disc radii. pyxem's `template_match_disk` + `find_peaks` is the same
-//        route. A pattern whose direct beam is under `discRadiusThreshold` keeps the SAED finder, unchanged.
+//        route. A pattern whose direct beam is under `discRadiusThreshold`, or whose brightest spots are sharp (a saturated SAED
+//        beam, `reflectionsAreDiscs`), keeps the SAED finder, unchanged.
 //
 
 import Foundation
@@ -24,9 +25,9 @@ package nonisolated enum DiscSpots {
     /// The direct beam's radius about `centre`, px: where its ring-mean profile falls to half way between its centre and the lowest
     /// ring within `profileReach` (py4DSTEM's `get_probe_size` reads the same disc as the area above a threshold). nil when the
     /// profile does not fall (no beam, a flat pattern).
-    package static func beamRadius(pattern: DiffractionPattern, centre: SIMD2<Double>) -> Double? {
+    package static func beamRadius(pattern: DiffractionPattern, centre: SIMD2<Double>, reach wanted: Int = profileReach) -> Double? {
         let rows = pattern.height, columns = pattern.width
-        let reach = min(profileReach, max(rows, columns))
+        let reach = min(max(4, wanted), max(rows, columns))
         var sum = [Double](repeating: 0, count: reach), count = [Int](repeating: 0, count: reach)
         let r0 = max(0, Int(centre.x) - reach), r1 = min(rows - 1, Int(centre.x) + reach)
         let c0 = max(0, Int(centre.y) - reach), c1 = min(columns - 1, Int(centre.y) + reach)
@@ -49,6 +50,21 @@ package nonisolated enum DiscSpots {
             return Double(k - 1) + into + 0.5
         }
         return nil
+    }
+
+    /// Whether the reflections are discs too, not only the direct beam: a selected-area pattern whose beam is saturated or bloomed
+    /// has a wide beam and sharp spots. The brightest spots the SAED finder took (up to five) are read as the beam is, within twice
+    /// the beam's radius; the pattern is one of discs when their median radius is at least half the beam's and at least 4 px (a
+    /// sharp SAED spot reads about 2 px, an NBED disc its own radius).
+    package static func reflectionsAreDiscs(pattern: DiffractionPattern, brightest: [FoundSpot], beamRadius: Double) -> Bool {
+        let reach = Int((2 * beamRadius).rounded(.up))
+        let radii = brightest.prefix(5).compactMap { spot -> Double? in
+            guard spot.row.isFinite, spot.column.isFinite else { return nil }
+            return Self.beamRadius(pattern: pattern, centre: SIMD2(spot.row, spot.column), reach: reach)
+        }.sorted()
+        guard !radii.isEmpty else { return false }
+        let median = radii.count % 2 == 1 ? radii[radii.count / 2] : (radii[radii.count / 2 - 1] + radii[radii.count / 2]) / 2
+        return median >= max(4, beamRadius / 2)
     }
 
     /// The pattern cross-correlated with a disc of `radius` px less the mean of the ring just outside it (width `radius` / 2, at

@@ -136,10 +136,12 @@ package nonisolated enum PatternIndexing {
         // A centre off the pattern is the kit's refusal, before the beam is read there.
         guard at.x.isFinite, at.y.isFinite, at.x >= 0, at.x <= Double(pattern.height - 1), at.y >= 0,
               at.y <= Double(pattern.width - 1) else { throw PatternSpots.Failure.centreOutside }
-        if let radius = DiscSpots.beamRadius(pattern: pattern, centre: at), radius >= DiscSpots.discRadiusThreshold {
+        let spots = try PatternSpots.find(in: pattern, centre: at, settings: settings)
+        if let radius = DiscSpots.beamRadius(pattern: pattern, centre: at), radius >= DiscSpots.discRadiusThreshold,
+           DiscSpots.reflectionsAreDiscs(pattern: pattern, brightest: spots, beamRadius: radius) {
             return try DiscSpots.find(pattern: pattern, centre: at, radius: radius, beamExclusionRadius: settings.beamExclusionRadius)
         }
-        return try PatternSpots.find(in: pattern, centre: at, settings: settings)
+        return spots
     }
 
     /// (qx, qy) of a pixel: its direction from the centre, its length the readout's q of its radius. nil at the centre.

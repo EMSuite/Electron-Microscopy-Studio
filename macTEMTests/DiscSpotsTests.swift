@@ -89,6 +89,35 @@ nonisolated final class DiscSpotsTests: XCTestCase {
         XCTAssertGreaterThan(4 * off, old.count, "the SAED finder takes the disc tops' ripples: \(off) of \(old.count) off centre")
     }
 
+    /// A selected-area pattern whose direct beam is saturated (clipped at 1000, about 12 px across at half height) but whose spots are
+    /// sharp keeps the SAED finder: the spots, not the beam, say whether the pattern is one of discs. Mutation: the beam's radius
+    /// alone deciding.
+    func testASaturatedSelectedAreaBeamKeepsTheSAEDFinder() throws {
+        let n = 256, c = SIMD2(128.0, 128.0)
+        var values = [Double](repeating: 3, count: n * n)
+        for row in 0..<n { for column in 0..<n {
+            let d2 = pow(Double(row) - c.x, 2) + pow(Double(column) - c.y, 2)
+            values[row * n + column] = min(1000, values[row * n + column] + 4000 * exp(-d2 / 72))
+        } }
+        for i in -3...3 { for j in -3...3 where !(i == 0 && j == 0) {
+            let at = c + SIMD2(Double(i * 30), Double(j * 30))
+            guard at.x > 22, at.x < 234, at.y > 22, at.y < 234 else { continue }
+            for row in 0..<n { for column in 0..<n {
+                let d2 = pow(Double(row) - at.x, 2) + pow(Double(column) - at.y, 2)
+                values[row * n + column] += 300 * exp(-d2 / 2.88)
+            } }
+        } }
+        let pattern = DiffractionPattern(width: n, height: n, pixels: values.map { Float($0) })
+        let beam = try XCTUnwrap(DiscSpots.beamRadius(pattern: pattern, centre: c))
+        XCTAssertGreaterThanOrEqual(beam, DiscSpots.discRadiusThreshold, "the saturated beam is wide")
+        let calibration = DiffractionCalibration(source: .typed, deltaQ: 0.01, ring: nil)
+        let found = try PatternIndexing.findSpots(pattern: pattern, centre: DiffractionCentre(row: c.x, column: c.y, source: .typed),
+                                                  shortestG: 0.2, calibration: calibration)
+        var settings = PatternSpots.Settings()
+        settings.beamExclusionRadius = max(5, ZoneAxisOverlay.radius(q: 0.1, calibration: calibration))
+        XCTAssertEqual(found, try PatternSpots.find(in: pattern, centre: c, settings: settings), "the SAED finder's spots")
+    }
+
     /// A selected-area pattern (a direct beam of a few pixels, the nanowire demo's is 2.3 px) keeps the SAED finder, unchanged.
     /// Mutation: the threshold below a sharp beam's radius.
     func testASelectedAreaPatternKeepsTheSAEDFinder() throws {

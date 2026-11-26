@@ -52,8 +52,9 @@ package nonisolated struct DynamicalSpots: Sendable, Equatable {
     /// Why: the unit's box is a supercell of the crystal's primitive lattice, so its reciprocal grid has points that are no reflection
     /// of the crystal. A beam there is not a zero-order Laue zone spot: it is where a higher-order Laue zone reflection lands in
     /// projection (Si [0 0 1]: a reflection 1 2̄1 l of the first-order ring at 3.9 Å⁻¹ reads as the fcc-forbidden 1 2̄1 0). abTEM 1.0.10's
-    /// `index_diffraction_spots` leaves such points out by the lattice's reflection condition (`centering`); this does the same
-    /// from the atoms, so any centring is found, not only the letters.
+    /// `index_diffraction_spots(centering="F")` names no such point (h k 0): it indexes it as the Laue zone reflection it is
+    /// (1 2̄1 1̄). The room's spots are the zero-order zone's, so these points are left out here, found from the atoms (any
+    /// centring, not only the letters); naming higher-order Laue zone beams is SimulatoKit#145's.
     package static func latticeTranslations(of unit: AtomicStructure) -> [SIMD3<Double>] {
         let box = unit.box
         let atoms = unit.atoms
