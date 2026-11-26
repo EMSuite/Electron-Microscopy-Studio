@@ -70,7 +70,8 @@ jobs:
         if: github.event_name == 'workflow_dispatch' && inputs.extract_demo_frame
         run: |
           python3 -m venv "$RUNNER_TEMP/venv"
-          "$RUNNER_TEMP/venv/bin/pip" install --quiet 'h5py==3.16.0' 'numpy==2.3.5'
+          # The versions the committed frame was written with (2026-11-26); scipy for the tutorial's distortion correction.
+          "$RUNNER_TEMP/venv/bin/pip" install --quiet 'h5py==3.16.0' 'numpy==2.5.3' 'scipy==1.18.1'
           # The record's own words (title, description, licence, creators): the phase and zone axis the docs name come from here.
           curl -fsSL https://zenodo.org/api/records/15490547 | "$RUNNER_TEMP/venv/bin/python" -I -c 'import json,sys; r=json.load(sys.stdin)["metadata"]; print("zenodo record", json.dumps({k: r.get(k) for k in ("title","description","license","creators","related_identifiers","publication_date")}, indent=1))'
           "$RUNNER_TEMP/venv/bin/python" -I tools/lib/extract-spot-pattern.py References/public-data/pyxem/twinned_nanowire.hdf5 "$RUNNER_TEMP/demo-frame.hspy" 84 26

@@ -143,8 +143,8 @@ extension AppState {
     /// (the room's standard and ring at their defaults, Au and {111}), the room in front. Called by the Open itself, as
     /// `landSimulation` is, so the pattern lands there in this window and in a tab of its own (a window that holds a document opens
     /// the demo in a new tab, whose room started in Image).
-    /// The nanowire spot pattern lands there too (#1086), on Calibrate: it opened in a new tab's Image room. Its file holds no
-    /// scale (pyxem's scan is in pixels), so the room asks for one before Index.
+    /// The nanowire spot pattern lands there too (#1086), on Calibrate: it opened in a new tab's Image room. Its file holds its
+    /// scale (`DemoDocuments.Shipped.nanowirePatternDeltaQ`, the file's axis), so Index runs without a typed Δq.
     func landDemoPattern(_ made: [(id: OpenItem.ID, url: URL)]) {
         if let spots = made.first(where: { $0.url.resolvingSymlinksInPath() == DemoDocuments.Shipped.nanowirePattern.url?.resolvingSymlinksInPath() }), let item = openItems.item(spots.id) {
             if openItems.selected?.id != item.id { openItems.select(item.id) }
