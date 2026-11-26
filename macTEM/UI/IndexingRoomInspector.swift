@@ -376,6 +376,10 @@ private struct IndexingDictionarySection: View {
             if let why = session.dictionaryRefusal {
                 InspectorWarning(why)
                     .accessibilityIdentifier("indexing.dictionary.refusal")
+            } else if let warning = session.masterWarnings.first {
+                // A master pattern of another phase of the same space group (the demo's Ni on an Al scan): it runs, and says whose it is.
+                InspectorWarning(warning)
+                    .accessibilityIdentifier("indexing.dictionary.masterWarning")
             } else if session.phasesOn.count > 1 {
                 InspectorNote("kikuchipy's dictionary indexing, one dictionary per phase on; each point takes the phase whose best match scores highest (merge_crystal_maps).")
             } else {
