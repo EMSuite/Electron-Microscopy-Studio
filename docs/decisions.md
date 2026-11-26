@@ -711,3 +711,16 @@ was a band across the middle, the inset, the two IPF keys and thirty slip-label 
 the grain table to three rows. One frame for every room.
 
 **What would reverse it.** A drive that needs the key or the picked point beside the map while another Detail tab is shown.
+
+## 2026-11-23 — CITATION.cff follows the release
+
+**What.** release-please writes `CITATION.cff`'s `version` (a `yaml` extra file in `release-please-config.json`), the file
+carries no `date-released`, and `tools/run-tests.sh inventory` fails when its version differs from
+`.release-please-manifest.json` or when `date-released` comes back. The abstract loses its "not yet in release 1.3.0"
+sentence and the `url` follows the page's move to `/electron-microscopy-studio/`.
+
+**Why.** Suite issue RL17 (reach and launch): a citation that names a release two majors old makes people cite the wrong
+version. A date that release-please cannot write would disagree with the version after every release, which is the reason
+the entry of 2026-11-10 gave for keeping the file by hand. No date is better than a wrong one (CFF does not require it).
+
+**Reversal.** Remove the extra file and the inventory check, and go back to a `docs:` PR after each tag.
