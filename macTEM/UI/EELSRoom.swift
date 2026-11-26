@@ -1086,7 +1086,7 @@ struct EELSResultsPanel: View {
                               : r.notDetected ? "The MLLS amount is at or below zero: " + EELSEdgeRow.notDetectedWords + ", counted as 0 at%"
                               : r.belowDetection ? "I is at or under 3σ: this edge is not detected in the region"
                               : r.atomicPercent == nil ? (r.atomicUnavailable ?? EELSEdgeRow.atomicNeedsTwo)
-                              : r.atomicSigma != nil ? "± is 1σ: " + EELSCompositionSigma.formula : "The kit gives no σ for an amount: at% without σ")
+                              : r.atomicSigma != nil ? "± is 1σ: " + EELSCompositionSigma.formula : "No σ is known for an amount: at% without σ")
                 }.width(min: EELSResultsColumns.percentMinimum, ideal: EELSResultsColumns.percentMinimum + 6)
                 TableColumn(EELSColumnSpeech.header("wt%")) { r in
                     Text(EELSRoomFormat.weightText(r)).monospacedDigit().lineLimit(1)

@@ -341,7 +341,7 @@ extension MacTEMAgentDoor {
                        summary: "The STEM section of the shown Simulation document (or its STEM image), only the values given, through "
                            + "its own controls: semiangle_mrad, defocus_nm (positive is underfocus) or scherzer true, scan_step_angstrom "
                            + "or nyquist true (λ over 4α), collect_mrad (the largest angle collected), detector (BF, ABF, ADF, HAADF, or "
-                           + "Custom with inner_mrad and outer_mrad; edges snap to whole 1 mrad rings, as the kit sums them). A preset "
+                           + "Custom with inner_mrad and outer_mrad; edges snap to whole 1 mrad rings, as the detector sums them). A preset "
                            + "that runs past the angles collected is refused. The detector band moves after a run with no new run; the other "
                            + "settings need run_stem. Refused with the section's ranges when a value is not kept.",
                        input: .window,

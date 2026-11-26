@@ -83,7 +83,7 @@ extension MacTEMAgentDoor {
                            + "searching until it lands; ask again), stop_search stops it. fit_scale; rank true ranks My Phases (the room's crystal, the library, "
                            + "the standards, the open crystals) and the Materials Project's candidates against the measured rings (or the "
                            + "marked spots) and answers at once (running true until it lands); use a phase's name makes it the room's "
-                           + "crystal as Use Phase does. Answers the rows in the kit's order (explains, strong rings not seen, misfit, "
+                           + "crystal as Use Phase does. Answers the rows in the ranking's order (explains, strong rings not seen, misfit, "
                            + "scale, tie, source), each row's sentence, the ties and the notes, how many candidates came from each source "
                            + "and which search limits applied, never a verdict the sheet does not show.",
                        input: .window,

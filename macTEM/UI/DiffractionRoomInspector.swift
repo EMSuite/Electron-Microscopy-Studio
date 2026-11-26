@@ -520,7 +520,7 @@ private struct DiffractionSimulationSection: View {
         let crystal = analysis.simulatedPhase
         let zoneAxis = analysis.simulation.zoneAxis
         SegmentedPicker(label: "Intensities",
-                        items: [(false, .title("Kinematic", help: "The kit's |F|² with the excitation envelope")),
+                        items: [(false, .title("Kinematic", help: "|F|² of each reflection with the excitation envelope")),
                                 (true, .title("Dynamical", help: "The multislice's zone-axis beams at a thickness, the same run as the HRTEM image"))],
                         selection: Binding(get: { model.isDynamical }, set: { model.setDynamical($0) }))
             .disabled(model.atomModel != nil)

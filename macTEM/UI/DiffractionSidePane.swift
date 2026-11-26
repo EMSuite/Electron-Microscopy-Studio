@@ -188,7 +188,7 @@ struct DiffractionPowderPeakTable: View {
         })
         .overlay {
             if rows.isEmpty {
-                Text("The kit drew no powder pattern for these phases.")
+                Text("No powder pattern could be computed for these phases.")
                     .font(.callout).foregroundStyle(.secondary).padding(10).allowsHitTesting(false)
             }
         }
