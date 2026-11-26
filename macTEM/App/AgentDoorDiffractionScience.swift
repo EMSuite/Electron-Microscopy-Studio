@@ -124,13 +124,14 @@ extension MacTEMAgentDoor {
                         return .refusal(status: 400, message: String(describing: error))
                     }
                 }
-                let candidates = DiffractionPhaseCandidate.all(for: item, appState: appState)
+                let candidates = DiffractionPhaseCandidate.all(for: item, appState: appState, elementsText: elementsText)
                 if let refusal = applyFindPhases(a, to: item, image: image, candidates: candidates) { return refusal }
                 search.elementsText = elementsText
                 if a["stop_search"] == "true" { search.stop() }
                 if a["search_materials_project"] == "true" { search.run() }
                 var out = phases(item, image: image)
                 out["materials_project"] = materialsProject(search, candidates: DiffractionPhaseCandidate.all(for: item, appState: appState))
+                out["left_out_by_elements"] = AgentJSON.orNull(DiffractionPhaseCandidate.leftOutSentence(for: item, appState: appState))
                 return .json(out)
             }
         }),
