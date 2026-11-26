@@ -46,16 +46,6 @@ struct DiffractionPrecipitateSection: View {
                 .help("The precipitate placed in \(analysis.crystal.name): a phase of the library, a standard, or the crystal of another open pattern")
                 .accessibilityIdentifier("diffraction.precipitate.phase")
             }
-            InspectorRow("Example") {
-                Menu(variants.example?.title ?? "Literature Example") {
-                    ForEach(DiffractionVariants.Example.all) { example in
-                        Button("\(example.title), \(example.citation)") { variants.use(example) }
-                    }
-                }
-                .fixedSize()
-                .help("Fills the precipitate and its relationship as a paper states them, for the matrix the paper names")
-                .accessibilityIdentifier("diffraction.precipitate.example")
-            }
             if let example = variants.example {
                 InspectorNote("\(example.precipitate.name) in \(example.matrixName) as \(example.citation) states it.")
             }

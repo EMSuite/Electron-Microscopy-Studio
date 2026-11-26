@@ -262,7 +262,7 @@ private struct DiffractionPhasesSection: View {
             }
             InspectorActionRow {
                 Button("Add Phase…") { SimulationEmptyState.addPhase(item.diffractionView) }
-                    .help("Find a phase on the Materials Project, or open a CIF. Until a phase is shown, the room indexes against \(analysis.standard.name), the calibration standard.")
+                    .help("Find a phase on the Materials Project, or open a CIF. Index and the simulated spots wait until a phase is shown; \(analysis.standard.name) is only the calibration standard.")
                     .accessibilityIdentifier("diffraction.phases.add")
                 Button("Find Phases…") { findingPhases = true }
                     .help("Ranks My Phases (your library, the standards, the open crystals) and, if you search, the Materials Project's phases by how many of the measured rings or marked spots each explains")
