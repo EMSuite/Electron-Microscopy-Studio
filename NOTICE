@@ -341,7 +341,7 @@ sdss_ferrite_austenite.ang (651,687 bytes, md5 0c45548b82445657fbd52d882a27f2fd)
     `data.sdss_ferrite_austenite()` fetches; doi:10.5281/zenodo.3625780), licensed under CC BY 4.0 (text in
     `Licenses/orix-data-sdss_ferrite_austenite-LICENSE.txt`). macEM reads it with its own port of orix's .ang reader.
 
-twinned_nanowire_frame.hspy (63,113 bytes, md5 2186caad582e0bdc7d2eb994e4d149ce)
+twinned_nanowire_frame.hspy (63,113 bytes, md5 247ebdf686bd5ed9a7167edb4a251a58)
     One precession electron diffraction pattern (300 kV, 100 x 100 pixels, float32) made from the twinned nanowire 4D-STEM
     scan of Carter Francis, "Pyxem 4D STEM Demo Data" [Data set], Zenodo (2025), https://doi.org/10.5281/zenodo.15490547
     (`twinned_nanowire.hdf5`, the file pyxem's `data.twinned_nanowire()` loads), licensed under the Creative Commons

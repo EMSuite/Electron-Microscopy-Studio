@@ -292,7 +292,7 @@ package nonisolated enum DemoDocuments {
         /// HyperSpy file of one 2D signal by tools/lib/extract-spot-pattern.py (2026-11-26, #1133: one frame was too noisy to index).
         /// C. Francis, "Pyxem 4D STEM Demo Data", Zenodo 10.5281/zenodo.15490547, CC BY 4.0.
         package static let nanowirePattern = ShippedFile(relativePath: "twinned_nanowire_frame.hspy", bytes: 63_113,
-                                                         md5: "2186caad582e0bdc7d2eb994e4d149ce", title: "Nanowire Spot Pattern (pyxem)")
+                                                         md5: "247ebdf686bd5ed9a7167edb4a251a58", title: "Nanowire Spot Pattern (pyxem)")
         /// The scale both axes of `nanowirePattern` carry, Å⁻¹ per pixel: calibrated on GaAs {111} of the pattern itself (a = 5.6535 Å,
         /// tools/lib/extract-spot-pattern.py's `SCALE`), not an independent calibration. pyxem's tutorial states 0.026874375407392053,
         /// read off the whole scan's mean, which puts {111} of this pattern 5.1 % short.
