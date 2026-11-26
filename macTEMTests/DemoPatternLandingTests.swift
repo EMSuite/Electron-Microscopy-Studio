@@ -73,4 +73,25 @@ nonisolated final class DemoPatternLandingTests: XCTestCase {
         XCTAssertEqual(analysis.crystal.structure.spaceGroupNumber, 216, analysis.crystal.name)
         XCTAssertEqual(analysis.crystal.structure.cell.a, 5.6533)
     }
+
+    /// #1133: Index on the nanowire demo as it lands (GaAs, the file's scale, the room's defaults) finds the wire's ⟨110⟩ zone, the
+    /// zone pyxem's tutorial names for it. Red before: the room's Au standard answered, and with GaAs the 1 % window on {111} about
+    /// 11 px out (a tenth of a pixel) left the single frame "found but poor", 7.5° from [230].
+    @MainActor func testIndexOnTheNanowireDemoFindsGaAs110() async throws {
+        let state = AppState(launch: LaunchOptions(arguments: []))
+        await state.openDemo(.spotPattern)?.value
+        try await waitUntil("the spot pattern to open", seconds: 60) { state.openItems.selected?.session.image != nil }
+        let item = try XCTUnwrap(state.openItems.selected)
+        let image = try XCTUnwrap(item.session.image)
+        let analysis = item.diffraction
+        analysis.bind(image)
+        XCTAssertNil(analysis.indexBlocker(image: image))
+        await analysis.index(image: image)?.value
+        let outcome = try XCTUnwrap(analysis.indexOutcome)
+        let header = PatternIndexing.header(outcome)
+        XCTAssertNotNil(outcome.orientation, header)
+        XCTAssertEqual(outcome.zoneAxis.map { [abs($0.x), abs($0.y), abs($0.z)].sorted() }, [0, 1, 1], header)
+        XCTAssertLessThan(try XCTUnwrap(outcome.zoneAxisAngle, header) * 180 / .pi, 3, header)
+        XCTAssertGreaterThanOrEqual(outcome.indexed, 8, header)
+    }
 }
