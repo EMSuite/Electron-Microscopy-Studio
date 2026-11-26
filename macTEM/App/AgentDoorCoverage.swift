@@ -92,6 +92,7 @@ nonisolated enum AgentDoorCoverage {
         "diffraction.holder.zoneAxis": .tool("plan_tilt"),
         "diffraction.holder.export": .tool("plan_tilt"),
         "diffraction.precipitate.doubleDiffraction": .tool("set_relationship"),
+        "diffraction.precipitate.example": .tool("set_relationship"),
         "diffraction.precipitate.pair\\(i)": .tool("set_relationship"),
         "diffraction.precipitate.phase": .tool("set_relationship"),
         "diffraction.precipitate.show": .tool("set_relationship"),

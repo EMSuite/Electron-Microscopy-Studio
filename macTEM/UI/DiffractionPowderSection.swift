@@ -11,6 +11,7 @@
 import Charts
 import ShellInspector
 import ShellLayout
+import ShellPhaseLibrary
 import SwiftUI
 import DiffractoCore
 import DiffractoScattering
@@ -108,10 +109,12 @@ struct DiffractionPowderSection: View {
         return item.diffractionPowder.table(phases: phases, volts: analysis.volts(for: item.session.imageOrBlank))
     }
 
-    /// The phases this crystal can be compared with: the room's standards, then the crystals of the other open patterns, each name once.
-    static func comparable(for item: OpenItem, openItems: OpenItems) -> [PowderPhase] {
+    /// The phases this crystal can be compared with: the library's phases (#1137), the room's standards, then the crystals of the
+    /// other open patterns, each name once.
+    static func comparable(for item: OpenItem, openItems: OpenItems, library: [Phase] = PhaseServices.library.phases) -> [PowderPhase] {
         var seen: Set<String> = [item.diffraction.crystal.name]
         var out: [PowderPhase] = []
+        for p in DiffractionPhases.ordered(library) where seen.insert(p.name).inserted { out.append(PowderPhase(name: p.name, structure: p.structure())) }
         for s in StandardCrystals.all where seen.insert(s.name).inserted { out.append(PowderPhase(name: s.name, structure: s.structure)) }
         for other in openItems.items where other.id != item.id {
             let c = other.diffraction.crystal

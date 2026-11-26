@@ -16,19 +16,23 @@ import DiffractoGeometry
 import DiffractoScattering
 import Foundation
 import ShellAgentDoor
+import ShellPhaseLibrary
 import TEMCore
 import TEMSession
 
 extension MacTEMAgentDoor {
     static let diffractionScienceTools: [AgentTool] = [
         said(AgentTool(name: "set_relationship", title: "Diffraction precipitate",
-                       summary: "The Precipitate section, only those given: precipitate (β″, a standard, or the crystal of another open "
-                           + "pattern), first and second (a pair as \"[1 0 0] || [3 2 0]\": the precipitate's plane (h k l) or "
+                       summary: "The Precipitate section, only those given: precipitate (a library phase's name, a standard, the "
+                           + "crystal of another open pattern, or none), example (a literature precipitate and its relationship at once, "
+                           + "beta_double_prime_in_al), first and second (a pair as \"[1 0 0] || [3 2 0]\": the precipitate's plane (h k l) or "
                            + "direction [u v w], then the matrix's), show (draw the variants), hide and unhide (variant numbers, "
                            + "\"2, 5\"), double_diffraction. Answers the variants with their groups, the sentences and any refusal.",
                        input: .window,
                        parameters: [
-                           AgentParameter("precipitate", .text, summary: "β″, a standard's name, or an open pattern's crystal."),
+                           AgentParameter("precipitate", .text, summary: "A library phase's name, a standard's, an open pattern's crystal, or none."),
+                           AgentParameter("example", .choice(DiffractionVariants.Example.all.map(\.id)),
+                                          summary: "A literature example: its precipitate and relationship, both at once."),
                            AgentParameter("first", .text, summary: "The first pair, kept exact: \"[1 0 0] || [3 2 0]\"."),
                            AgentParameter("second", .text, summary: "The second pair: \"[0 0 1] || [1 -3 0]\"."),
                            AgentParameter("show", .boolean, summary: "Draw the shown variants' spots over the pattern."),
@@ -186,10 +190,12 @@ extension MacTEMAgentDoor {
         }
     }
 
-    /// The crystals of the other open patterns, by name.
+    /// The library's phases and the crystals of the other open patterns, by name.
     private static func openCrystals(_ call: AgentToolCall, besides item: OpenItem) -> [PowderPhase] {
-        guard let appState = call.window?.state as? AppState else { return [] }
-        return appState.openItems.items.filter { $0.id != item.id }
+        // The library's phases first (#1137), as the sections offer them; a name the standards also carry is offered once.
+        let library = DiffractionPhases.ordered(PhaseServices.library.phases).map { PowderPhase(name: $0.name, structure: $0.structure()) }
+        guard let appState = call.window?.state as? AppState else { return library }
+        return library + appState.openItems.items.filter { $0.id != item.id }
             .map { PowderPhase(name: $0.diffraction.crystal.name, structure: $0.diffraction.crystal.structure) }
     }
 
@@ -239,30 +245,57 @@ extension MacTEMAgentDoor {
     static func applyRelationship(_ a: [String: String], to item: OpenItem, image: CalibratedImage, others: [PowderPhase])
         -> AgentToolOutput? {
         let variants = item.diffractionVariants
-        var precipitate: DiffractionVariants.Precipitate?
-        if let name = a["precipitate"] {
-            let options = [DiffractionVariants.Precipitate.betaDoublePrime]
-                + StandardCrystals.all.map { .init(name: $0.name, structure: $0.structure) }
-                + others.map { .init(name: $0.name, structure: $0.structure) }
-            guard let chosen = options.first(where: { $0.name == name }), chosen.name != item.diffraction.crystal.name else {
-                return .refusal(status: 404, message: "No precipitate \(name): β″, a standard other than the matrix, or an open pattern's crystal.")
+        let matrix = item.diffraction.crystal.name
+        var example: DiffractionVariants.Example?
+        if let id = a["example"] {
+            guard let chosen = DiffractionVariants.Example.all.first(where: { $0.id == id }) else {
+                return .refusal(status: 404, message: "No example \(id): " + DiffractionVariants.Example.all.map(\.id).joined(separator: ", ") + ".")
             }
-            precipitate = chosen
+            guard a["precipitate"] == nil else {
+                return .refusal(status: 400, message: "example gives the precipitate itself: give one or the other.")
+            }
+            example = chosen
         }
-        var relationship = variants.relationship
-        if let words = a["first"] {
-            guard let p = pair(words) else { return .refusal(status: 400, message: "first takes \"[1 0 0] || [3 2 0]\": (h k l) or [u v w] each.") }
-            relationship.firstPrecipitate = p.0; relationship.firstMatrix = p.1
+        // nil: not given; .some(nil): none.
+        var precipitate: DiffractionVariants.Precipitate??
+        if let name = a["precipitate"] {
+            if name.trimmingCharacters(in: .whitespaces).lowercased() == "none" {
+                precipitate = .some(nil)
+            } else {
+                let options = DiffractionPhases.precipitates(besides: matrix, library: PhaseServices.library.phases,
+                                                             others: others.map { ($0.name, $0.structure) })
+                guard let chosen = options.first(where: { $0.name == name }) else {
+                    return .refusal(status: 404, message: name == matrix ? "\(name) is the matrix: choose another phase."
+                                    : "No precipitate \(name): a library phase (list_phases), a standard, an open pattern's crystal, or none.")
+                }
+                precipitate = .some(chosen)
+            }
         }
-        if let words = a["second"] {
-            guard let p = pair(words) else { return .refusal(status: 400, message: "second takes \"[0 0 1] || [1 -3 0]\": (h k l) or [u v w] each.") }
-            relationship.secondPrecipitate = p.0; relationship.secondMatrix = p.1
+        // The relationship this call starts from: the example's, or none when a new precipitate drops an example's pairs.
+        var base = example?.relationship ?? variants.relationship
+        if example == nil, precipitate != nil, let used = variants.example, base == used.relationship { base = nil }
+        var relationship = base
+        if a["first"] != nil || a["second"] != nil {
+            var first = relationship.map { ($0.firstPrecipitate, $0.firstMatrix) }
+            var second = relationship.map { ($0.secondPrecipitate, $0.secondMatrix) }
+            if let words = a["first"] {
+                guard let p = pair(words) else { return .refusal(status: 400, message: "first takes \"[1 0 0] || [3 2 0]\": (h k l) or [u v w] each.") }
+                first = p
+            }
+            if let words = a["second"] {
+                guard let p = pair(words) else { return .refusal(status: 400, message: "second takes \"[0 0 1] || [1 -3 0]\": (h k l) or [u v w] each.") }
+                second = p
+            }
+            guard let first, let second else {
+                return .refusal(status: 400, message: "No relationship is set yet: give first and second together.")
+            }
+            relationship = PrecipitateRelationship(first: first, second: second)
         }
         // Hiding numbers the variants of the relationship this call ends with: counted before anything changes, so a refused call
         // changes nothing.
         var count = 0
         if a["hide"] != nil || a["unhide"] != nil, var asked = variants.inputs(analysis: item.diffraction, image: image) {
-            asked.precipitate = precipitate ?? variants.precipitate
+            asked.precipitate = example?.precipitate ?? precipitate ?? variants.precipitate
             asked.relationship = relationship
             asked.hidden = []
             asked.doubleDiffraction = false
@@ -286,6 +319,7 @@ extension MacTEMAgentDoor {
                 unhide = n
             }
         }
+        if let example { variants.use(example) }
         if let precipitate { variants.setPrecipitate(precipitate) }
         variants.setRelationship(relationship)
         for v in hide { variants.setHidden(v, true) }
@@ -303,11 +337,14 @@ extension MacTEMAgentDoor {
     static func relationship(_ item: OpenItem, image: CalibratedImage) -> [String: Any] {
         let variants = item.diffractionVariants
         placeNow(variants, item: item, image: image)
+        let matrix = item.diffraction.crystal
         var out: [String: Any] = [
-            "precipitate": variants.precipitate.name, "matrix": item.diffraction.crystal.name,
-            "relationship": variants.relationship.text(matrix: item.diffraction.crystal.name),
+            "precipitate": variants.precipitate?.name ?? "none", "matrix": matrix.name,
+            "relationship": variants.relationship?.text(matrix: matrix.name) ?? "none",
             "show": variants.isShown, "double_diffraction": variants.doubleDiffraction,
         ]
+        if let example = variants.example { out["example"] = ["id": example.id, "title": example.title, "citation": example.citation] }
+        if let warning = variants.exampleWarning(matrix: matrix.name, matrixStructure: matrix.structure) { out["warning"] = warning }
         switch variants.variants(analysis: item.diffraction, image: image) {
         case nil: out["refusal"] = "Variants need the beam energy: type it under Calibration."
         case .failure(let refusal)?: out["refusal"] = refusal.sentence
@@ -348,7 +385,7 @@ extension MacTEMAgentDoor {
             } else {
                 let names = StandardCrystals.all.map(\.name) + others.map(\.name)
                 guard names.contains(name), name != item.diffraction.crystal.name else {
-                    return .refusal(status: 404, message: "No phase \(name) to compare with: a standard other than this crystal, or an open pattern's crystal.")
+                    return .refusal(status: 404, message: "No phase \(name) to compare with: a library phase, a standard other than this crystal, or an open pattern's crystal.")
                 }
                 compare = .some(name)
             }

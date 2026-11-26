@@ -92,4 +92,20 @@ enum DiffractionPhases {
         try library.add(phase, source: bytes, sourceExtension: "cif")
         return phase
     }
+
+    /// The precipitates the Precipitate section and the door's `set_relationship` offer (#1137): the library's phases, the
+    /// standards, then the crystals of the other open patterns, each name once and the matrix left out. Nothing sample-specific:
+    /// a literature example comes only through `DiffractionVariants.Example`.
+    static func precipitates(besides matrix: String, library: [Phase], others: [(name: String, structure: CrystalStructure)])
+        -> [DiffractionVariants.Precipitate] {
+        var seen: Set<String> = [matrix]
+        var out: [DiffractionVariants.Precipitate] = []
+        func add(_ name: String, _ structure: CrystalStructure) {
+            if seen.insert(name).inserted { out.append(.init(name: name, structure: structure)) }
+        }
+        ordered(library).forEach { add($0.name, $0.structure()) }
+        StandardCrystals.all.forEach { add($0.name, $0.structure) }
+        others.forEach { add($0.name, $0.structure) }
+        return out
+    }
 }

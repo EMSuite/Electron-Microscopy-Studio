@@ -19,6 +19,7 @@ nonisolated final class DiffractionVariantsTests: XCTestCase {
         analysis.bind(image)
         analysis.setCrystal(.preset(try XCTUnwrap(StandardCrystals.named("Al"))))
         let variants = DiffractionVariants()
+        variants.use(.betaDoublePrimeInAluminium)
         XCTAssertNil(variants.placed, "nothing placed before a placement lands")
         await variants.place(try XCTUnwrap(variants.inputs(analysis: analysis, image: image)))
         let result = try XCTUnwrap(variants.variants(analysis: analysis, image: image))
@@ -67,10 +68,56 @@ nonisolated final class DiffractionVariantsTests: XCTestCase {
         variants.setPrecipitate(.init(name: "Si", structure: CrystalPresets.silicon))
         XCTAssertEqual(variants.hidden, [])
         variants.setHidden(1, true)
-        var other = variants.relationship
+        variants.setRelationship(VariantPlacement.betaDoublePrimeInAluminium)
+        variants.setHidden(1, true)
+        var other = VariantPlacement.betaDoublePrimeInAluminium
         other.secondMatrix = RelationshipVector(.direction, 3, -1, 0)
         variants.setRelationship(other)
         XCTAssertEqual(variants.hidden, [])
+    }
+
+    /// #1137. Mutation: a precipitate or a relationship chosen by default, or an example's pairs kept for the next precipitate - red.
+    @MainActor func testNothingIsChosenForThePerson() async throws {
+        let image = DemoDocuments.diffractionPattern()
+        let analysis = DiffractionAnalysis()
+        analysis.bind(image)
+        let variants = DiffractionVariants()
+        XCTAssertNil(variants.precipitate)
+        XCTAssertNil(variants.relationship)
+        XCTAssertNil(variants.example)
+        await variants.place(try XCTUnwrap(variants.inputs(analysis: analysis, image: image)))
+        XCTAssertEqual(variants.variants(analysis: analysis, image: image), .failure(.noPrecipitate))
+        variants.setPrecipitate(.init(name: "Si", structure: CrystalPresets.silicon))
+        await variants.place(try XCTUnwrap(variants.inputs(analysis: analysis, image: image)))
+        XCTAssertEqual(variants.variants(analysis: analysis, image: image), .failure(.noRelationship))
+
+        variants.use(.betaDoublePrimeInAluminium)
+        XCTAssertEqual(variants.precipitate?.name, "β″")
+        XCTAssertEqual(variants.relationship, VariantPlacement.betaDoublePrimeInAluminium)
+        variants.setPrecipitate(.init(name: "Si", structure: CrystalPresets.silicon))
+        XCTAssertNil(variants.relationship, "an example's pairs go with its precipitate")
+        XCTAssertNil(variants.example)
+
+        var typed = VariantPlacement.betaDoublePrimeInAluminium
+        typed.secondMatrix = RelationshipVector(.direction, 3, -1, 0)
+        variants.setRelationship(typed)
+        variants.setPrecipitate(.init(name: "Al", structure: CrystalPresets.aluminum))
+        XCTAssertEqual(variants.relationship, typed, "a typed relationship stays with a new precipitate")
+    }
+
+    /// #1137. Mutation: the example's paper not checked against the matrix - red.
+    @MainActor func testAnExampleSaysWhenTheMatrixIsNotItsPapers() {
+        let variants = DiffractionVariants()
+        XCTAssertNil(variants.exampleWarning(matrix: "Au", matrixStructure: CrystalPresets.gold), "no example, no warning")
+        variants.use(.betaDoublePrimeInAluminium)
+        XCTAssertNil(variants.exampleWarning(matrix: "Al", matrixStructure: CrystalPresets.aluminum))
+        XCTAssertEqual(variants.exampleWarning(matrix: "Au", matrixStructure: CrystalPresets.gold),
+                       "Andersen et al. state this relationship for β″ in Al; the crystal here is Au. Type the relationship a paper states for this matrix.")
+        var typed = VariantPlacement.betaDoublePrimeInAluminium
+        typed.firstMatrix = RelationshipVector(.direction, 1, 0, 0)
+        variants.setRelationship(typed)
+        XCTAssertNil(variants.example, "a typed relationship is no longer the paper's")
+        XCTAssertNil(variants.exampleWarning(matrix: "Au", matrixStructure: CrystalPresets.gold))
     }
 
     @MainActor func testTheSpotsLandWhereTheScalePutsTheirQ() async throws {
