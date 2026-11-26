@@ -176,6 +176,7 @@ nonisolated enum AgentDoorCoverage {
         "eels.alignReadout": .tool("get_eels"),
         "eels.background": .tool("set_eels"),
         "eels.background.notice": .tool("get_eels"),
+        "eels.convolve.notice": .tool("get_eels"),
         "eels.beamEnergy": .tool("set_eels"),
         "eels.collection": .tool("set_eels"),
         "eels.convergence": .tool("set_eels"),
