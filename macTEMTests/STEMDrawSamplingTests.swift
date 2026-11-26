@@ -24,6 +24,7 @@ final class STEMDrawSamplingTests: XCTestCase {
     /// The Image room's view passes it on.
     func testTheImagePanePassesItToTheView() throws {
         let pane = try FFTRoomWiringTests.squeezedUI("ImagePane.swift")
-        XCTAssertTrue(pane.contains("sampling: Self.drawSampling(of: item.url)"))
+        XCTAssertTrue(pane.contains("let drawSampling: MetalImageView.Sampling = ImagePane.drawSampling(of: item.url)"))
+        XCTAssertTrue(pane.contains("sampling: drawSampling"))
     }
 }

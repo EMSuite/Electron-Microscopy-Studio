@@ -244,9 +244,17 @@ struct ImagePane: View {
             .layoutPriority(-1)
     }
 
+    /// How the picture is drawn: a simulated STEM scan smooth, everything else one block per pixel. The scan's default step is the
+    /// probe's Nyquist step (abTEM's), about nine points across a unit cell, which reads as a checkerboard when drawn as blocks;
+    /// abTEM's own examples show such scans interpolated. A recorded image keeps its pixels. Export Figure draws blocks either way.
+    static func drawSampling(of url: URL) -> MetalImageView.Sampling {
+        DemoDocuments.isSTEM(url) ? .linear : .nearest
+    }
+
     private func content(in size: CGSize) -> some View {
         let box = LayoutPolicy.fitted(in: size, aspect: CGFloat(canvas.width) / CGFloat(canvas.height))
         let sampling = ImageScaleBar.sampling(image)
+        let drawSampling: MetalImageView.Sampling = ImagePane.drawSampling(of: item.url)
         return ZStack {
             ZStack {
                 // The image itself is drawn BEHIND this layer, by the shader (the `.background` below); the marks
@@ -271,7 +279,7 @@ struct ImagePane: View {
                     displayHi: item.presentation.displayFractions.high,
                     gamma: Float(item.presentation.gamma), pixelScale: canvas.scale,
                     nativePixels: canvas.metalNative,
-                    sampling: Self.drawSampling(of: item.url)
+                    sampling: drawSampling
                 )
                 .displayTransform(MetalDisplayTransform(
                     paneSize: box, imageBox: box,
@@ -403,13 +411,6 @@ enum ImageScaleBar {
     /// The sampling along the screen horizontal: x's, or pixels when x is not calibrated. A metre axis is measured in
     /// the unit the image's width reads in (`DisplaySampling`), so the bar says "10 nm", not "1e-08 m"; `ScaleBar`
     /// then re-reads its length in the unit that suits it (nm, µm or mm), so this unit is where the bar STARTS.
-    /// How the picture is drawn: a simulated STEM scan smooth, everything else one block per pixel. The scan's default step is the
-    /// probe's Nyquist step (abTEM's), about nine points across a unit cell, which reads as a checkerboard when drawn as blocks;
-    /// abTEM's own examples show such scans interpolated. A recorded image keeps its pixels. Export Figure draws blocks either way.
-    static func drawSampling(of url: URL) -> MetalImageView.Sampling {
-        DemoDocuments.isSTEM(url) ? .linear : .nearest
-    }
-
     static func sampling(_ image: CalibratedImage) -> (perPixel: Double, label: String) {
         let s = ScaleBarMath.sampling(x: image.x, y: image.y, width: image.width, height: image.height, unitLabel: UnitDisplay.label)
         return (s.perPixel, s.unit)
