@@ -420,16 +420,17 @@ struct EELSFittingSection: View {
                 .accessibilityIdentifier("eels.background")
             if let notice = session.backgroundNotice { InspectorNote(notice).accessibilityIdentifier("eels.background.notice") }
             InspectorRow("Convolve low loss") {
-                Toggle("Convolve low loss", isOn: Binding(get: { session.convolveLowLoss && session.hasLowLoss && !session.deconvolutionChoice.feedsTheFit },
+                Toggle("Convolve low loss", isOn: Binding(get: { session.convolveLowLoss && session.hasLowLoss && !session.deconvolutionChoice.feedsTheFit && session.convolveBlocker == nil },
                                                           set: { session.setConvolveLowLoss($0) }))
                     .labelsHidden().toggleStyle(.switch).controlSize(.small)
-                    .disabled(!session.hasLowLoss || session.deconvolutionChoice.feedsTheFit)
+                    .disabled(!session.hasLowLoss || session.deconvolutionChoice.feedsTheFit || session.convolveBlocker != nil)
                     .help(!session.hasLowLoss ? "No low loss in this file."
-                          : session.deconvolutionChoice.feedsTheFit ? "Off with Fourier-ratio: the core loss is deconvolved by the low loss already"
-                          : "Convolve each edge with the low loss, as exSpy's model does: the fitted amounts are areal densities")
+                          : session.convolveBlocker.map { "Off: \($0)" } ?? (session.deconvolutionChoice.feedsTheFit ? "Off with Fourier-ratio: the core loss is deconvolved by the low loss already"
+                          : "Convolve each edge with the low loss, as exSpy's model does: the fitted amounts are areal densities"))
                     .accessibilityIdentifier("eels.convolve")
             }
             if !session.hasLowLoss { InspectorNote("No low loss in this file: Convolve is off.") }
+            else if let why = session.convolveBlocker { InspectorNote(why).accessibilityIdentifier("eels.convolve.notice") }
             else if session.deconvolutionChoice.feedsTheFit { InspectorNote("Fourier-ratio: the fit takes the deconvolved core loss, not convolved with the low loss.") }
             InspectorRow("Beam energy") {
                 OptionalNumericField(title: "Beam energy", value: session.beamEnergyKeV, format: FloatingPointFormatStyle<Double>.number.precision(.significantDigits(1...6)),

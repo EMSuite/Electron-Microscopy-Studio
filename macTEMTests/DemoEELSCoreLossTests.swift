@@ -35,6 +35,32 @@ nonisolated final class DemoEELSCoreLossTests: XCTestCase {
         XCTAssertEqual(carbonCorner, carbonCentre, accuracy: 0.05 * carbonCentre, "carbon everywhere alike")
     }
 
+    /// The shipped demo fits at the room's defaults with one Run (walk 2026-11-26). Its low loss is 0.25 eV per channel and its core loss 1 eV, and
+    /// exSpy's model refuses a low loss of another dispersion; Convolve stays on by default, so the room fits without the low loss and says why,
+    /// rather than sending the pair to the kit to be refused. Red before: Run was refused ("the convolution would shift the edges"), no model.
+    @MainActor func testTheDemoFitsAtTheDefaultsWithOneRun() async throws {
+        let session = EELSSession()
+        await session.bind(try DemoDocuments.eels()).value
+        await session.settled()
+        XCTAssertTrue(session.convolveLowLoss, "Convolve is on by default")
+        let why = try XCTUnwrap(session.convolveBlocker, "the demo's two dispersions differ")
+        XCTAssertTrue(why.contains("0.25 eV") && why.contains("1 eV"), why)
+        XCTAssertFalse(session.effectiveConvolve)
+        session.toggleEdge(.carbonK)
+        await session.run().value
+        await session.settled()
+        XCTAssertNil(session.failure)
+        XCTAssertNil(session.fitRefusal)
+        XCTAssertNotNil(session.model, "one Run fits the demo at its defaults")
+        XCTAssertEqual(session.fitState, .current)
+        // A second edge stales the fit; Run fits again.
+        session.toggleEdge(.oxygenK)
+        XCTAssertTrue(session.canRun)
+        await session.run().value
+        await session.settled()
+        XCTAssertEqual(session.fitState, .current, session.failure ?? "")
+    }
+
     /// The energy axis never prints "-0": the first tick of a window just below zero is +0. Red before: -0.0, read "-0".
     func testTheEnergyAxisHasNoNegativeZero() {
         let ticks = EELSOneAxis.ticks(in: -2.5 ... 20)
