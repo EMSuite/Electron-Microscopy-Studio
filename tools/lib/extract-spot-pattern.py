@@ -174,14 +174,25 @@ with h5py.File(source, 'r') as f:
         raw = data[iy, ix, :, :]
         averaged = None
         if MEAN_CORRELATION is not None:
-            background = np.median(annulus, axis=2, keepdims=True)
-            signal = annulus - background
+            # Correlate 3 by 3 box-smoothed frames: a raw 144 px frame is shot noise around 10-pixel spots, so a pixel-wise Pearson of
+            # two frames of the same grain sits near zero (26 Nov 2026: no other frame reached 0.5 unsmoothed).
+            padded = np.pad(stack, ((0, 0), (0, 0), (1, 1), (1, 1)), mode='edge')
+            smooth = sum(padded[:, :, 1 + dy:1 + dy + sy, 1 + dx:1 + dx + sx] for dy in (-1, 0, 1) for dx in (-1, 0, 1)) / 9
+            smooth_annulus = smooth[:, :, ring]
+            del padded, smooth
+            background = np.median(smooth_annulus, axis=2, keepdims=True)
+            signal = smooth_annulus - background
             signal -= signal.mean(axis=2, keepdims=True)
             norm = np.sqrt((signal ** 2).sum(axis=2))
             chosen = signal[iy, ix]
             corr = (signal * chosen).sum(axis=2) / np.maximum(norm * norm[iy, ix], 1e-12)
             ranked = np.argsort(corr, axis=None)[::-1]
+            print('correlation, the best 30:', ' '.join(f'{corr.flat[k]:.2f}' for k in ranked[:30]))
+            print('correlation around the chosen frame (7 by 7 scan positions):')
+            for y in range(max(0, iy - 3), min(ny, iy + 4)):
+                print('   ', ' '.join(f'{corr[y, x]:5.2f}' for x in range(max(0, ix - 3), min(nx, ix + 4))))
             take = [k for k in ranked[:MEAN_FRAMES] if corr.flat[k] >= MEAN_CORRELATION]
+            assert len(take) >= 8, f'only {len(take)} frames correlate {MEAN_CORRELATION} or more with the chosen one'
             positions = [tuple(int(v) for v in np.unravel_index(k, corr.shape)) for k in take]
             print(f'mean of {len(take)} frames, correlation {corr.flat[take[-1]]:.3f} to 1 with the chosen one:', positions)
             averaged = stack.reshape(ny * nx, sy, sx)[take].mean(axis=0)
