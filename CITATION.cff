@@ -20,7 +20,9 @@ type: software
 authors:
   - family-names: Lobpreis
     given-names: Paul
+# x-release-please-start-version
 version: 2.1.1
+# x-release-please-end
 license: GPL-3.0-only
 repository-code: https://github.com/EMSuite/Electron-Microscopy-Studio
 url: https://mac4dstem.com/electron-microscopy-studio/
