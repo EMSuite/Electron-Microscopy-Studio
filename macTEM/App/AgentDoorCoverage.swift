@@ -626,7 +626,10 @@ nonisolated enum AgentDoorCoverage {
         "Stop (any verb)": .tool("stop_run"),
     ]
 
-    /// Shows or hides a pane of the person's window; the get tools answer whether the pane shows or not.
+    /// Shows or hides a pane of the person's window; the get tools answer whether the pane shows or not. The bottom area's tabs
+    /// (Output and the room's tables, one at a time, chosen in the area's header, #1112) and its one toggle are ShellLayout's chrome
+    /// with no identifier of the app's, and the same kind of layout: get_diffraction, get_spot_table, powder_pattern, get_grains and
+    /// get_maps answer every table's rows whichever tab the area shows.
     static let layoutReason = "shows or hides a pane of the person's window; the get tools answer whatever the window shows"
     static let windowReason = "opens or closes a window, which stays the person's; the door works on the windows the person has open"
     static let saveReason = "writes the marks into the file's session in a place the person grants with the save panel"

@@ -126,7 +126,10 @@ reaches it: the tool that does it, already seen in a get tool's answer, left to 
 gap with its open issue. `AgentDoorCoverageTests` fails when a control has no row, a row names a tool the door does not have,
 or a row outlives its control, so a new control cannot ship undecided. The menu bar has its own table beside it, `menuItems`: every item of the File, View, Image, Workspace and Help menus by its title as the source writes it, held by the same test. Every tool that acts is in the table above, and the test fails when one is not. A feature that adds a room action adds its row in the same PR, and the release walk reads the gaps. The release walk reads the gaps left in the table, each with its open issue. A room's open panel is the
 person's; `open_file` opens a file of the Agent folder and `open_demo` the shipped demos. The EDS room's own controls are
-EMSuiteUI's and are reached through its tools.
+EMSuiteUI's and are reached through its tools. The bottom area's tabs (Output and the room's tables, one at a time at full width,
+chosen in the area's header, #1112) and its one toggle are the person's layout, as the sidebar and the inspector are: no tool picks
+a tab, and none needs to, because `get_diffraction` (the readout), `get_spot_table` (the spots), `powder_pattern` (the peaks),
+`get_grains` (the grains) and `get_maps` (the slip planes) answer every table's rows whichever tab is shown.
 
 ## Code
 

@@ -33,10 +33,12 @@ extension LayoutPolicy {
     static let ebsdFamilyColumn: (min: CGFloat, ideal: CGFloat) = (36, 44)
     /// The HRTEM defocus by thickness table sheet's least height, with its readable width (rule 4).
     static let hrtemTableMinimumHeight: CGFloat = 480
-    /// The Diffraction room's tables (#1041), panes of the shell's bottom area since #1094: the table's header and
+    /// The Diffraction room's tables (#1041), tabs of the shell's bottom area since #1094 and #1112: the table's header and
     /// `diffractionTableRows` rows at the system table's row height, which the bottom area at its ideal height holds in a 1400 × 876
-    /// window, so an indexed pattern's Spots table shows eight rows, not four and a half. The area's height is the person's to drag.
-    static let diffractionTableRows = 8
+    /// window under the area's tab header (`LayoutPolicy.paneHeaderHeight` and a divider), so an indexed pattern's Spots table shows
+    /// seven rows, not four and a half (eight before #1112, when the area had no header of its own). The area's height is the
+    /// person's to drag.
+    static let diffractionTableRows = 7
     static let diffractionTableRowHeight: CGFloat = 24
     static let diffractionTableHeaderHeight: CGFloat = 28
     /// The colour dot before a region's name in the Table tab.

@@ -2,7 +2,7 @@
 //  DiffractionRoom.swift
 //  Role: the Diffraction room's centre: the pattern (log display), the centre, the
 //        annulus being dragged, the fitted rings and the clicked spots drawn over it, and the room's tables (the readout, the spots),
-//        which are panes of the shell's bottom area (`DiffractionTablePane`, #1094). The selected file
+//        which are tabs of the shell's bottom area (`DiffractionTablePane`, #1094, #1112). The selected file
 //        is the pattern; the state is `DiffractionAnalysis` (TEMSession, `OpenItem.diffraction`), every number DiffractoKit's.
 //
 //        The centre is the shell's (`WorkspaceCentre`, EMSuiteUI): the side pane of the part (the crystal, the zone-axis map, the
@@ -87,8 +87,8 @@ struct DiffractionRoom: View {
             }
         }
         // The part: the scene's when the window comes back, else the one the document opens on; another document opens on its own.
-        // The part's tables are the bottom area's panes (`WorkspaceView`): the table the strip under the pattern showed is shown the
-        // first time a part asks for it, once the part is settled, and the person's toggles rule after that (`DiffractionRoomState.offer`).
+        // The part's tables are the bottom area's tabs (`WorkspaceView`): the table the strip under the pattern showed is selected the
+        // first time a part asks for it, once the part is settled, and the person's choice of tab rules after that (`DiffractionRoomState.offer`).
         .onAppear {
             appState.settleDiffractionPart(restored: DiffractionPart(rawValue: storedPart))
             offerTable()
@@ -117,7 +117,7 @@ extension DiffractionRoom {
         DemoDocuments.isSimulation(item.url) || item.diffraction.indexOutcome != nil
     }
 
-    /// Shows the part's opening table in the bottom area if the window has not shown it on its own before.
+    /// Selects the part's opening table in the bottom area if the window has not selected it on its own before.
     private func offerTable() {
         appState.diffractionRoom.offer(DiffractionPart.openingTable(appState.diffractionPart, hasSpots: Self.hasSpots(item)),
                                        in: appState.navigation.panels)
@@ -978,12 +978,12 @@ private struct VariantSpotsOverlay: View {
     }
 }
 
-// MARK: - The tables, panes of the bottom area
+// MARK: - The tables, tabs of the bottom area
 
-/// One of the room's tables as a pane of the shell's bottom area (#1094): `WorkspaceView` registers one `ProcessTab` per table of the
-/// part (`DiffractionPart.tables`) beside Output, each with its toggle in the infobar, under the bar the person drags. The selected
-/// document is read here, at each draw, and never held by the tab. Readout and Spots sit side by side when both are shown, where the
-/// strip under the pattern switched between them; Powder lists its peaks.
+/// One of the room's tables as a tab of the shell's bottom area (#1094, #1112): `WorkspaceView` registers one `ProcessTab` per table
+/// of the part (`DiffractionPart.tables`) beside Output, under the bar the person drags; the area's header picks the one shown, at
+/// the area's full width. The selected document is read here, at each draw, and never held by the tab. Readout and Spots are two
+/// tabs, where the strip under the pattern switched between them; Powder lists its peaks.
 struct DiffractionTablePane: View {
     let table: DiffractionTable
     @Environment(AppState.self) private var appState

@@ -9,7 +9,7 @@
 //  pattern or unit cell with the colour key, the pole figures, the ODF, the histogram), one divider between them remembered per window
 //  under `MapsRoomLayout.centreKey`. The map is fitted to its panel (`MapsRoomLayout.mapBox`) and nothing is drawn over it but what
 //  belongs to it: the boundaries, the picked grain's outline and slip traces, the marker, the scale bar and the zoom badge. The Grains
-//  table and the picked grain's slip planes are panes of the shell's bottom area (`MapsTable`, supplied by `WorkspaceView`).
+//  table and the picked grain's slip planes are tabs of the shell's bottom area (`MapsTable`, supplied by `WorkspaceView`).
 //
 //  P5-04 completes it: Segment (the toolbar's verb) adds the grain analysis' layers (Grains, KAM, GOS, GND, Schmid factor), the boundaries
 //  and the selected grain's outline and slip traces over the map, and the Grains and Slip tables, the pole figures and the ODF
@@ -72,7 +72,7 @@ struct MapsRoom: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .accessibilityIdentifier("maps.opening")
             } else if let document = session.document {
-                // The shell's centre (#1095): the map leads, the Detail panel trails; the tables are the bottom area's panes.
+                // The shell's centre (#1095): the map leads, the Detail panel trails; the tables are the bottom area's tabs.
                 WorkspaceCentre(storageKey: MapsRoomLayout.centreKey, defaultFraction: MapsRoomLayout.defaultFraction,
                                 resizeLabel: "Resize the map and the detail", leadingName: "Map") {
                     upper(document)
@@ -112,7 +112,7 @@ struct MapsRoom: View {
 // MARK: - The layout
 
 /// Where the Maps room puts what (#1089, #1095): the map in the centre's leading panel, the Detail panel trailing, the Grains and Slip
-/// tables as panes of the shell's bottom area (`MapsTable`), nothing over the map that is not the map's.
+/// tables as tabs of the shell's bottom area (`MapsTable`), nothing over the map that is not the map's.
 nonisolated enum MapsRoomLayout {
     /// What a panel of the centre holds.
     enum Content: Equatable { case map, detail }
@@ -132,7 +132,7 @@ nonisolated enum MapsRoomLayout {
     }
 }
 
-/// Shows the room's tables in the bottom area the first time each has something to list (`MapsTable.opening`), on a modifier of its
+/// Selects the room's tables in the bottom area the first time each has something to list (`MapsTable.opening`), on a modifier of its
 /// own so the room's body does not read the pick.
 private struct MapsOffersTables: ViewModifier {
     let session: OrientationMapSession

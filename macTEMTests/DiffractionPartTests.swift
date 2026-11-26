@@ -39,7 +39,7 @@ nonisolated final class DiffractionPartTests: XCTestCase {
         XCTAssertFalse(DiffractionPart.startsClosed(.display, in: .calibrate))
         for part in [DiffractionPart.index, .simulate, .thickness] { XCTAssertTrue(DiffractionPart.startsClosed(.display, in: part)) }
 
-        // The tables are panes of the bottom area (#1094); the one the strip under the pattern showed opens on its own.
+        // The tables are tabs of the bottom area (#1094, #1112); the one the strip under the pattern showed is selected on its own.
         XCTAssertEqual(DiffractionPart.tables(.calibrate), [.readout])
         XCTAssertEqual(DiffractionPart.tables(.index), [.readout, .spots])
         XCTAssertEqual(DiffractionPart.tables(.simulate), [.readout, .spots])

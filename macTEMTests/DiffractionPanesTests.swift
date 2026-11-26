@@ -18,8 +18,8 @@ nonisolated final class DiffractionPanesTests: XCTestCase {
     private func ui(_ name: String) throws -> String { try FFTRoomWiringTests.squeezedUI(name) }
 
     /// One pane beside the pattern, three views, by the part in front (#1044): the crystal in Index and Simulate, the zone-axis map in
-    /// Tilt Plan, the powder pattern in Powder, none in Calibrate and Thickness; the peaks are Powder's table, a pane of the bottom area
-    /// (#1094).
+    /// Tilt Plan, the powder pattern in Powder, none in Calibrate and Thickness; the peaks are Powder's table, a tab of the bottom area
+    /// (#1094, #1112).
     @MainActor func testThePartPicksThePaneAndTheTable() {
         XCTAssertEqual(DiffractionPart.allCases.map(DiffractionPart.sidePane), [nil, .crystal, .crystal, .zoneAxisMap, .powder, nil])
         XCTAssertEqual(DiffractionPart.tables(.powder), [.peaks])

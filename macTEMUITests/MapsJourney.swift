@@ -94,7 +94,7 @@ nonisolated final class MapsJourney: Journey {
         }
         try step("the Grains table opens in the bottom area once Segment has grains; a click on the map outlines its grain") {
             try requireFrontmost()
-            // A pane of the shell's bottom area, shown by the window on its own the first time there are grains (#1095).
+            // A tab of the shell's bottom area, selected by the window on its own the first time there are grains (#1095, #1112).
             waitFor("maps.grains.table", timeout: 30)
             XCTAssertTrue(label("maps.grains.summary").contains("grains"), label("maps.grains.summary"))
             // The mean ECD at the grain table's decimals, two or more ("mean ECD 3.14 µm"), as the ECD column writes each grain.
@@ -103,6 +103,14 @@ nonisolated final class MapsJourney: Journey {
             let outlined = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in self.label("maps.grain.outline").contains("outlined") },
                                                      object: nil)
             XCTAssertEqual(XCTWaiter().wait(for: [outlined], timeout: 20), .completed, label("maps.grain.outline"))
+        }
+        try step("the bottom area's header picks one tab at a time: Output, then Grains again (#1112)") {
+            try requireFrontmost()
+            let tabs = waitFor("process.tabs", timeout: 10)
+            tabs.radioButtons["Output"].firstMatch.click()
+            waitGone("maps.grains.table")
+            tabs.radioButtons["Grains"].firstMatch.click()
+            waitFor("maps.grains.table", timeout: 10)
         }
         try step("the Pole figures tab draws {100}, {110}, {111} and the IPF density") {
             try requireFrontmost()
