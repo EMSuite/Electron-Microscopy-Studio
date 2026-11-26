@@ -410,13 +410,14 @@ package nonisolated enum PatternIndexing {
 
     /// The header's line: "Al · 2.1° from [001] · 22 of 24 spots explained · misfit 0.07 %", "Al [001] · …" within 0.5° of
     /// the zone axis, the verdict's words before it when it is not a plain find. `locale`: the reader's on screen, the point (the
-    /// default) in the CSV and the door's answer (#1039).
-    package static func header(_ o: Outcome, locale: Locale = UnitDisplay.point) -> String {
+    /// default) in the CSV and the door's answer (#1039). `spotCount` false leaves out "22 of 24 spots explained": the header's shorter
+    /// line, which a narrow pattern header shows whole rather than cut (#1113).
+    package static func header(_ o: Outcome, locale: Locale = UnitDisplay.point, spotCount: Bool = true) -> String {
         var place: String?
         if let uvw = o.zoneAxis, let angle = o.zoneAxisAngle { place = Self.place(phase: o.phase, zoneAxis: uvw, angle: angle, locale: locale) }
         var facts: [String] = []
         if o.orientation != nil {
-            facts.append("\(o.explained) of \(o.indexed) spots explained")
+            if spotCount { facts.append("\(o.explained) of \(o.indexed) spots explained") }
             if let m = o.misfitPercent { facts.append("misfit \(UnitDisplay.fixed(m, places: 2, locale: locale)) %") }
         }
         if o.zoneAxisOnly, o.orientation != nil { facts.append(zoneAxisOnlyNote) }

@@ -674,6 +674,9 @@ package final class OpenItems {
     /// Told of every frame of an image stack that could not be read, with the sentence the item keeps in `frameFailure`, except
     /// the failure of a request a newer one replaced. The app puts it in the status line.
     @ObservationIgnored package var onFrameFailure: (@MainActor (String) -> Void)?
+    /// Told of each Diffraction room result that lands on an item (#1113): a calibration on a ring, an Index answer
+    /// (`DiffractionAnalysis.onEvent`). The app writes it as an Output line.
+    @ObservationIgnored package var onDiffractionEvent: (@MainActor (OpenItem, DiffractionEvent) -> Void)?
 
     @ObservationIgnored private let identify: (URL) -> FileIdentity
     @ObservationIgnored private let reader: ImageReader
@@ -772,6 +775,10 @@ package final class OpenItems {
                 continue
             }
             let item = OpenItem(url: url, fileIdentity: identity, lastSelected: tick())
+            item.diffraction.onEvent = { [weak self, weak item] event in
+                guard let item else { return }
+                self?.onDiffractionEvent?(item, event)
+            }
             items.append(item)
             opened.append(item)
             first = first ?? item

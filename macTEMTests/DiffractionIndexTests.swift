@@ -21,6 +21,11 @@ import TEMCore
 import TEMSession
 @testable import macTEM
 
+/// The events an analysis told (#1113), kept on the main actor.
+@MainActor private final class ToldEvents {
+    var all: [DiffractionEvent] = []
+}
+
 nonisolated final class DiffractionIndexTests: XCTestCase {
 
     private static let deltaQ = 0.008
@@ -172,16 +177,26 @@ nonisolated final class DiffractionIndexTests: XCTestCase {
         let truth = try CrystalOrientation(zoneAxis: SIMD3(0, 0, 1), inPlaneAngle: 0.2, cell: al.structure.cell)
         let image = try planted(truth, crystal: al)
         let a = analysis(for: image, crystal: al)
+        let told = ToldEvents()
+        a.onEvent = { told.all.append($0) }
         await a.index(image: image)?.value
         let found = a.spots
         XCTAssertGreaterThanOrEqual(found.count, 8)
         XCTAssertNotNil(a.indexOutcome?.orientation, a.indexLine ?? "")
+        XCTAssertEqual(told.all, [.indexed(try XCTUnwrap(a.indexOutcome), solutions: a.solutions.count)], "the answer is told once, for its Output line")
 
         // The weakest found spot removed.
         let weakest = try XCTUnwrap(found.min { ($0.intensity ?? 0) < ($1.intensity ?? 0) })
         a.remove(weakest.id)
         XCTAssertTrue(a.indexSpotsChanged)
         XCTAssertTrue(try XCTUnwrap(a.indexLine).hasSuffix(" · the spots changed since: Index again"))
+        // The header's shorter line (#1113) drops the spot count whole and keeps what changed since.
+        let levels = a.indexHeaderLevels(locale: UnitDisplay.point)
+        XCTAssertEqual(levels.count, 2, "\(levels)")
+        XCTAssertEqual(levels.first, a.indexLine)
+        let short = levels.last ?? ""
+        XCTAssertFalse(short.contains("spots explained"), short)
+        XCTAssertTrue(short.hasSuffix(" · the spots changed since: Index again"), short)
         await a.index(image: image)?.value
         XCTAssertFalse(a.indexSpotsChanged)
         XCTAssertEqual(a.spots, found.filter { $0.id != weakest.id }, "Index read the marks left and searched no new ones")

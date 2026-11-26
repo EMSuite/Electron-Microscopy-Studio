@@ -101,6 +101,18 @@ package nonisolated enum DiffractionCrystal: Sendable, Equatable {
     }
 }
 
+/// A result of the room that the Output pane records (#1113), as the EBSD rooms record each run: a calibration on a standard's ring,
+/// or Index's answer. The app writes the line (`DiffractionEventLine`).
+package nonisolated enum DiffractionEvent: Sendable, Equatable {
+    /// Calibrate on Ring set the scale: the standard and its family, the fitted ring's radius (px), Δq (Å⁻¹/px), and Δq_fit / Δq_file − 1
+    /// in percent when the file has a reciprocal axis.
+    case calibrated(standard: String, family: String, radius: Double, deltaQ: Double, versusFilePercent: Double?)
+    /// Calibrate on Ring set no scale, in words.
+    case calibrationRefused(String)
+    /// Index answered (any verdict), with how many solutions the pattern cannot tell apart.
+    case indexed(PatternIndexing.Outcome, solutions: Int)
+}
+
 @Observable
 package final class DiffractionAnalysis {
     // The facts
@@ -134,6 +146,8 @@ package final class DiffractionAnalysis {
     package var crystalFailure: String? { cifRefusal ?? listResult().failure }
     /// The simulated spots of a typed zone axis over the pattern (#782): shown or not, the zone axis, its turn, the labels.
     package var simulation = ZoneAxisOverlay.Settings()
+    /// Told of each calibration on a ring and each Index answer that lands (#1113); the app writes it as an Output line.
+    @ObservationIgnored package var onEvent: (@MainActor (DiffractionEvent) -> Void)?
 
     @ObservationIgnored private var generation = 0
     @ObservationIgnored private var fitTask: Task<Void, Never>?
@@ -311,21 +325,22 @@ package final class DiffractionAnalysis {
         fitTask?.cancel()
         failure = nil
         isFitting = true
-        let volts = volts(for: image), pitch = pitchMM
+        let volts = volts(for: image), pitch = pitchMM, fileQ = fileDeltaQ(image)
         let standardName = standard.name
         let task = Task.detached(priority: .userInitiated) { [weak self] in
             // A uint8 or uint16 image's Float32 copy is made here, off the main actor (#928).
             let pattern = DiffractionCompute.pattern(of: image)
             let result = DiffractionCompute.fitRing(pattern: pattern, centre: centre, inner: inner, outer: outer, isCancelled: { Task.isCancelled })
             if Task.isCancelled { return }
-            await self?.landRing(result, inner: inner, outer: outer, family: family, standard: standardName, volts: volts, pitch: pitch, generation: gen)
+            await self?.landRing(result, inner: inner, outer: outer, family: family, standard: standardName, volts: volts, pitch: pitch,
+                                 fileDeltaQ: fileQ, generation: gen)
         }
         fitTask = task
         return task
     }
 
     private func landRing(_ result: (fit: RingRadiusFit?, refusal: String?), inner: Double, outer: Double, family: ReflectionFamily?,
-                          standard name: String, volts: Double?, pitch: Double?, generation gen: Int) {
+                          standard name: String, volts: Double?, pitch: Double?, fileDeltaQ: Double?, generation gen: Int) {
         guard gen == generation else { return }
         isFitting = false
         var refusal = result.refusal
@@ -352,6 +367,17 @@ package final class DiffractionAnalysis {
         rings.append(ring)
         lastAdded = ring.id
         if let refusal { failure = refusal }
+        if family != nil { onEvent?(calibrationEvent(standard: name, refusal: refusal, fileDeltaQ: fileDeltaQ)) }
+    }
+
+    /// What a Calibrate on Ring that landed tells the Output pane (#1113): the scale it set, else why it set none.
+    private func calibrationEvent(standard name: String, refusal: String?, fileDeltaQ: Double?) -> DiffractionEvent {
+        guard refusal == nil, let calibration = ringCalibration, let ring = calibration.ring, let family = calibratedFamily else {
+            return .calibrationRefused(refusal ?? "the ring could not calibrate the scale")
+        }
+        let versus = fileDeltaQ.map { 100 * RingScale.fitVersusFile(fitDeltaQ: calibration.deltaQ, fileDeltaQ: $0) }
+        return .calibrated(standard: name, family: family, radius: ring.radius, deltaQ: calibration.deltaQ,
+                           versusFilePercent: versus.flatMap { $0.isFinite ? $0 : nil })
     }
 
     /// Stop (⌘.): the ring fit and Index in flight.
@@ -455,6 +481,7 @@ package final class DiffractionAnalysis {
         indexScaleKey = started
         indexedSpots = spots.map(\.id)
         solutionIndex = 0
+        onEvent?(.indexed(outcome, solutions: solutions.count))
         guard let orientation = outcome.orientation else { return }
         isTurnedByHand = false
         simulation.indexed = orientation
@@ -535,14 +562,20 @@ package final class DiffractionAnalysis {
     package var indexLine: String? { indexHeaderLine(locale: UnitDisplay.point) }
 
     /// `indexLine` with its numbers in `locale`.
-    package func indexHeaderLine(locale: Locale) -> String? {
-        guard let outcome = indexOutcome else { return nil }
-        var line = PatternIndexing.header(outcome, locale: locale)
+    package func indexHeaderLine(locale: Locale) -> String? { indexHeaderLevels(locale: locale).first }
+
+    /// The header's line at each length, longest first (#1113): the whole line, then without the count of spots explained and the
+    /// solution's number, so a narrow header drops those whole and keeps the place, the verdict's words, the misfit and what changed
+    /// since. Empty before Index answered.
+    package func indexHeaderLevels(locale: Locale) -> [String] {
+        guard let outcome = indexOutcome else { return [] }
         let n = solutions.count
-        if n > 1 { line += " · solution \(solutionIndex + 1) of \(n)" }
-        if indexIsStale { line += " · the scale changed since: Index again" }
-        if indexSpotsChanged { line += " · the spots changed since: Index again" }
-        return line
+        var since = ""
+        if indexIsStale { since += " · the scale changed since: Index again" }
+        if indexSpotsChanged { since += " · the spots changed since: Index again" }
+        let full = PatternIndexing.header(outcome, locale: locale) + (n > 1 ? " · solution \(solutionIndex + 1) of \(n)" : "") + since
+        let short = PatternIndexing.header(outcome, locale: locale, spotCount: false) + since
+        return short == full ? [full] : [full, short]
     }
 
     /// The zone axis typed: the simulated spots are this zone axis's, no longer Index's orientation.

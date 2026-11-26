@@ -140,7 +140,8 @@ extension DiffractionRoom {
 // MARK: - Header
 
 /// The pattern panel's readout slot (`CentrePanel`): the fullest summary of the pattern that fits, the least needed parts dropped
-/// first (#1090), never a word cut mid-way. The panel sets it in the caption, secondary, on one line.
+/// first (#1090), never a word cut mid-way, and none at all when Index's verdict at the right needs the room (#1113). The panel sets it
+/// in the caption, secondary, on one line.
 private struct DiffractionHeaderScale: View {
     let item: OpenItem
     /// Read from the item, never stored: SwiftUI keeps a view's closures (hover, gestures, commands) after the view is gone, and a stored
@@ -151,8 +152,8 @@ private struct DiffractionHeaderScale: View {
     var body: some View {
         let calibration = analysis.calibration(for: image)
         let volts = analysis.volts(for: image)
-        let levels = DiffractionHeaderText.levels(width: image.width, height: image.height, volts: volts, voltsFromFile: image.voltage != nil,
-                                                  calibration: calibration)
+        let levels = DiffractionHeaderText.readoutLevels(width: image.width, height: image.height, volts: volts, voltsFromFile: image.voltage != nil,
+                                                         calibration: calibration)
         ViewThatFits(in: .horizontal) {
             ForEach(levels.indices, id: \.self) { i in
                 Text(levels[i]).lineLimit(1).truncationMode(.tail)
@@ -167,7 +168,8 @@ private struct DiffractionHeaderScale: View {
 }
 
 /// The pattern panel's right end (`CentrePanel`'s controls): Index's verdict, the hand-set orientation, the view's half-side and the
-/// figure handle, as the room's header row had them.
+/// figure handle, as the room's header row had them. It is laid out before the readout slot beside it (#1113): the scale's summary
+/// gives way, whole, before the verdict is shortened, and the verdict drops its spot count, whole, before it is ever cut.
 private struct DiffractionHeaderFacts: View {
     @Environment(AppState.self) private var appState
     let item: OpenItem
@@ -180,15 +182,22 @@ private struct DiffractionHeaderFacts: View {
     var body: some View {
         HStack(spacing: 8) {
             // Index's verdict in words (#783): "Al · 2.1° from [001] · 22 of 24 spots explained · misfit 0.07 %".
+            // At each length (#1113): the whole line, then without the spot count and the solution's number.
             if let outcome = analysis.indexOutcome, let line = analysis.indexHeaderLine(locale: .autoupdatingCurrent) {
-                Text(line)
-                    .font(.callout.monospacedDigit()).lineLimit(1).truncationMode(.tail).layoutPriority(2)
-                    .foregroundStyle(outcome.verdict == .found && !outcome.zoneAxisOnly && !analysis.indexIsStale && !analysis.indexSpotsChanged
-                                     ? Color.primary : Color.orange)
-                    .help(line)
-                    .accessibilityIdentifier("diffraction.index.verdict")
-                    .accessibilityLabel("Index, \(outcome.verdict.word)")
-                    .accessibilityValue(line)
+                let levels = analysis.indexHeaderLevels(locale: .autoupdatingCurrent)
+                ViewThatFits(in: .horizontal) {
+                    ForEach(levels.indices, id: \.self) { i in
+                        Text(levels[i]).lineLimit(1).truncationMode(.tail)
+                    }
+                }
+                .font(.callout.monospacedDigit()).layoutPriority(2)
+                .foregroundStyle(outcome.verdict == .found && !outcome.zoneAxisOnly && !analysis.indexIsStale && !analysis.indexSpotsChanged
+                                 ? Color.primary : Color.orange)
+                .help(line)
+                .accessibilityElement(children: .ignore)
+                .accessibilityIdentifier("diffraction.index.verdict")
+                .accessibilityLabel("Index, \(outcome.verdict.word)")
+                .accessibilityValue(line)
             }
             // The drawn orientation's nearest zone axis once it was tilted, turned or flipped by hand, or while no Index answer is
             // shown (#787): "Al · 2.1° from [001] · set by hand".
@@ -216,6 +225,8 @@ private struct DiffractionHeaderFacts: View {
                 .accessibilityIdentifier("diffraction.figureDrag")
                 .accessibilityAction(named: "Copy Figure") { ExportPanels.copyDiffractionFigure(appState: appState) }
         }
+        // Above the readout slot's 0 (#1113): the panel's header offers these their width first, and the slot keeps what is left.
+        .layoutPriority(1)
     }
 }
 
@@ -243,6 +254,12 @@ nonisolated enum DiffractionHeaderText {
                    line(lengths: false, fileMark: false, size: false, deltaQ: true),
                    line(lengths: false, fileMark: false, size: false, deltaQ: false)]
         return all.reduce(into: [String]()) { out, l in if out.last != l { out.append(l) } }
+    }
+
+    /// The readout slot's lines (#1113): `levels`, then none. The slot keeps what the header's right end leaves (Index's verdict comes
+    /// first), so when even the shortest summary does not fit it is left out whole, never cut.
+    static func readoutLevels(width: Int, height: Int, volts: Double?, voltsFromFile: Bool, calibration: DiffractionCalibration?) -> [String] {
+        levels(width: width, height: height, volts: volts, voltsFromFile: voltsFromFile, calibration: calibration) + [""]
     }
 }
 
