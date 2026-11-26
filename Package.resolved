@@ -15,8 +15,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/EMSuite/EMSuiteUI",
       "state" : {
-        "revision" : "7ffc0c2ab95efaae644a02f40e65d16d357f35de",
-        "version" : "0.19.0"
+        "revision" : "84d99ca80cf3e0f2434c1bb1ed843804a14d725c",
+        "version" : "0.20.0"
       }
     },
     {
