@@ -237,6 +237,7 @@ with h5py.File(source, 'r') as f:
             for key, value in axis.attrs.items():
                 ga.attrs[key] = value
             ga.attrs['navigate'] = False
+            ga.attrs['size'] = np.int64(frame.shape[j])  # the crop's size, not the scan's 144 (HyperSpy and the app check it)
             if scale is not None:
                 ga.attrs['scale'] = np.float64(scale)
                 ga.attrs['offset'] = np.float64(0.0)
