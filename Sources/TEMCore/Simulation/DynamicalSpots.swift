@@ -14,7 +14,8 @@ import SimulatoMultislice
 /// Each zone-axis beam's intensity at every stored thickness of a Simulation document's exit waves.
 package nonisolated struct DynamicalSpots: Sendable, Equatable {
     /// `intensities[t]`: each beam of the zero-order Laue zone at the stored thickness t, by the crystal's hkl, as a fraction of the
-    /// incident beam. The direct beam (000) is left out: it is not a spot the overlay draws.
+    /// incident beam. The direct beam (000) is left out: it is not a spot the overlay draws; so is every grid point that is no
+    /// reflection of the lattice (`isReflection`, #1150).
     package let intensities: [[MillerIndex: Double]]
     /// The thickness of each stored wave, nm (`HRTEMExitWaves.thicknessNM(at:)`).
     package let thicknessesNM: [Double]
@@ -29,9 +30,11 @@ package nonisolated struct DynamicalSpots: Sendable, Equatable {
         let perPeriod = slab.sliceThicknesses.count / slab.repeats.z
         let beams = try BeamIntensities(exitWaves: exit.waves, of: slab,
                                         exitPlanes: .afterSlices(exit.planePeriods.map { $0 * perPeriod - 1 }))
+        let translations = Self.latticeTranslations(of: slab.unit.structure)
         intensities = beams.intensities.map { row in
             var byHKL: [MillerIndex: Double] = [:]
-            for (beam, value) in zip(beams.beams, row) where beam.hkl != .zero {
+            for (beam, value) in zip(beams.beams, row)
+            where beam.hkl != .zero && Self.isReflection(beam.spatialFrequency, translations: translations) {
                 byHKL[MillerIndex(beam.hkl.x, beam.hkl.y, beam.hkl.z)] = value
             }
             return byHKL
@@ -39,6 +42,50 @@ package nonisolated struct DynamicalSpots: Sendable, Equatable {
         thicknessesNM = exit.planePeriods.indices.map { exit.thicknessNM(at: $0) }
         specimen = exit.specimen
         volts = exit.volts
+    }
+
+    // MARK: Lattice centring (#1150; delete at the SimulatoKit release that filters `BeamIntensities` by the lattice, SimulatoKit#145)
+
+    /// The pure translations of `unit` inside its box, Å: every shift that maps each atom onto an atom of the same element (the
+    /// lattice centring an orthogonal unit holds, F's three for Si's cubic box). The box's own sides are left out.
+    ///
+    /// Why: the unit's box is a supercell of the crystal's primitive lattice, so its reciprocal grid has points that are no reflection
+    /// of the crystal. A beam there is not a zero-order Laue zone spot: it is where a higher-order Laue zone reflection lands in
+    /// projection (Si [0 0 1]: a reflection 1 2̄1 l of the first-order ring at 3.9 Å⁻¹ reads as the fcc-forbidden 1 2̄1 0). abTEM 1.0.10's
+    /// `index_diffraction_spots` leaves such points out by the lattice's reflection condition (`centering`); this does the same
+    /// from the atoms, so any centring is found, not only the letters.
+    package static func latticeTranslations(of unit: AtomicStructure) -> [SIMD3<Double>] {
+        let box = unit.box
+        let atoms = unit.atoms
+        guard let first = atoms.first, atoms.count > 1 else { return [] }
+        let grid = 1e4   // fractional positions to 1e-4 of the box side: far below an atomic spacing, far above rounding
+        func wrapped(_ f: Double) -> Double { let w = f - f.rounded(.down); return w >= 1 - 0.5 / grid ? 0 : w }
+        func key(_ z: Int, _ p: SIMD3<Double>) -> SIMD4<Int> {
+            SIMD4(z, Int((wrapped(p.x / box.x) * grid).rounded()) % Int(grid), Int((wrapped(p.y / box.y) * grid).rounded()) % Int(grid),
+                  Int((wrapped(p.z / box.z) * grid).rounded()) % Int(grid))
+        }
+        let sites = Set(atoms.map { key($0.atomicNumber, $0.position) })
+        // The candidates map one atom of the rarest element onto another of it.
+        let counts = Dictionary(grouping: atoms, by: \.atomicNumber).mapValues(\.count)
+        let rarest = counts.min { $0.value != $1.value ? $0.value < $1.value : $0.key < $1.key }?.key ?? first.atomicNumber
+        let anchors = atoms.filter { $0.atomicNumber == rarest }
+        let origin = anchors[0].position
+        var found: [SIMD3<Double>] = []
+        for other in anchors.dropFirst() {
+            let t = other.position - origin
+            guard atoms.allSatisfy({ sites.contains(key($0.atomicNumber, $0.position + t)) }) else { continue }
+            found.append(t)
+        }
+        return found
+    }
+
+    /// Whether the box frequency `g` (1/Å, across the beam) is a reflection of the lattice: g · t is a whole number for every
+    /// translation t of `latticeTranslations` (the beams of the zero-order Laue zone have g_z = 0).
+    package static func isReflection(_ g: SIMD2<Double>, translations: [SIMD3<Double>]) -> Bool {
+        translations.allSatisfy { t in
+            let phase = g.x * t.x + g.y * t.y
+            return abs(phase - phase.rounded()) <= 1e-6
+        }
     }
 
     /// The beams at the stored thickness `index` (kept in range).

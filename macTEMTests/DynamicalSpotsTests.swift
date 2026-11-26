@@ -60,6 +60,37 @@ nonisolated final class DynamicalSpotsTests: XCTestCase {
         XCTAssertGreaterThan(i111, i002, "the allowed 11̄1 is stronger")
     }
 
+    /// Every beam is a reflection of the fcc lattice (#1150): along [0 0 1] the cubic box's grid also has the points h, k odd, l = 0,
+    /// where the first-order Laue zone ring lands in projection (1 2̄1 1 at 3.9 Å⁻¹), and the kit names them 1 2̄1 0; abTEM's
+    /// `index_diffraction_spots(centering="F")` leaves them out, and so does the room. Along [1 1 0] the same holds, and 002 (a
+    /// lattice reflection diamond's glide forbids, excited by double diffraction) stays. Red before: the kit's mixed-parity beams
+    /// were kept. Mutation: the translation check off; the glide-forbidden 002 left out too.
+    func testEveryBeamIsAReflectionOfTheLattice() throws {
+        func isFCC(_ m: MillerIndex) -> Bool {
+            let parities = Set([m.h, m.k, m.l].map { (($0 % 2) + 2) % 2 })
+            return parities.count == 1
+        }
+        let built001 = try SimulationSpecimen.build(CrystalPresets.silicon, zoneAxis: SIMD3(0, 0, 1), thicknessNM: 2).get()
+        let exit001 = try HRTEMImage.exitWaves(built001, optics: HRTEMOptics(), specimen: "Si [0 0 1]")
+        let perPeriod = built001.slab.sliceThicknesses.count / built001.slab.repeats.z
+        let kit = try BeamIntensities(exitWaves: exit001.waves, of: built001.slab,
+                                      exitPlanes: .afterSlices(exit001.planePeriods.map { $0 * perPeriod - 1 }))
+        XCTAssertTrue(kit.beams.contains { $0.hkl == SIMD3(1, -21, 0) }, "the kit names the HOLZ point 1 2̄1 0")
+        XCTAssertFalse(DynamicalSpots.latticeTranslations(of: built001.slab.unit.structure).isEmpty, "the cubic box holds the F centring")
+        let spots001 = try DynamicalSpots(exit001, built: built001)
+        XCTAssertFalse(spots001.intensities[0].isEmpty)
+        for row in spots001.intensities { for hkl in row.keys { XCTAssertTrue(isFCC(hkl), "\(hkl) is no fcc reflection") } }
+        XCTAssertNotNil(spots001.intensities[0][MillerIndex(8, 0, 0)])
+        XCTAssertNotNil(spots001.intensities[0][MillerIndex(2, 2, 0)])
+
+        let (built110, exit110) = try silicon()
+        let spots110 = try DynamicalSpots(exit110, built: built110)
+        for row in spots110.intensities { for hkl in row.keys { XCTAssertTrue(isFCC(hkl), "\(hkl) is no fcc reflection") } }
+        XCTAssertNotNil(spots110.intensities[2][MillerIndex(0, 0, 2)], "the glide-forbidden 002 is a lattice point: kept")
+        XCTAssertNil(spots110.intensities[2][MillerIndex(0, 0, 3)])
+        XCTAssertNil(spots110.intensities[2][MillerIndex(1, -1, 2)])
+    }
+
     /// The overlay draws the beams in place of the kinematical intensities: a beam the kinematical pattern has is a spot at the
     /// kinematical spot's own place, 002 an open ring, relative to the strongest beam drawn; the summary is unchanged in form.
     /// Mutation: the beam placed by another frame than the kit's lab coordinates; forbidden beams drawn as spots; relative over the
