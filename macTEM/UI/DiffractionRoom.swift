@@ -419,7 +419,7 @@ private struct DiffractionPatternPane: View {
                     }
                 }
                 DiffractionOverlay(analysis: analysis, view: view, rows: rows, layout: layout, drag: drag.flatMap { radii(from: $0.start, to: $0.end, layout: layout) },
-                                   pointer: lastHover)
+                                   pointer: lastHover, showsAnnulus: DiffractionViewState.drawsAnnulus(url: item.url))
                     .allowsHitTesting(false)
                 // What the marks are (#1045): one chip in the top-leading corner while the simulated spots are drawn.
                 let legend = DiffractionLegend.entries(
@@ -789,6 +789,8 @@ private struct DiffractionOverlay: View {
     let drag: (Double, Double)?
     /// Where the pointer is over the pattern: the found spot under it carries its d label (#1045).
     let pointer: CGPoint?
+    /// The Ring tool's annulus is drawn: never on a simulated pattern (#1149).
+    let showsAnnulus: Bool
     /// Increase Contrast thickens the overlay lines (#799).
     @Environment(\.colorSchemeContrast) var contrast
 
@@ -818,7 +820,7 @@ private struct DiffractionOverlay: View {
                 cross.move(to: CGPoint(x: c.x, y: c.y - 8)); cross.addLine(to: CGPoint(x: c.x, y: c.y + 8))
                 ctx.stroke(cross, with: .color(.white), lineWidth: line)
                 let (inner, outer) = drag ?? (view.annulusInner, view.annulusOuter)
-                for r in [inner, outer] {
+                for r in showsAnnulus ? [inner, outer] : [] {
                     let rect = CGRect(x: c.x - CGFloat(r) * ppp, y: c.y - CGFloat(r) * ppp, width: 2 * CGFloat(r) * ppp, height: 2 * CGFloat(r) * ppp)
                     ctx.stroke(Path(ellipseIn: rect), with: .color(.white.opacity(0.8)), style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
                 }

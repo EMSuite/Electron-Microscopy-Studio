@@ -68,7 +68,7 @@ extension MacTEMAgentDoor {
                   summary: "The shown Simulation document's Intensities: Kinematic or Dynamical, whether the exit waves are computing, the "
                       + "stored thicknesses and the one shown, the method line, why the kinematical spots are drawn instead (thermal "
                       + "vibrations on, a refused specimen, a failed run, a pattern tilted off the axis), the beams drawn with their "
-                      + "intensity in percent of the incident beam, and Index's spot rows with their dynamical intensity.",
+                      + "intensity in percent of the incident beam, and the Spots table's rows with their dynamical intensity.",
                   input: .window) { call in
             guard let appState = call.window?.state as? AppState else { return notAWindowRefusal }
             guard let simulation = simulationItem(appState) else { return noSimulationDocument }
@@ -102,7 +102,9 @@ extension MacTEMAgentDoor {
                 .sorted { $0.value > $1.value }
                 .map { ["hkl": ZoneAxisText.label($0.key), "percent": $0.value * 100] as [String: Any] }
         }
-        state["spots"] = simulation.indexSpotRows.map {
+        // The Spots table's rows of a Simulation document, with their dynamical column (#1152; Index's rows are a measured pattern's).
+        let rows = simulation.session.image.map { SimulationEmptyState.spotRows(of: simulation, image: $0) } ?? []
+        state["spots"] = rows.map {
             ["number": $0.number, "hkl": AgentJSON.orNull($0.hkl.map(ZoneAxisText.label)), "dynamical_percent": AgentJSON.number($0.dynamicalPercent)]
                 as [String: Any]
         }

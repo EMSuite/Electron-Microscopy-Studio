@@ -31,6 +31,11 @@ package final class DiffractionViewState {
     /// The Add Phase sheet is in front (#788): Add Phase… in the Phases section or on a Simulation document's empty pattern, and
     /// File > New Simulation, which opens the document with the sheet up. Cancel leaves it false.
     package var isAddingPhase = false
+    /// Whether the Ring tool's annulus is drawn over the pattern of `url`: on a measured pattern; never on a simulated one, which has
+    /// nothing to calibrate (#1149, #1043: a Simulation document shows no measured-pattern controls). The room's overlay and the
+    /// door's picture both ask.
+    package static func drawsAnnulus(url: URL) -> Bool { !DemoDocuments.isSimulated(url) }
+
     package private(set) var annulusInner = 28.0
     package private(set) var annulusOuter = 40.0
     /// The ring or spot the readout highlights (and the ⌫ key removes).

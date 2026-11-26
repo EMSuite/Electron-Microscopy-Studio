@@ -95,6 +95,15 @@ package nonisolated struct PhaseFindingRow: Sendable, Equatable, Identifiable {
     package let tie: Int
     /// The kit could not score this candidate, and why.
     package let refusal: String?
+
+    package init(id: Int, name: String, formula: String, spaceGroup: String, source: PhaseSource, explained: Int, measured: Int,
+                 strongMissing: Int?, strongExpected: Int?, misfitPercent: Double?, rmsDistance: Double?, scale: Double,
+                 zoneAxis: ZoneAxis?, tie: Int, refusal: String?) {
+        self.id = id; self.name = name; self.formula = formula; self.spaceGroup = spaceGroup; self.source = source
+        self.explained = explained; self.measured = measured; self.strongMissing = strongMissing; self.strongExpected = strongExpected
+        self.misfitPercent = misfitPercent; self.rmsDistance = rmsDistance; self.scale = scale; self.zoneAxis = zoneAxis
+        self.tie = tie; self.refusal = refusal
+    }
 }
 
 /// Find Phases' answer: the ranked rows and the sentences.
@@ -104,11 +113,15 @@ package nonisolated struct PhaseFindingResult: Sendable, Equatable {
     /// In the kit's rank order; a tie's rows together.
     package let rows: [PhaseFindingRow]
 
+    package init(pattern: PhaseFindingPattern, fitScale: Bool, rows: [PhaseFindingRow]) {
+        self.pattern = pattern; self.fitScale = fitScale; self.rows = rows
+    }
+
     /// The rows of one tie, in rank order.
     package func tie(_ number: Int) -> [PhaseFindingRow] { rows.filter { $0.tie == number } }
 
-    /// The row's tie holds two or more rows.
-    package func isTied(_ row: PhaseFindingRow) -> Bool { tie(row.tie).count > 1 }
+    /// The row's tie holds two or more rows that explain something: phases that explain none of the pattern are no tie (#1151).
+    package func isTied(_ row: PhaseFindingRow) -> Bool { row.explained > 0 && tie(row.tie).count > 1 }
 
     /// "14 phases from Materials Project, 3 from My Phases" (the larger source first).
     package var sourceSentence: String {
@@ -146,7 +159,8 @@ package nonisolated struct PhaseFindingResult: Sendable, Equatable {
     /// 0.7 %, inside the scale window." With the scale fixed, or scales that agree, only the first two sentences. nil for one row.
     package func tieSentence(_ number: Int) -> String? {
         let members = tie(number)
-        guard members.count > 1, members.allSatisfy({ $0.refusal == nil }) else { return nil }
+        // A group that explains nothing does not "fit equally well": each row's sentence says it explains 0 (#1151).
+        guard members.count > 1, members.allSatisfy({ $0.refusal == nil && $0.explained > 0 }) else { return nil }
         let names = members.map(\.name)
         let list = names.count == 2 ? "\(names[0]) and \(names[1])"
             : names.dropLast().joined(separator: ", ") + " and " + names.last!
@@ -175,6 +189,16 @@ package nonisolated struct PhaseFindingResult: Sendable, Equatable {
 }
 
 package nonisolated enum PhaseFinding {
+
+    /// Whether `structure` is made of `elements` only (symbols; every site's element among them), the rule the Materials Project
+    /// search follows (every combination of the typed elements): with elements typed, a phase of any other element is not ranked
+    /// (#1151). No elements: every phase.
+    package static func isMade(_ structure: CrystalStructure, of elements: [String]) -> Bool {
+        guard !elements.isEmpty else { return true }
+        let typed = Set(elements.compactMap { Element.atomicNumber(forSymbol: $0) })
+        let own = Set(structure.sites.map(\.z))
+        return !own.isEmpty && own.isSubset(of: typed)
+    }
 
     /// The kit's ring settings at Index's tolerance; Fit scale off holds the calibration (window 0).
     package static func ringSettings(fitScale: Bool) -> PhaseFinder.RingSettings {

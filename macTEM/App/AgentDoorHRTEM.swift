@@ -277,12 +277,15 @@ extension MacTEMAgentDoor {
             "image_failure": AgentJSON.orNull(model.imageFailure),
         ]
         // The Diffraction room's readouts of the document (#846): the place the pattern is drawn at and its Spots table.
-        if let near = analysis.drawnOrientation?.nearestZoneAxis(cell: analysis.crystal.structure.cell) {
+        // With no phase shown the screen draws no pattern and lists no spots (the empty state, #1152): the door says the same, never
+        // the calibration standard the room falls back to.
+        if !SimulationEmptyState.isShown(for: simulation),
+           let near = analysis.drawnOrientation?.nearestZoneAxis(cell: analysis.crystal.structure.cell) {
             state["nearest_zone_axis"] = ["zone_axis": [near.uvw.x, near.uvw.y, near.uvw.z], "degrees_off": near.angle * 180 / .pi,
                                           "place": PatternIndexing.place(phase: analysis.crystal.name, zoneAxis: near.uvw, angle: near.angle)]
                 as [String: Any]
         }
-        let spots: [[String: Any]] = simulation.session.image.map { simulation.simulatedSpotRows(image: $0).map(spotRow) } ?? []
+        let spots: [[String: Any]] = simulation.session.image.map { SimulationEmptyState.spotRows(of: simulation, image: $0).map(spotRow) } ?? []
         state["spots"] = spots
         if let curve = try? HRTEMTransferCurve.of(optics, defocusNM: model.effectiveDefocusNM) {
             state["transfer"] = ["point_resolution_nm": AgentJSON.orNull(curve.pointResolutionAngstrom.map { $0 / 10 }),

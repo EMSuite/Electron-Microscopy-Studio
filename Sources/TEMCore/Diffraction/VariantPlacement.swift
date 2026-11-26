@@ -167,7 +167,7 @@ package nonisolated enum VariantRefusal: Error, Sendable, Equatable {
         switch self {
         case .noPrecipitate: "Choose the precipitate: a phase of the library (Add Phase… under Phases), a standard, or another open pattern's crystal."
         case .precipitateIsMatrix: "The precipitate is the matrix itself: choose another phase."
-        case .noRelationship: "Type the orientation relationship as a paper states it, two parallel pairs, or pick a literature example."
+        case .noRelationship: "Type the orientation relationship as a paper states it: two parallel pairs."
         case .noMatrixOrientation: "Index the matrix first. Variants are placed from its orientation."
         case .pairsDoNotFixAnOrientation: "These pairs do not fix an orientation."
         case .kit(let s): s
@@ -177,8 +177,8 @@ package nonisolated enum VariantRefusal: Error, Sendable, Equatable {
 
 package nonisolated enum VariantPlacement {
 
-    /// β″ (Mg5Si6) in Al as Andersen et al. (1998) state it: [1 0 0] ∥ [3 2 0] Al, kept exact, and [0 0 1] ∥ [1 -3 0] Al. A
-    /// literature example (`DiffractionVariants.Example`), never a default.
+    /// β″ (Mg5Si6) in Al as Andersen et al. (1998) state it: [1 0 0] ∥ [3 2 0] Al, kept exact, and [0 0 1] ∥ [1 -3 0] Al. The
+    /// parity tests' relationship against orix; the app offers it nowhere (#1137, #1152).
     package static let betaDoublePrimeInAluminium = PrecipitateRelationship(
         first: (RelationshipVector(.direction, 1, 0, 0), RelationshipVector(.direction, 3, 2, 0)),
         second: (RelationshipVector(.direction, 0, 0, 1), RelationshipVector(.direction, 1, -3, 0)))

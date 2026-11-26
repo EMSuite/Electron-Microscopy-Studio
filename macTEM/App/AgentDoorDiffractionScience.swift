@@ -24,15 +24,12 @@ extension MacTEMAgentDoor {
     static let diffractionScienceTools: [AgentTool] = [
         said(AgentTool(name: "set_relationship", title: "Diffraction precipitate",
                        summary: "The Precipitate section, only those given: precipitate (a library phase's name, a standard, the "
-                           + "crystal of another open pattern, or none), example (a literature precipitate and its relationship at once, "
-                           + "beta_double_prime_in_al), first and second (a pair as \"[1 0 0] || [3 2 0]\": the precipitate's plane (h k l) or "
+                           + "crystal of another open pattern, or none), first and second (a pair as \"[1 0 0] || [3 2 0]\": the precipitate's plane (h k l) or "
                            + "direction [u v w], then the matrix's), show (draw the variants), hide and unhide (variant numbers, "
                            + "\"2, 5\"), double_diffraction. Answers the variants with their groups, the sentences and any refusal.",
                        input: .window,
                        parameters: [
                            AgentParameter("precipitate", .text, summary: "A library phase's name, a standard's, an open pattern's crystal, or none."),
-                           AgentParameter("example", .choice(DiffractionVariants.Example.all.map(\.id)),
-                                          summary: "A literature example: its precipitate and relationship, both at once."),
                            AgentParameter("first", .text, summary: "The first pair, kept exact: \"[1 0 0] || [3 2 0]\"."),
                            AgentParameter("second", .text, summary: "The second pair: \"[0 0 1] || [1 -3 0]\"."),
                            AgentParameter("show", .boolean, summary: "Draw the shown variants' spots over the pattern."),
@@ -124,13 +121,14 @@ extension MacTEMAgentDoor {
                         return .refusal(status: 400, message: String(describing: error))
                     }
                 }
-                let candidates = DiffractionPhaseCandidate.all(for: item, appState: appState)
+                let candidates = DiffractionPhaseCandidate.all(for: item, appState: appState, elementsText: elementsText)
                 if let refusal = applyFindPhases(a, to: item, image: image, candidates: candidates) { return refusal }
                 search.elementsText = elementsText
                 if a["stop_search"] == "true" { search.stop() }
                 if a["search_materials_project"] == "true" { search.run() }
                 var out = phases(item, image: image)
                 out["materials_project"] = materialsProject(search, candidates: DiffractionPhaseCandidate.all(for: item, appState: appState))
+                out["left_out_by_elements"] = AgentJSON.orNull(DiffractionPhaseCandidate.leftOutSentence(for: item, appState: appState))
                 return .json(out)
             }
         }),
@@ -244,18 +242,12 @@ extension MacTEMAgentDoor {
 
     static func applyRelationship(_ a: [String: String], to item: OpenItem, image: CalibratedImage, others: [PowderPhase])
         -> AgentToolOutput? {
+        // No built-in precipitate (#1152): an `example` from an older guide is refused, not silently ignored.
+        if a["example"] != nil {
+            return .refusal(status: 400, message: "set_relationship takes no example: give precipitate, then first and second as a paper states them.")
+        }
         let variants = item.diffractionVariants
         let matrix = item.diffraction.crystal.name
-        var example: DiffractionVariants.Example?
-        if let id = a["example"] {
-            guard let chosen = DiffractionVariants.Example.all.first(where: { $0.id == id }) else {
-                return .refusal(status: 404, message: "No example \(id): " + DiffractionVariants.Example.all.map(\.id).joined(separator: ", ") + ".")
-            }
-            guard a["precipitate"] == nil else {
-                return .refusal(status: 400, message: "example gives the precipitate itself: give one or the other.")
-            }
-            example = chosen
-        }
         // nil: not given; .some(nil): none.
         var precipitate: DiffractionVariants.Precipitate??
         if let name = a["precipitate"] {
@@ -271,10 +263,7 @@ extension MacTEMAgentDoor {
                 precipitate = .some(chosen)
             }
         }
-        // The relationship this call starts from: the example's, or none when a new precipitate drops an example's pairs.
-        var base = example?.relationship ?? variants.relationship
-        if example == nil, precipitate != nil, let used = variants.example, base == used.relationship { base = nil }
-        var relationship = base
+        var relationship = variants.relationship
         if a["first"] != nil || a["second"] != nil {
             var first = relationship.map { ($0.firstPrecipitate, $0.firstMatrix) }
             var second = relationship.map { ($0.secondPrecipitate, $0.secondMatrix) }
@@ -295,7 +284,7 @@ extension MacTEMAgentDoor {
         // changes nothing.
         var count = 0
         if a["hide"] != nil || a["unhide"] != nil, var asked = variants.inputs(analysis: item.diffraction, image: image) {
-            asked.precipitate = example?.precipitate ?? precipitate ?? variants.precipitate
+            asked.precipitate = precipitate ?? variants.precipitate
             asked.relationship = relationship
             asked.hidden = []
             asked.doubleDiffraction = false
@@ -319,7 +308,6 @@ extension MacTEMAgentDoor {
                 unhide = n
             }
         }
-        if let example { variants.use(example) }
         if let precipitate { variants.setPrecipitate(precipitate) }
         variants.setRelationship(relationship)
         for v in hide { variants.setHidden(v, true) }
@@ -343,8 +331,6 @@ extension MacTEMAgentDoor {
             "relationship": variants.relationship?.text(matrix: matrix.name) ?? "none",
             "show": variants.isShown, "double_diffraction": variants.doubleDiffraction,
         ]
-        if let example = variants.example { out["example"] = ["id": example.id, "title": example.title, "citation": example.citation] }
-        if let warning = variants.exampleWarning(matrix: matrix.name, matrixStructure: matrix.structure) { out["warning"] = warning }
         switch variants.variants(analysis: item.diffraction, image: image) {
         case nil: out["refusal"] = "Variants need the beam energy: type it under Calibration."
         case .failure(let refusal)?: out["refusal"] = refusal.sentence

@@ -40,10 +40,34 @@ struct DiffractionPhaseCandidate: Identifiable {
     }
 
     /// My Phases, then the Materials Project's candidates of the window's last search (a name already there is not added twice).
-    @MainActor static func all(for item: OpenItem, appState: AppState) -> [DiffractionPhaseCandidate] {
+    /// With elements typed (`elementsText`, the sheet's field by default), only the phases made of them (#1151): Si, Au and Al are
+    /// not ranked beside GaAs when Ga, As is typed. Text that holds no element leaves every phase in.
+    @MainActor static func all(for item: OpenItem, appState: AppState, elementsText: String? = nil) -> [DiffractionPhaseCandidate] {
         let mine = all(for: item, openItems: appState.openItems)
         let names = Set(mine.map(\.id))
-        return mine + appState.phaseSearch.candidates.filter { !names.contains($0.id) }
+        let elements = typedElements(elementsText ?? appState.phaseSearch.elementsText)
+        return (mine + appState.phaseSearch.candidates.filter { !names.contains($0.id) })
+            .filter { PhaseFinding.isMade($0.crystal.structure, of: elements) }
+    }
+
+    /// How many of My Phases the typed elements leave out (the sheet and the door say so).
+    @MainActor static func leftOut(for item: OpenItem, appState: AppState, elementsText: String? = nil) -> Int {
+        let elements = typedElements(elementsText ?? appState.phaseSearch.elementsText)
+        return all(for: item, openItems: appState.openItems).filter { !PhaseFinding.isMade($0.crystal.structure, of: elements) }.count
+    }
+
+    /// The typed elements, checked; none when the text is empty or holds a word that is no element (the search says why).
+    static func typedElements(_ text: String) -> [String] {
+        (try? MaterialsProjectSearch.elements(typed: text)) ?? []
+    }
+
+    /// "3 of My Phases are left out: they hold elements other than Ga, As."; nil when none is.
+    @MainActor static func leftOutSentence(for item: OpenItem, appState: AppState, elementsText: String? = nil) -> String? {
+        let text = elementsText ?? appState.phaseSearch.elementsText
+        let count = leftOut(for: item, appState: appState, elementsText: text)
+        guard count > 0 else { return nil }
+        let list = typedElements(text).joined(separator: ", ")
+        return "\(count) of My Phases \(count == 1 ? "is" : "are") left out: \(count == 1 ? "it holds" : "they hold") elements other than \(list)."
     }
 }
 
@@ -62,6 +86,9 @@ struct DiffractionFindPhasesSheet: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Find Phases").font(.title3.weight(.semibold))
             materialsProject(myPhases: candidates.count - mpCount, materialsProject: mpCount)
+            if let leftOut = DiffractionPhaseCandidate.leftOutSentence(for: item, appState: appState) {
+                Text(leftOut).font(.callout).foregroundStyle(.secondary)
+            }
             HStack {
                 Toggle("Fit scale", isOn: Binding(get: { finder.fitScale }, set: { finder.fitScale = $0 }))
                     .help("On, each phase takes the scale that suits it, within 3 %. Off, the room's calibration holds, which tells two phases with nearly equal lattices apart.")

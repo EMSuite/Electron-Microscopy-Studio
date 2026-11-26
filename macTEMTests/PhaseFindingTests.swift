@@ -62,6 +62,30 @@ nonisolated final class PhaseFindingTests: XCTestCase {
         XCTAssertTrue(free.isTied(free.rows[0]))
     }
 
+    /// With elements typed, only phases made of them are ranked (#1151): Ga, As keeps GaAs and leaves Si, Au and Al out; no elements
+    /// keep every phase. A group that explains nothing is no tie and gets no "fit equally well". Red before: Si, Au and Al were
+    /// ranked beside GaAs and called a tie at 0 of 29. Mutation: intersection instead of subset; the tie sentence for 0 explained.
+    func testTypedElementsAndAGroupThatExplainsNothing() {
+        XCTAssertFalse(PhaseFinding.isMade(CrystalPresets.silicon, of: ["Ga", "As"]))
+        XCTAssertFalse(PhaseFinding.isMade(CrystalPresets.gold, of: ["Ga", "As"]))
+        XCTAssertTrue(PhaseFinding.isMade(CrystalPresets.silicon, of: ["C", "Si"]), "a subset of the typed elements")
+        XCTAssertTrue(PhaseFinding.isMade(CrystalPresets.silicon, of: ["Si"]))
+        XCTAssertTrue(PhaseFinding.isMade(CrystalPresets.silicon, of: []), "no elements: every phase")
+
+        func row(_ id: Int, _ name: String, explained: Int, tie: Int) -> PhaseFindingRow {
+            PhaseFindingRow(id: id, name: name, formula: name, spaceGroup: "", source: .myPhases, explained: explained, measured: 29,
+                            strongMissing: nil, strongExpected: nil, misfitPercent: nil, rmsDistance: nil, scale: 1, zoneAxis: nil,
+                            tie: tie, refusal: nil)
+        }
+        let result = PhaseFindingResult(pattern: .rings([0.3]), fitScale: true,
+                                        rows: [row(0, "GaAs", explained: 11, tie: 0), row(1, "gallium arsenide", explained: 11, tie: 0),
+                                               row(2, "Si", explained: 0, tie: 1), row(3, "Au", explained: 0, tie: 1), row(4, "Al", explained: 0, tie: 1)])
+        XCTAssertNotNil(result.tieSentence(0), "two phases explaining 11 are a tie")
+        XCTAssertNil(result.tieSentence(1), "explaining nothing is no tie")
+        XCTAssertFalse(result.isTied(result.rows[2]))
+        XCTAssertTrue(result.isTied(result.rows[0]))
+    }
+
     /// The row's sentence says the counts, never a verdict.
     func testRowSentence() throws {
         let q = try goldRings()

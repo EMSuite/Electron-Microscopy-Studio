@@ -6,6 +6,7 @@
 //        and crystal names each stay on their header line (ImagoKit's `CSVText.quoted` and `CSVText.headerValue`).
 //
 
+import DiffractoCore
 import Foundation
 import ImagoCore
 
@@ -38,6 +39,29 @@ package nonisolated struct DiffractionReadoutRow: Sendable, Equatable, Identifia
         self.family = family; self.dListed = dListed; self.deltaPercent = deltaPercent; self.oddsText = oddsText
         self.verdict = verdict; self.validation = validation; self.isCalibrating = isCalibrating
         self.listedIntensity = listedIntensity; self.verdictDetail = verdictDetail
+    }
+
+    /// `rows` with each spot's hkl, d, expected d and misfit taken from Index's Spots table (`spots`, #1148): an indexed pattern's
+    /// figure labels and tabulates what Index found, as the Spots table does, not the ring readout's nearest family. A spot Index left
+    /// unexplained (or that has no Index row) has no hkl; rings keep the readout's family.
+    package static func takingIndex(_ rows: [DiffractionReadoutRow], spots: [PatternIndexing.SpotRow]) -> [DiffractionReadoutRow] {
+        let byID = Dictionary(spots.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        return rows.map { row in
+            guard row.kind == .spot else { return row }
+            var out = row
+            out.oddsText = nil
+            out.listedIntensity = nil
+            guard let spot = byID[row.id] else {
+                out.family = nil; out.dListed = nil; out.deltaPercent = nil
+                return out
+            }
+            out.q = spot.q
+            out.d = spot.d
+            out.family = spot.hkl.map { ZoneAxisText.label($0) }
+            out.dListed = spot.hkl == nil ? nil : spot.dExpected
+            out.deltaPercent = spot.hkl == nil ? nil : spot.deltaPercent
+            return out
+        }
     }
 
     /// The verdict as the table, the announcement and the Results room show it: the kit's refusal names (`RingIndexing.Error.name`,

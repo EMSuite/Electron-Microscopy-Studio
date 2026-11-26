@@ -192,9 +192,10 @@ package nonisolated enum FigureExport {
 
     /// The spot table's columns: the readout's number, the family or hkl, d measured, d of the crystal's list, the misfit.
     package static let tableHeader = ["#", "hkl", "d (Å)", "d listed (Å)", "Δd/d (%)"]
-    package static let tableAnchors: [FigureTextAnchor] = [.end, .start, .end, .end, .end]
-    /// Column widths in points at 7 pt: wide enough for "{113}" and "2.3550" at Helvetica's widest digits; they scale with the type.
-    package static func tableColumnWidths(typeSize: Double) -> [Double] { [14.0, 60, 40, 52, 44].map { $0 * typeSize / 7 } }
+    package static let tableAnchors: [FigureTextAnchor] = [.start, .start, .end, .end, .end]
+    /// Column widths in points at 7 pt: wide enough for "99", "{113}" and "2.3550" at Helvetica's widest digits; they scale with the type.
+    /// The number starts its column, so it never runs into the hkl that starts the next ("1{111}", #1148).
+    package static func tableColumnWidths(typeSize: Double) -> [Double] { [16.0, 60, 40, 52, 44].map { $0 * typeSize / 7 } }
 
     /// One table row per readout row: its number, family, d, listed d and misfit, three decimals for d and two for the misfit
     /// (the readout's own), in the POSIX locale; a value the row lacks is left empty.

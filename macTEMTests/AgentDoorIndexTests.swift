@@ -278,6 +278,18 @@ nonisolated final class AgentDoorIndexTests: XCTestCase {
         XCTAssertEqual(item.diffractionView.presentation.canvas, CanvasPixels.pattern(image: pattern(radius: 20), log: item.diffractionView.useLog))
     }
 
+    /// #1149: a simulated pattern has nothing to calibrate, so neither the room's overlay nor the door's picture draws the Ring
+    /// tool's annulus on a Simulation document or its CBED, HRTEM or STEM result; a measured pattern keeps it. Red before: the
+    /// overlay drew it whenever there was a centre. Mutation: the rule asks only isSimulation (a CBED pattern keeps the annulus).
+    @MainActor func testASimulatedPatternDrawsNoAnnulus() {
+        XCTAssertFalse(DiffractionViewState.drawsAnnulus(url: DemoDocuments.simulationURL(1)))
+        for name in ["CBED of Simulation 1", "HRTEM of Simulation 1", "STEM of Simulation 1"] {
+            XCTAssertFalse(DiffractionViewState.drawsAnnulus(url: URL(fileURLWithPath: "/macTEM-demo/\(name)")), name)
+        }
+        XCTAssertTrue(DiffractionViewState.drawsAnnulus(url: DemoDocuments.patternURL))
+        XCTAssertTrue(DiffractionViewState.drawsAnnulus(url: URL(fileURLWithPath: "/Users/someone/pattern.dm4")))
+    }
+
     /// #1003: the fitted rings and the annulus are drawn as the room draws them, under the marked spots and over the simulated ones.
     func testThePictureDrawsTheAnnulusAndTheFittedRings() {
         let simulated = [ZoneAxisOverlay.Spot(hkl: MillerIndex(1, 1, 1), row: 3, column: 4, intensity: 1, relative: 1)]

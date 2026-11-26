@@ -883,6 +883,14 @@ package final class DiffractionAnalysis {
         return rows
     }
 
+    /// The readout as a figure labels and tabulates it (Export Figure, Copy Figure, the door's picture and figure, #1148): with Index's
+    /// answer, each spot takes Index's hkl, d and misfit (`DiffractionReadoutRow.takingIndex`); else the readout.
+    package func figureReadout(image: CalibratedImage) -> [DiffractionReadoutRow] {
+        let rows = readout(image: image)
+        guard indexOutcome != nil else { return rows }
+        return DiffractionReadoutRow.takingIndex(rows, spots: indexSpotRows)
+    }
+
     private func makeReadout(image: CalibratedImage) -> [DiffractionReadoutRow] {
         let calibration = calibration(for: image)
         let list = list()

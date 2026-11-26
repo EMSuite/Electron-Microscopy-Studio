@@ -350,12 +350,12 @@ extension MacTEMAgentDoor {
             return .refusal(status: 404, message: "The pattern is still being drawn; ask again in a moment.")
         }
         let simulated = analysis.simulation.isShown ? ((try? item.simulatedSpots(image: image)?.get()) ?? []) : []
-        let labels = Dictionary(uniqueKeysWithValues: analysis.readout(image: image).map { ($0.id, ExportSnapshot.figureLabel($0)) })
+        let labels = Dictionary(uniqueKeysWithValues: analysis.figureReadout(image: image).map { ($0.id, ExportSnapshot.figureLabel($0)) })
         let rings = analysis.rings.compactMap { ring -> DiffractionPicture.Ring? in
             guard let ellipse = ring.ellipse else { return nil }
             return DiffractionPicture.Ring(points: RingOverlay.polyline(ellipse).map { ImagePoint(x: $0.x, y: $0.y) }, label: labels[ring.id] ?? "")
         }
-        let annulus = analysis.centre.map {
+        let annulus = analysis.centre.flatMap { DiffractionViewState.drawsAnnulus(url: item.url) ? $0 : nil }.map {
             DiffractionPicture.Annulus(centre: ImagePoint(x: $0.column, y: $0.row), inner: view.annulusInner, outer: view.annulusOuter)
         }
         let marks = DiffractionPicture.marks(annulus: annulus, rings: rings, spots: analysis.spots, simulated: simulated,
