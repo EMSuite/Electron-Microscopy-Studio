@@ -20,6 +20,8 @@
 //
 
 import Foundation
+import ShellEDXModel
+import SpectroCore
 import SpectroEDX
 import TEMCore
 import TEMSession
