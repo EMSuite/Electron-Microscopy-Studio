@@ -265,7 +265,7 @@ private struct DiffractionPhasesSection: View {
                     .help("Find a phase on the Materials Project, or open a CIF. Until a phase is shown, the room indexes against \(analysis.standard.name), the calibration standard.")
                     .accessibilityIdentifier("diffraction.phases.add")
                 Button("Find Phases…") { findingPhases = true }
-                    .help("Ranks the room's standards and the open crystals by how many of the measured rings or marked spots each explains")
+                    .help("Ranks My Phases (your library, the standards, the open crystals) and, if you search, the Materials Project's phases by how many of the measured rings or marked spots each explains")
                     .accessibilityIdentifier("diffraction.findPhases")
             }
             if let why = analysis.crystalFailure { InspectorWarning(why) }
@@ -733,13 +733,13 @@ private struct DiffractionExportSection: View {
                     .accessibilityIdentifier("diffraction.holder.export")
                 Button("Powder CSV…") { exportPowderCSV(powder) }
                     .disabled(powder.rows.isEmpty)
-                    .help(powder.rows.isEmpty ? "The kit drew no powder pattern for this crystal" : "The peak table of the shown phases, with how it was computed")
+                    .help(powder.rows.isEmpty ? "No powder pattern could be computed for this crystal" : "The peak table of the shown phases, with how it was computed")
                     .accessibilityIdentifier("diffraction.powder.exportCSV")
             }
             InspectorActionRow {
                 Button("Powder XY…") { exportPowderXY(powder) }
                     .disabled((powder.patterns.first ?? nil) == nil)
-                    .help((powder.patterns.first ?? nil) == nil ? "The kit drew no powder pattern for this crystal"
+                    .help((powder.patterns.first ?? nil) == nil ? "No powder pattern could be computed for this crystal"
                           : "This crystal's drawn profile: two columns, position and intensity, a tenth of the peak width apart")
                     .accessibilityIdentifier("diffraction.powder.exportXY")
                 Button("Figure…") { ExportPanels.exportDiffractionFigure(appState: appState) }

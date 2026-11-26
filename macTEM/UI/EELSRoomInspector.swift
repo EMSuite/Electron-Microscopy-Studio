@@ -247,7 +247,7 @@ struct EELSProcessingSection: View {
                     Text("Fixed").tag(true)
                 }
                 .labelsHidden().fixedSize()
-                .help("Estimated: the kit's inflexion rule, one tolerance for the whole map. Noisy data want a fixed threshold.")
+                .help("Estimated: exSpy's inflexion rule (estimate_elastic_scattering_threshold), one tolerance for the whole map. Noisy data want a fixed threshold.")
                 .accessibilityIdentifier("eels.threshold")
             }
             if case .fixed(let eV) = session.threshold {
@@ -577,7 +577,7 @@ struct EELSExportSection: View {
             }
             InspectorActionRow {
                 exportButton(.diagnostics, "Per-pixel CSV…", "tablecells.badge.ellipsis", enabled: hasMap,
-                             help: "Every pixel: t/λ, its counting σ, I₀, I total, the zero-loss centre, the threshold, t and the kit's reason where there is none")
+                             help: "Every pixel: t/λ, its counting σ, I₀, I total, the zero-loss centre, the threshold, t and the reason where there is none")
             }
             InspectorRow("Scale bar") {
                 let hasPixelSize = session.scanPixel != nil

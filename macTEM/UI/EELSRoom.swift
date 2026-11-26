@@ -1011,7 +1011,7 @@ struct EELSResultsPanel: View {
                 .font(.callout.monospacedDigit()).lineLimit(2)
                 .padding(.horizontal, LayoutPolicy.infobarHorizontalPadding).padding(.vertical, 5)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .help("The median and the interquartile range of the kit's t/λ over the region's pixels; λ and its source; t from the same pixels")
+                .help("The median and the interquartile range of t/λ over the region's pixels; λ and its source; t from the same pixels")
                 .accessibilityIdentifier("eels.thicknessLine")
             Divider()
             // The edges table and the Regions section share what the lines above and below leave (`EELSResultsSplit`): every edge's row, up to six,
@@ -1038,7 +1038,7 @@ struct EELSResultsPanel: View {
                 Text(line).font(.caption.monospacedDigit()).foregroundStyle(.secondary).lineLimit(1)
                     .padding(.horizontal, LayoutPolicy.infobarHorizontalPadding).padding(.bottom, 2)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .help("The exponent of the power law the kit fitted on each edge's background window")
+                    .help("The exponent of the power law fitted on each edge's background window")
                     .accessibilityIdentifier("eels.results.exponents")
             }
             EELSFitFooter(hasFit: session.model != nil, notes: session.fitNotes, quality: session.resultQuality.map { EELSRoomFormat.fitQualityText($0) },

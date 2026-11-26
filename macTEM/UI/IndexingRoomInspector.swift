@@ -197,7 +197,7 @@ private struct IndexingPhasesSection: View {
                     ForEach(IndexingPhase.presets) { Text($0.name).tag($0.name) }
                 }
                 .labelsHidden()
-                .help("The built-in phases, with DiffractoKit's lattice constants")
+                .help("Common phases with their room-temperature lattice constants")
                 .accessibilityIdentifier("indexing.preset")
             }
             InspectorActionRow {
@@ -376,7 +376,7 @@ private struct IndexingDictionarySection: View {
             InspectorActionRow {
                 Button("Reset Dictionary") { session.resetDictionarySettings() }
                     .disabled(settings == defaults)
-                    .help(settings == defaults ? "The settings are figure F9's: 4°, NCC, keep 5, no mask" : "Back to figure F9's settings: 4°, NCC, keep 5, no mask")
+                    .help(settings == defaults ? "The settings are the defaults: 4°, NCC, keep 5, no mask" : "Back to the defaults: 4°, NCC, keep 5, no mask")
                     .accessibilityIdentifier("indexing.dictionary.reset")
             }
             if let why = session.dictionaryRefusal {
