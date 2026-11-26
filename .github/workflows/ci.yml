@@ -209,6 +209,25 @@ jobs:
     runs-on: ${{ github.event_name == 'pull_request' && vars.MACEM_MAC_RUNNER && !github.event.pull_request.head.repo.fork && needs.changes.outputs.mac != 'false' && fromJSON(vars.MACEM_MAC_RUNNER) || 'macos-26' }}
     timeout-minutes: 90
     steps:
+      - name: No build left over from an earlier job (self-hosted only)
+        # #1105: on 26 Nov an `xcodebuild test` of this workspace from a cancelled job (25 Nov) was still running 13 hours later
+        # on the Mac and kept rewriting the workspace Package.resolved under the next jobs. The runner takes one job at a time
+        # and a unit job's timeout is 90 minutes, so any xcodebuild of this workspace older than 100 minutes is such an orphan:
+        # each is named and stopped by its pid. GitHub's runners start empty and skip this.
+        if: runner.environment == 'self-hosted'
+        run: |
+          set -uo pipefail
+          secs() { local t=$1 d=0; [[ $t == *-* ]] && { d=${t%%-*}; t=${t#*-}; }; IFS=: read -r a b c <<< "$t"
+                   [ -z "$c" ] && { c=$b; b=$a; a=0; }; echo $(( 10#$d*86400 + 10#$a*3600 + 10#$b*60 + 10#$c )); }
+          found=0
+          while read -r pid etime cmd; do
+            [[ "$cmd" == *xcodebuild* && "$cmd" == *"$GITHUB_WORKSPACE"* ]] || continue
+            if [ "$(secs "$etime")" -gt 6000 ]; then
+              echo "::warning::stopping a left-over build, pid $pid, running $etime: ${cmd:0:160}"; kill "$pid" || true; found=1
+            fi
+          done < <(ps -U "$(id -u)" -o pid=,etime=,command=)
+          [ "$found" -eq 0 ] && echo "no left-over build of this workspace"
+          exit 0
       - uses: actions/checkout@v7
         with:
           # mac4DSTEM's inventory reads HEAD^ on a clean tree, which the default depth of 1 does not have; its
