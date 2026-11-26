@@ -2,12 +2,13 @@
 //  DiffractionHolderSection.swift
 //  Role: the Diffraction room's Holder section (plan row R16, #815; mockup brief 6 of the 2.4 design), after Index: α and β now
 //        (from the file's stage tilts when it has both, else typed), the limits, the tilt axis (typed, or calibrated from another
-//        open indexed pattern of the same crystal), a zone axis near the beam and the sentence for it. The Tilt List CSV is the Export section's (#922).
+//        open indexed pattern of the same crystal), the β sense (found by the calibration or set by hand, #932), a zone axis near the beam and the sentence for it. The Tilt List CSV is the Export section's (#922).
 //        Presentation only: the numbers are `TiltPlanning`'s over DiffractoKit's holder and zone-axis map. Uncalibrated it says so
 //        and shows no α or β for a zone axis. The zone-axis map (#814), the calibration's sentence and the tilts to the picked zone
 //        axis are the Zone-axis Map pane beside the pattern (#921, `DiffractionZoneAxisPane`); its click picks the same `selected`.
 //
 
+import DiffractoGeometry
 import ShellInspector
 import SwiftUI
 import TEMCore
@@ -73,6 +74,17 @@ struct DiffractionHolderSection: View {
                     .help("The α axis in the pattern, degrees from down the rows toward along the columns; calibrate it from a second pattern")
                     .accessibilityIdentifier("diffraction.holder.axis")
             }
+            InspectorRow("β sense") {
+                Picker("β sense", selection: Binding(get: { settings.betaSenseSetting }, set: { holder.setBetaSense($0) })) {
+                    Text(Self.foundLabel(settings)).tag(DoubleTiltHolder.BetaSense?.none)
+                    Text("Positive").tag(Optional(DoubleTiltHolder.BetaSense.positive))
+                    Text("Reversed").tag(Optional(DoubleTiltHolder.BetaSense.negative))
+                }
+                .labelsHidden().fixedSize()
+                .help("Which way the holder's β readout turns. Found from the calibration pair when it changes both α and β; "
+                      + "set it by hand for a pair that changes one tilt only. Changing it clears a calibrated axis.")
+                .accessibilityIdentifier("diffraction.holder.betaSense")
+            }
             InspectorRow("Calibrate from") {
                 Picker("Calibrate from", selection: $partner) {
                     Text("None").tag(UUID?.none)
@@ -117,6 +129,12 @@ struct DiffractionHolderSection: View {
                 InspectorNote("Index the pattern first: the zone axes and the tilts to them are placed from its orientation.")
             }
         }
+    }
+
+    /// The β sense picker's first choice: what the calibration found, or that it will find it.
+    static func foundLabel(_ settings: HolderSettings) -> String {
+        guard settings.betaSenseSetting == nil, settings.betaSenseSource == .calibration else { return "From the calibration" }
+        return "From the calibration (\(TiltPlanning.betaSenseWord(settings.betaSense)))"
     }
 
     /// The other open patterns indexed on the same crystal, each a calibration partner.

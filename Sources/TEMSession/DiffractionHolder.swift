@@ -70,6 +70,19 @@ package final class DiffractionHolder {
         settings.calibration = nil
     }
 
+    /// Sets the β sense by hand, or nil to let the next calibration find it from the pair (#932). A calibrated axis was fitted
+    /// with its sense, so a change of the sense in use forgets it (calibrate again); a typed axis stays.
+    package func setBetaSense(_ sense: DoubleTiltHolder.BetaSense?) {
+        guard sense != settings.betaSenseSetting else { return }
+        let before = settings.betaSense
+        settings.betaSenseSetting = sense
+        if settings.calibration != nil, settings.betaSense != before {
+            settings.axisAngleDeg = nil
+            settings.calibration = nil
+        }
+        calibrationRefusal = nil
+    }
+
     /// Forgets the axis: α and β are no longer said.
     package func forgetAxis() {
         settings.axisAngleDeg = nil

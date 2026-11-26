@@ -33,9 +33,23 @@ package nonisolated struct HolderSettings: Sendable, Codable, Equatable {
         package var tiltChangeDeg: Double
         /// How far the measured rotation is from the stage's at the found axis (degrees).
         package var misfitDeg: Double
-        package init(otherPattern: String, tiltChangeDeg: Double, misfitDeg: Double) {
+        /// The β sense the axis was fitted with: found from the pair, or the one set by hand (#932). nil in a document saved
+        /// before the sense was kept, which read β the positive way.
+        package var betaSense: DoubleTiltHolder.BetaSense?
+        package init(otherPattern: String, tiltChangeDeg: Double, misfitDeg: Double, betaSense: DoubleTiltHolder.BetaSense? = nil) {
             self.otherPattern = otherPattern; self.tiltChangeDeg = tiltChangeDeg; self.misfitDeg = misfitDeg
+            self.betaSense = betaSense
         }
+    }
+
+    /// Where the β sense in use came from.
+    package enum BetaSenseSource: String, Sendable, Equatable {
+        /// Set by hand in the Holder section.
+        case hand
+        /// Found by the calibration from the pair.
+        case calibration
+        /// Neither: β is read the positive way.
+        case assumed
     }
 
     package var alphaDeg: Double = 0
@@ -46,12 +60,21 @@ package nonisolated struct HolderSettings: Sendable, Codable, Equatable {
     /// The α axis in the pattern (degrees from lab x toward lab y); nil until calibrated.
     package var axisAngleDeg: Double?
     package var calibration: Calibration?
+    /// The β sense set by hand (#932); nil lets the calibration find it from the pair.
+    package var betaSenseSetting: DoubleTiltHolder.BetaSense?
 
     package init() {}
 
+    /// The β sense in use: set by hand, else the calibration's, else positive.
+    package var betaSense: DoubleTiltHolder.BetaSense { betaSenseSetting ?? calibration?.betaSense ?? .positive }
+    package var betaSenseSource: BetaSenseSource {
+        if betaSenseSetting != nil { return .hand }
+        return calibration?.betaSense != nil ? .calibration : .assumed
+    }
+
     /// The kit's holder.
     package var holder: DoubleTiltHolder {
-        DoubleTiltHolder(alphaLimitDeg: alphaLimitDeg, betaLimitDeg: betaLimitDeg, axisAngleDeg: axisAngleDeg)
+        DoubleTiltHolder(alphaLimitDeg: alphaLimitDeg, betaLimitDeg: betaLimitDeg, axisAngleDeg: axisAngleDeg, betaSense: betaSense)
     }
     package var tilts: DoubleTiltHolder.Tilts { DoubleTiltHolder.Tilts(alpha: alphaDeg, beta: betaDeg) }
 
@@ -103,11 +126,12 @@ package nonisolated struct TiltPlan: Sendable, Equatable {
     }
 
     /// The Holder section's calibration sentence: "Calibrated from two patterns 14° apart: tilt axis at 23° in the pattern, good to
-    /// about 1°." or the uncalibrated sentence.
+    /// about 1°. β turns the positive way, found from the pair." or the uncalibrated sentence.
     package var calibrationSentence: String {
         guard let axis = holder.axisAngleDeg, let c = holder.calibration else { return TiltPlanning.uncalibratedSentence }
         return String(format: "Calibrated from two patterns %.0f° apart: tilt axis at %.0f° in the pattern, good to about ",
-                      c.tiltChangeDeg, axis) + TiltPlanning.axisAccuracy(tiltChangeDeg: c.tiltChangeDeg) + "."
+                      c.tiltChangeDeg, axis) + TiltPlanning.axisAccuracy(tiltChangeDeg: c.tiltChangeDeg) + ". "
+            + TiltPlanning.betaSenseSentence(holder)
     }
 
     /// The tilt list as CSV: zone axis, angle from the beam, α, β, reachable (α, β and reachable empty while uncalibrated).
@@ -117,7 +141,8 @@ package nonisolated struct TiltPlan: Sendable, Equatable {
                      "# phase: \(CSVText.headerValue(phase))",
                      "# holder: now alpha \(g(holder.alphaDeg)) deg, beta \(g(holder.betaDeg)) deg (\(holder.source.rawValue)); "
                         + "limits alpha +-\(g(holder.alphaLimitDeg)) deg, beta +-\(g(holder.betaLimitDeg)) deg",
-                     "# tilt axis: " + (holder.axisAngleDeg.map { "\(g($0)) deg in the pattern" } ?? "not calibrated")]
+                     "# tilt axis: " + (holder.axisAngleDeg.map { "\(g($0)) deg in the pattern" } ?? "not calibrated"),
+                     "# beta sense: \(TiltPlanning.betaSenseWord(holder.betaSense)) (\(holder.betaSenseSource.rawValue))"]
         lines.append("zone_axis,angle_from_beam_deg,alpha_deg,beta_deg,reachable")
         for r in rows {
             lines.append([CSVText.quoted(TiltPlanning.zoneText(r.uvw)), g(r.angleFromBeamDeg), r.target.map { g($0.alpha) } ?? "",
@@ -180,13 +205,13 @@ package nonisolated enum TiltPlanning {
         do throws(DoubleTiltHolder.CalibrationError) {
             let c = try DoubleTiltHolder.calibrateAxis(orientation, at: settings.tilts, other, at: otherTilts,
                                                        symmetry: DoubleTiltHolder.properRotations(of: structure),
-                                                       // The app's holder reads β in the positive sense until the Holder section
-                                                       // takes the holder's β sense (#932); DiffractoKit 0.24.0 fits both senses
-                                                       // when none is given and refuses a pair that fits both.
-                                                       betaSense: .positive)
+                                                       // A sense set by hand fits that sense alone; none fits both and refuses
+                                                       // a pair that fits both (`ambiguousSense`, #932).
+                                                       betaSense: settings.betaSenseSetting)
             var out = settings
             out.axisAngleDeg = c.axisAngleDeg
-            out.calibration = .init(otherPattern: otherName, tiltChangeDeg: c.tiltChangeDeg, misfitDeg: c.misfitDeg)
+            out.calibration = .init(otherPattern: otherName, tiltChangeDeg: c.tiltChangeDeg, misfitDeg: c.misfitDeg,
+                                    betaSense: c.betaSense)
             return .success(out)
         } catch {
             return .failure(error)
@@ -199,6 +224,19 @@ package nonisolated enum TiltPlanning {
         if tiltChangeDeg < 10 { return "2.5°" }
         if tiltChangeDeg < 20 { return "1.5°" }
         return "1°"
+    }
+
+    /// "positive" or "reversed".
+    package static func betaSenseWord(_ sense: DoubleTiltHolder.BetaSense) -> String { sense == .positive ? "positive" : "reversed" }
+
+    /// "β turns the positive way, found from the pair." / "β turns the reversed way, set by hand." / "β is taken to turn the
+    /// positive way." (no calibration and none set).
+    package static func betaSenseSentence(_ h: HolderSettings) -> String {
+        switch h.betaSenseSource {
+        case .hand: return "β turns the \(betaSenseWord(h.betaSense)) way, set by hand."
+        case .calibration: return "β turns the \(betaSenseWord(h.betaSense)) way, found from the pair."
+        case .assumed: return "β is taken to turn the positive way."
+        }
     }
 
     /// "[1 1 2]".

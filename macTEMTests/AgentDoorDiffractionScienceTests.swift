@@ -2,11 +2,12 @@
 //  AgentDoorDiffractionScienceTests.swift
 //  The agent door's 2.4 Diffraction tools (#816), through a real door over MCP on the demo Au pattern (Help > Open Demo Data, as
 //  AgentDoorDiffractionTests): powder_pattern answers the Powder section's table and refuses a bad range or comparing the crystal
-//  with itself without changing a setting; plan_tilt before Index gives the refusal the Holder section shows and no α or β;
+//  with itself without changing a setting; plan_tilt before Index gives the refusal the Holder section shows and no α or β, and sets the β sense (#932);
 //  set_relationship refuses a malformed pair and the matrix as its own precipitate; find_phases refuses Rank before a ring and
 //  ranks Au on a fitted {111} ring. Red before: none of the four tools existed.
 //
 
+import DiffractoGeometry
 import Foundation
 import ShellAgentDoor
 import ShellLayout
@@ -107,6 +108,15 @@ nonisolated final class AgentDoorDiffractionScienceTests: XCTestCase {
         XCTAssertNotNil(holder["refusal"] as? String, "\(holder)")
         XCTAssertNil(holder["zone_axes"], "no orientation, no zone axes")
         XCTAssertEqual(try XCTUnwrap(holder["alpha_deg"] as? Double), 5, accuracy: 1e-9)
+        XCTAssertEqual(holder["beta_sense"] as? String, "positive")
+        XCTAssertEqual(holder["beta_sense_from"] as? String, "assumed")
+        let reversed = try json(try await call("plan_tilt", ["beta_sense": "reversed"]).text)
+        XCTAssertEqual(reversed["beta_sense"] as? String, "reversed", "\(reversed)")
+        XCTAssertEqual(reversed["beta_sense_from"] as? String, "hand")
+        XCTAssertEqual(item.diffractionHolder.settings.betaSenseSetting, .negative, "the section's own setting")
+        let badSense = try await call("plan_tilt", ["beta_sense": "sideways", "alpha": 9])
+        XCTAssertTrue(badSense.refused)
+        XCTAssertEqual(item.diffractionHolder.settings.alphaDeg, 5, "a refused call changes nothing")
         let pick = try await call("plan_tilt", ["zone_axis": "[1 1 0]"])
         XCTAssertTrue(pick.refused, "nothing to pick before Index")
         XCTAssertNil(item.diffractionHolder.selected)
