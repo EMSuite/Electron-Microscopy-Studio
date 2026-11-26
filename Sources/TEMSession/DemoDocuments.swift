@@ -287,10 +287,15 @@ package nonisolated enum DemoDocuments {
 
         /// One recorded spot pattern (#804, plan row Q21): the frame at scan position (y 84, x 26) of pyxem's twinned nanowire 4D-STEM
         /// scan (precession electron diffraction, 300 kV, 144 x 144 px, 8 bit; pyxem data 0.9.0 `twinned_nanowire.hdf5`), the frame with
-        /// the most spot pixels, written as a HyperSpy file of one 2D signal by tools/lib/extract-spot-pattern.py on GitHub's runner.
-        /// C. Francis, "Pyxem 4D STEM Demo Data", Zenodo 10.5281/zenodo.15490547, CC BY 4.0. Its axes are in pixels, as the scan's are.
-        package static let nanowirePattern = ShippedFile(relativePath: "twinned_nanowire_frame.hspy", bytes: 40_433,
-                                                         md5: "1e109a2b19e0e4cff3db9186ea37ac60", title: "Nanowire Spot Pattern (pyxem)")
+        /// the most spot pixels, written as a HyperSpy file of one 2D signal by tools/lib/extract-spot-pattern.py.
+        /// C. Francis, "Pyxem 4D STEM Demo Data", Zenodo 10.5281/zenodo.15490547, CC BY 4.0. Distortion-corrected as pyxem's tutorial
+        /// 01 does (x 0.99, y 0.69 about the centre), its axes in Å⁻¹ at `nanowirePatternDeltaQ` (2026-11-26).
+        package static let nanowirePattern = ShippedFile(relativePath: "twinned_nanowire_frame.hspy", bytes: 38_169,
+                                                         md5: "04560cb3c84b205c0271d1f0ab7ac97b", title: "Nanowire Spot Pattern (pyxem)")
+        /// The scale both axes of `nanowirePattern` carry, Å⁻¹ per pixel: calibrated on GaAs {111} of the frame itself (a = 5.6535 Å,
+        /// tools/lib/extract-spot-pattern.py's `SCALE`), not an independent calibration. pyxem's tutorial states 0.026874375407392053,
+        /// read off the whole scan's mean, which puts {111} of this frame 5.6 % short.
+        package static let nanowirePatternDeltaQ = 0.028471335881638242
         package static let nanowirePatternSide = 144
         /// Silicon (diamond structure, Fd-3m, a = 5.4309 Å) as CIF, the crystal of the demo simulation (#804): written by DiffractoKit's
         /// `CIFExport` (its pin corpus's `silicon_Fd-3m.cif`), GPL-3.0-only.

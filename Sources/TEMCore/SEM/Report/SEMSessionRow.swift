@@ -53,7 +53,7 @@ package nonisolated struct SEMSessionRow: Sendable, Equatable, Identifiable {
             case .orientationMap: "Orientation maps"
             case .grains: "Grains"
             case .texture: "Texture"
-            case .composition: "SEM-EDS composition"
+            case .composition: "SEM-EDS line intensities"
             case .export: "Exports"
             }
         }

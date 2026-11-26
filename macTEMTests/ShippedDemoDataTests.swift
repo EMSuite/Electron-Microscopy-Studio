@@ -12,6 +12,7 @@ import DiffractoCore
 import FormatoCore
 import FormatoHDF5
 import FormatoHSPY
+import ImagoCore
 import SpectroCore
 import SpectroEDX
 import TEMCore
@@ -88,6 +89,34 @@ nonisolated final class ShippedDemoDataTests: XCTestCase {
         XCTAssertEqual(experiments.first?.shape, [DemoDocuments.Shipped.nanowirePatternSide, DemoDocuments.Shipped.nanowirePatternSide])
         XCTAssertEqual(HyperSpyOpening.contents(of: experiments).images.count, 1)
         XCTAssertEqual(FileRouting.inventory(path: url.path), FileInventory(image: true))
+    }
+
+    /// The spot pattern is the distortion-corrected frame (pyxem tutorial 01's affine, x 0.99 and y 0.69 about the centre, order 1, uint8;
+    /// tools/lib/extract-spot-pattern.py) and carries its scale (2026-11-26): both axes in Å⁻¹ at `nanowirePatternDeltaQ`, the zero at
+    /// pixel 0 as the scan's axes had it, the scan's 300 kV. Pixels as h5py reads them: sum 174,088, maximum 254 at two pixels, the
+    /// first at (row 72, column 71), and the 0.69 squeeze leaves rows 0 to 21 and 122 to 143 black.
+    /// Mutation: the raw frame back (sum 264,228, max 255, no black rows), the axes in pixels again, the scale's unit in 1/nm - red.
+    func testTheSpotPatternIsTheCorrectedFrameWithItsScale() throws {
+        let url = try XCTUnwrap(DemoDocuments.Shipped.nanowirePattern.url)
+        let image = try ImageOpening.openNow(path: url.path)
+        let side = DemoDocuments.Shipped.nanowirePatternSide
+        XCTAssertEqual(image.width, side)
+        XCTAssertEqual(image.height, side)
+        XCTAssertEqual(image.voltage, 300_000)
+        for axis in [image.x, image.y] {
+            XCTAssertEqual(axis?.unit, "Å⁻¹")
+            XCTAssertEqual(axis?.scale, DemoDocuments.Shipped.nanowirePatternDeltaQ)
+            XCTAssertEqual(axis?.origin, 0)
+        }
+        XCTAssertEqual(UnitDisplay.reciprocalAngstromsPerPixel(image.x), DemoDocuments.Shipped.nanowirePatternDeltaQ)
+        guard case .uint8(let pixels) = image.stored else { return XCTFail("the frame is 8 bit") }
+        XCTAssertEqual(pixels.reduce(0) { $0 + Int($1) }, 174_088)
+        XCTAssertEqual(pixels.max(), 254)
+        XCTAssertEqual(pixels.firstIndex(of: 254), 72 * side + 71)
+        XCTAssertEqual(pixels.filter { $0 == 254 }.count, 2)
+        let rowSums = (0..<side).map { row in pixels[(row * side)..<((row + 1) * side)].reduce(0) { $0 + Int($1) } }
+        XCTAssertEqual(rowSums.indices.filter { rowSums[$0] > 0 }.first, 22)
+        XCTAssertEqual(rowSums.indices.filter { rowSums[$0] > 0 }.last, 121)
     }
 
     /// The silicon CIF of the demo simulation (#804): Fd-3m, eight atoms in the cell, a = 5.4309 Å, as the kit reads it.
@@ -234,6 +263,31 @@ nonisolated final class ShippedDemoDataTests: XCTestCase {
         await state.semEDS.load(path: state.edx.source?.metadata.filePath)
         await state.semEDS.pickFileElements(in: state.edx)
         XCTAssertNil(state.edx.intensitiesOnly)
+    }
+
+    /// The Results room reports the SEM spectrum's lines as the EDS room shows them: once Quantify has run, the room's fitted areas with σ
+    /// on the room's lines, under "SEM-EDS line intensities". Red before (walk 2026-11-26): Results kept exspy's window sums of open time
+    /// (Cu Lα 83,885, Zr Lα 82,216 counts) under "SEM-EDS composition" beside the room's fit (Cu Kα 1,256), two answers for one spectrum.
+    @MainActor func testResultsReportTheEDSRoomsFitOfTheSEMSpectrum() async throws {
+        let state = AppState(launch: LaunchOptions(arguments: []))
+        let url = try XCTUnwrap(DemoDocuments.Shipped.semEDSSpectrum.url)
+        await state.edx.open(url: url).value
+        await state.semEDS.load(path: state.edx.source?.metadata.filePath)
+        await state.semEDS.pickFileElements(in: state.edx)
+        let before = SEMSessionLedger.rows(of: state).filter { $0.kind == .composition }
+        XCTAssertEqual(before.map(\.methods), Array(repeating: [.edsLines], count: before.count), "exspy's windows before Quantify")
+        await state.edx.quantify()?.value
+        await state.edx.settled()
+        let fit = try XCTUnwrap(state.edx.fit, state.edx.fitFailure ?? "no fit")
+        let rows = SEMSessionLedger.rows(of: state, locale: Locale(identifier: "en_US_POSIX")).filter { $0.kind == .composition }
+        let fitted = fit.rows.filter { $0.failure == nil && !$0.groupID.isEmpty }
+        XCTAssertFalse(fitted.isEmpty)
+        XCTAssertEqual(rows.map(\.label), fitted.map { ElementWindows.label(ofLineID: $0.groupID) })
+        for (row, f) in zip(rows, fitted) {
+            XCTAssertEqual(row.methods, [.edsModelFit])
+            XCTAssertTrue(row.value.hasPrefix(SEMEDSFormat.counts(f.net, locale: Locale(identifier: "en_US_POSIX")) + " ± "), "\(row.value) for \(f.net)")
+        }
+        XCTAssertEqual(SEMSessionRow.Kind.composition.title, "SEM-EDS line intensities")
     }
 
     @MainActor func testTheSpectrumOpensFromTheMenuAndTheLaunchArgument() async throws {

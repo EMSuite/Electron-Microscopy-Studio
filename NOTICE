@@ -341,14 +341,18 @@ sdss_ferrite_austenite.ang (651,687 bytes, md5 0c45548b82445657fbd52d882a27f2fd)
     `data.sdss_ferrite_austenite()` fetches; doi:10.5281/zenodo.3625780), licensed under CC BY 4.0 (text in
     `Licenses/orix-data-sdss_ferrite_austenite-LICENSE.txt`). macEM reads it with its own port of orix's .ang reader.
 
-twinned_nanowire_frame.hspy (40,433 bytes, md5 1e109a2b19e0e4cff3db9186ea37ac60)
+twinned_nanowire_frame.hspy (38,169 bytes, md5 04560cb3c84b205c0271d1f0ab7ac97b)
     One precession electron diffraction pattern (300 kV, 144 x 144 pixels, 8 bit): the frame at scan position (y 84, x 26) of
     the twinned nanowire 4D-STEM scan of Carter Francis, "Pyxem 4D STEM Demo Data" [Data set], Zenodo (2025),
     https://doi.org/10.5281/zenodo.15490547 (`twinned_nanowire.hdf5`, the file pyxem's `data.twinned_nanowire()` loads),
     licensed under the Creative Commons Attribution 4.0 International licence (CC BY 4.0,
     https://creativecommons.org/licenses/by/4.0/; text in `Licenses/kikuchipy-data-nickel_ebsd_large-LICENSE.txt`, the same
-    licence). Changed: one frame of the 100 x 30 scan was taken and written, with the scan's axes and metadata, as a HyperSpy
-    file of one 2D signal by tools/lib/extract-spot-pattern.py.
+    licence). Changed: one frame of the 100 x 30 scan was taken and written, with the scan's metadata, as a HyperSpy file of
+    one 2D signal by tools/lib/extract-spot-pattern.py; distortion-corrected as in pyxem's tutorial (pyxem-demos notebook 01,
+    "GaAs Nanowire": its affine matrix x 0.99, y 0.69 about the pattern centre, skimage warp convention, order 1, back to
+    8 bit); its axes carry a scale of 0.028471 1/Å per pixel, calibrated on GaAs {111} of this frame itself (a = 5.6535 Å),
+    not an independent calibration (the tutorial's own 0.02687 1/Å per pixel, read off the scan's mean pattern, puts {111}
+    5.6 % short in this frame).
 
 silicon_Fd-3m.cif (4,317 bytes, md5 b82db5cc152bea24a6418080a99bbd5c)
     Silicon (diamond structure, Fd-3m, a = 5.4309 Å) as CIF, written by DiffractoKit's CIFExport (EMSuite/DiffractoKit 0.22.0,
