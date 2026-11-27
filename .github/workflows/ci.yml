@@ -250,10 +250,10 @@ jobs:
     # On a pull request, a push to main (MAIN in the header), a tag, by hand and nightly; not when a pull request or a merge
     # changes only docs (DOCS ONLY in the header). `!cancelled()` runs it although `changes` is skipped (a tag, by hand,
     # nightly) or failed (then its answer is empty and the job runs, the safe side).
-    if: ${{ !cancelled() && needs.changes.outputs.macos != 'false' }}
+    if: ${{ !cancelled() && (needs.changes.outputs.macos != 'false' || needs.changes.outputs.light == 'true') }}
     # A same-repo pull request: the org's Mac runner while MACEM_MAC_RUNNER is set and `changes` found it free (MAC OR GITHUB
     # in the header; an empty answer counts as free); anything else: GitHub's macos-26.
-    runs-on: ${{ github.event_name == 'pull_request' && vars.MACEM_MAC_RUNNER && !github.event.pull_request.head.repo.fork && needs.changes.outputs.mac != 'false' && fromJSON(vars.MACEM_MAC_RUNNER) || 'macos-26' }}
+    runs-on: ${{ needs.changes.outputs.light == 'true' && 'ubuntu-latest' || github.event_name == 'pull_request' && vars.MACEM_MAC_RUNNER && !github.event.pull_request.head.repo.fork && needs.changes.outputs.mac != 'false' && fromJSON(vars.MACEM_MAC_RUNNER) || 'macos-26' }}
     timeout-minutes: 90
     steps:
       - name: No build left over from an earlier job (self-hosted only)
@@ -261,7 +261,7 @@ jobs:
         # on the Mac and kept rewriting the workspace Package.resolved under the next jobs. The runner takes one job at a time
         # and a unit job's timeout is 90 minutes, so any xcodebuild of this workspace older than 100 minutes is such an orphan:
         # each is named and stopped by its pid. GitHub's runners start empty and skip this.
-        if: runner.environment == 'self-hosted'
+        if: needs.changes.outputs.light != 'true' && (runner.environment == 'self-hosted')
         run: |
           set -uo pipefail
           secs() { local t=$1 d=0; [[ $t == *-* ]] && { d=${t%%-*}; t=${t#*-}; }; IFS=: read -r a b c <<< "$t"
@@ -276,12 +276,14 @@ jobs:
           [ "$found" -eq 0 ] && echo "no left-over build of this workspace"
           exit 0
       - uses: actions/checkout@v7
+        if: needs.changes.outputs.light != 'true'
         with:
           # mac4DSTEM's inventory reads HEAD^ on a clean tree, which the default depth of 1 does not have; its
           # job could never pass until this was set (mac4DSTEM, 2026-09-09). Kept so a rule that compares
           # against the previous commit does not repeat that.
           fetch-depth: 2
       - name: The checkout is the commit (a reused workspace keeps nothing)
+        if: needs.changes.outputs.light != 'true'
         # On the self-hosted Mac the workspace and its .git persist between jobs, and on 25 Nov the workspace Package.resolved
         # read after checkout held an earlier job's pins, not the commit's (#1104's runs, #1105). This prints each tracked
         # file's index flags (h = assume-unchanged, S = skip-worktree: git then never rewrites the file), clears both flags,
@@ -298,17 +300,20 @@ jobs:
           git diff --exit-code --stat HEAD
           echo "the tree is HEAD ($(git rev-parse --short HEAD))"
       - name: Toolchain on record
+        if: needs.changes.outputs.light != 'true'
         run: |
           sw_vers
           xcode-select -p
           xcodebuild -version
       - name: Restore the SwiftPM repository cache
+        if: needs.changes.outputs.light != 'true'
         uses: actions/cache@v5
         with:
           path: ~/Library/Caches/org.swift.swiftpm
           key: swiftpm-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
           restore-keys: swiftpm-${{ runner.os }}-
       - name: Ensure the Metal toolchain component
+        if: needs.changes.outputs.light != 'true'
         # Xcode 26 ships the Metal compiler as a separate download; the app build compiles MacEMUI's Colormaps.metal.
         run: |
           if ! xcrun -sdk macosx metal --version >/dev/null 2>&1; then
@@ -316,9 +321,11 @@ jobs:
           fi
           xcrun -sdk macosx metal --version
       - name: Resolve the pinned EMSuiteUI
+        if: needs.changes.outputs.light != 'true'
         # The inventory's UI-journey identifier check reads the shell's sources from .build/checkouts/EMSuiteUI (no ../EMSuiteUI here).
         run: swift package resolve
       - name: The pins are still the commit's (nothing since checkout rewrote them)
+        if: needs.changes.outputs.light != 'true'
         # #1105: on the Mac, a run whose tree was HEAD after checkout read a workspace Package.resolved with other pins in the
         # inventory. This names what changed since checkout (so the log says which earlier step, or which outside process,
         # wrote it), puts both Package.resolved files back as committed, and fails if they still differ.
@@ -334,12 +341,14 @@ jobs:
           git diff --exit-code --stat HEAD -- '*Package.resolved'
           ps -axo pid,etime,command | grep -E 'xcodebuild|SWBBuildService|XCBBuildService|swift-package|Xcode.app' | grep -v grep || true
       - name: Run the inventory (cheapest first)
+        if: needs.changes.outputs.light != 'true'
         run: tools/run-tests.sh inventory
       - name: Build the package layers standalone (core)
+        if: needs.changes.outputs.light != 'true'
         run: tools/run-tests.sh core
       - name: Restore the SEM reference data (nightly and by hand)
         # sem-parity.yml's cache of what fetch-data.sh downloads; the next step fetches whatever it lacks.
-        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        if: needs.changes.outputs.light != 'true' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
         uses: actions/cache@v5
         with:
           path: References/sem-data
@@ -347,11 +356,12 @@ jobs:
       - name: Fetch the SEM reference data (nightly and by hand)
         # Checked against data-manifest.txt's sha256; the Zenodo lines are "manual" and are listed, never fetched. Once the data is
         # here, a test that tools/unit-skips.allow lists as sem-data may no longer skip (tools/lib/unit-skips.sh).
-        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        if: needs.changes.outputs.light != 'true' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
         run: |
           tools/parity/sem/fetch-data.sh
           echo "MACTEM_REQUIRE_SEM_DATA=1" >> "$GITHUB_ENV"
       - name: Run the unit gate
+        if: needs.changes.outputs.light != 'true'
         # The room snapshots (macTEMTests/RoomSnapshotTests, #805) compare here: TEST_RUNNER_ reaches the tests through xcodebuild.
         # Only on the org's Mac runner, where pull requests run (#957): fonts and AppKit's controls differ between macOS versions, so
         # the references are that Mac's, and GitHub's macos-26 (main, tags, the nightly, a fork's PR) skips them.
@@ -361,7 +371,7 @@ jobs:
           TEST_RUNNER_SNAPSHOT_ARTIFACTS: ${{ runner.temp }}/snapshots
       # New and changed snapshot pictures leave this read-only job as an artifact; the snapshots job attaches them (suite#137).
       - name: Keep new and changed snapshots for the snapshots job
-        if: always() && github.event_name == 'pull_request' && !github.event.pull_request.head.repo.fork
+        if: needs.changes.outputs.light != 'true' && (always() && github.event_name == 'pull_request' && !github.event.pull_request.head.repo.fork)
         uses: actions/upload-artifact@v7
         with:
           name: snapshots

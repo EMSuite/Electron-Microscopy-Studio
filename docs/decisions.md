@@ -787,3 +787,12 @@ means, cuts the noise (lattice rms 0.197 to 0.115 px) but cannot add pixels; the
 
 **What would reverse it.** A demo pattern recorded at a larger camera length or on more pixels: drop the mean and the crop in the
 script and update the pins with the new file.
+
+## 2026-11-27 — CI: a light run reports `unit (XCTest)` as passed, on a Linux runner
+
+**Decision.** The ruleset on `main` requires `unit (XCTest)`, `kit boundary` and `pr`. A light Release-PR run (the entry of 2026-11-26)
+skipped `unit`, and GitHub refused the merge ("2 of 3 required status checks are expected"): a skipped job does not satisfy a
+required check. A light run now runs `unit` on `ubuntu-latest` with every step skipped, so the check reports success in seconds. The
+light decision itself is unchanged: it holds only when the base commit's `unit (XCTest)` on main passed.
+
+**What would reverse it.** A ruleset that accepts a skipped required check.
