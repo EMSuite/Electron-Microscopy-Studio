@@ -68,12 +68,13 @@
 # docs (DOCS ONLY, read by `changes` from the merge commit) skips it, as its pull request did. Tags, by hand and the
 # nightly run it too.
 #
-# LIGHT (release-please.yml dispatches CI on each Release PR with `light`): the Release PR changes only the version files
-# (CHANGELOG.md, .release-please-manifest.json, Config/Version.xcconfig, CITATION.cff) on top of a main commit whose own push
-# run passed `unit (XCTest)`, so the whole suite has already run on every line of code it holds. `changes` checks both; then
-# `unit` is skipped (GitHub counts a skipped job as passing, as in DOCS ONLY) and `scientific` and `ui-build` do not run.
-# `release-build` (the signed Release configuration, which reads the version) and the Linux jobs run. Any other file, a
-# base commit without a green `unit` run, or a branch that is not release-please's: the full by-hand run, as before.
+# LIGHT (release-please.yml dispatches CI on each Release PR with `light`): the Release PR changes only the version
+# files (CHANGELOG.md, .release-please-manifest.json, Config/Version.xcconfig, CITATION.cff, README.md's version line)
+# on top of a main commit whose own push run passed `unit (XCTest)`, so the whole suite has already run on every line of
+# code it holds. `changes` checks both; then `unit` is skipped (GitHub counts a skipped job as passing, as in DOCS ONLY)
+# and `scientific` and `ui-build` do not run. `release-build` (the signed Release configuration, which reads the
+# version) and the Linux jobs run. Any other file, a base commit without a green `unit` run, or a branch that is not
+# release-please's: the full by-hand run, as before.
 #
 # XCODE: every macOS job uses Xcode 26.6 (DEVELOPER_DIR below), never the image's default, so an image update cannot
 # change the toolchain on an unchanged tree.
@@ -188,7 +189,7 @@ jobs:
             echo "not a release-please branch: the full run"
           else
             base=$(git rev-parse HEAD^1)
-            others=$(git diff --name-only --no-renames HEAD^1 HEAD | grep -v -x -E 'CHANGELOG.md|\.release-please-manifest\.json|Config/Version\.xcconfig|CITATION\.cff' || true)
+            others=$(git diff --name-only --no-renames HEAD^1 HEAD | grep -v -x -E 'CHANGELOG.md|\.release-please-manifest\.json|Config/Version\.xcconfig|CITATION\.cff|README\.md' || true)
             if [ -n "$others" ]; then
               echo "the Release PR also changes: $others"; echo "the full run"
             else
