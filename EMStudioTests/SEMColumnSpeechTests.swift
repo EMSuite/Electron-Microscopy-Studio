@@ -3,7 +3,7 @@
 //  The words VoiceOver says for the SEM rooms' symbol headers (#320, `SEMColumnSpeech`): each symbol the Maps and Indexing tables draw
 //  has a word form, a header that is a word already is said as drawn, and the Maps room's Grains table, its orientation pane's Euler
 //  line and the Indexing room's Results and Bands tables take their words from the one table, while what they draw stays as it was.
-//  Red before: no such table; "φ₁ °", "ECD µm", "GOS °", "CI" and "ρ px" were read sign by sign.
+//  Red before: no such table; "φ₁ (°)", "ECD (µm)", "GOS (°)", "CI" and "ρ (px)" were read sign by sign.
 //
 
 import XCTest
@@ -19,11 +19,11 @@ nonisolated final class SEMColumnSpeechTests: XCTestCase {
     /// symbol again. Red under: a symbol left out of the table (said sign by sign), an empty word form.
     func testEverySymbolHeaderHasWords() {
         let expected = [
-            "φ₁ °": "phi one, degrees", "Φ °": "capital phi, degrees", "φ₂ °": "phi two, degrees",
-            "ECD µm": "equivalent circle diameter, micrometres", "ECD px": "equivalent circle diameter, pixels",
-            "GOS °": "grain orientation spread, degrees", "CI": "confidence index", "PQ": "pattern quality", "OSM": "orientation similarity",
+            "φ₁ (°)": "phi one, degrees", "Φ (°)": "capital phi, degrees", "φ₂ (°)": "phi two, degrees",
+            "ECD (µm)": "equivalent circle diameter, micrometres", "ECD (px)": "equivalent circle diameter, pixels",
+            "GOS (°)": "grain orientation spread, degrees", "CI": "confidence index", "PQ": "pattern quality", "OSM": "orientation similarity",
             "NCC": "normalised cross-correlation", "NDP": "normalised dot product", "Col": "column", "#": "number",
-            "ρ px": "rho, pixels", "θ °": "theta, degrees", "Fit °": "Fit, degrees",
+            "ρ (px)": "rho, pixels", "θ (°)": "theta, degrees", "Fit (°)": "Fit, degrees",
         ]
         for (drawn, words) in expected { XCTAssertEqual(SEMColumnSpeech.spoken(drawn), words, drawn) }
         for (symbol, words) in SEMColumnSpeech.symbols {
@@ -43,7 +43,7 @@ nonisolated final class SEMColumnSpeechTests: XCTestCase {
     /// table of words does not know.
     func testTheGrainsTablesSymbolTitlesAreSaidInWords() {
         let titles = GrainTableFormat.titles(unit: "µm")
-        let symbols = ["ECD µm", "φ₁ °", "Φ °", "φ₂ °", "GOS °"]
+        let symbols = ["ECD (µm)", "φ₁ (°)", "Φ (°)", "φ₂ (°)", "GOS (°)"]
         for title in titles {
             if symbols.contains(title) {
                 XCTAssertNotEqual(SEMColumnSpeech.spoken(title), title, title)
@@ -77,7 +77,7 @@ nonisolated final class SEMColumnSpeechTests: XCTestCase {
             let drawn = table.contains("TableColumn(\"\(title)\"") || table.contains("TableColumn(SEMColumnSpeech.header(\"\(title)\")")
             XCTAssertTrue(drawn, "the table draws the copied title \(title)")
         }
-        for title in ["ECD \\(unit)", "φ₁ °", "Φ °", "φ₂ °", "GOS °"] {
+        for title in ["ECD (\\(unit))", "φ₁ (°)", "Φ (°)", "φ₂ (°)", "GOS (°)"] {
             XCTAssertTrue(table.contains("TableColumn(SEMColumnSpeech.header(\"\(title)\"), value:"), "\(title) is said in words")
             XCTAssertFalse(table.contains("TableColumn(\"\(title)\""), "\(title) drawn without its words")
         }
@@ -88,7 +88,7 @@ nonisolated final class SEMColumnSpeechTests: XCTestCase {
 
     /// The Indexing room's Results tables (Hough and dictionary) draw each symbol header through the table of words, the copied title
     /// (`IndexingTableFormat.titles`) and still sortable; a word header ("Row", "Phase", "Simulation", "Bands") stays as it was, and a
-    /// dictionary's score is said by its metric. Red before: "Col", "φ₁ °", "CI", "Fit °", "PQ" and "OSM" were bare strings, read sign by
+    /// dictionary's score is said by its metric. Red before: "Col", "φ₁ (°)", "CI", "Fit (°)", "PQ" and "OSM" were bare strings, read sign by
     /// sign or letter by letter.
     func testTheIndexingResultsTablesTakeTheirWordsFromTheTable() throws {
         let room = try FFTRoomWiringTests.squeezedUI("IndexingRoom.swift")
@@ -106,9 +106,9 @@ nonisolated final class SEMColumnSpeechTests: XCTestCase {
         XCTAssertEqual(SEMColumnSpeech.spoken("NDP"), "normalised dot product")
     }
 
-    /// The Bands table draws its symbol headers ("#", "ρ px", "θ °", "Fit °") through the table of words, each the copied title
+    /// The Bands table draws its symbol headers ("#", "ρ (px)", "θ (°)", "Fit (°)") through the table of words, each the copied title
     /// (`IndexingTableFormat.bandTitles`); its word headers stay as they were. The table sorts on nothing, so its columns take no `value:`,
-    /// which tells its "Fit °" from the Results table's. Red before: "#" read as "number sign", "ρ px" sign by sign.
+    /// which tells its "Fit (°)" from the Results table's. Red before: "#" read as "number sign", "ρ (px)" sign by sign.
     func testTheBandsTableTakesItsWordsFromTheTable() throws {
         let room = try FFTRoomWiringTests.squeezedUI("IndexingRoom.swift")
         for title in IndexingTableFormat.bandTitles {
@@ -119,6 +119,24 @@ nonisolated final class SEMColumnSpeechTests: XCTestCase {
                 XCTAssertFalse(room.contains("TableColumn(\"\(title)\") {"), "\(title) drawn without its words")
             }
         }
-        XCTAssertEqual(IndexingTableFormat.bandTitles.filter { SEMColumnSpeech.spoken($0) != $0 }, ["#", "ρ px", "θ °", "Fit °"])
+        XCTAssertEqual(IndexingTableFormat.bandTitles.filter { SEMColumnSpeech.spoken($0) != $0 }, ["#", "ρ (px)", "θ (°)", "Fit (°)"])
+    }
+
+    /// Every SEM table writes a unit in parentheses after its symbol, as the TEM tables do ("R (px)"): the Grains, Results and Bands
+    /// titles, which the tables draw and ⌘C copies, and the Maps slip table's two headings (#1172). An old "φ₁ °" is no longer read
+    /// as a name and a unit. Red under: a title written "φ₁ °", "ρ px" or "ECD µm" again.
+    func testEveryUnitIsWrittenInParentheses() throws {
+        let titles = GrainTableFormat.titles(unit: "µm") + IndexingTableFormat.titles(method: .hough, scoreTitle: "CI")
+            + IndexingTableFormat.titles(method: .dictionary, scoreTitle: "NCC") + IndexingTableFormat.bandTitles
+        let bare = try NSRegularExpression(pattern: " (°|px|µm|nm)$")
+        for title in titles {
+            XCTAssertNil(bare.firstMatch(in: title, range: NSRange(title.startIndex..., in: title)), "\(title) writes its unit bare")
+        }
+        let maps = try FFTRoomWiringTests.squeezedUI("MapsRoomAnalysis.swift")
+        for heading in ["Trace (°)", "Inclined (°)"] {
+            XCTAssertTrue(maps.contains("SEMColumnSpeech.header(\"\(heading)\")"), heading)
+        }
+        XCTAssertEqual(SEMColumnSpeech.spoken("Trace (°)"), "Trace, degrees")
+        XCTAssertEqual(SEMColumnSpeech.spoken("φ₁ °"), "φ₁ °", "the old form is not parsed")
     }
 }

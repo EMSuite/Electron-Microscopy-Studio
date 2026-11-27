@@ -33,7 +33,7 @@ nonisolated enum IndexingTableFormat {
     static func bandFit(_ degrees: Double?, locale: Locale = .autoupdatingCurrent) -> String { angle(degrees ?? .nan, digits: 2, locale: locale) }
 
     /// The Bands table's column titles: the band's rank, ρ and θ, the Radon peak and width, the family matched and the fit.
-    static let bandTitles = ["#", "ρ px", "θ °", "Peak", "Width", "Family", "Fit °"]
+    static let bandTitles = ["#", "ρ (px)", "θ (°)", "Peak", "Width", "Family", "Fit (°)"]
 
     /// A band's cells, as the Bands table shows them, in `bandTitles` order: the rank as it is (never grouped), ρ and θ to two
     /// decimals, the peak and the width to four significant digits, the family and the fit.
@@ -53,9 +53,9 @@ nonisolated enum IndexingTableFormat {
     /// The table's column titles: Row, Col, Phase, the Euler angles, then Hough's CI, Fit, Bands, PQ or a dictionary's score (named by
     /// its metric, `scoreTitle`), Simulation, OSM.
     static func titles(method: IndexingMethod, scoreTitle: String) -> [String] {
-        let head = ["Row", "Col", "Phase", "φ₁ °", "Φ °", "φ₂ °"]
+        let head = ["Row", "Col", "Phase", "φ₁ (°)", "Φ (°)", "φ₂ (°)"]
         switch method {
-        case .hough: return head + ["CI", "Fit °", "Bands", "PQ"]
+        case .hough: return head + ["CI", "Fit (°)", "Bands", "PQ"]
         case .dictionary: return head + [scoreTitle, "Simulation", "OSM"]
         }
     }

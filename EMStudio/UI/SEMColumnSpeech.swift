@@ -1,7 +1,7 @@
 //
 //  SEMColumnSpeech.swift
-//  Role: the words VoiceOver says for a symbol the SEM rooms draw in a column header or a line of values (#320): "φ₁ °" was read sign
-//        by sign, "ECD µm" and "GOS °" letter by letter. One table of symbols and one rule for the unit after them, as `EELSColumnSpeech`
+//  Role: the words VoiceOver says for a symbol the SEM rooms draw in a column header or a line of values (#320): "φ₁ (°)" was read sign
+//        by sign, "ECD (µm)" and "GOS (°)" letter by letter. One table of symbols and one rule for the unit after them, as `EELSColumnSpeech`
 //        is for the EELS room. The Maps room's Grains table and its orientation pane's Euler line say them, and so do the Indexing room's
 //        Results and Bands tables' headers. What is drawn stays as it was. Pure, but for `header`, which makes the drawn header with its
 //        words.
@@ -28,13 +28,13 @@ nonisolated enum SEMColumnSpeech {
         }
     }
 
-    /// The words for a header drawn as `drawn`: a symbol alone ("CI": "confidence index"), or a name and the unit after its last space
-    /// ("φ₁ °": "phi one, degrees", "ECD µm": "equivalent circle diameter, micrometres", "Fit °": "Fit, degrees"). A header that is a
-    /// word already ("Grain", "Neighbours") is said as it is drawn.
+    /// The words for a header drawn as `drawn`: a symbol alone ("CI": "confidence index"), or a name and its unit in parentheses, as
+    /// every table writes it (#1172): "φ₁ (°)": "phi one, degrees", "ECD (µm)": "equivalent circle diameter, micrometres", "Fit (°)":
+    /// "Fit, degrees". A header that is a word already ("Grain", "Neighbours") is said as it is drawn.
     static func spoken(_ drawn: String) -> String {
         if let words = symbols[drawn] { return words }
-        guard let space = drawn.lastIndex(of: " ") else { return drawn }
-        let name = String(drawn[..<space]), unit = String(drawn[drawn.index(after: space)...])
+        guard drawn.hasSuffix(")"), let open = drawn.range(of: " (", options: .backwards) else { return drawn }
+        let name = String(drawn[..<open.lowerBound]), unit = String(drawn[open.upperBound..<drawn.index(before: drawn.endIndex)])
         let unitWords = spokenUnit(unit)
         guard symbols[name] != nil || unitWords != unit else { return drawn }
         return "\(symbols[name] ?? name), \(unitWords)"

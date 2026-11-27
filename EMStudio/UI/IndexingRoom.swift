@@ -690,13 +690,13 @@ struct IndexingResultsTable: View {
                     .width(min: LayoutPolicy.ebsdIndexColumn.min, ideal: LayoutPolicy.ebsdIndexColumn.ideal)
                 TableColumn("Phase", value: \.phase)
                     .width(min: LayoutPolicy.ebsdNameColumn.min, ideal: LayoutPolicy.ebsdNameColumn.ideal)
-                TableColumn(SEMColumnSpeech.header("φ₁ °"), value: \.phi1Key) { Text(IndexingTableFormat.angle($0.phi1)).monospacedDigit() }
+                TableColumn(SEMColumnSpeech.header("φ₁ (°)"), value: \.phi1Key) { Text(IndexingTableFormat.angle($0.phi1)).monospacedDigit() }
                     .width(min: LayoutPolicy.ebsdNumberColumn.min, ideal: LayoutPolicy.ebsdNumberColumn.ideal)
-                TableColumn(SEMColumnSpeech.header("Φ °"), value: \.capitalPhiKey) {
+                TableColumn(SEMColumnSpeech.header("Φ (°)"), value: \.capitalPhiKey) {
                     Text(IndexingTableFormat.angle($0.capitalPhi)).monospacedDigit()
                 }
                 .width(min: LayoutPolicy.ebsdNumberColumn.min, ideal: LayoutPolicy.ebsdNumberColumn.ideal)
-                TableColumn(SEMColumnSpeech.header("φ₂ °"), value: \.phi2Key) { Text(IndexingTableFormat.angle($0.phi2)).monospacedDigit() }
+                TableColumn(SEMColumnSpeech.header("φ₂ (°)"), value: \.phi2Key) { Text(IndexingTableFormat.angle($0.phi2)).monospacedDigit() }
                     .width(min: LayoutPolicy.ebsdNumberColumn.min, ideal: LayoutPolicy.ebsdNumberColumn.ideal)
                 TableColumn(SEMColumnSpeech.header(result.scoreTitle), value: \.confidence) {
                     Text(IndexingTableFormat.fraction($0.confidence)).monospacedDigit()
@@ -719,17 +719,17 @@ struct IndexingResultsTable: View {
                     .width(min: LayoutPolicy.ebsdIndexColumn.min, ideal: LayoutPolicy.ebsdIndexColumn.ideal)
                 TableColumn("Phase", value: \.phase)
                     .width(min: LayoutPolicy.ebsdNameColumn.min, ideal: LayoutPolicy.ebsdNameColumn.ideal)
-                TableColumn(SEMColumnSpeech.header("φ₁ °"), value: \.phi1Key) { Text(IndexingTableFormat.angle($0.phi1)).monospacedDigit() }
+                TableColumn(SEMColumnSpeech.header("φ₁ (°)"), value: \.phi1Key) { Text(IndexingTableFormat.angle($0.phi1)).monospacedDigit() }
                     .width(min: LayoutPolicy.ebsdNumberColumn.min, ideal: LayoutPolicy.ebsdNumberColumn.ideal)
-                TableColumn(SEMColumnSpeech.header("Φ °"), value: \.capitalPhiKey) {
+                TableColumn(SEMColumnSpeech.header("Φ (°)"), value: \.capitalPhiKey) {
                     Text(IndexingTableFormat.angle($0.capitalPhi)).monospacedDigit()
                 }
                 .width(min: LayoutPolicy.ebsdNumberColumn.min, ideal: LayoutPolicy.ebsdNumberColumn.ideal)
-                TableColumn(SEMColumnSpeech.header("φ₂ °"), value: \.phi2Key) { Text(IndexingTableFormat.angle($0.phi2)).monospacedDigit() }
+                TableColumn(SEMColumnSpeech.header("φ₂ (°)"), value: \.phi2Key) { Text(IndexingTableFormat.angle($0.phi2)).monospacedDigit() }
                     .width(min: LayoutPolicy.ebsdNumberColumn.min, ideal: LayoutPolicy.ebsdNumberColumn.ideal)
                 TableColumn(SEMColumnSpeech.header("CI"), value: \.confidence) { Text(IndexingTableFormat.fraction($0.confidence)).monospacedDigit() }
                     .width(min: LayoutPolicy.ebsdNumberColumn.min, ideal: LayoutPolicy.ebsdNumberColumn.ideal)
-                TableColumn(SEMColumnSpeech.header("Fit °"), value: \.fitKey) {
+                TableColumn(SEMColumnSpeech.header("Fit (°)"), value: \.fitKey) {
                     Text(IndexingTableFormat.angle($0.fit, digits: 2)).monospacedDigit()
                 }
                 .width(min: LayoutPolicy.ebsdNumberColumn.min, ideal: LayoutPolicy.ebsdNumberColumn.ideal)
@@ -904,9 +904,9 @@ struct IndexingBandsTable: View {
             Table(session.detectedBands, selection: $selection) {
                 TableColumn(SEMColumnSpeech.header("#")) { Text(verbatim: "\($0.id)").monospacedDigit() }
                     .width(min: LayoutPolicy.ebsdIndexColumn.min, ideal: LayoutPolicy.ebsdIndexColumn.ideal)
-                TableColumn(SEMColumnSpeech.header("ρ px")) { Text(IndexingTableFormat.angle($0.rho, digits: 2)).monospacedDigit() }
+                TableColumn(SEMColumnSpeech.header("ρ (px)")) { Text(IndexingTableFormat.angle($0.rho, digits: 2)).monospacedDigit() }
                     .width(min: LayoutPolicy.ebsdNumberColumn.min, ideal: LayoutPolicy.ebsdNumberColumn.ideal)
-                TableColumn(SEMColumnSpeech.header("θ °")) { Text(IndexingTableFormat.angle($0.thetaDegrees, digits: 2)).monospacedDigit() }
+                TableColumn(SEMColumnSpeech.header("θ (°)")) { Text(IndexingTableFormat.angle($0.thetaDegrees, digits: 2)).monospacedDigit() }
                     .width(min: LayoutPolicy.ebsdNumberColumn.min, ideal: LayoutPolicy.ebsdNumberColumn.ideal)
                 TableColumn("Peak") { Text(IndexingTableFormat.number($0.peak)).monospacedDigit() }
                     .width(min: LayoutPolicy.ebsdNumberColumn.min, ideal: LayoutPolicy.ebsdNumberColumn.ideal)
@@ -914,7 +914,7 @@ struct IndexingBandsTable: View {
                     .width(min: LayoutPolicy.ebsdNumberColumn.min, ideal: LayoutPolicy.ebsdNumberColumn.ideal)
                 TableColumn("Family") { Text(IndexingTableFormat.bandFamily($0.family, isValid: $0.isValid)) }
                     .width(min: LayoutPolicy.ebsdFamilyColumn.min, ideal: LayoutPolicy.ebsdFamilyColumn.ideal)
-                TableColumn(SEMColumnSpeech.header("Fit °")) { Text(IndexingTableFormat.bandFit($0.fitDegrees)).monospacedDigit() }
+                TableColumn(SEMColumnSpeech.header("Fit (°)")) { Text(IndexingTableFormat.bandFit($0.fitDegrees)).monospacedDigit() }
                     .width(min: LayoutPolicy.ebsdNumberColumn.min, ideal: LayoutPolicy.ebsdNumberColumn.ideal)
             }
             .focused($tableFocused)

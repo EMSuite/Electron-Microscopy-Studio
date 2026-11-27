@@ -215,13 +215,13 @@ struct MapsGrainsTable: View {
                         TableColumn("Grain", value: \.id) { Text(verbatim: "\($0.id)").monospacedDigit() }
                         TableColumn("Phase", value: \.phaseName)
                         TableColumn("Points", value: \.points) { Text(verbatim: "\($0.points)").monospacedDigit() }
-                        TableColumn(SEMColumnSpeech.header("ECD \(unit)"), value: \.diameter) {
+                        TableColumn(SEMColumnSpeech.header("ECD (\(unit))"), value: \.diameter) {
                             Text(MapsRoomFormat.length($0.diameter, places: places)).monospacedDigit()
                         }
-                        TableColumn(SEMColumnSpeech.header("φ₁ °"), value: \.phi1) { Text(MapsRoomFormat.angle($0.phi1)).monospacedDigit() }
-                        TableColumn(SEMColumnSpeech.header("Φ °"), value: \.capitalPhi) { Text(MapsRoomFormat.angle($0.capitalPhi)).monospacedDigit() }
-                        TableColumn(SEMColumnSpeech.header("φ₂ °"), value: \.phi2) { Text(MapsRoomFormat.angle($0.phi2)).monospacedDigit() }
-                        TableColumn(SEMColumnSpeech.header("GOS °"), value: \.gosDegrees) {
+                        TableColumn(SEMColumnSpeech.header("φ₁ (°)"), value: \.phi1) { Text(MapsRoomFormat.angle($0.phi1)).monospacedDigit() }
+                        TableColumn(SEMColumnSpeech.header("Φ (°)"), value: \.capitalPhi) { Text(MapsRoomFormat.angle($0.capitalPhi)).monospacedDigit() }
+                        TableColumn(SEMColumnSpeech.header("φ₂ (°)"), value: \.phi2) { Text(MapsRoomFormat.angle($0.phi2)).monospacedDigit() }
+                        TableColumn(SEMColumnSpeech.header("GOS (°)"), value: \.gosDegrees) {
                             Text(MapsRoomFormat.angle($0.gosDegrees, digits: 2)).monospacedDigit()
                         }
                         TableColumn("Schmid") { row in Text(GrainTableFormat.schmid(row, byGrain: session.schmidByGrain)).monospacedDigit() }
@@ -329,9 +329,9 @@ struct MapsSlipTable: View {
                             }
                         }
                         TableColumn("Schmid Factor", value: \.schmid) { Text(MapsRoomFormat.fraction($0.schmid)).monospacedDigit() }
-                        TableColumn(SEMColumnSpeech.header("Trace °"), value: \.traceOrder) { Text($0.traceText()).monospacedDigit() }
+                        TableColumn(SEMColumnSpeech.header("Trace (°)"), value: \.traceOrder) { Text($0.traceText()).monospacedDigit() }
                         TableColumn("Colour", value: \.colourWord)
-                        TableColumn(SEMColumnSpeech.header("Inclined °"), value: \.inclinationDegrees) {
+                        TableColumn(SEMColumnSpeech.header("Inclined (°)"), value: \.inclinationDegrees) {
                             Text(MapsRoomFormat.angle($0.inclinationDegrees, digits: 0)).monospacedDigit()
                         }
                     }
