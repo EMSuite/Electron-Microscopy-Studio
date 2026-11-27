@@ -18,6 +18,7 @@
 //  Parity: `m4/refine-nickel-block` (north-star figure F10), `m4/nelder-mead`.
 //
 
+import DiffractoOrientation
 import Foundation
 import Synchronization
 import FormatoCore

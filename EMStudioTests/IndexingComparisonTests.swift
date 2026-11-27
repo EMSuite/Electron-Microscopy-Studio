@@ -8,6 +8,7 @@
 //  Red before: no `IndexingComparison`, no `IndexingCompareFormat`.
 //
 
+import DiffractoOrientation
 import XCTest
 import TEMCore
 import TEMSession

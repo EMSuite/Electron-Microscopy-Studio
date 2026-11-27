@@ -13,6 +13,7 @@
 //  (orientations stray), the PC's direction cosines from the start PC only (PCs do not move).
 //
 
+import DiffractoOrientation
 import Foundation
 import FormatoCore
 import TEMCore

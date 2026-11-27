@@ -11,6 +11,7 @@
 //
 
 import DiffractoCore
+import DiffractoOrientation
 import Foundation
 
 package nonisolated struct IndexingPhase: Sendable, Equatable, Identifiable, Codable {

@@ -6,6 +6,7 @@
 //        makes a new number: every value is EBSDRefinement's.
 //
 
+import DiffractoOrientation
 import Foundation
 import FormatoCore
 import TEMBase

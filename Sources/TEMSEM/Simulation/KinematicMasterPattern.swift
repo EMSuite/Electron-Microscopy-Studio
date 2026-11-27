@@ -11,6 +11,7 @@
 //        bundle `m6/kinematic-master-pattern-ni` (rtol 1e-5).
 //
 
+import DiffractoOrientation
 import Foundation
 
 package nonisolated enum KinematicMasterPattern {

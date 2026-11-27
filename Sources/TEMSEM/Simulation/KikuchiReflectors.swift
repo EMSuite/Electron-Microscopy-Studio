@@ -17,6 +17,7 @@
 //  |F| is all the simulator uses.
 //
 
+import DiffractoOrientation
 import Foundation
 
 /// One atom of a unit cell: element by atomic number, fractional position, occupancy. (diffsims' kinematical structure factor takes no
@@ -135,9 +136,10 @@ package nonisolated struct KikuchiReflectors: Sendable, Equatable {
     /// family and given to the rest of it.
     package func structureFactors(cell: [KikuchiAtom]) -> [Double] {
         let l = lattice
-        let std = CrystalLattice.standardBase(a: l.a, b: l.b, c: l.c, alpha: l.alpha, beta: l.beta, gamma: l.gamma)
-        let product = std.map { r in r.x * l.recbase[0] + r.y * l.recbase[1] + r.z * l.recbase[2] }
-        let toMiller = CrystalLattice.inverse(product)
+        let std = KikuchiFrame.standardBase(a: l.a, b: l.b, c: l.c, alpha: l.alpha, beta: l.beta, gamma: l.gamma)
+        let rec: [SIMD3<Double>] = l.recbase
+        let product: [SIMD3<Double>] = std.map { (r: SIMD3<Double>) -> SIMD3<Double> in r.x * rec[0] + r.y * rec[1] + r.z * rec[2] }
+        let toMiller = KikuchiFrame.inverse(product)
         let positions = cell.map { a in a.position.x * toMiller[0] + a.position.y * toMiller[1] + a.position.z * toMiller[2] }
         var firstOfFamily: [Int: Int] = [:]
         for (i, f) in family.enumerated() where firstOfFamily[f] == nil { firstOfFamily[f] = i }
@@ -214,5 +216,31 @@ package nonisolated enum SpaceGroupCentering {
     /// The centring letter of space group `number`, nil outside 1...230.
     package static func letter(_ number: Int) -> Character? {
         (1...230).contains(number) ? letters[number - 1] : nil
+    }
+}
+
+/// diffpy's standard frame and a 3 × 3 inverse, as `CrystalLattice` computes them inside DiffractoKit, where both are internal.
+/// Interim: delete at the DiffractoKit release that makes `CrystalLattice.standardBase` and `inverse` public.
+enum KikuchiFrame {
+    /// The lattice's base in diffpy's standard orientation (a along x*, c along z), rows a, b, c.
+    static func standardBase(a: Double, b: Double, c: Double, alpha: Double, beta: Double, gamma: Double) -> [SIMD3<Double>] {
+        let ca = CrystalLattice.cosd(alpha), cb = CrystalLattice.cosd(beta), cg = CrystalLattice.cosd(gamma)
+        let sa = CrystalLattice.cosd(90 - alpha), sb = CrystalLattice.cosd(90 - beta)
+        let unitVolume = (1 + 2 * ca * cb * cg - ca * ca - cb * cb - cg * cg).squareRoot()
+        let ar = sa / (a * unitVolume)
+        let cgr = (ca * cb - cg) / (sa * sb)
+        let sgr = (1 - cgr * cgr).squareRoot()
+        return [SIMD3(1 / ar, -cgr / sgr / ar, cb * a), SIMD3(0, b * sa, b * ca), SIMD3(0, 0, c)]
+    }
+
+    /// The inverse of a 3 × 3 matrix given by rows (the adjugate over the determinant).
+    static func inverse(_ m: [SIMD3<Double>]) -> [SIMD3<Double>] {
+        func cross(_ u: SIMD3<Double>, _ v: SIMD3<Double>) -> SIMD3<Double> {
+            SIMD3(u.y * v.z - u.z * v.y, u.z * v.x - u.x * v.z, u.x * v.y - u.y * v.x)
+        }
+        let r0 = m[0], r1 = m[1], r2 = m[2]
+        let c0 = cross(r1, r2), c1 = cross(r2, r0), c2 = cross(r0, r1)
+        let det = r0.x * c0.x + r0.y * c0.y + r0.z * c0.z
+        return [SIMD3(c0.x, c1.x, c2.x) / det, SIMD3(c0.y, c1.y, c2.y) / det, SIMD3(c0.z, c1.z, c2.z) / det]
     }
 }

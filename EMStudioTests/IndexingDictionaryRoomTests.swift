@@ -14,6 +14,7 @@
 //  that keeps landing blocks, a Hough edit that stales a dictionary result.
 //
 
+import DiffractoOrientation
 import XCTest
 import FormatoCore
 import TEMCore

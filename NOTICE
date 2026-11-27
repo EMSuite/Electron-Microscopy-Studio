@@ -57,22 +57,10 @@ skimage/exposure/_adapthist.py Copyright (C) 1994 Karel Zuiderveld, the package 
     (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
     POSSIBILITY OF SUCH DAMAGE.
 
-The orientation core in Sources/TEMSEM/Orientation/ (RotationConversions, Rotation, PointGroup, OrientationRegion,
-Orientations, Misorientations, OrientationSampling) is a port of orix 0.15.0's orix.quaternion package (_conversions,
-quaternion, rotation, symmetry, orientation_region, misorientation, orientation, _numba) and of orix.sampling
-(sample_generators, _cubochoric_sampling), Copyright (C) 2018-2026 the orix developers,
-GPL-3.0-or-later, taken under GPL-3.0; the conversions follow Rowenhorst et al. (2015), Modelling Simul. Mater. Sci. Eng.
-23 083501. Its parity inputs, tools/parity/sem/fixtures/orientation_inputs.json, hold seeded rotations and the Bunge
-angles of the first 2000 rows of orix-data's Ti_orientations.ctf (CC BY 4.0).
-
-The vectors, projections and colour keys beside it (SphericalVectors, Miller, FundamentalSector, ColorKeys) port orix
-0.15.0's orix.vector (vector3d, miller, fundamental_sector, spherical_region), orix.projections.stereographic,
-orix.plot.direction_color_keys and orix.plot.orientation_color_keys, and the lattice alignment of
-orix.crystal_map._phase, same copyright and licence; the TSL key follows MTEX (GPL-2.0-or-later, as orix states) and
-Nolze & Hielscher (2016), J. Appl. Cryst. 49, 1786. The HSV conversion (ColorKeys.hsvToRGB) follows matplotlib 3.11.2's
-colors.hsv_to_rgb (https://matplotlib.org), Copyright (c) 2012- Matplotlib Development Team; All Rights Reserved, under the
-Matplotlib License Agreement (PSF-style, https://github.com/matplotlib/matplotlib/blob/v3.11.2/LICENSE/LICENSE). Changes:
-rewritten in Swift for one colour at a time instead of an array.
+The orientation core (orix 0.15.0's quaternion, sampling, vector, projection and colour key code, with the TSL key after MTEX
+and the HSV conversion after matplotlib) is DiffractoKit's DiffractoOrientation since 2.6.1, which states its notice. Its parity
+inputs here, tools/parity/sem/fixtures/orientation_inputs.json, hold seeded rotations and the Bunge angles of the first 2000
+rows of orix-data's Ti_orientations.ctf (CC BY 4.0).
 
 The map pictures of the Maps room (Sources/TEMSEM/CrystalMap/OrientationMaps.swift) follow orix 0.15.0's
 CrystalMap.plot and get_map_data with its IPF colour keys, same copyright and licence.
@@ -229,10 +217,11 @@ Both texts ship in the application bundle at `Contents/Resources/Licenses/` with
 DiffractoKit (a Swift package the app is built with)
 ================================================================================
 
-The app links DiffractoKit (https://github.com/EMSuite/DiffractoKit, tag 0.24.2, commit
-3daeaad577d27d72ae5e1899410c7d152c10974a), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only, for crystal structures, the CIF
+The app links DiffractoKit (https://github.com/EMSuite/DiffractoKit, tag 0.25.0, commit
+9a6af129cdd50160e411fa75aa1a118bdc24d635), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only, for crystal structures, the CIF
 import, kinematic reflection lists, ring and ellipse calibration, the indexing of a measured |q|, simulated spot patterns, double diffraction and
-the orientation of a spot pattern, and the two-beam thickness fit. Its scattering table and lattice conventions are py4DSTEM's (GPL-3.0); pymatgen (MIT) was
+the orientation of a spot pattern, the two-beam thickness fit, and the SEM rooms' orientation maths (rotations, point groups,
+fundamental sectors, orientation sampling and the IPF colour keys, ported from orix). Its scattering table and lattice conventions are py4DSTEM's (GPL-3.0); pymatgen (MIT) was
 its oracle and none of its code is copied. Its own third-party notices are in its NOTICE.
 
 SimulatoKit (a Swift package the app is built with)

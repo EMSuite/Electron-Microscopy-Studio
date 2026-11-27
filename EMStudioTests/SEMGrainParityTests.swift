@@ -12,6 +12,7 @@
 //
 
 import CryptoKit
+import DiffractoOrientation
 import Foundation
 import TEMCore
 import XCTest

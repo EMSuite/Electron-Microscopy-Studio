@@ -19,6 +19,7 @@
 //        map, its ferrite points, a 10 × 10 window and the Ti head; orix reads each back to the written precision.
 //
 
+import DiffractoOrientation
 import FormatoCore
 import Foundation
 import TEMBase

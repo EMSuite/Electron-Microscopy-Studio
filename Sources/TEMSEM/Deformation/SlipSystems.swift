@@ -14,6 +14,7 @@
 //  within 1e-12 (docs/parity.md).
 //
 
+import DiffractoOrientation
 import Foundation
 
 /// One slip system: its indices as the file writes them and its unit plane normal and slip direction in the crystal's

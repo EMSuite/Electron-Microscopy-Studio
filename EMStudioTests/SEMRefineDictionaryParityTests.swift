@@ -10,6 +10,7 @@
 //  Red before: a dictionary map's masked points refined (they hold the identity) or its phase refused by the master's.
 //
 
+import DiffractoOrientation
 import Foundation
 import FormatoCore
 import TEMCore

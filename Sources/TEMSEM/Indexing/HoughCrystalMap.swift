@@ -7,6 +7,7 @@
 //  `create_coordinate_arrays`). Parity: `m4/hough-indexing-nickel-large` (its `xmap` values and arrays).
 //
 
+import DiffractoOrientation
 import Foundation
 
 extension HoughIndexer {

@@ -18,6 +18,7 @@
 //  not indexed) and `m4/indexing-compare-nickel-large` (Hough, the 4° dictionary and the file's indexing of the demo scan), docs/parity.md.
 //
 
+import DiffractoOrientation
 import Foundation
 
 package nonisolated struct IndexingComparison: Sendable {

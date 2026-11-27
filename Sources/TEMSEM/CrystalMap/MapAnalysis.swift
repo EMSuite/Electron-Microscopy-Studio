@@ -17,6 +17,8 @@
 //  ported functions held to `m5/texture-cubic` and `m5/texture-ti` (docs/parity.md).
 //
 
+import DiffractoGeometry
+import DiffractoOrientation
 import Foundation
 
 /// A map the Maps room draws from the analysis, beside the file's own columns.

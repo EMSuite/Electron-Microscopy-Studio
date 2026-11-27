@@ -18,12 +18,13 @@
 //  each phase's own indices (`phaseSimulationIndices`) made distinct across the phases.
 //
 //  Colours: the IPF layers are orix's `IPFColorKeyTSL` of the phase's point group, Euler is orix's `EulerColorKey` of it (both
-//  parity-tested, `SEMColorKeyParityTests`); Phase is the phase's colour. On those layers a point the run has not indexed is black,
+//  parity-tested in DiffractoKit, `SEMColorKeyParityTests`); Phase is the phase's colour. On those layers a point the run has not indexed is black,
 //  as orix draws `not_indexed`, and a point the run has not reached shows the scan's mean intensity, dimmed, so the map reads as the
 //  Patterns room's navigator until Index has passed. A scalar layer is its values (`scalarPixels`), drawn as the image rooms draw a
 //  picture (colormap, window, gamma, D-SEM-96): a point without a value (not indexed, not reached) is NaN, the masked grey.
 //
 
+import DiffractoOrientation
 import Foundation
 import ImagoCore
 import TEMBase

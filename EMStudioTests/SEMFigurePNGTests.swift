@@ -10,6 +10,7 @@
 //
 
 import CoreGraphics
+import DiffractoOrientation
 import FormatoCore
 import Foundation
 import ImageIO

@@ -15,6 +15,7 @@
 //  within its block, or the Dictionary row of the session report takes the refinement's lines.
 //
 
+import DiffractoOrientation
 import XCTest
 import Observation
 import FormatoCore

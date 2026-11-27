@@ -12,6 +12,7 @@
 //  `m5/grains-ti` and `m5/grains-sdss` (Sources/TEMSEM/Grains), which runs on the same types (docs/parity.md).
 //
 
+import DiffractoOrientation
 import Foundation
 
 /// DefDAP's `Quat` arithmetic on (a, b, c, d) quaternions, scalar first.

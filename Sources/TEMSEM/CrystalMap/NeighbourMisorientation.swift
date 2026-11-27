@@ -10,6 +10,7 @@
 //  counts exact) and `m3/ti-neighbour-misorientations-full` (orix-data's 381 × 507 Ti map: counts and edges exact), docs/parity.md.
 //
 
+import DiffractoOrientation
 import Foundation
 
 package nonisolated enum NeighbourMisorientation {

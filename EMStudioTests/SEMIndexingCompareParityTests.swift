@@ -15,6 +15,7 @@
 //  median taken as one of the middle two.
 //
 
+import DiffractoOrientation
 import Foundation
 import TEMCore
 import XCTest

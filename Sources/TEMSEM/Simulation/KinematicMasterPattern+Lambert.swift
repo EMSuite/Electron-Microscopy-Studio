@@ -10,6 +10,7 @@
 //        (2010) as EMsoft uses it (Callahan and De Graef 2013). Parity bundle `m6/kinematic-overlay-nickel`.
 //
 
+import DiffractoOrientation
 import Foundation
 import FormatoCore
 

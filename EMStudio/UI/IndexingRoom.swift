@@ -22,6 +22,7 @@
 //
 
 import CoreGraphics
+import DiffractoOrientation
 import ShellControls
 import ShellLayout
 import ShellMetal

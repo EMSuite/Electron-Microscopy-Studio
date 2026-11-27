@@ -13,6 +13,7 @@
 //  `m5/slip-ti` (hcp) and `m5/slip-sdss` (fcc, bcc), Schmid factors and angles within 1e-6 (docs/parity.md).
 //
 
+import DiffractoOrientation
 import Foundation
 
 /// The slip analysis of one orientation against a phase's slip systems.

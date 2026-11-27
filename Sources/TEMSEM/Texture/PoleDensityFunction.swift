@@ -17,6 +17,8 @@
 //  to those edge vectors, densities atol 1e-7 (docs/parity.md).
 //
 
+import DiffractoGeometry
+import DiffractoOrientation
 import Foundation
 
 /// orix's equal-area sampling of the sphere in (azimuth, polar) bin edges: `4D` azimuth steps over 2π and `D` steps of

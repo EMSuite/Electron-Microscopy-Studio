@@ -10,6 +10,7 @@
 //  the 20 degree tilt or a 90 degree turn about z).
 //
 
+import DiffractoOrientation
 import FormatoCore
 import Foundation
 import TEMCore

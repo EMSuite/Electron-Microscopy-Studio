@@ -9,6 +9,7 @@
 //
 
 import CryptoKit
+import DiffractoOrientation
 import FormatoCore
 import TEMCore
 import XCTest

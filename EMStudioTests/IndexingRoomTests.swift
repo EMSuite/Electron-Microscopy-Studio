@@ -10,6 +10,7 @@
 //
 
 import CoreGraphics
+import DiffractoOrientation
 import XCTest
 import FormatoCore
 import ShellLayout

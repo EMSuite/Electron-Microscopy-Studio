@@ -15,6 +15,7 @@
 
 import CoreGraphics
 import CoreText
+import DiffractoOrientation
 import Foundation
 import ImagoCore
 import Observation

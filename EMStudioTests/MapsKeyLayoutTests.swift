@@ -5,6 +5,7 @@
 //
 
 import CoreGraphics
+import DiffractoOrientation
 import TEMCore
 import XCTest
 @testable import EMStudio
