@@ -209,7 +209,7 @@ nonisolated final class FolderGrantsTests: XCTestCase {
         let again = await AppState.inventories([scan], memory: ProcessInfo.processInfo.physicalMemory)
         let refused = try XCTUnwrap(again.first)
         XCTAssertNotNil(refused.inventory.refusal)
-        XCTAssertEqual(refused.inventory.refusal, NORDIFOpening.unreadableSettingsRefusal(scan))
+        XCTAssertEqual(refused.inventory.refusal, NORDIFOpening.unreadableSettingsRefusal(scan)?.inAppWords.text)
         XCTAssertFalse(refused.asksForFolder, "a file mode is not the sandbox's")
     }
 }

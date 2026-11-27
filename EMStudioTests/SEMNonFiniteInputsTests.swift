@@ -55,13 +55,6 @@ nonisolated final class SEMNonFiniteInputsTests: XCTestCase {
         XCTAssertEqual(VirtualBSEImaging.rgb(red: red, green: green, blue: blue).count, 12)
     }
 
-    func testTheANGColumnWidthOfANaNOrInfiniteColumnIsThatOfNaN() {
-        XCTAssertEqual(ANGWriter.width(.nan), 10)
-        XCTAssertEqual(ANGWriter.width(.infinity), 10)
-        XCTAssertEqual(ANGWriter.width(123.4), 10)
-        XCTAssertEqual(ANGWriter.width(0.5), 8)
-    }
-
     func testQUESTOnNaNBandNormalsIsNotIndexed() {
         // Three weighted bands whose normals are not numbers: the quaternion's norm is NaN, so there is no rotation.
         let nan = SIMD3<Double>(.nan, .nan, .nan), pole = SIMD3<Double>(0, 0, 1)

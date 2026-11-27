@@ -20,6 +20,7 @@
 //
 
 import DiffractoOrientation
+import FormatoEBSD
 import Foundation
 
 package nonisolated struct GeometricalKikuchiSimulation: Sendable, Equatable {

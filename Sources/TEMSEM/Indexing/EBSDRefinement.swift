@@ -19,6 +19,7 @@
 //
 
 import DiffractoOrientation
+import FormatoEBSD
 import Foundation
 import Synchronization
 import FormatoCore

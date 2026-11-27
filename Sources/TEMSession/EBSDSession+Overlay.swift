@@ -40,7 +40,7 @@ extension EBSDSession {
     }
 
     /// Whether the dataset carries orientations the overlay can draw.
-    package var canOverlay: Bool { dataset?.crystalMap != nil }
+    package var canOverlay: Bool { document?.crystalMap != nil }
 
     /// The overlay at the pattern on screen while it is on, or why there is none; nil while it is off or before a pattern shows.
     package var overlay: Result<KikuchiOverlay.Pattern, KikuchiOverlay.Absence>? {
@@ -61,8 +61,8 @@ extension EBSDSession {
             self.makeOverlayMaster(id, phase: phase, bands: bands, beamEnergyKeV: kv)
             return nil
         } : nil
-        let value = KikuchiOverlay.pattern(dataset, at: position, maxR: maxR, beamEnergyKeV: bandWidth ? dataset.sem.beamEnergyKeV : nil,
-                                           master: master) { id, phase in
+        let value = KikuchiOverlay.pattern(dataset, crystalMap: document?.crystalMap, at: position, maxR: maxR,
+                                           beamEnergyKeV: bandWidth ? dataset.sem.beamEnergyKeV : nil, master: master) { id, phase in
             if let cached = overlayBands[id] { return cached }
             let made = KikuchiOverlay.bands(for: phase, minDSpacing: minD)
             overlayBands[id] = made
@@ -75,7 +75,7 @@ extension EBSDSession {
     /// The kinematical master pattern of the shown point's phase as a picture (the upper hemisphere, stereographic, every band
     /// intensity 1): its side and row-major values; nil unless Kinematical is on and the point has bands, and until it has landed.
     package var overlayMasterPicture: (side: Int, values: [Double], phase: String)? {
-        guard overlaySettings.kinematical, canDrawBandWidth, let dataset, let map = dataset.crystalMap, let position = patternPosition else { return nil }
+        guard overlaySettings.kinematical, canDrawBandWidth, let dataset, let map = document?.crystalMap, let position = patternPosition else { return nil }
         _ = overlayMastersLanded
         let index = position.index(columns: dataset.scanColumns)
         guard map.allPhaseIDs.indices.contains(index) else { return nil }

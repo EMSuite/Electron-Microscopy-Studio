@@ -6,6 +6,8 @@
 //        patterns, opens in the Maps room instead (D-SEM-80; D-SEM-25 refused it). The reader's refusals come out in its words.
 //
 
+import DiffractoOrientation
+import FormatoEBSD
 import Foundation
 
 package nonisolated enum OxfordOpening {
@@ -33,16 +35,20 @@ package nonisolated enum OxfordOpening {
         var dataset: EBSDDataset
         do { dataset = try OxfordBinaryReader.read(url: patternsURL) } catch let refusal as OxfordBinaryReader.Refusal {
             throw EBSDReadError(text: "\(patternsURL.lastPathComponent): \(refusal.reason)")
-        } catch { throw EBSDReadError.wrap(error, file: patternsURL) }
+        } catch { throw EBSDReadError.wrapInAppWords(error, file: patternsURL) }
         guard let mapURL else { return dataset }
         let file: CTFReader.File
-        do { file = try CTFReader.read(path: mapURL.path) } catch let refusal as CTFReader.Refusal {
+        do {
+            file = try CTFReader.read(path: mapURL.path)
+            // The columns make the map the scan shows (`EBSDOpening.openWithMap`); columns that make none are no map.
+            _ = try file.map.crystalMap()
+        } catch let refusal as CTFReader.Refusal {
             guard mapURL != url else { throw EBSDReadError(text: "\(mapURL.lastPathComponent): \(refusal.reason)") }
             // The companion is not the map it should be: the patterns open on their own, with the reason.
             dataset.notes.append("\(mapURL.lastPathComponent) next to it was not read: \(refusal.reason)")
             return dataset
         } catch {
-            guard mapURL != url else { throw EBSDReadError.wrap(error, file: mapURL) }
+            guard mapURL != url else { throw EBSDReadError.wrapInAppWords(error, file: mapURL) }
             // The companion cannot be read at all (macOS has not given the sandboxed app access to it, a disk error): the patterns
             // open on their own with the reason, as an EDAX `.up1` does without its `.ang`.
             dataset.notes.append("\(mapURL.lastPathComponent) next to it could not be read: \((error as NSError).localizedDescription)")
@@ -52,7 +58,7 @@ package nonisolated enum OxfordOpening {
             dataset.notes.append("\(mapURL.lastPathComponent) next to it has \(file.pointCount) points for \(dataset.patternCount) patterns and was left out.")
             return dataset
         }
-        dataset.crystalMap = file.map
+        dataset.map = file.map
         return dataset
     }
 }

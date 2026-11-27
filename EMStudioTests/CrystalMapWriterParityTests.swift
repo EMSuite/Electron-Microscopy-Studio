@@ -1,6 +1,7 @@
 //
 //  CrystalMapWriterParityTests.swift
-//  TEMCore's crystal map writers (Sources/TEMSEM/Export: `ANGWriter`, `CTFWriter`) against the bundles `m8/write-ang-*`
+//  The crystal map writers (FormatoKit's `ANGWriter`, `CTFWriter` on the grid the app lays out from a `CrystalMap`, `EBSDMapGrid(_:)`
+//  in Sources/TEMSEM/EBSDFileMaps.swift, #852) against the bundles `m8/write-ang-*`
 //  (orix 0.15.0's `.ang` `file_writer`) and `m8/write-ctf-*` (tools/parity/sem/ctf_writer.py, the Oxford layout orix's reader
 //  reads; orix writes no .ctf), figure F18: the written file's bytes equal the reference's (sha256 of the whole file, its line
 //  count, every header line and every 50th data line), and `emit.py` asserts that orix reads each reference back to the
@@ -22,7 +23,7 @@ nonisolated final class CrystalMapWriterParityTests: XCTestCase {
 
     /// orix-data's sdss map as `orix.io.load` gives it (the reader's phases, Euler angles, coordinates and properties).
     private func sdssMap() throws -> CrystalMap {
-        try ANGReader.read(url: Self.fixtures.appendingPathComponent("ebsd-sdss-ferrite-austenite.ang")).map
+        try ANGReader.read(url: Self.fixtures.appendingPathComponent("ebsd-sdss-ferrite-austenite.ang")).map.crystalMap()
     }
 
     /// The Ti head as `writer_cases._ti` builds it: Bunge angles in degrees from the committed bundle, a 0.25 µm grid, phase 1
@@ -94,7 +95,7 @@ nonisolated final class CrystalMapWriterParityTests: XCTestCase {
         }
     }
 
-    // MARK: - Round trips through TEMCore's own readers (the ports of orix's)
+    // MARK: - Round trips through FormatoKit's readers (the ports of orix's)
 
     /// Figure F18 in Swift: every written map read back by `ANGReader` and `CTFReader` has the original's shape, steps, phase
     /// ids, indexed points and rotations to the written precision (three angles at 5 decimals of radians: under 2e-5 rad; at 4 decimals of
@@ -102,11 +103,11 @@ nonisolated final class CrystalMapWriterParityTests: XCTestCase {
     func testWrittenMapsReadBackAsTheOriginals() throws {
         for key in Self.keys {
             let original = try map(key)
-            let ang = try ANGReader.read(text: try ANGWriter.text(of: original), url: URL(fileURLWithPath: "/\(key).ang")).map
-            let ctf = try CTFReader.read(text: try CTFWriter.text(of: original, project: key)).map
+            let ang = try ANGReader.read(text: try ANGWriter.text(of: original), url: URL(fileURLWithPath: "/\(key).ang")).map.crystalMap()
+            let ctf = try CTFReader.read(text: try CTFWriter.text(of: original, project: key)).map.crystalMap()
             for (format, back, bound) in [("ang", ang, 2.0e-5), ("ctf", ctf, 3.0e-6)] {
                 let label = "\(key).\(format)"
-                let extent = try CrystalMapExtent(original)
+                let extent = try EBSDMapGrid(original)
                 XCTAssertEqual(back.shape, [extent.rows, extent.columns], label)
                 XCTAssertEqual(back.dx, original.dx, label)
                 XCTAssertEqual(back.dy, original.dy, label)
@@ -151,10 +152,10 @@ nonisolated final class CrystalMapWriterParityTests: XCTestCase {
     /// A property asked for by name that the map lacks is refused; a one-point map has no grid to write.
     func testRefusals() throws {
         XCTAssertThrowsError(try ANGWriter.text(of: try tiMap(), options: .init(imageQuality: "band_contrast"))) {
-            XCTAssertEqual($0 as? CrystalMapExtent.Refusal, .noProperty("band_contrast"))
+            XCTAssertEqual($0 as? EBSDMapGrid.Refusal, .noProperty("band_contrast"))
         }
         let one = try CrystalMap(rotations: [SIMD4(1, 0, 0, 0)])
-        XCTAssertThrowsError(try CTFWriter.text(of: one)) { XCTAssertEqual($0 as? CrystalMapExtent.Refusal, .noGrid) }
+        XCTAssertThrowsError(try CTFWriter.text(of: one)) { XCTAssertEqual($0 as? EBSDMapGrid.Refusal, .noGrid) }
     }
 
     /// Five points of a 2 × 3 scan stopped one point short, with Bands, Error, BC and BS: the cell past the last point holds no

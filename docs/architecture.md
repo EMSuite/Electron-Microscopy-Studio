@@ -105,8 +105,8 @@ EBSD patterns, orientation maps and SEM-EDS files take their own path into their
 | The EELS room's compute: SpectroKit called with the room's choices (stages, windows, fits, regions, exports) | `Sources/TEMCore/EELS/` |
 | The seam between the app's `ImagePoint` and ImagoKit's `PixelPoint` | `Sources/TEMCore/Analysis/` |
 | The Simulation document's specimen, HRTEM image, optics, frozen phonons and Place Beside, over SimulatoKit | `Sources/TEMCore/Simulation/` |
-| The SEM program's ports: EBSD and TKD readers, pattern processing, orientations, indexing, maps, grains, texture, Kikuchi simulation, the SEM-EDS map readers and line intensities, the session report ("The SEM program") | `Sources/TEMSEM/` and its subfolders |
-| What TEMCore and TEMSEM share (`AppName`, `CalibratedImage`, `StoredPixels`, `UnitDisplay`, `TextLines`, `CheckedConversion`, `ScanRowWork`, `ErrorDetail`) | `Sources/TEMBase/` |
+| The SEM program's ports: the EBSD and TKD doors over FormatoKit's readers, pattern processing, orientations, indexing, maps, grains, texture, Kikuchi simulation, the SEM-EDS map readers and line intensities, the session report ("The SEM program") | `Sources/TEMSEM/` and its subfolders |
+| What TEMCore and TEMSEM share (`AppName`, `CalibratedImage`, `StoredPixels`, `UnitDisplay`, `CheckedConversion`, `ScanRowWork`, `ErrorDetail`) | `Sources/TEMBase/` |
 | Session owners (`@Observable`), no SwiftUI, the SEM rooms' `EBSDSession`, `IndexingSession` and `OrientationMapSession` among them | `Sources/TEMSession/` |
 | Unit tests; committed fixtures (≤ 1 MiB) in `Fixtures/` | `EMStudioTests/` |
 | Reference harnesses, the SEM reference bundles, their fixtures and scripts | `tools/parity/<name>/`, each folder in one array of `tools/run-tests.sh`; the gate and release scripts in `tools/`, their libraries in `tools/lib/` |
@@ -148,15 +148,13 @@ ported from where, and `NOTICE` the licences.
 
 | Under `Sources/TEMSEM/` | holds | `docs/parity.md` section |
 |---|---|---|
-| its own files | the EBSD and TKD pattern readers (`EBSDH5Reader` for h5ebsd, `EDAXBinaryReader`, `OxfordBinaryReader`) and their doors (`EBSDOpening`, `EDAXOpening`, `OxfordOpening`), the map readers `ANGReader` and `CTFReader`, `EBSDDataset` and `EBSDPatternAccess`, the Patterns room's pure part and its virtual BSE images (`EBSDBrowsing`, `VirtualBSEImaging`), the detector geometry (`EBSDDetectorProjection`, `PCCalibrationMovingScreen`) and the SEM TIFF record (`SEMImageMetadata`) | Readers; SEM images (TIFF); Detector geometry; Patterns room |
+| its own files | the doors to FormatoKit's EBSD and TKD readers (`EBSDOpening`, `EDAXOpening`, `OxfordOpening`; the readers, `EBSDDataset`, NORDIF and the `.ang` and `.ctf` writers are FormatoKit's `FormatoEBSD` since #852), where the kit's map columns become DiffractoKit's `CrystalMap`, the writers' grid is laid out and the kit's refusals are said in the app's words (`EBSDFileMaps`), `EBSDPatternAccess`, the Patterns room's pure part and its virtual BSE images (`EBSDBrowsing`, `VirtualBSEImaging`), the detector geometry (`EBSDDetectorProjection`, `PCCalibrationMovingScreen`) and the SEM TIFF record (`SEMImageMetadata`) | Readers; Crystal map writers; SEM images (TIFF); Detector geometry; Patterns room |
 | `Patterns/` | the pattern processing (`PatternPipeline`, `PatternProcessing`, `PatternFilters`, `PatternWindow`, `AdaptiveHistogramEqualization`, `NeighbourAveraging`, `NLPAR`) and `PatternQuality` | Pattern processing; Pattern filters; Pattern quality |
-| `NORDIF/` | a NORDIF acquisition: `Setting.txt`, `Pattern.dat`, its bitmaps and calibration patterns, and the door that opens them as one dataset | Readers |
 | `CrystalMap/` | the Maps room's side of DiffractoKit's crystal map (#851): the layers, rasters, hover, colour key and unit cell (`OrientationMaps`), the derived layers, outlines, histograms and texture of one phase (`MapAnalysis`, `MapTexture`); the map, its grains, slip and texture numbers are DiffractoKit's `DiffractoOrientation` | Crystal map |
 | `Texture/` | the rasters the Texture tab draws of DiffractoKit's pole densities and ODF sections (`TextureRaster`) | Pole figures, inverse pole figures and the ODF |
 | `Indexing/` | Hough indexing (PyEBSDIndex), dictionary indexing with its Metal path, refinement (kikuchipy, with SciPy's Nelder-Mead), the orientation similarity map, the merge of dictionary maps, the comparison of two runs, and the Indexing room's plans and results | Hough indexing; Dictionary indexing; Refinement; Crystal map (`IndexingComparison`) |
 | `MasterPattern/` | EMsoft's master pattern files (kikuchipy's reader) and their projection onto a detector, with its Metal path | Master patterns and their projection |
 | `Simulation/` | kikuchipy's geometrical Kikuchi simulation and kinematical master pattern on diffsims' reflectors: the pattern panes' overlay | Kikuchi simulation |
-| `Export/` | the `.ang` writer (orix's) and the `.ctf` writer (the layout orix's reader reads) | Crystal map writers |
 | `EDS/` | the SEM-EDS map readers of Bruker, EDAX and JEOL (RosettaSciIO's) and their door (`SEMEDSOpening`); they hand the EDS room a `CSRSpectrumImage` of their own (D-SEM-76); exspy's SEM-EDS line intensities and window quantification (`SEMEDSLines`), on exspy's element database (`XrayLineDatabase`) | SEM-EDS map readers; SEM-EDS (exspy's window path) |
 | `Report/` | the SEM session's rows (`SEMSessionRow`), the files the rooms wrote, the methods the report cites, and the session report set as Markdown or PDF from numbers the rooms computed | none: no numbers of its own |
 
@@ -188,7 +186,7 @@ FormatoKit's sniff decides, since the sniff knows none of these formats (an h5eb
 - The vendors' EBSD files (`EBSDOpening.isVendorFile`: EDAX `.up1`/`.up2`/`.ang`, Oxford `.ebsp`/`.ctf`, and a `.dat` with a
   NORDIF `Setting.txt` beside it): a pattern file, or a map with the pattern file of its name beside it, is a pattern
   dataset for the Patterns room; an `.ang` or `.ctf` alone (`EBSDOpening.isLoneMap`) is an orientation map for the Maps room.
-- An HDF5 file, or a `.h5oina` or `.h5ebsd` the sniff does not know, that `EBSDH5Reader.sniff` recognises is an h5ebsd
+- An HDF5 file, or a `.h5oina` or `.h5ebsd` the sniff does not know, that FormatoKit's `EBSDH5Reader.sniff` recognises is an h5ebsd
   pattern dataset, except an Oxford H5OINA whose scan holds no patterns (AZtec's map export, `EBSDH5Reader.probe`): that is
   an orientation map for the Maps room (`EBSDH5Reader.readOxfordMap`, #513).
 
@@ -269,7 +267,7 @@ Which of the two each writer uses:
 | Maps and Texture PNG | `MapsFigure` (`EMStudio/App/MapsRoomState.swift`) | `scaleBarLabel`, `rangeLabel` and `mrdLabel`, whose `locale` defaults to `labelLocale`. |
 | EELS maps PNG | `EMStudio/UI/EELSRoom.swift` | Each tile's `EELSMapTile.detailText(locale: labelLocale)`. |
 | Grains and histogram CSV | `MapsRoomFormat.grainsCSV` and `histogramCSV` (`EMStudio/App/MapsRoomState.swift`) | `String(format:)`, `%.6g`. |
-| Indexing results CSV, `.ang`, `.ctf` | `IndexingResult.csv` (`Sources/TEMSEM/Indexing/IndexingResult.swift`), `ANGWriter` and `CTFWriter` (`Sources/TEMSEM/Export/`) | `String(format:)`. |
+| Indexing results CSV, `.ang`, `.ctf` | `IndexingResult.csv` (`Sources/TEMSEM/Indexing/IndexingResult.swift`), FormatoKit's `ANGWriter` and `CTFWriter` over `EBSDMapGrid` (`Sources/TEMSEM/EBSDFileMaps.swift`) | `String(format:)`. |
 | Kikuchi overlay CSV | `KikuchiOverlay.csv` (`Sources/TEMSEM/Simulation/KikuchiOverlay.swift`) | A number's `description`. |
 | Method and metadata JSON | `methodJSON` of `IndexingPlan`, `DictionaryIndexingPlan`, `PatternPipeline` and `EELSCompute`; `EBSDBrowsing.metadataJSON` | `JSONEncoder` or `JSONSerialization`. The dictionary record's `energy` words: `DictionaryIndexingPlan.energyWords(locale:)` in `en_US_POSIX`; `energyKeV` beside them is the number. |
 | EELS CSV and MSA | `EELSExports` (`Sources/TEMCore/EELS/EELSExports.swift`) | `%.9g`; the `.msa` is FormatoKit's `MSAWriter`. The results CSV's thickness, fit quality and deconvolution lines are made in `en_US_POSIX` (`EELSSession.resultsCSV`, `EELSDeconvolveCompute.recordLine`). |

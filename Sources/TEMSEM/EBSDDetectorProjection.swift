@@ -12,6 +12,7 @@
 //        `m2/detector-*` in tools/parity/sem; rows in docs/parity.md.
 //
 
+import FormatoEBSD
 import Foundation
 
 extension EBSDDetectorGeometry.Convention {

@@ -119,7 +119,7 @@ nonisolated final class TableCopyFormatTests: XCTestCase {
     /// The two-phase steel's grains at DefDAP's settings, with each phase's default slip systems for a load along x.
     private static func grains() throws -> (rows: [GrainRow], slip: [GrainSlip]) {
         let fixtures = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("Fixtures")
-        let map = try ANGReader.read(url: fixtures.appendingPathComponent("ebsd-sdss-ferrite-austenite.ang")).map
+        let map = try ANGReader.read(url: fixtures.appendingPathComponent("ebsd-sdss-ferrite-austenite.ang")).map.crystalMap()
         let analysis = try MapAnalysis.run(map, settings: MapAnalysisSettings(boundaryDegrees: 10, minimumSize: 10, kamMaxDegrees: 5))
         let slip = analysis.slip(load: SampleDirection.x.vector, files: OrientationMapSession.defaultSlipFiles(map), phases: map.phases)
         return (analysis.table, slip)

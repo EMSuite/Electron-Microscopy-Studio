@@ -24,8 +24,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/EMSuite/FormatoKit",
       "state" : {
-        "revision" : "347b88382f544cd9bd7e7ceb431d8784eb32a980",
-        "version" : "0.22.0"
+        "revision" : "b042524888955154f7cb4577b0ed10c7b22fb9ba",
+        "version" : "0.23.0"
       }
     },
     {
@@ -51,8 +51,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/EMSuite/SpectroKit",
       "state" : {
-        "revision" : "bfebaecc0ab5c83fb6d66ea120a8fbdbdb54511f",
-        "version" : "0.17.2"
+        "revision" : "9ecfbcdc4eee7d69be2f70e0e5d708478b6aff1b",
+        "version" : "0.17.3"
       }
     }
   ],

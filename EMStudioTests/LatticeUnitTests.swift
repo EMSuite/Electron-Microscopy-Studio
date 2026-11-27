@@ -40,9 +40,9 @@ nonisolated final class LatticeUnitTests: XCTestCase {
 
     func testTheReadersStateTheirUnit() throws {
         let fixtures = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("Fixtures")
-        let ang = try ANGReader.read(url: fixtures.appendingPathComponent("ebsd-sdss-ferrite-austenite.ang")).map
+        let ang = try ANGReader.read(url: fixtures.appendingPathComponent("ebsd-sdss-ferrite-austenite.ang")).map.crystalMap()
         XCTAssertTrue(ang.phases.entries.filter { $0.id != PhaseList.notIndexedID }.allSatisfy { $0.phase.latticeUnit == .angstrom })
-        let ctf = try CTFReader.read(text: try CTFWriter.text(of: ang)).map
+        let ctf = try CTFReader.read(text: try CTFWriter.text(of: ang)).map.crystalMap()
         XCTAssertTrue(ctf.phases.entries.filter { $0.id != PhaseList.notIndexedID }.allSatisfy { $0.phase.latticeUnit == .angstrom })
         // A file phase handed to the Indexing room keeps the file's unit.
         let file = IndexingPhase.fromCrystalMap(PhaseList([(1, CrystalPhase(name: "Ni", spaceGroup: 225, pointGroup: "m-3m",

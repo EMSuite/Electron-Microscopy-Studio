@@ -209,7 +209,7 @@ nonisolated final class IndexingDictionaryRoomTests: XCTestCase {
         XCTAssertEqual(xmap.property("scores"), dictionary.bestScores)
         XCTAssertEqual(xmap.property("simulation_indices"), dictionary.bestSimulationIndices.map(Double.init))
         XCTAssertEqual(xmap.phases[id: 0]?.color, indexing.phases[0].color)
-        let ang = try ANGReader.read(url: directory.appendingPathComponent("patterns_v2 indexed.ang")).map
+        let ang = try ANGReader.read(url: directory.appendingPathComponent("patterns_v2 indexed.ang")).map.crystalMap()
         XCTAssertEqual(ang.shape, [55, 75])
         let ci = try XCTUnwrap(ang.property("ci"))
         for (k, score) in dictionary.bestScores.enumerated() { XCTAssertEqual(ci[k], score, accuracy: 1e-5) }

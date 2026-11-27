@@ -12,6 +12,7 @@
 //
 
 import DiffractoOrientation
+import FormatoEBSD
 import Foundation
 
 package nonisolated enum EDAXOpening {
@@ -57,8 +58,14 @@ package nonisolated enum EDAXOpening {
             throw EDAXReadError(text: "\(patterns.url.lastPathComponent) was acquired on a hexagonal grid; only square-grid EBSD maps are read.")
         }
         var map: ANGMap?
+        // The companion's crystal map, as `EBSDOpening.openWithMap` makes it: its shape and step give a version 1 file its grid.
+        var grid: CrystalMap?
         if let mapURL {
-            do { map = try ANGReader.read(url: mapURL) } catch let error as ANGReadError where mapURL != url {
+            do {
+                let read = try ANGReader.read(url: mapURL)
+                grid = try read.map.crystalMap()
+                map = read
+            } catch let error as ANGReadError where mapURL != url {
                 // The companion is not the map it should be: the patterns open on their own, with the reason.
                 notes.append("\(mapURL.lastPathComponent) next to it was not read: \(error.text)")
             } catch let refusal as CrystalMap.Refusal where mapURL != url {
@@ -72,11 +79,12 @@ package nonisolated enum EDAXOpening {
         if let found = map, found.pointCount != patterns.patternCount {
             notes.append("\(found.url.lastPathComponent) next to it has \(found.pointCount) points for \(patterns.patternCount) patterns and was left out.")
             map = nil
+            grid = nil
         }
         var rows = patterns.scanRows, columns = patterns.scanColumns
         var stepX = patterns.stepX, stepY = patterns.stepY, unit = patterns.scanUnit
-        if patterns.version == 1, let map, map.map.shape.count == 2, map.map.shape[0] * map.map.shape[1] == patterns.patternCount {
-            rows = map.map.shape[0]; columns = map.map.shape[1]; stepX = map.map.dx; stepY = map.map.dy; unit = map.map.scanUnit
+        if patterns.version == 1, let grid, grid.shape.count == 2, grid.shape[0] * grid.shape[1] == patterns.patternCount {
+            rows = grid.shape[0]; columns = grid.shape[1]; stepX = grid.dx; stepY = grid.dy; unit = grid.scanUnit
         }
 
         var detector = EBSDDetectorGeometry(rows: patterns.patternRows, columns: patterns.patternColumns, projectionCenters: [SIMD3(0.5, 0.5, 0.5)])
@@ -94,6 +102,6 @@ package nonisolated enum EDAXOpening {
         return EBSDDataset(format: .edaxBinary, manufacturer: "edax", version: String(patterns.version), scanGroup: "", scanGroups: [],
                            scanRows: rows, scanColumns: columns, patternRows: patterns.patternRows, patternColumns: patterns.patternColumns,
                            dataType: patterns.dataType, stepY: stepY, stepX: stepX, scanUnit: unit, detector: detector, sem: sem,
-                           crystalMap: map?.map, patterns: source, notes: notes)
+                           map: map?.map, patterns: source, notes: notes)
     }
 }

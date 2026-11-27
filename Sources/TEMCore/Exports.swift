@@ -11,3 +11,6 @@
 // reads a rotation's or a colour key's members through TEMCore keeps compiling.
 @_exported import DiffractoGeometry
 @_exported import DiffractoOrientation
+// The EBSD readers and writers TEMSEM held until #852 (FormatoKit 0.23.0): re-exported as TEMSEM's were, so a file that reads a dataset's,
+// a reader's or a refusal's members through TEMCore keeps compiling.
+@_exported import FormatoEBSD

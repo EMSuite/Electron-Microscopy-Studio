@@ -32,7 +32,7 @@ nonisolated final class MapsAnalysisTests: XCTestCase {
         XCTAssertEqual(ref.values["boundary_degrees"] as? Double, Self.defdap.boundaryDegrees)
         XCTAssertEqual(ref.values["min_grain_size"] as? Int, Self.defdap.minimumSize)
         XCTAssertEqual(ref.values["kam_threshold_degrees"] as? Double, Self.defdap.kamMaxDegrees)
-        let map = try ANGReader.read(url: Self.sdss).map
+        let map = try ANGReader.read(url: Self.sdss).map.crystalMap()
         let analysis = try MapAnalysis.run(map, settings: Self.defdap)
 
         XCTAssertEqual(analysis.table.count, ref.values["grain_count"] as? Int)
@@ -54,7 +54,7 @@ nonisolated final class MapsAnalysisTests: XCTestCase {
     // MARK: - The table
 
     func testTheGrainTableIsTheSegmentationsGrains() throws {
-        let map = try ANGReader.read(url: Self.sdss).map
+        let map = try ANGReader.read(url: Self.sdss).map.crystalMap()
         let analysis = try MapAnalysis.run(map, settings: Self.defdap)
         let seg = analysis.grains.segmentation
         XCTAssertEqual(analysis.table.map(\.id), Array(1...seg.grains.count))
@@ -83,7 +83,7 @@ nonisolated final class MapsAnalysisTests: XCTestCase {
     // MARK: - Boundaries and outline
 
     func testTheBoundaryEdgesAreDefDAPsBoundaryPixelsAtTheirPixelEdges() throws {
-        let map = try ANGReader.read(url: Self.sdss).map
+        let map = try ANGReader.read(url: Self.sdss).map.crystalMap()
         let analysis = try MapAnalysis.run(map, settings: Self.defdap)
         let b = analysis.grains.boundaries
         let edges = analysis.boundaryEdges()
@@ -104,7 +104,7 @@ nonisolated final class MapsAnalysisTests: XCTestCase {
     }
 
     func testAGrainsOutlineIsClosed() throws {
-        let map = try ANGReader.read(url: Self.sdss).map
+        let map = try ANGReader.read(url: Self.sdss).map.crystalMap()
         let analysis = try MapAnalysis.run(map, settings: Self.defdap)
         let largest = try XCTUnwrap(analysis.table.max { $0.points < $1.points })
         let outline = analysis.outline(of: largest.id)
@@ -119,7 +119,7 @@ nonisolated final class MapsAnalysisTests: XCTestCase {
     // MARK: - Slip and GND
 
     func testTheSlipOfEachGrainIsDefDAPsForItsMeanOrientation() throws {
-        let map = try ANGReader.read(url: Self.sdss).map
+        let map = try ANGReader.read(url: Self.sdss).map.crystalMap()
         let analysis = try MapAnalysis.run(map, settings: Self.defdap)
         let files = OrientationMapSession.defaultSlipFiles(map)
         let names = Dictionary(uniqueKeysWithValues: map.phases.entries.map { ($0.id, $0.phase.name.lowercased()) })
@@ -155,7 +155,7 @@ nonisolated final class MapsAnalysisTests: XCTestCase {
     /// macEM#611: a step in no length unit ("px") refuses the GND in words; nm, µm and mm convert as before. Red before: "px" was
     /// taken as micrometres and the GND reported in m⁻² as if it were.
     func testGNDOnAMapWithoutALengthUnitIsRefusedAndTheGrainsStay() throws {
-        var map = try ANGReader.read(url: Self.sdss).map
+        var map = try ANGReader.read(url: Self.sdss).map.crystalMap()
         let inMicrometres = try MapAnalysis.run(map, settings: Self.defdap)
         map.scanUnit = "px"
         let inPixels = try MapAnalysis.run(map, settings: Self.defdap)
@@ -181,7 +181,7 @@ nonisolated final class MapsAnalysisTests: XCTestCase {
     }
 
     func testGNDIsTheNyeTensorOfTheMapsQuaternions() throws {
-        let map = try ANGReader.read(url: Self.sdss).map
+        let map = try ANGReader.read(url: Self.sdss).map.crystalMap()
         let analysis = try MapAnalysis.run(map, settings: Self.defdap)
         let gnd = try XCTUnwrap(analysis.gnd)
         let expected = NyeTensor.compute(quaternions: analysis.grainMap.quaternions, rows: analysis.rows, columns: analysis.columns,
@@ -196,7 +196,7 @@ nonisolated final class MapsAnalysisTests: XCTestCase {
     // MARK: - Texture
 
     func testTheTextureIsOrixsPoleDensityOfThePhase() throws {
-        let map = try ANGReader.read(url: Self.sdss).map
+        let map = try ANGReader.read(url: Self.sdss).map.crystalMap()
         let phase = try XCTUnwrap(map.phases.entries.first { $0.id != PhaseList.notIndexedID })
         let texture = try MapTexture.compute(map, phaseID: phase.id, size: 61)
         let orientations = try map.points(ofPhases: [phase.phase.name]).orientations()
@@ -348,7 +348,7 @@ nonisolated final class MapsAnalysisTests: XCTestCase {
     // MARK: - macTEM#239: histograms, several grains, poles of the selection
 
     func testTheHistogramsCountEveryKAMAndEveryGrain() throws {
-        let map = try ANGReader.read(url: Self.sdss).map
+        let map = try ANGReader.read(url: Self.sdss).map.crystalMap()
         let analysis = try MapAnalysis.run(map, settings: Self.defdap)
         let kam = analysis.histogram(.kam)
         XCTAssertEqual(kam.edges.count, 41)
@@ -371,7 +371,7 @@ nonisolated final class MapsAnalysisTests: XCTestCase {
     }
 
     func testTheOutlineOfSeveralGrainsIsOnePass() throws {
-        let map = try ANGReader.read(url: Self.sdss).map
+        let map = try ANGReader.read(url: Self.sdss).map.crystalMap()
         let analysis = try MapAnalysis.run(map, settings: Self.defdap)
         let ids = Array(analysis.table.prefix(3).map(\.id))
         let together = analysis.outline(of: Set(ids))
@@ -383,7 +383,7 @@ nonisolated final class MapsAnalysisTests: XCTestCase {
     /// A cancelled texture stops before its figures instead of holding the map until the last is made (#713: the Maps room's memory
     /// check saw a closed map's worth still alive while a cancelled texture ran on). Red under: the checks between figures removed.
     func testACancelledTextureStopsBeforeItsFigures() async throws {
-        let map = try ANGReader.read(url: Self.sdss).map
+        let map = try ANGReader.read(url: Self.sdss).map.crystalMap()
         let phase = try XCTUnwrap(map.phases.entries.first { $0.id != PhaseList.notIndexedID })
         let id = phase.id
         let task = Task.detached { () throws -> MapTexture in
@@ -399,7 +399,7 @@ nonisolated final class MapsAnalysisTests: XCTestCase {
     }
 
     func testTheSelectedGrainsPolesLandWhereTheProjectionPutsThem() throws {
-        let map = try ANGReader.read(url: Self.sdss).map
+        let map = try ANGReader.read(url: Self.sdss).map.crystalMap()
         let phase = try XCTUnwrap(map.phases.entries.first { $0.id != PhaseList.notIndexedID })
         let texture = try MapTexture.compute(map, phaseID: phase.id, size: 31)
         let cube = try XCTUnwrap(texture.poleFigures.first)

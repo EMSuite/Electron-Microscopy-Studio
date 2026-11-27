@@ -15,6 +15,7 @@
 //  `dtype_range`, as `EBSD.downsample` does.
 //
 
+import FormatoEBSD
 import Foundation
 import FormatoCore
 import Synchronization

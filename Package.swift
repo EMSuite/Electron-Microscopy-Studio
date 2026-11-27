@@ -12,10 +12,10 @@ let package = Package(
         .library(name: "TEMSession", targets: ["TEMSession"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/EMSuite/FormatoKit", from: "0.22.0"),
+        .package(url: "https://github.com/EMSuite/FormatoKit", from: "0.23.0"),
         .package(url: "https://github.com/EMSuite/DiffractoKit", from: "0.27.0"),
         .package(url: "https://github.com/EMSuite/ImagoKit", from: "0.12.0"),
-        .package(url: "https://github.com/EMSuite/SpectroKit", from: "0.17.2"),
+        .package(url: "https://github.com/EMSuite/SpectroKit", from: "0.17.3"),
         // The window shell, controls and Metal image view both apps share. TEMSession takes ShellMetal (MetalEngine, ColormapKind); TEMCore and
         // TEMSession take ShellEDXModel (the shared EDS room; the EELS room reuses its regions and pins).
         .package(url: "https://github.com/EMSuite/EMSuiteUI", from: "0.22.0"),
@@ -45,6 +45,7 @@ let package = Package(
             dependencies: [
                 "TEMBase",
                 .product(name: "FormatoCore", package: "FormatoKit"),
+                .product(name: "FormatoEBSD", package: "FormatoKit"),
                 .product(name: "FormatoHDF5", package: "FormatoKit"),
                 .product(name: "FormatoTIFF", package: "FormatoKit"),
                 .product(name: "DiffractoCore", package: "DiffractoKit"),
@@ -69,6 +70,7 @@ let package = Package(
                 .product(name: "Formato", package: "FormatoKit"),
                 .product(name: "FormatoCore", package: "FormatoKit"),
                 .product(name: "FormatoDM", package: "FormatoKit"),
+                .product(name: "FormatoEBSD", package: "FormatoKit"),
                 .product(name: "FormatoEMD", package: "FormatoKit"),
                 .product(name: "FormatoHDF5", package: "FormatoKit"),
                 .product(name: "FormatoHSPY", package: "FormatoKit"),

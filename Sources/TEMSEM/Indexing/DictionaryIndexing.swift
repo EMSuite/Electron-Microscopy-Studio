@@ -16,6 +16,7 @@
 //
 
 import DiffractoOrientation
+import FormatoEBSD
 import Foundation
 
 package nonisolated enum DictionaryIndexing {

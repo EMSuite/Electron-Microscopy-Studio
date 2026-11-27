@@ -95,101 +95,6 @@ nonisolated final class OxfordBinaryReaderTests: XCTestCase {
         XCTAssertEqual(try reader.pattern(row: lastRow, column: dataset.scanColumns - 1).bytes, reference.suffix(bytesPerPattern), "\(name): pattern \(last)", file: file, line: line)
     }
 
-    /// kikuchipy's test file: nickel_ebsd_small as a version-2 .ebsp, 3 x 3 patterns of 60 x 60 uint8, rolled one record in the
-    /// file so the start table reorders them; the step 1.5 µm from the footers.
-    func testKikuchipysPatternsReadBitExact() throws {
-        try assertReads("patterns.ebsp")
-        let dataset = try OxfordBinaryReader.read(url: Self.url("patterns.ebsp"))
-        XCTAssertEqual([dataset.scanRows, dataset.scanColumns], [3, 3])
-        XCTAssertEqual([dataset.stepY, dataset.stepX], [1.5, 1.5])
-        XCTAssertEqual(dataset.patterns.fileIndexByPosition, [8, 0, 1, 2, 3, 4, 5, 6, 7])
-        XCTAssertEqual(dataset.patterns.layout, .records(offset: 8 + 9 * 8, recordBytes: 16 + 3600 + 18, patternOffset: 16))
-        XCTAssertEqual(try EBSDPatternReader(dataset).pattern(row: 0, column: 0).doubles().count, 3600)
-        XCTAssertEqual(dataset.detector.projectionCenters, [SIMD3(0.5, 0.5, 0.5)], "kikuchipy's default detector")
-        XCTAssertEqual(dataset.detector.sampleTilt, 70)
-    }
-
-    /// Every layout kikuchipy's reader tests write: versions 0, 1, 2, 4 (and the 5/6 count), uint16, a bigger map with
-    /// 62 x 73 patterns, a file missing one pattern (a 1D list in pixels), and a compressed file refused by name.
-    func testEveryKikuchipyLayoutReadsAsKikuchipy() throws {
-        let names = try FileManager.default.contentsOfDirectory(atPath: Self.folder.path)
-            .filter { $0.hasPrefix("dummy-") && $0.hasSuffix(".ebsp") }.sorted()
-        XCTAssertEqual(names.count, 10, "the fixture set")
-        for name in names { try assertReads(name) }
-    }
-
-    func testAFileMissingOnePatternIsAListInPixels() throws {
-        let dataset = try OxfordBinaryReader.read(url: Self.url("dummy-v2-missing.ebsp"))
-        XCTAssertEqual([dataset.scanRows, dataset.scanColumns], [1, 5])
-        XCTAssertEqual(dataset.scanUnit, "px")
-        XCTAssertNil(dataset.patterns.fileIndexByPosition, "the five present records are in file order")
-        let metadata = try OxfordBinaryReader.metadata(data: Data(contentsOf: Self.url("dummy-v2-missing.ebsp")))
-        XCTAssertEqual(metadata.map1DIDs, [1, 2, 3, 4, 5])
-        XCTAssertEqual(metadata.beamY, [0, 1, 1, 1, 0])
-        XCTAssertEqual(metadata.beamX, [2, 0, 1, 2, 0])
-    }
-
-    func testAVersion0FileHasNoPositions() throws {
-        let dataset = try OxfordBinaryReader.read(url: Self.url("dummy-v0.ebsp"))
-        XCTAssertEqual([dataset.scanRows, dataset.scanColumns], [1, 6])
-        let metadata = try OxfordBinaryReader.metadata(data: Data(contentsOf: Self.url("dummy-v0.ebsp")))
-        XCTAssertNil(metadata.beamX)
-        XCTAssertNil(metadata.beamY)
-        XCTAssertNil(metadata.mapX)
-    }
-
-    func testTooShortAndTruncatedFilesAreRefusedByName() throws {
-        let url = URL(fileURLWithPath: "/short.ebsp")
-        XCTAssertThrowsError(try OxfordBinaryReader.read(data: Data([1, 2, 3]), url: url)) { error in
-            XCTAssertEqual(error as? OxfordBinaryReader.Refusal, .tooShort)
-        }
-        let whole = try Data(contentsOf: Self.url("patterns.ebsp"))
-        XCTAssertThrowsError(try OxfordBinaryReader.read(data: whole.prefix(whole.count - 100), url: url)) { error in
-            guard case .truncated? = error as? OxfordBinaryReader.Refusal else { return XCTFail("\(error)") }
-        }
-        for refusal in [OxfordBinaryReader.Refusal.tooShort, .compressed, .noPatternTable, .truncated(needed: 2, have: 1)] {
-            XCTAssertTrue(refusal.reason.hasSuffix("."), refusal.reason)
-        }
-    }
-
-    /// A version word of Int64.min (negating it trapped) and a NaN beam position (converting it to a map size trapped) are refused in
-    /// the reader's words, at the drop and at the open.
-    func testAVersionWordWithNoVersionAndANonFiniteBeamPositionAreRefusedInWords() throws {
-        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("oxford-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: folder) }
-        let whole = try Data(contentsOf: Self.url("patterns.ebsp"))
-        // Int64.min, little-endian, as the version word.
-        var noVersion = whole
-        noVersion.replaceSubrange(0..<8, with: Data([0, 0, 0, 0, 0, 0, 0, 0x80]))
-        XCTAssertThrowsError(try OxfordBinaryReader.patternCountInHeader(data: noVersion)) { error in
-            XCTAssertEqual(error as? OxfordBinaryReader.Refusal, .version(.min))
-        }
-        let dropped = folder.appendingPathComponent("no-version.ebsp")
-        try noVersion.write(to: dropped)
-        XCTAssertEqual(FileRouting.inventory(path: dropped.path).refusal, "no-version.ebsp: its version word -9223372036854775808 is not an .ebsp version.")
-        // NaN as the beam y of the last pattern in map order (record 7: kikuchipy's file is rolled one record), whose footer is a flag
-        // byte, beam x, a flag byte and beam y after the 16-byte header and the 3600 pixels.
-        let metadata = try OxfordBinaryReader.metadata(data: whole)
-        let lastRecord = try XCTUnwrap(metadata.fileOrder.last)
-        let beamY = 8 + 9 * 8 + lastRecord * (16 + 3600 + 18) + 16 + 3600 + 10
-        let stored = Double(bitPattern: UInt64(littleEndian: whole.withUnsafeBytes { $0.loadUnaligned(fromByteOffset: beamY, as: UInt64.self) }))
-        XCTAssertEqual(stored, metadata.beamY?.last, "the bytes replaced are that footer's beam y")
-        var nan = Data()
-        withUnsafeBytes(of: Double.nan.bitPattern.littleEndian) { nan.append(contentsOf: $0) }
-        var notFinite = whole
-        notFinite.replaceSubrange(beamY..<(beamY + 8), with: nan)
-        XCTAssertThrowsError(try OxfordBinaryReader.read(data: notFinite, url: URL(fileURLWithPath: "/not-finite.ebsp"))) { error in
-            XCTAssertEqual(error as? OxfordBinaryReader.Refusal, .beamPositions)
-        }
-        let opened = folder.appendingPathComponent("not-finite.ebsp")
-        try notFinite.write(to: opened)
-        XCTAssertThrowsError(try OxfordOpening.open(url: opened)) { error in
-            XCTAssertEqual(error as? EBSDReadError,
-                           EBSDReadError(text: "not-finite.ebsp: its beam positions are not finite or lie too many steps apart, which gives no map."))
-        }
-    }
-
     // MARK: The door
 
     /// `.ebsp` and `.ctf` of one name open as one scan from either side; a map of another point count is left out with a note; a
@@ -275,12 +180,4 @@ nonisolated final class OxfordBinaryReaderTests: XCTestCase {
         XCTAssertTrue(refused.hasPrefix("dummy-v2-compressed.ebsp: "), refused)
     }
 
-    /// macEM#638: a file cut inside the last record's footer (its beam position past the end) is refused, not trapped on a
-    /// force-unwrap. Red before: `beamX(...)!` trapped.
-    func testAFooterCutShortIsRefusedNotTrapped() throws {
-        let whole = try Data(contentsOf: Self.url("patterns.ebsp"))
-        let cut = whole.prefix(whole.count - 18)   // the last record in the file loses its 18-byte footer
-        XCTAssertThrowsError(try OxfordBinaryReader.metadata(data: cut))
-        XCTAssertThrowsError(try OxfordBinaryReader.read(data: cut, url: Self.url("patterns.ebsp")))
-    }
 }

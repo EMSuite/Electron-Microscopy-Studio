@@ -16,7 +16,7 @@ nonisolated final class MapsExportBytesTests: XCTestCase {
     /// The phase map figure, drawn from a nonisolated context, is the figure the main-actor call draws. Red under: the figure drawn only on
     /// the main actor (no `mapPNG`, or one isolated to it, does not compile here); the input dropping the legend's phases.
     func testTheMapFigureIsDrawnOffTheMainActorAsOnIt() async throws {
-        let map = try ANGReader.read(url: Self.fixtures.appendingPathComponent("ebsd-tsl.ang")).map
+        let map = try ANGReader.read(url: Self.fixtures.appendingPathComponent("ebsd-tsl.ang")).map.crystalMap()
         let raster = OrientationMaps.raster(.phase, of: map)
         let input = MapsFigure.MapInput(raster: raster, layer: .phase, map: map, keys: [], display: nil, fileName: "sdss.ang")
         let png = try await MapsRoomState.mapPNG(input)

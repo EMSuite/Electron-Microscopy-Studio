@@ -25,6 +25,7 @@
 //
 
 import DiffractoOrientation
+import FormatoEBSD
 import Foundation
 import ImagoCore
 import TEMBase
@@ -441,11 +442,11 @@ package nonisolated struct IndexingResult: Sendable {
 
     /// The .ang columns of a dictionary crystal map (D-SEM-92): the confidence index from the best score (`scores`, as orix's writer
     /// takes it by name), no image quality, fit or detector signal (written 0).
-    package static let dictionaryAngOptions = ANGWriter.Options(confidenceIndex: "scores")
+    package static let dictionaryAngOptions = ANGWriter.Options(confidenceIndex: "scores", operatorName: AppName.writer)
 
     /// The .ang columns of a Hough crystal map (D-SEM-84): image quality from `pq` (pyEBSDindex's mean Radon peak of the bands, as
     /// EDAX's IQ is the mean Hough peak), confidence index from `cm` (its vote confidence after EDAX's voting CI), fit from `fit`.
-    package static let angOptions = ANGWriter.Options(imageQuality: "pq", confidenceIndex: "cm", patternFit: "fit")
+    package static let angOptions = ANGWriter.Options(imageQuality: "pq", confidenceIndex: "cm", patternFit: "fit", operatorName: AppName.writer)
 
     /// A Hough crystal map with the columns an Oxford .ctf reads by name (D-SEM-84): Bands from the matched bands (`nmatch`) and MAD
     /// from the fit (`fit`, pyEBSDindex's mean angular deviation; 0 where not indexed, as AZtec writes it).

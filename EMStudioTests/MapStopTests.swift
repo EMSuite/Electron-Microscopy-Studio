@@ -26,7 +26,7 @@ nonisolated final class MapStopTests: XCTestCase {
     /// The grain analysis asked to stop throws `CancellationError`, before its first row or part way through; asked and never told to
     /// stop, it is the analysis it was. Red before: no `isCancelled` parameter.
     func testAStoppedSegmentationThrowsCancellation() throws {
-        let map = try ANGReader.read(url: Self.sdss).map
+        let map = try ANGReader.read(url: Self.sdss).map.crystalMap()
         XCTAssertThrowsError(try MapAnalysis.run(map, settings: Self.defdap, isCancelled: { true })) {
             XCTAssertTrue($0 is CancellationError, "\($0)")
         }
