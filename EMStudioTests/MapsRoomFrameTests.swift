@@ -91,7 +91,7 @@ nonisolated final class MapsRoomFrameTests: XCTestCase {
     /// the planes back as text.
     func testTheTablesAreTabsOfTheBottomArea() throws {
         let workspace = try ui("WorkspaceView.swift")
-        XCTAssertTrue(workspace.contains("tabs: [ProcessTab.output { OutputPane(log: appState.activityLog) }] + diffractionTabs + mapsTabs,"))
+        XCTAssertTrue(workspace.contains("tabs: [ProcessTab.output { OutputPane(log: appState.activityLog) }] + imageTabs + diffractionTabs + mapsTabs,"))
         XCTAssertTrue(workspace.contains("guard appState.navigation.workspaceArea == .maps, appState.maps.document != nil else { return [] } return MapsTable.allCases"))
         XCTAssertTrue(workspace.contains("ProcessTab(id: table.paneID, title: table.title, systemImage: table.systemImage) { MapsTablePane(table: table) }"))
         XCTAssertTrue(workspace.contains("processAreaStyle: .tabs,"), "one tab at a time at full width, one toggle for the area")
