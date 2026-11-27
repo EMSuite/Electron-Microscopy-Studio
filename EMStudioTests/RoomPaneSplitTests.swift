@@ -8,7 +8,7 @@
 import XCTest
 @testable import EMStudio
 
-final class RoomPaneSplitTests: XCTestCase {
+nonisolated final class RoomPaneSplitTests: XCTestCase {
 
     /// The room's body: from `var body: some View {` in the room's struct to the struct's close, white space squeezed.
     private func body(of room: String, in file: String) throws -> String {

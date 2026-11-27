@@ -79,7 +79,7 @@ struct ResultsRoom: View {
 }
 
 /// The Results room's split (#1094): the image's table over the SEM session's.
-enum ResultsRoomLayout {
+nonisolated enum ResultsRoomLayout {
     static let sessionSplitKey = "results.sessionSplit"
     static let sessionSplitFraction = 0.6
     static let minimumPaneHeight: CGFloat = 120

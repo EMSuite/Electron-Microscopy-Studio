@@ -9,7 +9,7 @@
 import ShellControls
 import XCTest
 
-final class HistogramCaptionTests: XCTestCase {
+nonisolated final class HistogramCaptionTests: XCTestCase {
     private func ui(_ name: String) throws -> String {
         let root = URL(fileURLWithPath: #filePath).resolvingSymlinksInPath().deletingLastPathComponent().deletingLastPathComponent()
         return try String(contentsOf: root.appendingPathComponent("EMStudio/UI/\(name)"), encoding: .utf8)
