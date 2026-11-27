@@ -106,7 +106,7 @@ nonisolated final class FigureExportTests: XCTestCase {
         let simulated = [ZoneAxisOverlay.Spot(hkl: MillerIndex(2, 0, 0), row: 128, column: 340, intensity: 1, relative: 1),
                          ZoneAxisOverlay.Spot(hkl: MillerIndex(0, 2, 0), row: 44, column: 256, intensity: 0.5, relative: 0.5)]
         let overlay = FigureExport.PatternOverlay(centre: ImagePoint(x: 256, y: 128), rings: [ring], spots: [spot], simulated: simulated,
-                                                  labelled: ZoneAxisOverlay.labelled(simulated))
+                                                  labelMode: .all)
         var pattern = source()
         pattern.x = AxisCalibration(scale: 0.0125, unit: "Å⁻¹", origin: 256)
         pattern.y = AxisCalibration(scale: 0.0125, unit: "Å⁻¹", origin: 128)
@@ -134,13 +134,47 @@ nonisolated final class FigureExportTests: XCTestCase {
         XCTAssertEqual(bareTexts, [plan.label], "Labels off: the bar's label alone")
     }
 
+    /// #1053: the figure's hkl labels follow the room's mode and never overprint. A row of 40 spots 6 px apart: None draws no hkl,
+    /// Strongest at most `strongestCap`, All more, and no two of the label boxes meet. Mutation: the 60-strongest rule back, the
+    /// mode ignored, or the labels drawn at a fixed offset with no placement - red.
+    func testAPatternFiguresHKLLabelsFollowTheModeAndNeverMeet() throws {
+        let simulated = (0..<40).map { i in
+            ZoneAxisOverlay.Spot(hkl: MillerIndex(i + 1, 0, 0), row: 128, column: 20 + 6 * Double(i), intensity: Double(40 - i),
+                                 relative: Double(40 - i) / 40)
+        }
+        let labels = Set(simulated.map(\.label))
+        func hklTexts(_ mode: HKLLabelMode) throws -> [FigureText] {
+            let overlay = FigureExport.PatternOverlay(centre: nil, rings: [], spots: [], simulated: simulated, labelMode: mode)
+            let made = try FigureExport.patternScene(source: source(), display: display(), overlay: overlay, scaleBar: false, labels: true,
+                                                     width: .mm90)
+            return made.scene.layers.compactMap { layer -> FigureText? in
+                if case .text(let text) = layer, labels.contains(text.string) { text } else { nil }
+            }
+        }
+        XCTAssertTrue(try hklTexts(.off).isEmpty)
+        let strongest = try hklTexts(.strongest), all = try hklTexts(.all)
+        XCTAssertFalse(strongest.isEmpty)
+        XCTAssertLessThanOrEqual(strongest.count, HKLLabelPlacement.strongestCap)
+        XCTAssertEqual(strongest.first?.string, simulated[0].label, "the strongest is always named")
+        XCTAssertGreaterThanOrEqual(all.count, strongest.count)
+        XCTAssertLessThan(all.count, simulated.count, "6 px apart, not every label has room")
+        for texts in [strongest, all] {
+            let scale = FigureStyle(width: .mm90).typeSize / HKLLabelPlacement.captionSize
+            let boxes = texts.map { t -> (low: SIMD2<Double>, high: SIMD2<Double>) in
+                let low = SIMD2(t.origin.x, t.origin.y - FigureStyle(width: .mm90).typeSize)
+                return (low, low + HKLLabelPlacement.estimatedLabelSize(t.string) * scale)
+            }
+            for i in boxes.indices { for j in boxes.indices where j > i { XCTAssertFalse(HKLLabelPlacement.meet(boxes[i], boxes[j])) } }
+        }
+    }
+
     /// The legend keys what is drawn and only that, the table is the readout's rows in the POSIX locale, and both sit under the
     /// picture in a scene grown to hold them. Mutation: an entry for a kind not drawn, the table's d in the person's locale, or the
     /// scene's height left the picture's - red.
     func testAPatternFigureCarriesItsLegendAndSpotTable() throws {
         let spot = FigureExport.PatternOverlay.Measured(points: [ImagePoint(x: 300, y: 100)], label: "d 2.039 Å")
         let simulated = [ZoneAxisOverlay.Spot(hkl: MillerIndex(2, 0, 0), row: 128, column: 340, intensity: 1, relative: 1)]
-        let overlay = FigureExport.PatternOverlay(centre: nil, rings: [], spots: [spot], simulated: simulated, labelled: [])
+        let overlay = FigureExport.PatternOverlay(centre: nil, rings: [], spots: [spot], simulated: simulated, labelMode: .off)
         XCTAssertEqual(FigureExport.legendEntries(overlay).map(\.label), ["Measured spot", "Simulated spot"], "no ring drawn, none keyed")
 
         let readout = [DiffractionReadoutRow(id: UUID(), kind: .spot, number: 1, radiusPx: 82.1, q: 1.0262, d: 0.97448, family: "{200}",

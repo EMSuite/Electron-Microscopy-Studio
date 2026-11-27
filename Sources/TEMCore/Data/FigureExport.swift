@@ -159,17 +159,18 @@ package nonisolated enum FigureExport {
         package var centre: ImagePoint?
         package var rings: [Measured]
         package var spots: [Measured]
-        /// The simulated spots of the typed zone axis or the orientation Index found, and those that carry their hkl.
+        /// The simulated spots of the typed zone axis or the orientation Index found.
         package var simulated: [ZoneAxisOverlay.Spot]
-        package var labelled: [ZoneAxisOverlay.Spot]
+        /// Which of them carry their hkl: the room's `hkl labels` mode, placed in the figure's points so none overprints (#1053).
+        package var labelMode: HKLLabelMode
 
         package init(centre: ImagePoint?, rings: [Measured], spots: [Measured], simulated: [ZoneAxisOverlay.Spot],
-                     labelled: [ZoneAxisOverlay.Spot]) {
+                     labelMode: HKLLabelMode) {
             self.centre = centre
             self.rings = rings
             self.spots = spots
             self.simulated = simulated
-            self.labelled = labelled
+            self.labelMode = labelMode
         }
     }
 
@@ -278,9 +279,17 @@ package nonisolated enum FigureExport {
                                                  stroke: simulatedColor, lineWidth: markLineWidth)))
         }
         if labels {
-            for spot in overlay.labelled {
-                let at = point(ImagePoint(x: spot.column, y: spot.row)), r = (3 + 6 * spot.relative.squareRoot()) / 2
-                layers.append(.text(FigureText(spot.label, at: FigurePoint(x: at.x + r + 1, y: at.y + r + made.scene.style.typeSize),
+            // The room's placement (#1053), in the figure's points and type size: the mode's spots, strongest first, each where its
+            // box meets no other label and not the centre's mark.
+            let typeSize = made.scene.style.typeSize, fontScale = typeSize / HKLLabelPlacement.captionSize
+            func vector(_ p: FigurePoint) -> SIMD2<Double> { SIMD2(p.x, p.y) }
+            let placed = HKLLabelPlacement.place(
+                overlay.simulated, mode: overlay.labelMode,
+                point: { vector(point(ImagePoint(x: $0.column, y: $0.row))) },
+                radius: { (3 + 6 * $0.relative.squareRoot()) / 2 }, beam: overlay.centre.map { vector(point($0)) },
+                labelSize: { HKLLabelPlacement.estimatedLabelSize($0) * fontScale })
+            for label in placed {
+                layers.append(.text(FigureText(label.spot.label, at: FigurePoint(x: label.low.x, y: label.low.y + typeSize),
                                                color: simulatedColor)))
             }
         }

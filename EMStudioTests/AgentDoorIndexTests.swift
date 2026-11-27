@@ -297,7 +297,7 @@ nonisolated final class AgentDoorIndexTests: XCTestCase {
                                            label: "d 2.355 Å · {111}")
         let marked = [MeasuredSpot(clickRow: 5, clickColumn: 6, row: 5.2, column: 6.1, radius: nil, refusal: nil)]
         let marks = DiffractionPicture.marks(annulus: DiffractionPicture.Annulus(centre: ImagePoint(x: 32, y: 30), inner: 28, outer: 40),
-                                             rings: [ring], spots: marked, simulated: simulated, labels: false)
+                                             rings: [ring], spots: marked, simulated: simulated, labelMode: .off)
         XCTAssertEqual(marks.map(\.kind), [.simulatedSpot, .annulus, .annulus, .ring, .spot])
         XCTAssertEqual(marks[1].points.count, DiffractionPicture.annulusPoints)
         XCTAssertEqual(marks[1].points[0].x, 60, accuracy: 1e-12, "the inner edge 28 px right of the centre")
@@ -312,13 +312,19 @@ nonisolated final class AgentDoorIndexTests: XCTestCase {
         }
         let marked = [MeasuredSpot(clickRow: 5, clickColumn: 6, row: 5.2, column: 6.1, radius: nil, refusal: nil),
                       MeasuredSpot(clickRow: 9, clickColumn: 9, row: nil, column: nil, radius: nil, refusal: "no signal near the click")]
-        let marks = DiffractionPicture.marks(spots: marked, simulated: simulated, labels: true)
+        let marks = DiffractionPicture.marks(spots: marked, simulated: simulated, labelMode: .strongest)
         XCTAssertEqual(marks.count, 71, "70 simulated, the marked spot with a centre")
         XCTAssertEqual(marks.prefix(70).map(\.kind), Array(repeating: .simulatedSpot, count: 70))
-        XCTAssertEqual(marks.prefix(70).filter { !$0.label.isEmpty }.count, ZoneAxisOverlay.labelledCount, "the room's labelled spots")
+        // The 70 spots sit one pixel apart down a column: the room's placement labels those whose boxes meet no other (#1053).
+        let placed = HKLLabelPlacement.place(simulated, mode: .strongest, point: { SIMD2($0.column, $0.row) },
+                                             radius: { 3 + 6 * $0.relative.squareRoot() }, beam: nil)
+        XCTAssertEqual(Set(marks.prefix(70).filter { !$0.label.isEmpty }.map(\.label)), Set(placed.map(\.spot.label)), "the room's placement")
+        XCTAssertLessThanOrEqual(placed.count, HKLLabelPlacement.strongestCap)
+        let all = DiffractionPicture.marks(spots: [], simulated: simulated, labelMode: .all)
+        XCTAssertGreaterThanOrEqual(all.filter { !$0.label.isEmpty }.count, placed.count, "All labels at least as many as Strongest")
         XCTAssertEqual(marks.last?.kind, .spot)
         XCTAssertEqual(marks.last?.label, "1")
         XCTAssertEqual(marks.last?.points, [ImagePoint(x: 6.1, y: 5.2)])
-        XCTAssertTrue(DiffractionPicture.marks(spots: [], simulated: simulated, labels: false).allSatisfy(\.label.isEmpty))
+        XCTAssertTrue(DiffractionPicture.marks(spots: [], simulated: simulated, labelMode: .off).allSatisfy(\.label.isEmpty))
     }
 }
