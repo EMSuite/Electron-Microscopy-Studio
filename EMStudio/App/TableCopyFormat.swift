@@ -214,7 +214,7 @@ nonisolated enum DiffractionSpotFormat {
 nonisolated enum GrainTableFormat {
     /// The titles, with the unit the equivalent circle diameter is shown in (the scan's: "µm", or "px" for a map without one).
     static func titles(unit: String) -> [String] {
-        ["Grain", "Phase", "Points", "ECD \(unit)", "φ₁ °", "Φ °", "φ₂ °", "GOS °", "Schmid", "Neighbours"]
+        ["Grain", "Phase", "Points", "ECD (\(unit))", "φ₁ (°)", "Φ (°)", "φ₂ (°)", "GOS (°)", "Schmid", "Neighbours"]
     }
 
     /// Each grain's largest Schmid factor for the Slip section's systems, by grain number (the first entry of a grain listed twice):

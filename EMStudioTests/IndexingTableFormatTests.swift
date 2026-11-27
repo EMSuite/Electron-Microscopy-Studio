@@ -51,7 +51,7 @@ nonisolated final class IndexingTableFormatTests: XCTestCase {
         let e = rows[0]
         let text = IndexingTableFormat.copyText(rows, method: .hough, scoreTitle: "CI", locale: Self.en)
         let one = String(format: "%.1f", e.phi1), two = String(format: "%.1f", e.capitalPhi), three = String(format: "%.1f", e.phi2)
-        XCTAssertEqual(text, ["Row\tCol\tPhase\tφ₁ °\tΦ °\tφ₂ °\tCI\tFit °\tBands\tPQ",
+        XCTAssertEqual(text, ["Row\tCol\tPhase\tφ₁ (°)\tΦ (°)\tφ₂ (°)\tCI\tFit (°)\tBands\tPQ",
                               "0\t0\tNi\t\(one)\t\(two)\t\(three)\t0.823\t0.51\t9\t12350",
                               "0\t1\tnot indexed\t—\t—\t—\t0.000\t—\t2\t812.4"].joined(separator: "\n"))
     }
@@ -69,7 +69,7 @@ nonisolated final class IndexingTableFormatTests: XCTestCase {
         let text = IndexingTableFormat.copyText(rows, method: .dictionary, scoreTitle: result.scoreTitle, locale: Self.en)
         let lines = text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
         XCTAssertEqual(lines.count, 3)
-        XCTAssertEqual(lines[0], "Row\tCol\tPhase\tφ₁ °\tΦ °\tφ₂ °\tNCC\tSimulation\tOSM")
+        XCTAssertEqual(lines[0], "Row\tCol\tPhase\tφ₁ (°)\tΦ (°)\tφ₂ (°)\tNCC\tSimulation\tOSM")
         XCTAssertEqual(lines[1].split(separator: "\t").suffix(3).map(String.init), ["0.412", "17", String(format: "%.2f", osm)])
         XCTAssertEqual(lines[2], "0\t1\tnot indexed\t—\t—\t—\t0.000\t3\t—")
     }
@@ -98,7 +98,7 @@ nonisolated final class IndexingTableFormatTests: XCTestCase {
         XCTAssertEqual(IndexingTableFormat.angle(.nan, locale: Self.de), UnitDisplay.noValue)
     }
 
-    /// The Results table's Simulation column and the Bands table's Family and Fit ° cells write a missing value as `UnitDisplay.noValue`,
+    /// The Results table's Simulation column and the Bands table's Family and Fit (°) cells write a missing value as `UnitDisplay.noValue`,
     /// the dash ⌘C copies for the same Simulation cell and every room's tables show, in any locale. Red before: the three cells wrote
     /// an en dash ("–") on screen.
     func testAMissingCellIsTheOneDash() throws {
@@ -115,7 +115,7 @@ nonisolated final class IndexingTableFormatTests: XCTestCase {
         let room = squeezed(try source("EMStudio/UI/IndexingRoom.swift"))
         XCTAssertTrue(room.contains("TableColumn(\"Simulation\", value: \\.simulationIndex) { Text(IndexingTableFormat.simulation($0.simulationIndex))"))
         XCTAssertTrue(room.contains("TableColumn(\"Family\") { Text(IndexingTableFormat.bandFamily($0.family, isValid: $0.isValid)) }"))
-        XCTAssertTrue(room.contains("TableColumn(SEMColumnSpeech.header(\"Fit °\")) { Text(IndexingTableFormat.bandFit($0.fitDegrees))"))
+        XCTAssertTrue(room.contains("TableColumn(SEMColumnSpeech.header(\"Fit (°)\")) { Text(IndexingTableFormat.bandFit($0.fitDegrees))"))
         XCTAssertFalse(room.contains("\"\u{2013}\""), "no en dash stands for a missing value")
     }
 
@@ -171,7 +171,7 @@ nonisolated final class IndexingTableFormatTests: XCTestCase {
             ["\(b.id)", two(b.rho), two(b.thetaDegrees), IndexingTableFormat.number(b.peak, locale: Self.en),
              IndexingTableFormat.number(b.width, locale: Self.en), "\u{2014}", "\u{2014}"].joined(separator: "\t")
         }
-        let header = "#\t\u{03C1} px\t\u{03B8} \u{00B0}\tPeak\tWidth\tFamily\tFit \u{00B0}"
+        let header = "#\t\u{03C1} (px)\t\u{03B8} (\u{00B0})\tPeak\tWidth\tFamily\tFit (\u{00B0})"
         XCTAssertEqual(IndexingTableFormat.bandsCopyText(bands, locale: Self.en), ([header] + bands.map(line)).joined(separator: "\n"))
 
         let de = IndexingTableFormat.bandCells(bands[0], locale: Self.de)

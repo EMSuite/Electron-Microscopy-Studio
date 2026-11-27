@@ -101,8 +101,8 @@ nonisolated final class MapsRoomFrameTests: XCTestCase {
         let slip = try slice(analysis, from: "struct MapsSlipTable: View {", to: "extension GrainRow {")
         XCTAssertTrue(slip.contains("Table(rows, sortOrder: $sortOrder) {"), "a table, sortable")
         for column in ["TableColumn(\"Plane\", value: \\.id)", "TableColumn(\"Schmid Factor\", value: \\.schmid)",
-                       "TableColumn(SEMColumnSpeech.header(\"Trace °\"), value: \\.traceOrder)", "TableColumn(\"Colour\", value: \\.colourWord)",
-                       "TableColumn(SEMColumnSpeech.header(\"Inclined °\"), value: \\.inclinationDegrees)"] {
+                       "TableColumn(SEMColumnSpeech.header(\"Trace (°)\"), value: \\.traceOrder)", "TableColumn(\"Colour\", value: \\.colourWord)",
+                       "TableColumn(SEMColumnSpeech.header(\"Inclined (°)\"), value: \\.inclinationDegrees)"] {
             XCTAssertTrue(slip.contains(column), column)
         }
         XCTAssertTrue(slip.contains(".accessibilityIdentifier(\"maps.slip.empty\")"))
