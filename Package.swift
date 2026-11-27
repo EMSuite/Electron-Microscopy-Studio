@@ -24,7 +24,7 @@ let package = Package(
     ],
     targets: [
         // Below TEMCore and TEMSEM: what both use (the app name, the calibrated image and its stored pixels, unit display, text
-        // lines, checked conversions, a scan row's parallel work). Kits only.
+        // lines, checked conversions, a scan row's parallel work, the words for an error). Kits only.
         .target(
             name: "TEMBase",
             dependencies: [

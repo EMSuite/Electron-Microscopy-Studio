@@ -8,8 +8,6 @@
 //
 
 import Foundation
-import TEMBase
-import TEMSEM
 
 package nonisolated enum ErrorDetail {
     /// `error`'s sentence; for a system error followed by its domain and code and the underlying error's, as

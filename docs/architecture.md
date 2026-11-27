@@ -21,7 +21,7 @@ Sources/TEMSEM                 the SEM program's own ports and their two Metal  
 Sources/TEMBase                what TEMCore and TEMSEM share: the app name, the       package
                                calibrated image and its stored pixels, unit
                                display, text lines, checked conversions, a scan
-                               row's parallel work — kits only
+                               row's parallel work, error words — kits only
 FormatoKit                     the suite's file-format library: the DM3/DM4, Velox    package dependency
                                EMD, MRC and TIFF readers, the HDF5 layer, the
                                libhdf5 it ships
@@ -106,7 +106,7 @@ EBSD patterns, orientation maps and SEM-EDS files take their own path into their
 | The seam between the app's `ImagePoint` and ImagoKit's `PixelPoint` | `Sources/TEMCore/Analysis/` |
 | The Simulation document's specimen, HRTEM image, optics, frozen phonons and Place Beside, over SimulatoKit | `Sources/TEMCore/Simulation/` |
 | The SEM program's ports: EBSD and TKD readers, pattern processing, orientations, indexing, maps, grains, texture, Kikuchi simulation, the SEM-EDS map readers and line intensities, the session report ("The SEM program") | `Sources/TEMSEM/` and its subfolders |
-| What TEMCore and TEMSEM share (`AppName`, `CalibratedImage`, `StoredPixels`, `UnitDisplay`, `TextLines`, `CheckedConversion`, `ScanRowWork`) | `Sources/TEMBase/` |
+| What TEMCore and TEMSEM share (`AppName`, `CalibratedImage`, `StoredPixels`, `UnitDisplay`, `TextLines`, `CheckedConversion`, `ScanRowWork`, `ErrorDetail`) | `Sources/TEMBase/` |
 | Session owners (`@Observable`), no SwiftUI, the SEM rooms' `EBSDSession`, `IndexingSession` and `OrientationMapSession` among them | `Sources/TEMSession/` |
 | Unit tests; committed fixtures (≤ 1 MiB) in `Fixtures/` | `EMStudioTests/` |
 | Reference harnesses, the SEM reference bundles, their fixtures and scripts | `tools/parity/<name>/`, each folder in one array of `tools/run-tests.sh`; the gate and release scripts in `tools/`, their libraries in `tools/lib/` |
