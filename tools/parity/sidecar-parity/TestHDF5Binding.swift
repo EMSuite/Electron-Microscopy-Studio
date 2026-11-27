@@ -1,1 +1,1 @@
-../../../macTEMTests/TestHDF5Binding.swift
+../../../EMStudioTests/TestHDF5Binding.swift
