@@ -105,7 +105,8 @@ final class MaterialsProjectPhaseSearch {
             do {
                 let request = try MaterialsProjectOptimade.searchRequest(MaterialsProjectSearch.query(system))
                 let data = try await client.search(request, key: nil)
-                switch try MaterialsProjectOptimade.decodeSearch(data) {
+                // Off the main actor: since DiffractoKit 0.26.0 the decode detects each row's space group (EMSuiteUI#283).
+                switch try await AddPhaseModel.decodeSearch(data) {
                 case .rows(let rows, _): answers.append(.init(system: system, rows: rows))
                 case .noResults: answers.append(.init(system: system, rows: []))
                 case .serviceEmpty: failed.append("\(label): the service answered with no structures")
