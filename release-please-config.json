@@ -7,7 +7,6 @@
   "packages": {
     ".": {
       "package-name": "macTEM",
-      "release-as": "2.6.0",
       "changelog-path": "CHANGELOG.md",
       "extra-files": [
         {
