@@ -711,7 +711,7 @@ private struct DiffractionExportSection: View {
         let analysis = item.diffraction
         let plan = item.diffractionHolder.plan(analysis: analysis, image: image)
         let powder = DiffractionPowderSection.table(of: item, openItems: appState.openItems)
-        let hasSpots = isSimulation ? !analysis.simulatedSpotRows(image: image).isEmpty : !analysis.indexSpotRows.isEmpty
+        let hasSpots = isSimulation ? !SimulationEmptyState.spotRows(of: item, image: image).isEmpty : !analysis.indexSpotRows.isEmpty
         InspectorSection("Export", startsExpanded: false) {
             InspectorActionRow {
                 Button("Readout CSV…") { exportReadout(spots: false) }
