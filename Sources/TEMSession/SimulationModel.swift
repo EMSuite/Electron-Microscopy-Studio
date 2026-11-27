@@ -318,9 +318,13 @@ package final class SimulationModel {
 
     /// The beams the Diffraction room draws in place of the kinematical intensities: those of the shown thickness, while Dynamical
     /// is on and the stored waves are this crystal's along this axis; else nil (the kinematical pattern). Writes no observed state.
+    /// The run's own state is read first, before the guard can return: `exitWavesAreCurrent` reads `exitKey`, which is not observed,
+    /// so a view that asked before the run ended watched nothing that the run sets, and drew the kinematical spots until something
+    /// else redrew it (#1157).
     package func dynamicalBeams(crystal: DiffractionCrystal?, zoneAxis: SIMD3<Int>) -> DynamicalBeams? {
-        guard isDynamical, atomModel == nil, exitWavesAreCurrent(crystal: crystal, zoneAxis: zoneAxis), case .success(let spots)? = dynamicalSpots,
-              let index = shownThicknessIndex else { return nil }
+        let stored = dynamicalSpots, index = shownThicknessIndex
+        guard isDynamical, atomModel == nil, case .success(let spots)? = stored, let index,
+              exitWavesAreCurrent(crystal: crystal, zoneAxis: zoneAxis) else { return nil }
         return spots.beams(at: index)
     }
 

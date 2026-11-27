@@ -600,9 +600,9 @@ package final class DiffractionAnalysis {
     }
 
     /// A Simulation document's Spots table (#907): the simulated spots drawn, strongest first, with R in mm at the camera length;
-    /// [] while the spots are off or cannot be drawn.
-    package func simulatedSpotRows(image: CalibratedImage) -> [PatternIndexing.SpotRow] {
-        guard case .success(let drawn) = simulatedSpots(image: image), let centre, let calibration = calibration(for: image),
+    /// [] while the spots are off or cannot be drawn. With `dynamical` (#1157) the rows are its beams, as the room draws them.
+    package func simulatedSpotRows(image: CalibratedImage, dynamical: DynamicalBeams? = nil) -> [PatternIndexing.SpotRow] {
+        guard case .success(let drawn) = simulatedSpots(image: image, dynamical: dynamical), let centre, let calibration = calibration(for: image),
               let volts = volts(for: image) else { return [] }
         return PatternIndexing.simulatedRows(drawn, centreRow: centre.row, centreColumn: centre.column, deltaQ: calibration.deltaQ,
                                              volts: volts, cameraLengthMM: cameraLengthMM, phase: crystal.name)

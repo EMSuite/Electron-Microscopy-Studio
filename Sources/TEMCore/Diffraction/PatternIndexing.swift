@@ -335,20 +335,28 @@ package nonisolated enum PatternIndexing {
             .added.compactMap { s in s.hkl.map { AddedSpot(hkl: $0, q: s.position) } }
     }
 
-    /// The rows of a Simulation document's spots (#907): every kinematic spot drawn (double diffraction's added spots have no
-    /// intensity and are left out), numbered strongest first, R from the pattern's centre, q = R Δq, d = 1 / q, and R in mm =
-    /// λ L |g| on a detector at camera length L. A simulated spot is its own reflection, so it has no expected d and no misfit.
+    /// The rows of a Simulation document's spots (#907): every kinematic spot drawn, strongest first, then the forbidden beams of
+    /// a dynamical pattern (#1157; kinematical double diffraction's added spots have no intensity and are left out), R from the
+    /// pattern's centre, q = R Δq, d = 1 / q, and R in mm = λ L |g| on a detector at camera length L. A simulated spot is its own
+    /// reflection, so it has no expected d and no misfit.
     package static func simulatedRows(_ spots: [ZoneAxisOverlay.Spot], centreRow: Double, centreColumn: Double, deltaQ: Double,
                                       volts: Double, cameraLengthMM: Double, phase: String) -> [SpotRow] {
         let lambda = RingCalibration.wavelengthAngstroms(volts: volts)
-        let kinematic = spots.filter { !$0.isDoubleDiffraction }
-            .sorted { $0.intensity != $1.intensity ? $0.intensity > $1.intensity : ($0.hkl.h, $0.hkl.k, $0.hkl.l) < ($1.hkl.h, $1.hkl.k, $1.hkl.l) }
-        return kinematic.enumerated().map { i, spot in
+        func strongestFirst(_ a: ZoneAxisOverlay.Spot, _ b: ZoneAxisOverlay.Spot) -> Bool {
+            a.intensity != b.intensity ? a.intensity > b.intensity : (a.hkl.h, a.hkl.k, a.hkl.l) < (b.hkl.h, b.hkl.k, b.hkl.l)
+        }
+        // The kinematical spots, then the forbidden beams a dynamical pattern gives (#1157, the dashed rings with an intensity),
+        // named "<phase> · double diffraction" as Index names them. Kinematical double diffraction's rings have no intensity and
+        // stay out (#907).
+        let kinematic = spots.filter { !$0.isDoubleDiffraction }.sorted(by: strongestFirst)
+        let added = spots.filter { $0.isDoubleDiffraction && $0.intensity > 0 }.sorted(by: strongestFirst)
+        return (kinematic + added).enumerated().map { i, spot in
             let r = hypot(spot.row - centreRow, spot.column - centreColumn)
             let q = r * deltaQ
             return SpotRow(id: simulatedID(spot.hkl), number: i + 1, hkl: spot.hkl, radiusPx: r,
                            radiusMM: lambda.isFinite && cameraLengthMM > 0 ? lambda * cameraLengthMM * q : nil,
-                           q: q, d: q > 0 ? 1 / q : .infinity, dExpected: nil, deltaPercent: nil, phase: phase)
+                           q: q, d: q > 0 ? 1 / q : .infinity, dExpected: nil, deltaPercent: nil,
+                           phase: spot.isDoubleDiffraction ? phase + doubleDiffractionPhase : phase)
         }
     }
 
