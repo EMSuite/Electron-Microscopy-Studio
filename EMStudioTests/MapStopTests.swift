@@ -8,6 +8,7 @@
 //  holds to DefDAP.
 //
 
+import DiffractoOrientation
 import Foundation
 import TEMCore
 import TEMSession

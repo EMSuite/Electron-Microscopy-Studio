@@ -17,6 +17,7 @@
 //  |F| is all the simulator uses.
 //
 
+import DiffractoOrientation
 import Foundation
 
 /// One atom of a unit cell: element by atomic number, fractional position, occupancy. (diffsims' kinematical structure factor takes no

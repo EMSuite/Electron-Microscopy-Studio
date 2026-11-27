@@ -2,11 +2,12 @@
 //  IndexingMapLayerTests.swift
 //  The Indexing room's map layers as they are drawn (D-SEM-96), on small synthetic runs: a scalar layer is its values, with NaN (the
 //  masked grey) where a point has none or has not been reached, and the legend names what the grey stands for; the Euler layer is
-//  orix's `EulerColorKey` of the phase's point group (its numbers held by `SEMColorKeyParityTests`), not indexed black, not reached the
+//  orix's `EulerColorKey` of the phase's point group (its numbers held by DiffractoKit's `SEMColorKeyParityTests`), not indexed black, not reached the
 //  navigator's dark grey; the Euler legend names the fundamental region's ranges.
 //  Red before the change: no Euler layer, scalar layers painted as a grey ramp with not-indexed points black.
 //
 
+import DiffractoOrientation
 import XCTest
 import TEMCore
 import TEMSession

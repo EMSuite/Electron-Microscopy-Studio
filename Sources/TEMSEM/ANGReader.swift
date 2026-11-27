@@ -11,6 +11,7 @@
 //        Parity: EMStudioTests/ANGReaderTests.swift against ebsd-edax.truth.json (tools/parity/sem-readers/make_edax_fixtures.py).
 //
 
+import DiffractoOrientation
 import Foundation
 import TEMBase
 
@@ -362,7 +363,7 @@ package nonisolated enum ANGReader {
 
     /// `eu2qu` (Rowenhorst et al. 2015, eqs. A.5 and A.6): Bunge (passive Z-X-Z) Euler angles in radians to a unit quaternion with a
     /// non-negative scalar part; orix's `from_euler` default direction (lab to crystal). The orientation core's
-    /// `RotationConversions.eu2qu` (Sources/TEMSEM/Orientation).
+    /// `RotationConversions.eu2qu` (DiffractoKit's DiffractoOrientation).
     package static func quaternion(fromBungeEuler eu: SIMD3<Double>) -> SIMD4<Double> {
         RotationConversions.eu2qu(eu)
     }

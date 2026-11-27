@@ -19,6 +19,7 @@
 //  kikuchipy's x_scale and y_scale (the gnomonic range over N − 1 pixels), so pixel 0 and N − 1 are the detector's gnomonic edges.
 //
 
+import DiffractoOrientation
 import Foundation
 
 package nonisolated struct GeometricalKikuchiSimulation: Sendable, Equatable {

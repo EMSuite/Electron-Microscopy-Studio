@@ -13,6 +13,7 @@
 //  The lines end on the circle of the scan's largest r_max, as kikuchipy's whole-scan `on_detector` (the tutorial's figure).
 //
 
+import DiffractoOrientation
 import Foundation
 import TEMBase
 

@@ -5,6 +5,7 @@
 //  figure bins its directions as it makes them, the same counts as the held array gave.
 //
 
+import DiffractoOrientation
 import Foundation
 import TEMCore
 import XCTest

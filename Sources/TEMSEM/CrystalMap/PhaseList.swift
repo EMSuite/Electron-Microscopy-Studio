@@ -8,6 +8,7 @@
 //  ...) not yet used, in that order; orix continues into the xkcd names after ten phases, the port cycles the ten.
 //
 
+import DiffractoOrientation
 import Foundation
 
 /// orix's `Phase`: one crystal phase of a map.

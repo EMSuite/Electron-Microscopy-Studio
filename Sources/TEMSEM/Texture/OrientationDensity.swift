@@ -23,6 +23,7 @@
 //
 
 import Accelerate
+import DiffractoOrientation
 import Foundation
 import Synchronization
 import TEMBase

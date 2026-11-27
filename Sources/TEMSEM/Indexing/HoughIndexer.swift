@@ -19,6 +19,7 @@
 //  Parity bundles `m4/hough-nickel-block` and `m4/hough-indexing-nickel-large` (north-star figure F8).
 //
 
+import DiffractoOrientation
 import Foundation
 import TEMBase
 

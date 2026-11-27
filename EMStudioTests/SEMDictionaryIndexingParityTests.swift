@@ -16,6 +16,7 @@
 //  signal mask negated, the merge keeping the worst instead of the best, the chunk offset dropped (indices of later chunks wrong).
 //
 
+import DiffractoOrientation
 import Foundation
 import FormatoCore
 import TEMCore

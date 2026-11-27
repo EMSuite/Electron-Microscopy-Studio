@@ -18,6 +18,7 @@
 //  block and every phase run the same path.
 //
 
+import DiffractoOrientation
 import Foundation
 import TEMBase
 

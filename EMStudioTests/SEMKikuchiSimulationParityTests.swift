@@ -10,6 +10,7 @@
 //  coordinates far beyond 1e-6 px or the master pattern beyond rtol 1e-5.
 //
 
+import DiffractoOrientation
 import Foundation
 import TEMCore
 import XCTest

@@ -19,6 +19,7 @@
 //  sampling for every phase of a point group.
 //
 
+import DiffractoOrientation
 import Foundation
 import Observation
 import ShellMetal

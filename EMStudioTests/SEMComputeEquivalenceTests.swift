@@ -6,6 +6,7 @@
 //  The parity suites hold each against its Python reference; these hold the new forms to the old ones, tighter than parity.
 //
 
+import DiffractoOrientation
 import Foundation
 import TEMCore
 import XCTest

@@ -15,6 +15,7 @@
 //        only if no newer map or layer was asked for meanwhile (`generation`); the keys once per Laue group.
 //
 
+import DiffractoOrientation
 import Foundation
 import Observation
 import ShellMetal

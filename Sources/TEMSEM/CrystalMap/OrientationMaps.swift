@@ -11,6 +11,8 @@
 //  steel, atol 1e-6 for the IPF colours, exact for the phase colours), docs/parity.md.
 //
 
+import DiffractoGeometry
+import DiffractoOrientation
 import Foundation
 import TEMBase
 

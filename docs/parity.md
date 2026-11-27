@@ -155,23 +155,12 @@ denoised values differ only where float64 `exp` rounds differently.
 
 ## Orientation maths
 
-orix 0.15.0's quaternion package ported into `Sources/TEMSEM/Orientation/` (P3-01): conventions of Rowenhorst et al.
-(2015), "Consistent representations of and conversions between 3D rotations" (unit quaternions scalar first, passive,
-P = -1, Bunge Euler angles lab to crystal). Bundles from `tools/parity/sem/emit.py`, inputs in
-`tools/parity/sem/fixtures/orientation_inputs.json`, tests in `SEMOrientationParityTests`.
-
-| Function | Reference | Test | Tolerance | Notes |
-| --- | --- | --- | --- | --- |
-| `RotationConversions` (eu2qu, qu2eu, om2qu, qu2om, ax2qu, qu2ax, qu2ho, ho2ax, ax2ro, ro2ax, ho2ro, cu2ho, cu2ro, pyramid) | `orix.quaternion._conversions` (Rowenhorst et al. 2015; cubochoric: Roşca et al. 2014) | `testConversionsFromQuaternionsMatchOrix`, `testEulerAndCubochoricConversionsMatchOrix` | atol 1e-7 | orix has no qu2cu, so neither does the port; Rodrigues-Frank lengths within 1e-3 of a two-fold rotation are +∞ as orix writes them |
-| `Rotation` (`*`, `inverse`, `angle`, `axis`, `angle(with:)`, `absDot`, `angleOuter`, `outer`, `unique`, `fromEuler`/`fromMatrix`/`fromAxisAngle`/`fromHomochoric`/`fromRodrigues` and back) | `orix.quaternion.Rotation`, `Quaternion` | `testCompositionVectorsOuterProductsAndUniqueMatchOrix` | atol 1e-7; `unique` indices exact | products renormalised as orix's constructor does; `angle(with:)` rounds the dot product to 15 decimals and `unique` keys on 12-decimal differentiators, as orix |
-| `PointGroup` (the 38 groups and 2, m, 32; `fromGenerators`, `subgroups`, `properSubgroup`, `laue`, `laueProperSubgroup`, `system`, `eulerFundamentalRegion`, `fundamentalSectorNormals`, `fundamentalZoneNormals`) | `orix.quaternion.symmetry` | `testPointGroupsMatchOrixElementForElement` | elements and normals 1e-10, in orix's order; names exact | rotation axes grouped by their 10-decimal rounding in `axisOrders` where orix compares exactly (D-SEM-35); orix's `fundamental_sector` spells "6m2" for the rotated case, so "-6m2" is not rotated, kept |
-| `OrientationRegion.fromSymmetry`, `contains`, `vertices` | `orix.quaternion.OrientationRegion` | `testOrientationRegionsMatchOrix` | normals 1e-10 | a pair of improper groups without inversion throws as orix raises |
-| `Orientations` (`reduced`, `angles(with:)`, `misorientations(from:)`, `anglesOuter`, `distanceMatrix`), `Misorientations` (`reduced`, `angles`, `distanceMatrix`) | `Orientation.reduce`, `angle_with`, `__sub__`, `angle_with_outer`/`get_distance_matrix` (numba kernels), `Misorientation.reduce`, `get_distance_matrix(lazy=False)` | `testTiOrientationsReduceAndDisorientationsMatchOrix`, `testCubicOrientationsReduceAndDisorientationsMatchOrix` | atol 1e-7 | `angles(with:)` gives 0 where the misorientation is not finite (a zero quaternion either side), as orix's `nan_to_num` does, under any group (an improper element would otherwise give π); `reduce` keeps orix's loop (first `end · M · start` inside the zone of (start, end)); for two different groups that is not always the smallest angle (DiffractoKit's pins document the case), the same as orix; float64 loops, not Accelerate (D-SEM-35) |
-| `Vector3.azimuth`, `polar`, `circle(about:)`; `StereographicProjection` (`vectorToXY`, `vectorToXYSplit`, `xyToVector`) | `Vector3d.azimuth`/`polar`/`get_circle`, `orix.projections.StereographicProjection`, `InverseStereographicProjection` | `testSphericalCoordinatesAndStereographicProjectionMatchOrix` | atol 1e-7 | the hemisphere's vectors only, as orix drops the others |
-| `CrystalLattice`, `Miller` (hkl, uvw, hkil, UVTW, `length`, `rounded`, `roundIndices`) | `orix.crystal_map.Phase` structure alignment (x ∥ a, z ∥ c*), `orix.vector.Miller`, `_round_indices` (MTEX) | `testLatticesAndMillerIndicesMatchOrix` | bases 1e-10; vectors 1e-7; rounded indices exact | the base from the six parameters with diffpy's exact `cosd`, rounded to 12 decimals as orix rounds it |
-| `FundamentalSector` (`vertices`, `center`, `edges`, `stereographicExtent`), `PointGroup.projectToFundamentalSector` | `orix.vector.FundamentalSector`, `Vector3d.in_fundamental_sector` (MTEX `project2FundamentalRegion`) | `testFundamentalSectorsAndProjectionIntoThemMatchOrix`, `testSectorEdgesMatchOrix` | vertices and centres 1e-10; edges 1e-9; projections 1e-7 | orix's sampled centre (four or more vertices, none stated) is reached by no group of its table, so it is not ported |
-| `DirectionColorKeyTSL` (`color(of:)`, `keyImage`), `IPFColorKeyTSL`, `EulerColorKey` | `DirectionColorKeyTSL.direction2color` (Nolze & Hielscher 2016 via MTEX), `IPFColorKeyTSL.orientation2color`, `EulerColorKey.orientation2color`, `Orientation.in_euler_fundamental_region` | `testTSLDirectionColoursMatchOrixForEveryLaueGroup`, `testKeyImagesAreTheExactColoursOnOrixsGrid`, `testEulerColourKeyMatchesOrixForEveryGroup`, `testIPFZColoursOf…` (F6) | RGB 1e-6 | the key image holds the exact colour per pixel where orix interpolates a 2° sampling (up to 0.048 apart, D-SEM-40) |
-| `OrientationSampling` (`semiEdgeSteps`, `cubochoricGrid`, `fundamental`, `local`) | `orix.sampling.get_sample_fundamental`, `get_sample_local`, `_cubochoric_sampling` (cubochoric grid: Roşca, Morawiec and De Graef 2014; resolution to N: Singh and De Graef 2016, eq. 9) | `SEMOrientationSamplingParityTests` (bundle `m3/orientation-sampling`) | counts and N exact; rotations atol 1e-7 in orix's order | orix states no tolerance for sampling, so counts are exact and rows take the orientation core's 1e-7; the bundle keeps every stride-th row of a large sample (D-SEM-48); m-3m 4°/2°/1.5° = 11 935 / 100 347 / 243 129, 6/mmm 4° = 23 809 |
+orix 0.15.0's quaternion package (rotations and their conversions, point groups, orientation regions, orientations and
+misorientations, vectors and the stereographic projection, `CrystalLattice` and `Miller`, fundamental sectors, the TSL and Euler
+colour keys, and orientation sampling) moved to DiffractoKit 0.25.0 with its tests and bundles (#850, DiffractoKit#179):
+`DiffractoOrientation`, `Sources/DiffractoOrientation/Orix/`. DiffractoKit's `docs/parity.md` holds its rows, references and
+tolerances. The app keeps one check, that `ANGReader`'s Bunge Euler conversion is the kit's `RotationConversions.eu2qu`
+(`ANGReaderTests.testANGReadersEulerConversionIsTheKits`, bundle `m3/rotation-conversions`).
 
 ## Crystal map
 
@@ -334,7 +323,7 @@ of the Swift steps matched every bundle: float32 runs within 2.3e-6, the float64
   scalar layers are drawn from their values (`IndexingRaster.scalarPixels`, NaN where a point has none) with the Map Display's
   colormap and window, which change no number.
 - D-SEM-97 (2026-11-07): Compare's disorientation is orix's `angle_with` (not `__sub__`, whose reduce is first-hit across two
-  groups); `SEMOrientationParityTests` also holds `angles(with:)` to orix's cubic `Misorientation.angle`. `angles(with:)` now gives
+  groups); DiffractoKit's `SEMOrientationParityTests` also holds `angles(with:)` to orix's cubic `Misorientation.angle`. `angles(with:)` now gives
   orix's 0 for a zero quaternion under a group with improper elements (it gave π); no shipped caller fed it one. The room's runs
   are kept per method, which changes no number.
 - D-SEM-98 (2026-11-07): the room's dictionary takes every phase on, one dictionary each on one backend, merged per block as

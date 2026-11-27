@@ -10,6 +10,8 @@
 //  inverse in the pole figure, or a missing symmetry element in the ODF: each moves the densities by far more than that.
 //
 
+import DiffractoGeometry
+import DiffractoOrientation
 import TEMCore
 import XCTest
 

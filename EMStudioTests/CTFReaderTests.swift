@@ -8,6 +8,7 @@
 //  test (MACTEM_REAL_DATA=1 with $MACEM_DATA/sem/Ti_orientations.ctf).
 //
 
+import DiffractoOrientation
 import TEMCore
 import XCTest
 

@@ -7,6 +7,7 @@
 //  functions laid out as the room draws them. Red before P5-04: none of these types or the Segment verb exists.
 //
 
+import DiffractoOrientation
 import FormatoCore
 import Foundation
 import TEMCore

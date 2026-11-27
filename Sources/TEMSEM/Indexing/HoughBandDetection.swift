@@ -19,6 +19,7 @@
 //  corner, z out of the screen towards the sample).
 //
 
+import DiffractoOrientation
 import Foundation
 
 package nonisolated struct HoughBandDetector: Sendable {

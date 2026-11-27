@@ -10,6 +10,7 @@
 //  than the tolerance.
 //
 
+import DiffractoOrientation
 import Foundation
 import TEMCore
 import XCTest

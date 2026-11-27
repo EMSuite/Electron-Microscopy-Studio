@@ -11,6 +11,8 @@
 //  Parity: `tools/parity/sem` bundles `m5/texture-ti`, `m5/texture-cubic`, `m5/texture-ti-full` (figure F13).
 //
 
+import DiffractoGeometry
+import DiffractoOrientation
 import Foundation
 
 package nonisolated enum PoleFigures {

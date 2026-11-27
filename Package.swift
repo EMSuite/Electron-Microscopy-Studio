@@ -13,7 +13,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/EMSuite/FormatoKit", from: "0.22.0"),
-        .package(url: "https://github.com/EMSuite/DiffractoKit", from: "0.24.2"),
+        .package(url: "https://github.com/EMSuite/DiffractoKit", from: "0.25.0"),
         .package(url: "https://github.com/EMSuite/ImagoKit", from: "0.12.0"),
         .package(url: "https://github.com/EMSuite/SpectroKit", from: "0.17.2"),
         // The window shell, controls and Metal image view both apps share. TEMSession takes ShellMetal (MetalEngine, ColormapKind); TEMCore and
@@ -48,6 +48,8 @@ let package = Package(
                 .product(name: "FormatoHDF5", package: "FormatoKit"),
                 .product(name: "FormatoTIFF", package: "FormatoKit"),
                 .product(name: "DiffractoCore", package: "DiffractoKit"),
+                .product(name: "DiffractoGeometry", package: "DiffractoKit"),
+                .product(name: "DiffractoOrientation", package: "DiffractoKit"),
                 .product(name: "ImagoCore", package: "ImagoKit"),
                 .product(name: "ImagoFilters", package: "ImagoKit"),
                 .product(name: "SpectroCore", package: "SpectroKit"),

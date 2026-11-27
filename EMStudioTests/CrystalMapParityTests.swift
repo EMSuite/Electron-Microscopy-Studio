@@ -9,6 +9,7 @@
 //  across a row end, a histogram bin closed on the wrong side or a slice that loses its place in the grid.
 //
 
+import DiffractoOrientation
 import TEMCore
 import XCTest
 

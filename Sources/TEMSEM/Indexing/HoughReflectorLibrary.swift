@@ -17,6 +17,7 @@
 //  Parity bundle `m4/hough-library` (docs/parity.md, "Hough indexing").
 //
 
+import DiffractoOrientation
 import Foundation
 
 package nonisolated struct HoughReflectorLibrary: Sendable {

@@ -7,6 +7,7 @@
 //    column, with a column count k divides, gave the ODF only one of its two components.
 //
 
+import DiffractoOrientation
 import Foundation
 import TEMCore
 import XCTest

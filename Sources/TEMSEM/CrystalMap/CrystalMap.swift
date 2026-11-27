@@ -10,6 +10,7 @@
 //  `m3/ti-neighbour-misorientations` / `m3/ti-neighbour-misorientations-full` (figure F7), docs/parity.md.
 //
 
+import DiffractoOrientation
 import Foundation
 
 package nonisolated struct CrystalMap: Sendable, Equatable {

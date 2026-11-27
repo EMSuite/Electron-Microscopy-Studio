@@ -8,6 +8,7 @@
 //
 
 import CryptoKit
+import DiffractoOrientation
 import TEMCore
 import XCTest
 
@@ -251,5 +252,16 @@ nonisolated final class ANGReaderTests: XCTestCase {
         XCTAssertEqual(map.phases.ids, [0, 191])
         XCTAssertEqual(map.phases[id: 0]?.name, "Fe-432-A")
         XCTAssertEqual(map.phases[id: 191]?.name, "Fe-432-\u{100}", "orix's chr(65 + 191)")
+    }
+
+    /// ANGReader's Bunge Euler to quaternion is DiffractoKit's orix conversion, on the bundle's Euler angles (the orix parity of
+    /// the conversion itself moved with the code to DiffractoKit, #850). Mutation: ANGReader's own sign or axis order - red.
+    func testANGReadersEulerConversionIsTheKits() throws {
+        let eu = try SEMParityReference.load("m3/rotation-conversions").array("eu").values
+        XCTAssertFalse(eu.isEmpty)
+        for i in stride(from: 0, to: eu.count, by: 3) {
+            let e = SIMD3(eu[i], eu[i + 1], eu[i + 2])
+            XCTAssertEqual(ANGReader.quaternion(fromBungeEuler: e), RotationConversions.eu2qu(e))
+        }
     }
 }

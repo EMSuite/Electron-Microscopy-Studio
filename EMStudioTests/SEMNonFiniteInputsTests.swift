@@ -8,6 +8,7 @@
 //  `nodes(below:step:)` trapped on a NaN step; `stride(by: 0)` trapped on a result with keepN 0.
 //
 
+import DiffractoOrientation
 import Foundation
 import FormatoCore
 import TEMCore
