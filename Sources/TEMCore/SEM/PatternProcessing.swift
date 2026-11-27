@@ -34,7 +34,6 @@ package nonisolated enum PatternProcessing {
     package enum FilterDomain: String, Sendable, Codable, CaseIterable, Identifiable {
         case frequency, spatial
         package var id: String { rawValue }
-        package var title: String { rawValue.capitalized }
     }
 
     package enum Error: Swift.Error, Equatable, Sendable, LocalizedError {

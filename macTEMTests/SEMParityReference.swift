@@ -28,7 +28,6 @@ nonisolated struct SEMParityReference {
         let atol: Double
         let note: String?
         var count: Int { shape.reduce(1, *) }
-        var isExact: Bool { rtol == 0 && atol == 0 }
     }
 
     struct ScalarEntry: Decodable, Sendable {

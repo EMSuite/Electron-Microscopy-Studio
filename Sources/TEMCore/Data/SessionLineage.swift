@@ -59,13 +59,11 @@ package nonisolated struct SessionLineage: Sendable, Equatable {
 
     // MARK: - Vocabulary
 
-    /// The kinds this build records (`ImageMark.Kind.rawValue`s), and the kinds reserved for later. A kind outside
-    /// both is kept as an opaque node.
+    /// The kinds this build records (`ImageMark.Kind.rawValue`s). Any other kind is kept as an opaque node.
     package nonisolated enum Kind {
         package static let distance = "distance"
         package static let angle = "angle"
         package static let profile = "profile"
-        package static let reserved: Set<String> = ["calibration", "fft", "hrtem_filter", "export"]
     }
 
     /// An edge to a node this one consumed. A mark reads only the source image and has none.
