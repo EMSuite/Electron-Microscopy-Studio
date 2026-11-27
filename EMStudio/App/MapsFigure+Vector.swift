@@ -7,6 +7,7 @@
 //        ShellExport's `FigureRenderer`, with the room's methods record. The PNG stays `MapsFigure.png`.
 //
 
+import DiffractoOrientation
 import Foundation
 import ShellExport
 import TEMCore
