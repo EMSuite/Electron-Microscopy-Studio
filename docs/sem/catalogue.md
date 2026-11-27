@@ -1,8 +1,8 @@
 # SEM feature catalogue
 
 What the open-source SEM stack does, by workflow, with the source we port from, its licence, the paper behind each
-algorithm and the public data it is tested on. Written 2026-11-06 for the SEM program (`plan.md`); the catalogue is the
-list every brief and parity test draws from. A function not in this table is not ported until it is added here with its
+algorithm and the public data it is tested on. Written 2026-11-06 for the SEM program; the catalogue is the
+list every parity test draws from. A function not in this table is not ported until it is added here with its
 four columns.
 
 Versions pinned for the parity environment (`tools/parity/sem`, PyPI on 2026-11-06): kikuchipy 0.13.1, orix 0.15.0,

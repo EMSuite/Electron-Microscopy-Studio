@@ -16,6 +16,10 @@
         {
           "type": "generic",
           "path": "CITATION.cff"
+        },
+        {
+          "type": "generic",
+          "path": "README.md"
         }
       ]
     }

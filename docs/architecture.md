@@ -130,7 +130,7 @@ window shell, controls, inspector kit and Metal image view are the MacEMUI packa
 
 ## The SEM program
 
-EBSD, TKD, SEM images and SEM-EDS (`docs/sem/plan.md`). Its numbers follow the pinned Python SEM stack
+EBSD, TKD, SEM images and SEM-EDS (`docs/sem/north-star.md` names its figures). Its numbers follow the pinned Python SEM stack
 (`tools/parity/sem/requirements.lock`), ported here rather than taken from a kit: decision D-SEM-1 (`docs/decisions.md`) keeps the
 SEM code in `Sources/TEMCore/SEM/` and the `Sources/TEMSession/` owners, over FormatoKit's HDF5 layer and ImagoKit's images,
 with no kit change; a kit move is a later program, once the API has settled. Each file names the module it ports in its
