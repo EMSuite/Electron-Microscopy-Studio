@@ -105,7 +105,7 @@ final class MaterialsProjectPhaseSearch {
             do {
                 let request = try MaterialsProjectOptimade.searchRequest(MaterialsProjectSearch.query(system))
                 let data = try await client.search(request, key: nil)
-                switch try MaterialsProjectOptimade.decodeSearch(data) {
+                switch try await decodeSearch(data) {
                 case .rows(let rows, _): answers.append(.init(system: system, rows: rows))
                 case .noResults: answers.append(.init(system: system, rows: []))
                 case .serviceEmpty: failed.append("\(label): the service answered with no structures")
@@ -138,6 +138,12 @@ final class MaterialsProjectPhaseSearch {
     /// The kit reads an entry off the main actor (the symmetry is found from the atoms).
     @concurrent nonisolated static func read(_ data: Data) async throws -> CrystalStructure {
         try MaterialsProjectOptimade.structure(from: MaterialsProjectOptimade.decodeEntry(data)).structure
+    }
+
+    /// The kit decodes a search answer off the main actor: since DiffractoKit 0.26.0 it detects each row's space group, up to 500
+    /// rows a system, as Add Phase's own decode does (EMSuiteUI#283).
+    @concurrent nonisolated static func decodeSearch(_ data: Data) async throws -> MaterialsProjectOptimade.SearchAnswer {
+        try MaterialsProjectOptimade.decodeSearch(data)
     }
 
     /// Why a request gave nothing, in a few words.

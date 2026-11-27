@@ -1,7 +1,5 @@
-- Diffraction simulation: take a phase from the Materials Project or a CIF and see its spot pattern over the measured one, and its crystal in 3D.
-- Index finds the full orientation of a spot pattern.
-- Tilt planning: a zone-axis map and the α and β that bring a zone axis on, with the holder's tilt axis and β sense calibrated from two patterns.
-- Precipitate variants over the matrix, powder rings and X-ray patterns, and Find Phases to rank which phase explains the rings.
-- HRTEM: a slab from a phase, an image with live defocus and thickness, beside the measured one.
-- CBED with a thickness series, STEM images with detector bands, atom models from XYZ and POSCAR files, thickness from a two-beam CBED disc, and strain maps from a lattice image.
-- Export Figure… writes vector figures; HyperSpy files, CIF and a methods record go out too.
+- EDS: the energy axis is refined from 0.6 keV up, so strong carbon and oxygen lines no longer tilt the gain.
+- Diffraction: unexplained spots are drawn dashed, and exported figures place labels as the room shows them.
+- Simulation documents show the Dynamical beams and keep their hkl labels setting.
+- Add Phase writes formulas as GaAs and names each match's space group.
+- The Results room's divider drags, the Output log stays closed until you open it, and histograms read min, mean and max.
