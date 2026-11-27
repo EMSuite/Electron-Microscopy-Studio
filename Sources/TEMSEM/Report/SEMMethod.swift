@@ -8,6 +8,7 @@
 //        The references are the ones the ported files and docs/parity.md already name; the versions are `SEMReferenceVersions`'.
 //
 
+import DiffractoOrientation
 import Foundation
 
 package nonisolated enum SEMMethod: String, Sendable, Equatable, CaseIterable, Identifiable {

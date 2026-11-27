@@ -13,7 +13,6 @@ EMStudioTests/RoomMemoryTests.swift	Metal	the Metal device's allocated bytes, to
 # SEM: the float32 GPU paths of two numeric ports in TEMCore.
 Sources/TEMSEM/MasterPattern/MasterPatternProjectionMetal.swift	Metal	SEM master pattern projection: the float32 GPU path of a numeric port that lives in TEMCore because the SEM program changes no kit; checked against the float64 CPU path
 Sources/TEMSEM/Indexing/DictionaryIndexingMetal.swift	Metal,MetalPerformanceShaders,+symbols	SEM dictionary indexing: the float32 GPU matrix product (MPSMatrixMultiplication, #624) of a numeric port that lives in TEMCore because the SEM program changes no kit; checked against the float64 CPU path
-Sources/TEMSEM/Texture/OrientationDensity.swift	Accelerate,+symbols	SEM ODF: vForce powers in the float64 kernel density of a numeric port that lives in TEMCore because the SEM program changes no kit (#624)
 Sources/TEMCore/Diffraction/CrystalPaneModel.swift	simd	the crystal pane hands ShellCrystal its cell and orientation as simd_double3x3: the type alone, no numerics (#790)
 
 # Simulation: the orientation matrix DiffractoKit hands over (simd_double3x3) and its columns; no numerics of the app's own.

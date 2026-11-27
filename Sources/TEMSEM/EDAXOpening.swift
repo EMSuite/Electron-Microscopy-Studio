@@ -11,6 +11,7 @@
 //        tilt 70°); with an `.ang`, its `x-star`, `y-star`, `z-star` are a TSL-convention centre, converted to Bruker's.
 //
 
+import DiffractoOrientation
 import Foundation
 
 package nonisolated enum EDAXOpening {
