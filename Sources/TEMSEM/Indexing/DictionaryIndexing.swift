@@ -15,6 +15,7 @@
 //        where the scores do not tie.
 //
 
+import DiffractoOrientation
 import Foundation
 
 package nonisolated enum DictionaryIndexing {

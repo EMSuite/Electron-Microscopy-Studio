@@ -15,6 +15,7 @@
 //        Tests: EBSDH5OxfordMapTests on the planted Fixtures/ebsd-oxford-map*.h5oina (tools/parity/sem-readers/make_h5oina_map_fixtures.py).
 //
 
+import DiffractoOrientation
 import Foundation
 import FormatoCore
 import FormatoHDF5

@@ -132,8 +132,8 @@ nonisolated final class MapsAnalysisTests: XCTestCase {
         let first = try XCTUnwrap(slip.first)
         let row = try XCTUnwrap(analysis.table.first { $0.id == first.grain })
         let set = try XCTUnwrap(MapAnalysis.slipSystems(try XCTUnwrap(files[try XCTUnwrap(row.phaseID)]), phase: try XCTUnwrap(map.phases[id: row.phaseID!])))
-        XCTAssertEqual(first.maximumSchmid, SlipTraceAnalysis.maximumSchmidFactor(orientation: row.orientation, load: Vector3.x, systems: set), accuracy: 1e-12)
-        let traces = SlipTraceAnalysis.traces(orientation: row.orientation, systems: set)
+        XCTAssertEqual(first.maximumSchmid, SlipTraceAnalysis.maximumSchmidFactor(orientation: Rotation(unit: row.orientation), load: Vector3.x, systems: set), accuracy: 1e-12)
+        let traces = SlipTraceAnalysis.traces(orientation: Rotation(unit: row.orientation), systems: set)
         XCTAssertEqual(first.planes.map(\.traceAngle), traces.map(\.angle))
         XCTAssertTrue(slip.allSatisfy { $0.maximumSchmid > 0 && $0.maximumSchmid <= 0.5 + 1e-12 })
         // DefDAP's `add_traces` gives a trace past the colour list the list's last colour (`colours[len(colours) - 1]`), never black: the

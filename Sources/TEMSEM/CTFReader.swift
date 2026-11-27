@@ -22,6 +22,7 @@
 //        (EMStudioTests/Fixtures/sem/oxford, from tools/parity/sem-readers/make_oxford_fixtures.py).
 //
 
+import DiffractoOrientation
 import Foundation
 import TEMBase
 

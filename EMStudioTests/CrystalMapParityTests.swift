@@ -1,6 +1,8 @@
 //
 //  CrystalMapParityTests.swift
-//  TEMCore's crystal map model (Sources/TEMSEM/CrystalMap: `CrystalMap`, `PhaseList`, `NeighbourMisorientation`,
+//  The functions are DiffractoKit's since DiffractoKit#180, which holds their own parity tests; what stays here reads its maps with
+//  the app's readers (ANG, CTF) or draws the room's rasters.
+//  The crystal map model (DiffractoKit's `CrystalMap`, `PhaseList`, `NeighbourMisorientation`,
 //  `AngleHistogram`) against orix 0.15.0 through the bundles `m3/ti-neighbour-misorientations` (a committed 3 x 507 Ti map),
 //  `m3/ti-neighbour-misorientations-full` (figure F7: orix-data's whole 381 x 507 Ti map, a downloaded dataset) and
 //  `m3/crystal-map-sdss` (orix-data's two-phase .ang map, committed as Fixtures/ebsd-sdss-ferrite-austenite.ang).
@@ -24,32 +26,6 @@ nonisolated final class CrystalMapParityTests: XCTestCase {
     private static let ti = CrystalPhase(name: "Ti", spaceGroup: 194, pointGroup: "622", lattice: [2.95, 2.95, 4.68, 90, 90, 120])
 
     // MARK: - F7 on the committed map
-
-    /// The first three rows of orix-data's Ti map (Bunge angles in degrees from fixtures/orientation_inputs.json, x and y on a
-    /// 0.25 µm grid as the file writes them), 622 attached as `orix.data.ti_orientations` attaches it.
-    func testNeighbourMisorientationsOfTheTiHeadMatchOrix() throws {
-        let ref = try SEMParityReference.load("m3/ti-neighbour-misorientations")
-        let degrees = rows3(try ref.array("euler_degrees"))
-        XCTAssertEqual(degrees.count, 3 * 507)
-        let grid = CrystalMap.coordinates(shape: (3, 507), steps: (0.25, 0.25))
-        let map = try CrystalMap(euler: degrees.map { $0 * (.pi / 180) }, phaseIDs: Array(repeating: 1, count: degrees.count), x: grid.x, y: grid.y,
-                                 phaseList: PhaseList([(1, Self.ti)]), scanUnit: "um")
-        XCTAssertEqual(map.shape, [3, 507])
-        XCTAssertEqual(map.dx, 0.25)
-        XCTAssertEqual(map.dy, 0.25)
-
-        let (h, v) = try NeighbourMisorientation.misorientations(of: map)
-        XCTAssertEqual(h.quaternions.count, 1518)
-        XCTAssertEqual(v.quaternions.count, 1014)
-        SEMAssertParity(flat(h.quaternions), try ref.array("horizontal_misorientations"))
-        SEMAssertParity(flat(v.quaternions), try ref.array("vertical_misorientations"))
-        SEMAssertParity(h.angles, try ref.array("horizontal_angles"))
-        SEMAssertParity(v.angles, try ref.array("vertical_angles"))
-
-        let histogram = AngleHistogram(values: try NeighbourMisorientation.anglesDegrees(of: map), edges: NeighbourMisorientation.f7Edges)
-        SEMAssertParity(histogram.edges, try ref.array("edges_degrees"))
-        SEMAssertParity(histogram.counts.map(Double.init), try ref.array("counts"))
-    }
 
     /// Figure F7: the neighbour disorientation angle histogram of orix-data's whole Ti map, counts and edges exact. The 29 MB
     /// file comes through tools/parity/sem/fetch-data.sh (References/sem-data/orix/Ti_orientations.ctf); without it the test
@@ -157,73 +133,4 @@ nonisolated final class CrystalMapParityTests: XCTestCase {
 
     // MARK: - orix's rules without a bundle
 
-    /// A −1 in the phase ids adds `not_indexed` (white, no point group) in front; "indexed" slices it away; a phase list with
-    /// more phases than the data drops the superfluous ones from the top, one with fewer gets free colours, both re-keyed to
-    /// the data's ids (orix's `CrystalMap.__init__`).
-    func testNotIndexedPointsAndPhaseListMatching() throws {
-        let q = Array(repeating: SIMD4<Double>(1, 0, 0, 0), count: 6)
-        let grid = CrystalMap.coordinates(shape: (2, 3))
-        let ni = CrystalPhase(name: "Ni", pointGroup: "m-3m"), fe = CrystalPhase(name: "Fe", pointGroup: "m-3m", color: "tab:orange")
-        let cu = CrystalPhase(name: "Cu", pointGroup: "m-3m", color: "tab:green")
-        let map = try CrystalMap(rotations: q, phaseIDs: [1, -1, 1, 2, 2, -1], x: grid.x, y: grid.y,
-                                 phaseList: PhaseList([(1, ni), (2, fe), (3, cu)]))
-        XCTAssertEqual(map.phases.ids, [-1, 1, 2])
-        XCTAssertEqual(map.phases.names, ["not_indexed", "Ni", "Fe"])
-        XCTAssertEqual(map.phases[id: -1]?.color, "white")
-        XCTAssertNil(map.phases[id: -1]?.pointGroup)
-        XCTAssertEqual(map.isIndexed, [true, false, true, true, true, false])
-        XCTAssertFalse(map.allIndexed)
-        let indexed = map[phase: "indexed"]
-        XCTAssertEqual(indexed.ids, [0, 2, 3, 4])
-        XCTAssertEqual(indexed.phasesInData.ids, [1, 2])
-        XCTAssertEqual(indexed.mapData(named: "phase_id")?.map { $0.isNaN ? -9 : $0 }, [1, -9, 1, 2, 2, -9])
-
-        let renumbered = try CrystalMap(rotations: q, phaseIDs: [0, 0, 0, 4, 4, 4], x: grid.x, y: grid.y, phaseList: PhaseList([(1, ni)]))
-        XCTAssertEqual(renumbered.phases.ids, [0, 4])
-        // orix keeps a listed phase only under its own id: Ni (id 1) is not in the data, so both phases are new and unnamed.
-        XCTAssertEqual(renumbered.phases.names, ["", ""])
-        XCTAssertEqual(renumbered.phases.colors, ["tab:orange", "tab:green"])
-
-        XCTAssertThrowsError(try CrystalMap(rotations: q, phaseIDs: [1, 2])) { error in
-            XCTAssertEqual(error as? CrystalMap.Refusal, .lengthMismatch("phase ids"))
-        }
-    }
-
-    /// A slice keeps its place in the grid (orix's `row`, `col`, `id`), a 1D map without coordinates takes x = 0, 1, 2, ...,
-    /// and a neighbour operation on points that do not fill their rectangle is refused.
-    func testSlicesKeepTheirPlaceAndPartialRectanglesAreRefused() throws {
-        let q = (0..<12).map { i in Rotation.fromAxisAngle(SIMD3(0, 0, 1), Double(i) * 0.01).q }
-        let grid = CrystalMap.coordinates(shape: (3, 4), steps: (2, 2))
-        let map = try CrystalMap(rotations: q, phaseIDs: Array(repeating: 0, count: 12), x: grid.x, y: grid.y,
-                                 phaseList: PhaseList([(0, CrystalPhase(name: "Ni", pointGroup: "m-3m"))]))
-        XCTAssertEqual(map.row, [0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2])
-        let window = map.sliced(rows: 1..<3, columns: 1..<3)
-        XCTAssertEqual(window.ids, [5, 6, 9, 10])
-        XCTAssertEqual(window.row, [0, 0, 1, 1])
-        XCTAssertEqual(window.col, [0, 1, 0, 1])
-        XCTAssertEqual(window.shape, [2, 2])
-        XCTAssertEqual(window.sliced(rows: 1..<2).ids, [9, 10])
-        XCTAssertEqual(window.mapData(named: "phase_id"), [0, 0, 0, 0])
-        let (h, v) = try NeighbourMisorientation.misorientations(of: window)
-        XCTAssertEqual(h.angles.count, 2)
-        XCTAssertEqual(v.angles.count, 2)
-        for a in h.angles { XCTAssertEqual(a, 0.01, accuracy: 1e-12) }
-        for a in v.angles { XCTAssertEqual(a, 0.04, accuracy: 1e-12) }
-
-        let line = try CrystalMap(rotations: Array(q.prefix(5)))
-        XCTAssertEqual(line.shape, [5])
-        XCTAssertEqual(line.x, [0, 1, 2, 3, 4])
-        XCTAssertEqual(try NeighbourMisorientation.misorientations(of: line).vertical.quaternions.count, 0)
-
-        let holed = map.masked([true, true, true, true, true, false, true, true, true, true, true, true])
-        XCTAssertThrowsError(try NeighbourMisorientation.misorientations(of: holed)) { error in
-            XCTAssertEqual(error as? CrystalMap.Refusal, .notARectangle(shape: [3, 4], points: 11))
-        }
-    }
-
-    /// numpy's histogram rule: [e_i, e_i+1), the last bin closed, values outside and NaN left out.
-    func testHistogramBinsAsNumpy() {
-        let h = AngleHistogram(values: [0, 0.5, 1, 1.999, 2, 3, 3.0000001, -0.1, .nan], edges: [0, 1, 2, 3])
-        XCTAssertEqual(h.counts, [2, 2, 2])
-    }
 }

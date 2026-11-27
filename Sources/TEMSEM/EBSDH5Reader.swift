@@ -12,6 +12,7 @@
 //        Every refusal names the file in words a user reads (`EBSDReadError.wrap`): no HDF5 paths, no quoted dataset names.
 //
 
+import DiffractoOrientation
 import Foundation
 import FormatoCore
 import FormatoHDF5

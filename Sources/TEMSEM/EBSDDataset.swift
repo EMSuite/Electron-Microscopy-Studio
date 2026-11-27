@@ -12,6 +12,7 @@
 //        SEM program's parity rows are in docs/parity.md.
 //
 
+import DiffractoOrientation
 import Foundation
 import FormatoCore
 import FormatoHDF5

@@ -17,6 +17,7 @@
 //  (D-SEM-98), on the scores as the run made them (float64 on the CPU, float32 on the GPU), where `merge` takes them as float32.
 //
 
+import DiffractoOrientation
 import Foundation
 
 package nonisolated enum DictionaryMapMerge {

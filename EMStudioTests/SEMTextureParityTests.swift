@@ -1,6 +1,8 @@
 //
 //  SEMTextureParityTests.swift
-//  Pole figures, inverse pole figure densities and ODF sections (Sources/TEMSEM/Texture: `EqualAreaGrid`,
+//  The functions are DiffractoKit's since DiffractoKit#180, which holds their own parity tests; what stays here reads its maps with
+//  the app's readers (ANG, CTF) or draws the room's rasters.
+//  Pole figures, inverse pole figure densities and ODF sections (DiffractoKit's `EqualAreaGrid`,
 //  `PoleDensityFunction`, `PoleFigures`, `OrientationDensity`) against orix 0.15.0 through the committed bundles
 //  `m5/texture-ti` and `m5/texture-cubic`, and figure F13 on orix-data's whole Ti map (`m5/texture-ti-full`, skipped until
 //  tools/parity/sem/fetch-data.sh has fetched it). Tolerances are the bundles' (docs/parity.md): counts exact except that
@@ -122,118 +124,11 @@ nonisolated final class SEMTextureParityTests: XCTestCase {
 
     // MARK: - Grid
 
-    /// orix's equal-area grid at 1° (upper hemisphere): 361 azimuth and 91 polar edges, their stereographic nodes; at 0.5°
-    /// with a sector the same nodes as the 1° grid.
-    func testEqualAreaGridMatchesOrix() throws {
-        let ref = try SEMParityReference.load("m5/texture-cubic")
-        let grid = EqualAreaGrid(resolution: 1)
-        XCTAssertEqual(grid.azimuthEdges.count, 361)
-        XCTAssertEqual(grid.polarEdges.count, 91)
-        XCTAssertEqual(grid.polarEdges.first, 0)
-        XCTAssertEqual(try XCTUnwrap(grid.polarEdges.last), Double.pi / 2, accuracy: 1e-15)
-        let nodes = grid.stereographicNodes
-        SEMAssertParity(nodes.x, try ref.array("grid_x"), shape: [361, 91])
-        SEMAssertParity(nodes.y, try ref.array("grid_y"), shape: [361, 91])
-        SEMAssertParity(nodes.x, try ref.array("ipf_grid_x"))
-        SEMAssertParity(nodes.y, try ref.array("ipf_grid_y"))
-        // numpy's histogramdd edge rule: the last edge belongs to the last bin, outside is nothing.
-        XCTAssertEqual(EqualAreaGrid.bin(2 * Double.pi, edges: grid.azimuthEdges), 359)
-        XCTAssertEqual(EqualAreaGrid.bin(0, edges: grid.azimuthEdges), 0)
-        XCTAssertNil(EqualAreaGrid.bin(Double.pi / 2 + 1e-9, edges: grid.polarEdges))
-    }
-
     // MARK: - Ti (622), figure F13 on the committed orientations
-
-    func testTiPoleFiguresMatchOrix() throws {
-        let ref = try SEMParityReference.load("m5/texture-ti")
-        XCTAssertEqual(ref.values["point_group"] as? String, "622")
-        let o = Orientations.fromEuler(rows3(try ref.array("euler_degrees")), symmetry: PointGroup.d6, degrees: true)
-        XCTAssertEqual(o.count, 2000)
-        for tag in ["0001", "10-10", "11-20"] {
-            try checkPoleFigure(ref, tag: tag, orientations: o, lattice: Self.tiLattice, group: PointGroup.d6h)
-        }
-    }
-
-    func testTiInversePoleFigureDensityMatchesOrix() throws {
-        let ref = try SEMParityReference.load("m5/texture-ti")
-        let o = Orientations.fromEuler(rows3(try ref.array("euler_degrees")), symmetry: PointGroup.d6, degrees: true)
-        try checkInversePoleFigure(ref, orientations: o, laue: PointGroup.d6h)
-    }
-
-    func testTiODFSectionsMatchTheKernelDensity() throws {
-        let ref = try SEMParityReference.load("m5/texture-ti")
-        let o = Orientations.fromEuler(rows3(try ref.array("euler_degrees")), symmetry: PointGroup.d6, degrees: true)
-        let phi1 = OrientationDensity.nodes(below: 360, step: 5), Phi = OrientationDensity.nodes(below: 92.5, step: 5)
-        try checkODF(ref, orientations: o, phi1: phi1, Phi: Phi)
-        // The Maps room's default section grid for 622 is the same one.
-        let r = OrientationDensity.bungeRanges(for: PointGroup.d6)
-        XCTAssertEqual(r.phi1, 360)
-        XCTAssertEqual(r.Phi, 90)
-        XCTAssertEqual(r.phi2, 60)
-        let s = OrientationDensity.section(o, phi2Degrees: 30)
-        XCTAssertEqual(s.phi1Degrees, phi1)
-        XCTAssertEqual(s.PhiDegrees, Phi)
-        SEMAssertParity(s.values, try ref.array("odf_phi2_30"))
-    }
 
     // MARK: - Cubic (m-3m)
 
-    func testCubicPoleFiguresAndInversePoleFigureMatchOrix() throws {
-        let ref = try SEMParityReference.load("m5/texture-cubic")
-        XCTAssertEqual(ref.values["point_group"] as? String, "m-3m")
-        let o = Orientations(quaternions: rows4(try ref.array("quaternions")), symmetry: PointGroup.oh)
-        let cubic = CrystalLattice(a: 1, b: 1, c: 1, alpha: 90, beta: 90, gamma: 90)
-        for tag in ["100", "110", "111"] {
-            try checkPoleFigure(ref, tag: tag, orientations: o, lattice: cubic, group: PointGroup.oh)
-        }
-        try checkInversePoleFigure(ref, orientations: o, laue: PointGroup.oh)
-    }
-
-    func testCubicODFSectionAndItsNormalisation() throws {
-        let ref = try SEMParityReference.load("m5/texture-cubic")
-        let o = Orientations(quaternions: rows4(try ref.array("quaternions")), symmetry: PointGroup.oh)
-        let nodes = OrientationDensity.nodes(below: 92.5, step: 5)
-        try checkODF(ref, orientations: o, phi1: nodes, Phi: nodes)
-        let r = OrientationDensity.bungeRanges(for: PointGroup.oh)
-        XCTAssertEqual([r.phi1, r.Phi, r.phi2], [360, 90, 90])
-
-        // Independent of the formula's parity: the identity alone peaks at C(κ) / 24 at the identity, and the ODF of the
-        // 100 orientations averages 1 mrd over orix's uniform 3° sample of m-3m's fundamental zone.
-        let identity = Orientations(quaternions: [SIMD4(1, 0, 0, 0)], symmetry: PointGroup.oh)
-        let peak = OrientationDensity.values(identity, at: [SIMD4(1, 0, 0, 0)])[0]
-        SEMAssertParity(peak, ref, scalar: "odf_identity_at_identity")
-        let uniform = try OrientationSampling.fundamental(resolution: 3, pointGroup: PointGroup.oh).map(\.q)
-        let values = OrientationDensity.values(o, at: uniform)
-        SEMAssertParity(values.reduce(0, +) / Double(values.count), ref, scalar: "odf_mean_over_uniform_sample")
-    }
-
     // MARK: - Smoothing
-
-    /// scipy's `gaussian_filter` smooths an axis only when its sigma is above 1e-15 and raises on an infinite one: a sigma of 0, −5 and
-    /// NaN return the counts as they are, the default 5° smooths, and the texture refuses an infinite sigma, or one whose kernel passes
-    /// the cap, with one sentence. Red before: sigma 0 filled the map with NaN (a kernel of exp(−∞ · 0)), −5 trapped on the kernel's
-    /// range and NaN in its conversion to `Int`, and the texture's infinite sigma trapped there too.
-    func testSmoothingAtTheEdgesOfSigmaFollowsScipy() throws {
-        let counts = (0..<EqualAreaGrid(resolution: 1).binCount).map { Double($0 % 7) }
-        for sigma in [0, -5, Double.nan] {
-            XCTAssertEqual(PoleDensityFunction.density(counts: counts, sigma: sigma, mrd: false).values, counts, "sigma \(sigma) smooths nothing")
-        }
-        XCTAssertNotEqual(PoleDensityFunction.density(counts: counts, mrd: false).values, counts, "the default 5° smooths")
-        XCTAssertTrue(PoleDensityFunction.smoothingFits(sigma: 512, symmetry: PointGroup.oh), "512° fits the inverse pole figure's 0.5° bins")
-        XCTAssertFalse(PoleDensityFunction.smoothingFits(sigma: 513, symmetry: PointGroup.oh))
-        XCTAssertTrue(PoleDensityFunction.smoothingFits(sigma: 1024), "and 1024° a pole figure's 1° bins")
-
-        let points = CrystalMap.coordinates(shape: (rows: 4, columns: 4), steps: (dy: 1.5, dx: 1.5))
-        let ni = CrystalPhase(name: "Ni", spaceGroup: 225, pointGroup: "m-3m", lattice: [3.524, 3.524, 3.524, 90, 90, 90])
-        let map = try CrystalMap(euler: Array(repeating: SIMD3<Double>(0.1, 0.2, 0.3), count: 16), phaseIDs: Array(repeating: 0, count: 16),
-                                 x: points.x, y: points.y, phaseList: PhaseList([(0, ni)]), scanUnit: "um")
-        let refusal = MapAnalysis.Refusal.grains("The texture's smoothing sigma must be a finite number of degrees, at most 512°.")
-        for sigma in [Double.infinity, 1e6] {
-            XCTAssertThrowsError(try MapTexture.compute(map, phaseID: 0, sigma: sigma), "sigma \(sigma)") { error in
-                XCTAssertEqual(error as? MapAnalysis.Refusal, refusal)
-            }
-        }
-    }
 
     // MARK: - Rasters
 

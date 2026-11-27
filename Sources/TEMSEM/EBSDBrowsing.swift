@@ -7,6 +7,7 @@
 //        numpy's `mean` over the pattern axes.
 //
 
+import DiffractoOrientation
 import Foundation
 import FormatoCore
 import TEMBase

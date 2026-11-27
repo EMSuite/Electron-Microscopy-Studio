@@ -21,6 +21,7 @@
 //        ebsd-h5ebsd-map.truth.json (tools/parity/sem-readers/make_h5ebsd_map_fixtures.py).
 //
 
+import DiffractoOrientation
 import Foundation
 import FormatoCore
 import FormatoHDF5

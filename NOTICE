@@ -65,8 +65,8 @@ rows of orix-data's Ti_orientations.ctf (CC BY 4.0).
 The map pictures of the Maps room (Sources/TEMSEM/CrystalMap/OrientationMaps.swift) follow orix 0.15.0's
 CrystalMap.plot and get_map_data with its IPF colour keys, same copyright and licence.
 
-The crystal map model in Sources/TEMSEM/CrystalMap/ (CrystalMap, PhaseList, CrystalPhase, NeighbourMisorientation)
-is a port of orix 0.15.0's orix.crystal_map package (crystal_map, _phase_list, _phase), Copyright (C) 2018-2026 the orix
+The crystal map model (CrystalMap, PhaseList, CrystalPhase, NeighbourMisorientation), DiffractoKit's DiffractoOrientation since
+2.6.1, is a port of orix 0.15.0's orix.crystal_map package (crystal_map, _phase_list, _phase), Copyright (C) 2018-2026 the orix
 developers, GPL-3.0-or-later, taken under GPL-3.0. Figure F7 is computed on orix-data's Ti_orientations.ctf (CC BY 4.0,
 Krakow et al. 2017), fetched by tools/parity/sem/fetch-data.sh, not committed.
 
@@ -75,7 +75,8 @@ Copyright (C) 2018-2026 the orix developers, GPL-3.0-or-later, taken under GPL-3
 Oxford Instruments Channel Text File layout as orix's ctf reader reads it; its reference, tools/parity/sem/ctf_writer.py,
 uses orix's CrystalMap API (GPL-3.0-or-later).
 
-The texture functions in Sources/TEMSEM/Texture/ (EqualAreaGrid, PoleDensityFunction, PoleFigures) port orix 0.15.0's
+The texture functions (EqualAreaGrid, PoleDensityFunction, PoleFigures, OrientationDensity), DiffractoKit's DiffractoOrientation
+since 2.6.1, port orix 0.15.0's
 orix.measure.pole_density_function, orix.sampling.S2_sampling's equal-area coordinates and the pole symmetrisation of
 orix.vector.miller, Copyright (C) 2018-2026 the orix developers, GPL-3.0-or-later, taken under GPL-3.0; the smoothing is
 scipy.ndimage.gaussian_filter's kernel and boundary modes (SciPy, BSD-3-Clause, Copyright (c) 2001-2002 Enthought, Inc.
@@ -83,8 +84,8 @@ and 2003-2026 SciPy Developers). OrientationDensity (the ODF) implements the ker
 Schaeben (2008), J. Appl. Cryst. 41, 1024, with the de la Vallee Poussin kernel as MTEX defines it (Schaeben 1997); no
 MTEX code is used. Figure F13 is computed on orix-data's Ti_orientations.ctf (CC BY 4.0).
 
-The grain analysis in Sources/TEMSEM/Grains/ (GrainMap, DefDAPSymmetry, GrainBoundaries, GrainSegmentation,
-KernelAverageMisorientation, GrainOrientationStatistics) is a port of DefDAP 1.3.1 (https://github.com/MechMicroMan/DefDAP):
+The grain analysis (GrainMap, DefDAPSymmetry, GrainBoundaries, GrainSegmentation, KernelAverageMisorientation,
+GrainOrientationStatistics), DiffractoKit's DiffractoOrientation since 2.6.1 and part of the app's binary, is a port of DefDAP 1.3.1 (https://github.com/MechMicroMan/DefDAP):
 defdap.ebsd (find_boundaries, find_grains, build_neighbour_network, calc_kam, Grain.calc_average_ori,
 build_mis_ori_list, calc_grod), defdap._accelerated (flood_fill), defdap.quat (create_many_quats, calc_sym_eqvs,
 calc_average_ori, calcMisOri) and the symmetry tables of defdap.crystal. Copyright 2025 Mechanics of Microstructures
@@ -164,7 +165,7 @@ each file's first lines say which functions it derives from and what changed.
 DefDAP (ported code and data)
 ================================================================================
 
-The slip analysis in Sources/TEMSEM/Deformation/ (DefDAPQuat, DefDAPCrystalStructure, SlipSystem, SlipSystemSet,
+The slip analysis, DiffractoKit's DiffractoOrientation since 2.6.1 and part of the app's binary (DefDAPQuat, DefDAPCrystalStructure, SlipSystem, SlipSystemSet,
 SlipPhase, SlipTraceAnalysis, NyeTensor) is a port of DefDAP 1.3.1 (https://github.com/MechMicroMan/DefDAP): defdap.quat,
 defdap.crystal, defdap.crystal_utils and defdap.ebsd (calc_nye, calc_average_ori, calc_average_schmid_factors,
 calc_slip_traces), and SlipSystems.swift carries DefDAP's slip-system files (defdap/slip_systems/*.txt) verbatim.
@@ -217,11 +218,12 @@ Both texts ship in the application bundle at `Contents/Resources/Licenses/` with
 DiffractoKit (a Swift package the app is built with)
 ================================================================================
 
-The app links DiffractoKit (https://github.com/EMSuite/DiffractoKit, tag 0.26.0, commit
-578890634537569cc85e8ea6754abe3b794dbccb), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only, for crystal structures, the CIF
+The app links DiffractoKit (https://github.com/EMSuite/DiffractoKit, tag 0.27.0, commit
+607e8a5dce44e3c10d95b1897d94391f4514a030), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only, for crystal structures, the CIF
 import, kinematic reflection lists, ring and ellipse calibration, the indexing of a measured |q|, simulated spot patterns, double diffraction and
 the orientation of a spot pattern, the two-beam thickness fit, and the SEM rooms' orientation maths (rotations, point groups,
-fundamental sectors, orientation sampling and the IPF colour keys, ported from orix). Its scattering table and lattice conventions are py4DSTEM's (GPL-3.0); pymatgen (MIT) was
+fundamental sectors, orientation sampling and the IPF colour keys, ported from orix; the crystal map, its grains, texture and slip
+analysis, ported from orix and DefDAP). Its scattering table and lattice conventions are py4DSTEM's (GPL-3.0); pymatgen (MIT) was
 its oracle and none of its code is copied. Its own third-party notices are in its NOTICE.
 
 SimulatoKit (a Swift package the app is built with)
