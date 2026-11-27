@@ -13,7 +13,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/EMSuite/FormatoKit", from: "0.22.0"),
-        .package(url: "https://github.com/EMSuite/DiffractoKit", from: "0.25.0"),
+        .package(url: "https://github.com/EMSuite/DiffractoKit", from: "0.26.0"),
         .package(url: "https://github.com/EMSuite/ImagoKit", from: "0.12.0"),
         .package(url: "https://github.com/EMSuite/SpectroKit", from: "0.17.2"),
         // The window shell, controls and Metal image view both apps share. TEMSession takes ShellMetal (MetalEngine, ColormapKind); TEMCore and

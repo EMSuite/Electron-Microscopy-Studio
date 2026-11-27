@@ -6,8 +6,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/EMSuite/DiffractoKit",
       "state" : {
-        "revision" : "9a6af129cdd50160e411fa75aa1a118bdc24d635",
-        "version" : "0.25.0"
+        "revision" : "578890634537569cc85e8ea6754abe3b794dbccb",
+        "version" : "0.26.0"
       }
     },
     {
