@@ -3,8 +3,8 @@
 //  Role: File > Export Figure… in the Diffraction room (#822, plan row X6): the pattern on screen as a figure, PDF or SVG with live
 //        text or PNG at 300 dpi, through `FigureExport.patternScene` (TEMCore): the picture as the room displays it (its log, window,
 //        gamma and colormap), the measured rings and spots with their d, the simulated spots of the zone axis or of Index's
-//        orientation with their hkl (the 60 strongest, `ZoneAxisOverlay.labelled`, with hkl labels not None: the room places its own
-//        on screen since #1045), the centre, and a scale bar in Å⁻¹
+//        orientation with their hkl (the room's `hkl labels` mode, placed so none overprints as on screen, #1045 and #1053), the
+//        centre, and a scale bar in Å⁻¹
 //        from the room's scale. Taken when the panel opens, so the figure is what was on screen then.
 //        A figure carries its key and its spot table (#823, plan row X7): Legend draws one row per kind of mark under the picture, Spot
 //        table the readout's rows (number, family, d, listed d, misfit), a spot's from Index once it has answered (#1148). Edit > Copy Figure, ⌘C on the pattern and its context menu put
@@ -111,13 +111,13 @@ extension ExportSnapshot {
         }
         // The spots the room draws: a Simulation document's Dynamical beams where they are shown (#1157).
         let simulated = (try? item.simulatedSpots(image: image)?.get()) ?? []
-        let labelled = analysis.simulation.showsLabels ? ZoneAxisOverlay.labelled(simulated) : []
+        let mode = analysis.simulation.labelMode
         let overlay = FigureExport.PatternOverlay(centre: analysis.centre.map { ImagePoint(x: $0.column, y: $0.row) }, rings: rings, spots: spots,
-                                                  simulated: simulated, labelled: labelled)
+                                                  simulated: simulated, labelMode: mode)
         var snapshot = DiffractionFigureSnapshot(
             source: source, display: display(canvas: canvas, presentation: item.diffractionView.presentation), overlay: overlay,
             defaultName: imageName(fileName: image.fileName), directory: ExportPanels.defaultFolder(for: item.url),
-            hasLabels: !rows.isEmpty || !labelled.isEmpty, table: FigureExport.tableRows(rows))
+            hasLabels: !rows.isEmpty || (mode != .off && !simulated.isEmpty), table: FigureExport.tableRows(rows))
         if let identity = item.openedIdentity {
             let methodsSource = ExportMethods.source(ExportSource(image: image, software: software), byteCount: Int(identity.byteSize),
                                                      fingerprint: identity.pixelSHA256, kind: "image")

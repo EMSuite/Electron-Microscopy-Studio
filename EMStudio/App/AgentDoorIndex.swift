@@ -360,7 +360,8 @@ extension MacTEMAgentDoor {
             DiffractionPicture.Annulus(centre: ImagePoint(x: $0.column, y: $0.row), inner: view.annulusInner, outer: view.annulusOuter)
         }
         let marks = DiffractionPicture.marks(annulus: annulus, rings: rings, spots: analysis.spots, simulated: simulated,
-                                             labels: analysis.simulation.showsLabels)
+                                             labelMode: analysis.simulation.labelMode,
+                                             centre: analysis.centre.map { ImagePoint(x: $0.column, y: $0.row) })
         do {
             let rendered = try ImageExport.render(source: ExportSource(image: image, software: ExportSnapshot.provenance()),
                                                   display: ExportSnapshot.display(canvas: canvas, presentation: view.presentation),
@@ -391,12 +392,15 @@ nonisolated enum DiffractionPicture {
     /// The points of each annulus edge.
     static let annulusPoints = 128
 
-    /// Simulated spots as cyan rings (hkl on the room's labelled ones when `labels`); the annulus' two edges dashed white; each fitted
+    /// Simulated spots as cyan rings, the hkl on those the room's `hkl labels` mode places (#1053: `HKLLabelPlacement` in the
+    /// picture's pixels, so none overprints, the centre at `centre` kept clear); the annulus' two edges dashed white; each fitted
     /// ring as a yellow outline with its d; then each marked spot with a centre as a yellow ring numbered as the readout and the Spots
     /// table number it.
     static func marks(annulus: Annulus? = nil, rings: [Ring] = [], spots: [MeasuredSpot], simulated: [ZoneAxisOverlay.Spot],
-                      labels: Bool) -> [ImageExport.Mark] {
-        let labelled = labels ? Set(ZoneAxisOverlay.labelled(simulated).map(\.hkl)) : []
+                      labelMode: HKLLabelMode, centre: ImagePoint? = nil) -> [ImageExport.Mark] {
+        let labelled = Set(HKLLabelPlacement.place(simulated, mode: labelMode, point: { SIMD2($0.column, $0.row) },
+                                                   radius: { 3 + 6 * $0.relative.squareRoot() },
+                                                   beam: centre.map { SIMD2($0.x, $0.y) }).map(\.spot.hkl))
         var out = simulated.map { s in
             ImageExport.Mark(kind: .simulatedSpot, points: [ImagePoint(x: s.column, y: s.row)], width: 1,
                              label: labelled.contains(s.hkl) ? s.label : "")

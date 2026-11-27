@@ -32,6 +32,9 @@ package nonisolated enum HKLLabelPlacement {
     /// The half-side of the central beam's mark (the centre's cross), points.
     package static let beamMarkHalfSide = 8.0
 
+    /// The room's caption font size, points, which `estimatedLabelSize` measures in.
+    package static let captionSize = 10.0
+
     /// A label's box in the room's caption font, points: about 6.5 a character (an index's bar rides on its digit) and one line.
     package static func estimatedLabelSize(_ label: String) -> SIMD2<Double> { SIMD2(6.5 * Double(label.count) + 2, 14) }
 

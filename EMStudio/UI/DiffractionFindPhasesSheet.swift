@@ -210,10 +210,10 @@ struct DiffractionPhaseTable: View {
         Table(result.rows, selection: $selection) {
             TableColumn("Phase") { row in Text(row.name) }.width(min: 60, ideal: 90)
             TableColumn("Formula") { row in Text(row.formula) }.width(min: 50, ideal: 70)
-            TableColumn("Space group") { row in Text(row.spaceGroup) }.width(min: 60, ideal: 80)
+            TableColumn("Space Group") { row in Text(row.spaceGroup) }.width(min: 60, ideal: 80)
             TableColumn("Explains") { row in Text(DiffractionPhaseText.explains(row)).monospacedDigit() }
                 .width(min: 70, ideal: 90)
-            TableColumn("Strong not seen") { row in Text(DiffractionPhaseText.strongMissing(row)).monospacedDigit() }
+            TableColumn("Strong Not Seen") { row in Text(DiffractionPhaseText.strongMissing(row)).monospacedDigit() }
                 .width(min: 60, ideal: 80)
             TableColumn("Misfit") { row in Text(DiffractionPhaseText.misfit(row)).monospacedDigit() }.width(min: 50, ideal: 60)
             TableColumn("Scale") { row in Text(DiffractionPhaseText.scale(row, fitScale: result.fitScale)).monospacedDigit() }

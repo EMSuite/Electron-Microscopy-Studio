@@ -328,7 +328,7 @@ struct MapsSlipTable: View {
                                 Text(verbatim: plane.plane).monospaced()
                             }
                         }
-                        TableColumn("Schmid factor", value: \.schmid) { Text(MapsRoomFormat.fraction($0.schmid)).monospacedDigit() }
+                        TableColumn("Schmid Factor", value: \.schmid) { Text(MapsRoomFormat.fraction($0.schmid)).monospacedDigit() }
                         TableColumn(SEMColumnSpeech.header("Trace °"), value: \.traceOrder) { Text($0.traceText()).monospacedDigit() }
                         TableColumn("Colour", value: \.colourWord)
                         TableColumn(SEMColumnSpeech.header("Inclined °"), value: \.inclinationDegrees) {
