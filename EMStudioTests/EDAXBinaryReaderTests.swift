@@ -126,13 +126,16 @@ nonisolated final class EDAXBinaryReaderTests: XCTestCase {
         let rows = ["0.1 0.2 0.3 0 0 100.0 0.5 1 1000 0.5", "0.1 0.2 0.3 nan 0 100.0 0.5 1 1000 0.5"]
         let ang = folder.appendingPathComponent("scan.ang")
         try (header + rows).joined(separator: "\n").appending("\n").write(to: ang, atomically: true, encoding: .utf8)
-        XCTAssertThrowsError(try ANGReader.read(url: ang).map.crystalMap()) { error in
-            XCTAssertEqual(error as? CrystalMap.Refusal, .coordinates("x holds a value that is not a finite number"))
+        // FormatoKit 0.23.1 refuses the columns as it reads them, naming the file.
+        XCTAssertThrowsError(try ANGReader.read(url: ang)) { error in
+            XCTAssertEqual((error as? EBSDReadError)?.reason, .unreadable)
+            XCTAssertEqual((error as? EBSDReadError)?.text,
+                           "scan.ang: the crystal map's coordinates make no grid: x holds a value that is not a finite number.")
         }
         let scan = try EDAXOpening.open(url: up2)
         XCTAssertNil(scan.crystalMap)
         XCTAssertEqual([scan.scanRows, scan.scanColumns], [3, 4])
-        XCTAssertEqual(scan.notes, ["scan.ang next to it was not read: The crystal map's coordinates make no grid: x holds a value that is not "
+        XCTAssertEqual(scan.notes, ["scan.ang next to it was not read: the crystal map's coordinates make no grid: x holds a value that is not "
             + "a finite number."])
         XCTAssertEqual(try EBSDOpening.open(url: up2).dataset, scan)
         XCTAssertThrowsError(try EDAXOpening.open(url: ang), "the map opened itself keeps failing")

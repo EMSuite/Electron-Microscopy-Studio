@@ -68,6 +68,12 @@ package nonisolated enum EDAXOpening {
             } catch let error as ANGReadError where mapURL != url {
                 // The companion is not the map it should be: the patterns open on their own, with the reason.
                 notes.append("\(mapURL.lastPathComponent) next to it was not read: \(error.text)")
+            } catch let refusal as EBSDReadError where mapURL != url {
+                // FormatoKit refuses columns that make no map as it reads them (an x or y that is not a number, more cells than a map
+                // spans): the same, in its words without the file's name it leads with.
+                let name = "\(mapURL.lastPathComponent): "
+                let why = refusal.text.hasPrefix(name) ? String(refusal.text.dropFirst(name.count)) : refusal.text
+                notes.append("\(mapURL.lastPathComponent) next to it was not read: \(why)")
             } catch let refusal as CrystalMap.Refusal where mapURL != url {
                 // Its coordinates make no grid (an x or y that is not a number, a jittered step, more cells than a map spans): the same.
                 notes.append("\(mapURL.lastPathComponent) next to it was not read: \(refusal.localizedDescription)")

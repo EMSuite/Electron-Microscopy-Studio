@@ -45,13 +45,16 @@ nonisolated final class CrystalMapCoordinateTests: XCTestCase {
         XCTAssertEqual(refusal(x: [0, 1e-6, 1000], y: [0, 0, 1]), .coordinates("they span more than 268435456 grid cells"))
     }
 
-    /// An ASTAR `.ctf` with a NaN x: the coordinates are left as read and the map refuses them.
+    /// An ASTAR `.ctf` with a NaN x: the coordinates are left as read and refused as no grid, by FormatoKit as it reads them (0.23.1)
+    /// in the words the map's refusal uses.
     func testAnASTARFileWithANaNCoordinateIsRefused() {
         let text = "Channel Text File\nAuthor\tFile created from ACOM RES results\nXCells\t2\nYCells\t2\nXStep\t1\nYStep\t1\n" +
             "Phases\t1\n3.6;3.6;3.6\t90;90;90\tNi\t11\t225\nPhase\tX\tY\tBands\tError\tEuler1\tEuler2\tEuler3\tMAD\tBC\tBS\n" +
             "1 0 0 1 0 1 2 3 0 0 0\n1 nan 0 1 0 1 2 3 0 0 0\n1 0 1 1 0 1 2 3 0 0 0\n1 1 1 1 0 1 2 3 0 0 0\n"
         XCTAssertThrowsError(try CTFReader.read(text: text).map.crystalMap()) { error in
-            XCTAssertEqual(error as? CrystalMap.Refusal, .coordinates("x holds a value that is not a finite number"))
+            XCTAssertEqual((error as? EBSDReadError)?.reason, .unreadable, "\(error)")
+            XCTAssertTrue((error as? EBSDReadError)?.text.hasSuffix("the crystal map's coordinates make no grid: x holds a value that is not a "
+                                                                    + "finite number.") ?? false, "\(error)")
         }
     }
 
