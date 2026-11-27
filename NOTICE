@@ -192,8 +192,8 @@ sdss_ferrite_austenite.ang (both CC BY 4.0).
 SpectroKit (a Swift package the app is built with)
 ================================================================================
 
-The app links SpectroKit (https://github.com/EMSuite/SpectroKit, tag 0.17.1, commit
-025c564450cd3ce00ebcc06e81b7d73af8b6f1a9), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only, for the EDS and EELS rooms: the spectrum image, line
+The app links SpectroKit (https://github.com/EMSuite/SpectroKit, tag 0.17.2, commit
+bfebaecc0ab5c83fb6d66ea120a8fbdbdb54511f), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only, for the EDS and EELS rooms: the spectrum image, line
 windows and maps, Auto ID, the pooled Cliff-Lorimer quantification, and the EELS alignment, thickness and edge fits. The app embeds its resource bundle
 `SpectroKit_SpectroEDX.bundle` in Contents/Resources: the NIST EPQ mass-absorption, line-weight, ionisation cross-section and Krause fluorescence-yield
 tables, with the terms and citations in SpectroKit's NOTICE, which applies to them here. For the EELS room it embeds `SpectroKit_SpectroEELS.bundle`: the
@@ -205,8 +205,8 @@ table eXSpy uses, values unchanged (SpectroKit's NOTICE). Its eXSpy/HyperSpy and
 FormatoKit (a Swift package the app is built with)
 ================================================================================
 
-The app links FormatoKit (https://github.com/EMSuite/FormatoKit, tag 0.20.0, commit
-5d1f0a69fcbebf09c3b57711ffce3863e2a29c80), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only, for its DM3/DM4, Velox EMD, TIFF,
+The app links FormatoKit (https://github.com/EMSuite/FormatoKit, tag 0.22.0, commit
+347b88382f544cd9bd7e7ceb431d8784eb32a980), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only, for its DM3/DM4, Velox EMD, TIFF,
 MRC and TIA readers and its HDF5 layer, which SpectroKit held until 0.4.0, including the root-attribute file layer
 (`HDF5RootAttributes`) the session sidecar is written and read through since FormatoKit 0.5.0: it was this app's own HDF5 binding (an adapted
 copy of mac4DSTEM's BraggVectorEMDWriter binding), moved into the kit, and the app no longer carries a copy. Its own third-party notices
@@ -238,8 +238,8 @@ its oracle and none of its code is copied. Its own third-party notices are in it
 SimulatoKit (a Swift package the app is built with)
 ================================================================================
 
-The app links SimulatoKit (https://github.com/EMSuite/SimulatoKit, tag 0.7.0, commit
-d18a9c18582a2ea4f96f1c71f398bd919aaf9c6c), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only, for the Simulation document's specimen (a crystal
+The app links SimulatoKit (https://github.com/EMSuite/SimulatoKit, tag 0.8.1, commit
+563424559fb26437d7a3692a8432489e24bc6b47), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only, for the Simulation document's specimen (a crystal
 along a zone axis built into an orthogonal slab), the multislice, the HRTEM image, the CBED pattern and the STEM image. Its algorithms are ported from abTEM
 (GPL-3.0), its reference; its third-party notices, abTEM's among them, are in its NOTICE.
 
@@ -247,8 +247,8 @@ along a zone axis built into an orthogonal slab), the multislice, the HRTEM imag
 ImagoKit (a Swift package the app is built with)
 ================================================================================
 
-The app links ImagoKit (https://github.com/EMSuite/ImagoKit, tag 0.11.0, commit
-4af4d49816d6d0fa55975faba48c403a2ac9240f), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only, for the exact-length 2D FFT, the
+The app links ImagoKit (https://github.com/EMSuite/ImagoKit, tag 0.12.0, commit
+ef3a9ca67ff0f851c7a7eec44d68ec9d3f93368e), Copyright (C) 2026 Paul Lobpreis, GPL-3.0-only, for the exact-length 2D FFT, the
 centred power spectrum, the radial profile, the spot spacing, the masked inverse FFT, the HRTEM filters, line profiles and the
 histogram. Its references are NumPy, SciPy and scikit-image; none of their code is copied. Its own notices are in its NOTICE.
 

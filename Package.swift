@@ -12,15 +12,15 @@ let package = Package(
         .library(name: "TEMSession", targets: ["TEMSession"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/EMSuite/FormatoKit", from: "0.20.0"),
+        .package(url: "https://github.com/EMSuite/FormatoKit", from: "0.22.0"),
         .package(url: "https://github.com/EMSuite/DiffractoKit", from: "0.24.2"),
-        .package(url: "https://github.com/EMSuite/ImagoKit", from: "0.11.0"),
-        .package(url: "https://github.com/EMSuite/SpectroKit", from: "0.17.1"),
+        .package(url: "https://github.com/EMSuite/ImagoKit", from: "0.12.0"),
+        .package(url: "https://github.com/EMSuite/SpectroKit", from: "0.17.2"),
         // The window shell, controls and Metal image view both apps share. TEMSession takes ShellMetal (MetalEngine, ColormapKind); TEMCore and
         // TEMSession take ShellEDXModel (the shared EDS room; the EELS room reuses its regions and pins).
         .package(url: "https://github.com/EMSuite/EMSuiteUI", from: "0.20.1"),
         // The Simulation document's specimen and HRTEM image (2.5): the slab builder, the multislice and the transfer function.
-        .package(url: "https://github.com/EMSuite/SimulatoKit", from: "0.7.0"),
+        .package(url: "https://github.com/EMSuite/SimulatoKit", from: "0.8.1"),
     ],
     targets: [
         .target(
