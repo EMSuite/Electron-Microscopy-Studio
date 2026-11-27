@@ -138,11 +138,14 @@ nonisolated final class FigureExportTests: XCTestCase {
     /// Strongest at most `strongestCap`, All more, and no two of the label boxes meet. Mutation: the 60-strongest rule back, the
     /// mode ignored, or the labels drawn at a fixed offset with no placement - red.
     func testAPatternFiguresHKLLabelsFollowTheModeAndNeverMeet() throws {
-        let simulated = (0..<40).map { i in
-            ZoneAxisOverlay.Spot(hkl: MillerIndex(i + 1, 0, 0), row: 128, column: 20 + 6 * Double(i), intensity: Double(40 - i),
-                                 relative: Double(40 - i) / 40)
+        var simulated: [ZoneAxisOverlay.Spot] = []
+        for i in 0..<40 {
+            let strength = Double(40 - i)
+            let column = 20.0 + 6.0 * Double(i)
+            simulated.append(ZoneAxisOverlay.Spot(hkl: MillerIndex(i + 1, 0, 0), row: 128, column: column, intensity: strength,
+                                                  relative: strength / 40))
         }
-        let labels = Set(simulated.map(\.label))
+        let labels = Set(simulated.map { (spot: ZoneAxisOverlay.Spot) -> String in spot.label })
         func hklTexts(_ mode: HKLLabelMode) throws -> [FigureText] {
             let overlay = FigureExport.PatternOverlay(centre: nil, rings: [], spots: [], simulated: simulated, labelMode: mode)
             let made = try FigureExport.patternScene(source: source(), display: display(), overlay: overlay, scaleBar: false, labels: true,
@@ -159,10 +162,12 @@ nonisolated final class FigureExportTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(all.count, strongest.count)
         XCTAssertLessThan(all.count, simulated.count, "6 px apart, not every label has room")
         for texts in [strongest, all] {
-            let scale = FigureStyle(width: .mm90).typeSize / HKLLabelPlacement.captionSize
-            let boxes = texts.map { t -> (low: SIMD2<Double>, high: SIMD2<Double>) in
-                let low = SIMD2(t.origin.x, t.origin.y - FigureStyle(width: .mm90).typeSize)
-                return (low, low + HKLLabelPlacement.estimatedLabelSize(t.string) * scale)
+            let typeSize: Double = FigureStyle(width: .mm90).typeSize
+            let scale: Double = typeSize / HKLLabelPlacement.captionSize
+            let boxes = texts.map { (t: FigureText) -> (low: SIMD2<Double>, high: SIMD2<Double>) in
+                let low = SIMD2<Double>(Double(t.origin.x), Double(t.origin.y) - typeSize)
+                let size: SIMD2<Double> = HKLLabelPlacement.estimatedLabelSize(t.string) * scale
+                return (low: low, high: low + size)
             }
             for i in boxes.indices { for j in boxes.indices where j > i { XCTAssertFalse(HKLLabelPlacement.meet(boxes[i], boxes[j])) } }
         }
