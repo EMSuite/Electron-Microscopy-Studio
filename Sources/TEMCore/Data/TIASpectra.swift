@@ -27,7 +27,6 @@ import Foundation
 import FormatoCore
 import FormatoTIA
 import SpectroCore
-import TEMBase
 import TEMSEM
 
 package nonisolated enum TIASpectra {

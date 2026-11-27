@@ -7,7 +7,6 @@
 //
 
 import Foundation
-import TEMBase
 
 package nonisolated struct FundamentalSector: Sendable {
     /// The point group's name, which picks `in_fundamental_sector`'s special cases.

@@ -11,7 +11,6 @@
 //
 
 import Foundation
-import TEMBase
 
 package nonisolated struct CrystalMap: Sendable, Equatable {
     package enum Refusal: Error, Equatable, Sendable, LocalizedError {

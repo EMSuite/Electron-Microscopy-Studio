@@ -8,7 +8,6 @@
 //
 
 import Foundation
-import TEMBase
 
 /// Crystal directions or plane normals in a lattice: Cartesian vectors in the crystal frame with the index notation they
 /// were given in (orix's `coordinate_format`).

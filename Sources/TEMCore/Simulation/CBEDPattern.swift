@@ -26,7 +26,6 @@ import SimulatoCore
 import SimulatoMultislice
 import SimulatoProbe
 import TEMBase
-import TEMSEM
 
 /// What a CBED run is asked for. The defaults: 100 nm in steps of 2 nm, 0.5 mrad per pixel, a 50 mrad edge. The sampling is the
 /// kit's rule, the smaller of 0.05 Å and λ / 3β, so at 200 kV it is 0.05 Å whatever the edge, and the grid grows as the square of

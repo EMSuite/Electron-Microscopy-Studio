@@ -7,7 +7,6 @@
 //
 
 import Foundation
-import TEMBase
 
 package nonisolated enum SEMReportMarkdown {
     /// The report's text. `directory` is the folder the report is written into (nil: unknown, every figure is linked by its file URL).

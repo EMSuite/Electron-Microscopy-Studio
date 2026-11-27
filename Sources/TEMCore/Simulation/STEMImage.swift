@@ -22,7 +22,6 @@ import SimulatoDetector
 import SimulatoMultislice
 import SimulatoProbe
 import TEMBase
-import TEMSEM
 
 /// An annular band of the detector, mrad.
 package nonisolated struct STEMBand: Sendable, Equatable, Hashable {

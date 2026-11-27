@@ -12,7 +12,6 @@
 //
 
 import Foundation
-import TEMBase
 
 package nonisolated enum EDAXOpening {
     package static let readableExtensions = EDAXBinaryReader.readableExtensions + ANGReader.readableExtensions

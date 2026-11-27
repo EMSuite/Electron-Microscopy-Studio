@@ -11,7 +11,6 @@
 //
 
 import Foundation
-import TEMBase
 
 package nonisolated enum NORDIFBitmap {
     /// Pixels in row-major order, the top row first.

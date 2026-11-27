@@ -21,7 +21,6 @@
 //
 
 import Foundation
-import TEMBase
 
 /// DefDAP's `find_boundaries`: per point the misorientation angle with its right (x) and lower (y) neighbour, and the
 /// boundary images (a point is marked when the edge to its right / lower neighbour is a boundary).

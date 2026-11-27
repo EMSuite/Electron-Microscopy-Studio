@@ -13,8 +13,6 @@ import Foundation
 import DiffractoCore
 import DiffractoGeometry
 import DiffractoOrientation
-import TEMBase
-import TEMSEM
 
 /// One side of a parallel pair: a plane (h k l) or a direction [u v w] of one crystal. Codable, for the document.
 package nonisolated struct RelationshipVector: Sendable, Codable, Equatable, Hashable {

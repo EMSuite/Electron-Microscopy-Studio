@@ -18,7 +18,6 @@
 //
 
 import Foundation
-import TEMBase
 
 /// orix's equal-area sampling of the sphere in (azimuth, polar) bin edges: `4D` azimuth steps over 2π and `D` steps of
 /// equal cos(polar) over a hemisphere, D = ceil(90 / resolution).

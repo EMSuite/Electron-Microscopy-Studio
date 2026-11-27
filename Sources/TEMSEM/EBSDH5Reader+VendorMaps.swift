@@ -24,7 +24,6 @@
 import Foundation
 import FormatoCore
 import FormatoHDF5
-import TEMBase
 
 nonisolated extension EBSDH5Reader {
     /// The map of the first scan of the Bruker, EDAX or EMsoft file at `url`, in `layout`. Reads the whole map; run it off the main

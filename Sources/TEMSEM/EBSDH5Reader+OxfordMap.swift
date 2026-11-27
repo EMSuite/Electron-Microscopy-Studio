@@ -18,7 +18,6 @@
 import Foundation
 import FormatoCore
 import FormatoHDF5
-import TEMBase
 
 nonisolated extension EBSDH5Reader {
     /// The datasets an H5OINA scan keeps its patterns in (kikuchipy's `pattern_dataset_names`).

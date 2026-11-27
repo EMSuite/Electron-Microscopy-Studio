@@ -13,8 +13,6 @@
 // The rule counts stored bytes: a compressed HyperSpy cube or a sparse Velox EDS stream holds more once read; the size table's rows
 // are what to trust for those.
 import Foundation
-import TEMBase
-import TEMSEM
 
 package nonisolated enum RoomSizeRule {
     /// A room that reads a file whole.

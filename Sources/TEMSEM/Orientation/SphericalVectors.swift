@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import TEMBase
 
 extension Vector3 {
     /// `Vector3d.azimuth`: atan2(y, x) in [0, 2π), each of x and y set to 0 first where it is within numpy's `isclose`

@@ -20,7 +20,6 @@
 import DiffractoCore
 import Foundation
 import TEMBase
-import TEMSEM
 
 package nonisolated enum CBEDTilt {
     /// The largest tilt a CBED run simulates, mrad (2.9°). abTEM's tilt is a phase ramp on the Fresnel propagator of slices

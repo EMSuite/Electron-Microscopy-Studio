@@ -9,7 +9,6 @@
 //
 
 import Foundation
-import TEMBase
 
 package nonisolated enum SEMMethod: String, Sendable, Equatable, CaseIterable, Identifiable {
     case patternReading

@@ -16,7 +16,6 @@ import CoreGraphics
 import CoreText
 import Foundation
 import ImageIO
-import TEMBase
 
 package nonisolated enum SEMReportPDF {
     /// A4, in points.

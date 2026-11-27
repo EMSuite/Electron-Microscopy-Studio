@@ -14,7 +14,6 @@ import FormatoHSPY
 import ImagoCore
 import SpectroCore
 import TEMBase
-import TEMSEM
 
 package nonisolated enum HyperSpyOpening {
     /// The experiments of the file at `path`, each with what it holds or why the kit's reader refuses it; no data read.

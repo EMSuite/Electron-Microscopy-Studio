@@ -20,7 +20,6 @@
 //
 
 import Foundation
-import TEMBase
 
 package nonisolated enum NyeTensor {
     /// How the x and y lattice-curvature derivatives enter the Nye tensor.

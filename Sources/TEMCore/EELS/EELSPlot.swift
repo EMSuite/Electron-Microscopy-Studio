@@ -6,8 +6,6 @@ import Foundation
 import SpectroCore
 import SpectroEELS
 import ShellEDXModel
-import TEMBase
-import TEMSEM
 
 /// One spectrum on its own energy axis.
 package nonisolated struct EELSPlotCurve: Equatable, Sendable {

@@ -13,7 +13,6 @@
 
 import Foundation
 import FormatoCore
-import TEMBase
 
 package nonisolated struct NORDIFScan: Equatable, Sendable {
     package var settings: NORDIFSettings

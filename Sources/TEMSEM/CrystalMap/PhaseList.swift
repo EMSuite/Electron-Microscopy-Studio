@@ -9,7 +9,6 @@
 //
 
 import Foundation
-import TEMBase
 
 /// orix's `Phase`: one crystal phase of a map.
 package nonisolated struct CrystalPhase: Sendable, Equatable {

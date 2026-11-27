@@ -12,7 +12,6 @@
 //
 
 import Foundation
-import TEMBase
 
 package nonisolated struct PatternWindow: Sendable, Equatable {
     package enum Error: Swift.Error, Equatable, Sendable, LocalizedError {

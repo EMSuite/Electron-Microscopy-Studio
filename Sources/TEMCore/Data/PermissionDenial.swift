@@ -6,8 +6,6 @@
 //
 
 import Foundation
-import TEMBase
-import TEMSEM
 
 package nonisolated enum PermissionDenial {
     /// The POSIX codes that mean the system refused access.

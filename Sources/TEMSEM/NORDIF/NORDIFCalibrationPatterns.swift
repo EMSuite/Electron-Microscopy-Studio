@@ -18,7 +18,6 @@
 
 import Foundation
 import FormatoCore
-import TEMBase
 
 package nonisolated struct NORDIFCalibrationPatterns: Equatable, Sendable {
     package struct Point: Equatable, Sendable {

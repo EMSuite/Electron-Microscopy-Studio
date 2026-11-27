@@ -10,7 +10,6 @@
 
 import Foundation
 import FormatoCore
-import TEMBase
 
 /// `count` patterns of `pixels` values each, row-major one after the other, little-endian at `dataType` (C order, as
 /// `FormatoArray` holds them).

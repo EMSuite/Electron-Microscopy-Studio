@@ -13,7 +13,6 @@
 //
 
 import Foundation
-import TEMBase
 
 /// orix's `OrientationRegion`: the region of rotations closer to the identity than to any symmetrically equivalent
 /// rotation, bounded by planes through the origin of quaternion space with these unit normals.

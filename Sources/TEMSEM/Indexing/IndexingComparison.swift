@@ -19,7 +19,6 @@
 //
 
 import Foundation
-import TEMBase
 
 package nonisolated struct IndexingComparison: Sendable {
     package enum Refusal: Error, Equatable, Sendable, LocalizedError {

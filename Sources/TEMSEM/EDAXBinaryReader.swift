@@ -12,7 +12,6 @@
 
 import Foundation
 import FormatoCore
-import TEMBase
 
 /// The header of an EDAX `.up1`/`.up2` file, and where its patterns are.
 package nonisolated struct EDAXBinaryFile: Sendable, Equatable {

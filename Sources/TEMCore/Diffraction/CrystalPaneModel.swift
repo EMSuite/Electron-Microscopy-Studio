@@ -12,8 +12,6 @@
 import Foundation
 import simd
 import DiffractoCore
-import TEMBase
-import TEMSEM
 
 package nonisolated enum CrystalPaneModel {
 

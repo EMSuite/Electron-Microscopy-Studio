@@ -8,7 +8,6 @@ import FormatoCore
 import FormatoTIFF
 import ImagoCore
 import TEMBase
-import TEMSEM
 
 /// A security scope held until it is released (or the holder goes): `start` once at the open, `stop` once at the release. Injected so a
 /// test can count both.

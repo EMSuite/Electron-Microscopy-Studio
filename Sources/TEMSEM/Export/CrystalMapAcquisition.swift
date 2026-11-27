@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import TEMBase
 
 package nonisolated struct CrystalMapAcquisition: Sendable, Equatable {
     /// The pattern centre in EDAX TSL's convention (x*, y*, z*), as the .ang header states it.

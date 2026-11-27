@@ -12,7 +12,6 @@
 
 import DiffractoCore
 import Foundation
-import TEMBase
 
 package nonisolated struct IndexingPhase: Sendable, Equatable, Identifiable, Codable {
     /// Where the phase came from.

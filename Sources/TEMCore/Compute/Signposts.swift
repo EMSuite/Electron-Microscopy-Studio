@@ -8,8 +8,6 @@
 //
 
 import os
-import TEMBase
-import TEMSEM
 
 package enum Signposts {
     package static let subsystem = "com.mac4dstem.macTEM"

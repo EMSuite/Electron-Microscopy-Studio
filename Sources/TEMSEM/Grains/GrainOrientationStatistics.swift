@@ -21,7 +21,6 @@
 //
 
 import Foundation
-import TEMBase
 
 package nonisolated enum KernelAverageMisorientation {
     package enum Method: Sendable, Equatable {

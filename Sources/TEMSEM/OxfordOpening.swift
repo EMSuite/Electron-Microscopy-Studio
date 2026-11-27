@@ -7,7 +7,6 @@
 //
 
 import Foundation
-import TEMBase
 
 package nonisolated enum OxfordOpening {
     package static let patternExtensions = ["ebsp"]

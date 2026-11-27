@@ -16,7 +16,6 @@
 
 import Foundation
 import FormatoCore
-import TEMBase
 
 package nonisolated enum MasterPatternProjection {
     /// `dtype_out`: the data type the patterns are returned in. A type other than the master pattern's own rescales each pattern

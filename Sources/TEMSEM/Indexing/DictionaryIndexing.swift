@@ -16,7 +16,6 @@
 //
 
 import Foundation
-import TEMBase
 
 package nonisolated enum DictionaryIndexing {
     /// kikuchipy's `metric`: "ncc" (the default) or "ndp". Greater is better for both.

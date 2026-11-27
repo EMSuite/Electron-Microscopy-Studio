@@ -9,7 +9,6 @@
 //
 
 import Foundation
-import TEMBase
 
 package nonisolated struct SEMExportedFile: Sendable, Equatable {
     /// The room that wrote it: "Patterns", "Indexing", "Maps".

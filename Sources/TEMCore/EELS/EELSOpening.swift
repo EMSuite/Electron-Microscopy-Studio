@@ -13,7 +13,6 @@ import FormatoHSPY
 import FormatoMSA
 import SpectroEELS
 import TEMBase
-import TEMSEM
 
 /// One EELS cube of a file before its role is known: its energy window decides (a window that holds 0 eV is a low loss, one that starts above
 /// it a core loss).

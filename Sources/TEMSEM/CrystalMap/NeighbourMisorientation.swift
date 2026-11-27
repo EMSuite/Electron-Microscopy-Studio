@@ -11,7 +11,6 @@
 //
 
 import Foundation
-import TEMBase
 
 package nonisolated enum NeighbourMisorientation {
     /// The misorientations of horizontal then vertical neighbours, each flattened row-major as numpy flattens `O[:, 1:] -

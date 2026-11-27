@@ -11,7 +11,6 @@
 //
 
 import Foundation
-import TEMBase
 
 /// A 3 x 3 rotation (orientation) matrix, rows first: `self[i, j]` is row i, column j, as orix's `qu2om` writes it.
 package nonisolated struct RotationMatrix: Sendable, Equatable {

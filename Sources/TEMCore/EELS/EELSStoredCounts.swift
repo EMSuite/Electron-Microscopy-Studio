@@ -8,8 +8,6 @@
 import Foundation
 import FormatoCore
 import SpectroEELS
-import TEMBase
-import TEMSEM
 
 extension EELSCounts {
     /// Integers up to this magnitude are exact in Float32 (its 24-bit significand).

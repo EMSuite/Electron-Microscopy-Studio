@@ -31,7 +31,6 @@
 import ImagoCore
 import Foundation
 import TEMBase
-import TEMSEM
 
 /// One mark as the sidecar records it: the value TEMCore and TEMSession share (TEMSession's `ImageMark` adds an id).
 package nonisolated struct SessionMark: Sendable, Equatable {

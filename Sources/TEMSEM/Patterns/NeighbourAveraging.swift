@@ -15,7 +15,6 @@
 //
 
 import Foundation
-import TEMBase
 
 package nonisolated enum NeighbourAveraging {
     package enum Error: Swift.Error, Equatable, Sendable, LocalizedError {

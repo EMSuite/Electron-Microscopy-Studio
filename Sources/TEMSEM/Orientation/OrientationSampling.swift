@@ -20,7 +20,6 @@
 
 import Foundation
 import Synchronization
-import TEMBase
 
 /// Uniform grids of rotations for indexing: the cubochoric grid of orix's `cubochoric_sampling`, reduced to a
 /// fundamental zone or to a neighbourhood of a rotation.

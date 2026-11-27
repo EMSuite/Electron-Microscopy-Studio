@@ -25,7 +25,6 @@
 
 import Foundation
 import FormatoCore
-import TEMBase
 
 package nonisolated enum OxfordBinaryReader {
     package enum Refusal: Error, Equatable {

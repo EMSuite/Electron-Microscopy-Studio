@@ -18,7 +18,6 @@
 //
 
 import Foundation
-import TEMBase
 
 /// A map the Maps room draws from the analysis, beside the file's own columns.
 package nonisolated enum DerivedMapLayer: String, CaseIterable, Sendable, Hashable {

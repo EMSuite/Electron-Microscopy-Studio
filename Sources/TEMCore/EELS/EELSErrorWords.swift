@@ -8,8 +8,6 @@
 import Foundation
 import SpectroCore
 import SpectroEELS
-import TEMBase
-import TEMSEM
 
 package nonisolated enum EELSErrorWords {
 

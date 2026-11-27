@@ -21,7 +21,6 @@
 import Foundation
 import Synchronization
 import FormatoCore
-import TEMBase
 
 package nonisolated enum EBSDRefinement {
     package enum Error: Swift.Error, Equatable, Sendable, LocalizedError {

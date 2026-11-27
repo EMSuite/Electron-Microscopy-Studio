@@ -4,8 +4,6 @@
 import Foundation
 import SpectroCore
 import SpectroEELS
-import TEMBase
-import TEMSEM
 
 /// The Fitting section's model.
 package enum EELSFitModel: String, CaseIterable, Sendable {

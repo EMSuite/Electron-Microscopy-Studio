@@ -8,7 +8,6 @@
 
 import Foundation
 import FormatoCore
-import TEMBase
 
 /// Patterns by map position. Every method is synchronous and may block on I/O: call it off the main actor.
 package nonisolated protocol EBSDPatternAccess: Sendable {

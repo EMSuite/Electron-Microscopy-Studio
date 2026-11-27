@@ -9,8 +9,6 @@
 //
 
 import Foundation
-import TEMBase
-import TEMSEM
 
 /// The `hkl labels` row's three choices (#1045).
 package nonisolated enum HKLLabelMode: String, CaseIterable, Sendable {

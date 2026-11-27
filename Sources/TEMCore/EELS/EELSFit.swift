@@ -6,8 +6,6 @@
 import Foundation
 import SpectroCore
 import SpectroEELS
-import TEMBase
-import TEMSEM
 
 /// One edge row of the region table: the fitted intensity, and the composition when two or more elements are quantified.
 package nonisolated struct EELSEdgeRow: Equatable, Sendable, Identifiable {

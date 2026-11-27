@@ -20,7 +20,6 @@
 //
 
 import Foundation
-import TEMBase
 
 package nonisolated struct GeometricalKikuchiSimulation: Sendable, Equatable {
     /// One band's centre line, ending on the r_max circle (it runs past the detector; a drawing clips it).

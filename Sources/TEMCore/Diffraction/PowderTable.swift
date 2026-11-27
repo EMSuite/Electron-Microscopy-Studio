@@ -19,7 +19,6 @@ import DiffractoGeometry
 import DiffractoScattering
 import ImagoCore
 import TEMBase
-import TEMSEM
 
 /// What a powder pattern shows: electron rings against q, or an X-ray pattern against 2θ.
 package nonisolated enum PowderKind: String, Sendable, Codable, CaseIterable, Equatable {

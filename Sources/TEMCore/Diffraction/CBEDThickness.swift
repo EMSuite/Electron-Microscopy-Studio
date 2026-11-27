@@ -17,7 +17,6 @@ import DiffractoCore
 import DiffractoScattering
 import DiffractoGeometry
 import TEMBase
-import TEMSEM
 
 package nonisolated enum CBEDThickness {
     /// The length of a vector on the pattern, pixels.

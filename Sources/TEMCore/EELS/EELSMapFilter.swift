@@ -11,8 +11,6 @@
 
 import Foundation
 import ImagoFilters
-import TEMBase
-import TEMSEM
 
 package nonisolated enum EELSMapFilter: String, CaseIterable, Identifiable, Sendable {
     case off, mean3x3, gaussian1px

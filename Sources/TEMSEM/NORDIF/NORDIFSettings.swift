@@ -26,7 +26,6 @@
 
 import Foundation
 import FormatoCore
-import TEMBase
 
 package nonisolated struct NORDIFSettings: Equatable, Sendable {
     /// A length in the `[Area]` section: `89.200 (223)	µm (px)`.

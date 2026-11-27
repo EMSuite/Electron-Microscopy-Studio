@@ -23,8 +23,6 @@
 import Foundation
 import SpectroCore
 import SpectroEELS
-import TEMBase
-import TEMSEM
 
 /// The composition's first-order 1 sigma (see the file header).
 package nonisolated enum EELSCompositionSigma {

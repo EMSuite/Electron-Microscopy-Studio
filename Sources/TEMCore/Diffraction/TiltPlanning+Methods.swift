@@ -7,8 +7,6 @@
 import Foundation
 import FormatoCore
 import ShellExport
-import TEMBase
-import TEMSEM
 
 extension ExportMethods {
 

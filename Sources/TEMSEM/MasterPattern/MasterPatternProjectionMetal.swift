@@ -15,7 +15,6 @@
 import Foundation
 import FormatoCore
 import Metal
-import TEMBase
 
 package nonisolated enum MasterPatternProjectionMetal {
     /// The bound on |GPU − CPU| of a pattern rescaled to -1 ... 1: 1e-3, thirty times the 3.2e-5 a float32 emulation of the

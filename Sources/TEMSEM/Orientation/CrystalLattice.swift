@@ -12,7 +12,6 @@
 //
 
 import Foundation
-import TEMBase
 
 package nonisolated struct CrystalLattice: Sendable, Equatable {
     /// a, b, c (any length unit; the simulations take Å or nm alike) and α, β, γ in degrees.

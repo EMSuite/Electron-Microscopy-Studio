@@ -4,8 +4,6 @@
 import Foundation
 import SpectroCore
 import SpectroEELS
-import TEMBase
-import TEMSEM
 
 /// A map pixel the pointer is over, in scan pixels.
 package nonisolated struct EELSHoverPixel: Equatable, Sendable {

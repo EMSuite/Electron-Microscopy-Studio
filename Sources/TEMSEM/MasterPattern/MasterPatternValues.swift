@@ -9,7 +9,6 @@
 //
 
 import Foundation
-import TEMBase
 
 /// A master pattern's intensities in C order (hemisphere, energy, row, column), at their stored type, read as Floats.
 package nonisolated struct MasterPatternValues: Sendable, Equatable, RandomAccessCollection {

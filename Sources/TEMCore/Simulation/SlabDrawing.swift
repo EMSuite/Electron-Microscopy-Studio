@@ -17,7 +17,6 @@ import ImagoCore
 import SimulatoCore
 import simd
 import TEMBase
-import TEMSEM
 
 package nonisolated enum SlabDrawing {
     /// The most atoms the crystal pane draws of a slab: the design's "capped at about 20 000 drawn atoms".

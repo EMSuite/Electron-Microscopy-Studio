@@ -22,8 +22,6 @@ import ImagoFFT
 import SpectroEDX
 import SpectroEELS
 import ShellEDXModel
-import TEMBase
-import TEMSEM
 
 package nonisolated struct ResultRow: Sendable, Equatable, Identifiable {
     /// What the room groups by, in the order it lists them. `calibration` and `rings` are the Diffraction room's, `eds` the EDS room's,

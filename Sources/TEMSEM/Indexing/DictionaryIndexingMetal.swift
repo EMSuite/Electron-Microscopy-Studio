@@ -12,7 +12,6 @@
 import Foundation
 import Metal
 import MetalPerformanceShaders
-import TEMBase
 
 package nonisolated enum DictionaryIndexingMetal {
     /// The bound on |GPU − CPU| of a score (both in -1 ... 1): the float32 rounding of two unit vectors of a few thousand values and

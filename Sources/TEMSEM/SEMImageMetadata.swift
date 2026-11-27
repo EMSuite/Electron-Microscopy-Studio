@@ -41,7 +41,6 @@ import Foundation
 import FormatoCore
 import FormatoTIFF
 import ImagoCore
-import TEMBase
 
 /// What an SEM TIFF records; nil fields are "not recorded".
 package nonisolated struct SEMImageMetadata: Sendable, Equatable {

@@ -9,7 +9,6 @@
 
 import Foundation
 import ImageIO
-import TEMBase
 
 package nonisolated struct SEMReportDocument: Sendable, Equatable {
     /// One piece of the report, in reading order.

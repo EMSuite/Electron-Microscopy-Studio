@@ -18,7 +18,6 @@
 import Foundation
 import ImagoCore
 import ShellExport
-import TEMBase
 import TEMSEM
 
 package nonisolated enum FigureExport {

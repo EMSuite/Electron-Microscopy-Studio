@@ -16,7 +16,6 @@
 //
 
 import Foundation
-import TEMBase
 
 /// An EBSD map as DefDAP's grain functions read it: rows × columns points, row-major.
 package nonisolated struct GrainMap: Sendable, Equatable {

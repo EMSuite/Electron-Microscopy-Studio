@@ -15,7 +15,6 @@
 //
 
 import Foundation
-import TEMBase
 
 /// A name and the text shown beside it: a parameter, a count, a fact of a file.
 package nonisolated struct SEMSessionField: Sendable, Equatable, Hashable {

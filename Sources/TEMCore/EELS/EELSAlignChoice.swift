@@ -4,8 +4,6 @@
 import Foundation
 import SpectroCore
 import SpectroEELS
-import TEMBase
-import TEMSEM
 
 package nonisolated struct EELSAlignChoice: Equatable, Sendable {
     /// ±5 eV about 0: over the whole axis a noisy pixel's maximum is anywhere, and its shift empties the cropped axis.

@@ -12,7 +12,6 @@
 //
 
 import Foundation
-import TEMBase
 
 /// Rotations as orix's `Rotation`: a unit quaternion (a, b, c, d), scalar first, passive (lab to crystal for an orientation),
 /// and a flag for an improper rotation (the quaternion's rotation followed by inversion).

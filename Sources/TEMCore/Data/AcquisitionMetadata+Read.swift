@@ -34,7 +34,6 @@ import FormatoDM
 import FormatoEMD
 import FormatoMRC
 import FormatoTIFF
-import TEMBase
 import TEMSEM
 
 nonisolated extension AcquisitionMetadata {

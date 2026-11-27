@@ -13,7 +13,6 @@
 //
 
 import Foundation
-import TEMBase
 
 extension EBSDDetectorGeometry.Convention {
     /// A convention by any name kikuchipy accepts (`PC_CONVENTIONS`, case-insensitive): "bruker"; "tsl", "edax", "amatek";

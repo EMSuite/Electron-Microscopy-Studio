@@ -12,7 +12,6 @@
 
 import Foundation
 import FormatoCore
-import TEMBase
 
 extension KinematicMasterPattern {
     /// `_lambert2vector`: the direction of square Lambert point (X, Y) in [-1, 1]², on the upper hemisphere, not normalised

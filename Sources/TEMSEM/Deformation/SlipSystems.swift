@@ -15,7 +15,6 @@
 //
 
 import Foundation
-import TEMBase
 
 /// One slip system: its indices as the file writes them and its unit plane normal and slip direction in the crystal's
 /// orthonormal frame.

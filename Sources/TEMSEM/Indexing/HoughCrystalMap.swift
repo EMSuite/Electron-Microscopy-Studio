@@ -8,7 +8,6 @@
 //
 
 import Foundation
-import TEMBase
 
 extension HoughIndexer {
     /// The indexed scan as orix's `CrystalMap` (D-SEM-81). `steps` are the scan's row and column steps in `scanUnit`.

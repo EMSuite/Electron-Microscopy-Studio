@@ -18,7 +18,6 @@
 //
 
 import Foundation
-import TEMBase
 
 /// One atom of a unit cell: element by atomic number, fractional position, occupancy. (diffsims' kinematical structure factor takes no
 /// Debye–Waller factor from the atoms, so none is carried.)

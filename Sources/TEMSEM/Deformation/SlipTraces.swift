@@ -14,7 +14,6 @@
 //
 
 import Foundation
-import TEMBase
 
 /// The slip analysis of one orientation against a phase's slip systems.
 package nonisolated enum SlipTraceAnalysis {

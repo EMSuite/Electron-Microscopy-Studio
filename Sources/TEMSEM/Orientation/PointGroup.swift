@@ -12,7 +12,6 @@
 //
 
 import Foundation
-import TEMBase
 
 package nonisolated struct PointGroup: Sendable, CustomStringConvertible {
     /// orix's name ("m-3m", "6/mmm", "321", ...); nil for a group orix leaves unnamed (the Laue group of "m").

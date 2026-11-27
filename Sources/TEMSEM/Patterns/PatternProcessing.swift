@@ -21,7 +21,6 @@
 
 import Foundation
 import ImagoFilters
-import TEMBase
 
 package nonisolated enum PatternProcessing {
     /// kikuchipy's `operation`: the background is subtracted from or divided into the pattern.

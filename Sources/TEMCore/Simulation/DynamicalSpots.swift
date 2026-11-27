@@ -11,7 +11,6 @@ import Foundation
 import SimulatoCore
 import SimulatoMultislice
 import TEMBase
-import TEMSEM
 
 /// Each zone-axis beam's intensity at every stored thickness of a Simulation document's exit waves.
 package nonisolated struct DynamicalSpots: Sendable, Equatable {

@@ -18,7 +18,6 @@
 //
 
 import Foundation
-import TEMBase
 
 package nonisolated enum DictionaryMapMerge {
     package enum Error: Swift.Error, Equatable, Sendable, LocalizedError {

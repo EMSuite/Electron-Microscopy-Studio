@@ -8,7 +8,6 @@
 //
 
 import Foundation
-import TEMBase
 
 package nonisolated enum EBSDOpening {
     /// Every extension an h5ebsd file comes with: kikuchipy and Bruker write `.h5`, EDAX `.h5` or `.hdf5`, Oxford `.h5oina`; `.h5ebsd` is

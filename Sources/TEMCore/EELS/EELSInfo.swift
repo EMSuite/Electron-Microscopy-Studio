@@ -4,8 +4,6 @@
 import Foundation
 import SpectroCore
 import SpectroEELS
-import TEMBase
-import TEMSEM
 
 /// One Info row: its label and its value.
 package nonisolated struct EELSInfoRow: Equatable, Sendable, Identifiable {

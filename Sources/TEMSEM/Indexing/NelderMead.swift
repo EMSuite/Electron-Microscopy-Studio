@@ -13,7 +13,6 @@
 //
 
 import Foundation
-import TEMBase
 
 package nonisolated enum NelderMead {
     package struct Options: Sendable, Equatable {

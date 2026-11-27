@@ -11,7 +11,6 @@
 //
 
 import Foundation
-import TEMBase
 
 package nonisolated enum SEMSessionReport {
     /// The report's sections, in order; the Report section's `Include` checkboxes.

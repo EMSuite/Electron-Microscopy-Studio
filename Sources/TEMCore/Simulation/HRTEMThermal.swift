@@ -14,7 +14,6 @@ import SimulatoCore
 import SimulatoMultislice
 import SimulatoProbe
 import TEMBase
-import TEMSEM
 
 /// The thermal vibrations of an HRTEM simulation: one σ per element (Å, the standard deviation per axis, B = 8π²σ²) and the number of
 /// configurations. Off (nil in the model) is the static lattice, which keeps the image live.

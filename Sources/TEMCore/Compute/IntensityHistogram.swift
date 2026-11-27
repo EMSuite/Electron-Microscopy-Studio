@@ -7,8 +7,6 @@
 //
 
 import ImagoCore
-import TEMBase
-import TEMSEM
 
 extension IntensityHistogram {
     /// The bins the room draws.

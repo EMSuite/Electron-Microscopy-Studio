@@ -12,7 +12,6 @@
 //
 
 import Foundation
-import TEMBase
 
 package nonisolated enum KinematicMasterPattern {
     /// How a band's intensity scales with its structure factor (kikuchipy's `scaling`).

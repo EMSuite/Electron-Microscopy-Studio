@@ -11,7 +11,6 @@
 //
 
 import Foundation
-import TEMBase
 
 package nonisolated struct PCCalibrationMovingScreen: Sendable, Equatable {
     /// Detector rows and columns (the patterns' shape).

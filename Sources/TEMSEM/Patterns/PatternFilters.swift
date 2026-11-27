@@ -21,7 +21,6 @@
 import Foundation
 import ImagoCore
 import Synchronization
-import TEMBase
 
 package nonisolated enum PatternFilters {
     package enum Error: Swift.Error, Equatable, Sendable, LocalizedError {

@@ -20,7 +20,6 @@
 //
 
 import Foundation
-import TEMBase
 
 package nonisolated struct HoughBandDetector: Sendable {
     package enum Error: Swift.Error, Equatable, Sendable, LocalizedError {

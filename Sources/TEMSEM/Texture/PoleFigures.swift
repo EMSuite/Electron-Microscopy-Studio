@@ -12,7 +12,6 @@
 //
 
 import Foundation
-import TEMBase
 
 package nonisolated enum PoleFigures {
     /// `Miller.symmetrise(unique=True)` of each vector under `group`, then `.unit`: every element applied (an improper one

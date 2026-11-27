@@ -13,7 +13,6 @@
 //
 
 import Foundation
-import TEMBase
 
 /// DefDAP's `Quat` arithmetic on (a, b, c, d) quaternions, scalar first.
 package nonisolated enum DefDAPQuat {
