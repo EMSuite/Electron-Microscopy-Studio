@@ -140,7 +140,7 @@ nonisolated final class TableCopyFormatTests: XCTestCase {
                          "\(r.neighbours)"]
             return cells.joined(separator: "\t")
         }
-        let header = "Grain\tPhase\tPoints\tECD \u{00B5}m\t\u{03C6}\u{2081} \u{00B0}\t\u{03A6} \u{00B0}\t\u{03C6}\u{2082} \u{00B0}\tGOS \u{00B0}\tSchmid\tNeighbours"
+        let header = "Grain\tPhase\tPoints\tECD (\u{00B5}m)\t\u{03C6}\u{2081} (\u{00B0})\t\u{03A6} (\u{00B0})\t\u{03C6}\u{2082} (\u{00B0})\tGOS (\u{00B0})\tSchmid\tNeighbours"
         XCTAssertEqual(GrainTableFormat.copyText(rows, unit: "\u{00B5}m", slip: slip, places: 3, locale: Self.en),
                        ([header] + rows.map(line)).joined(separator: "\n"))
         XCTAssertTrue(slip.contains { $0.grain == rows[0].id }, "the first grain has a Schmid factor to copy")
