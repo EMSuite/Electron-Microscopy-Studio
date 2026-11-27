@@ -2,4 +2,5 @@
 - Diffraction: unexplained spots are drawn dashed, and exported figures place labels as the room shows them.
 - Simulation documents show the Dynamical beams and keep their hkl labels setting.
 - Add Phase writes formulas as GaAs and names each match's space group.
+- Image: the profile chart and the objects table sit under the image, and the exports are one Export section.
 - The Results room's divider drags, the Output log stays closed until you open it, and histograms read min, mean and max.

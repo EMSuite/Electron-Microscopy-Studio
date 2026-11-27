@@ -7,6 +7,7 @@
 
 import Foundation
 import Observation
+import ShellLayout
 import TEMSession
 
 @Observable
@@ -60,4 +61,14 @@ final class ImageRoomTools {
     var readout: String?
     /// The FFT room's readout over the power spectrum (`FFTSpectrumReadout`): the frequency under the pointer; nil when it is elsewhere.
     var spectrumReadout: String?
+    /// The tabs under the image this window has selected on its own (`offer`), each once.
+    private(set) var offeredTables: Set<ImageTable> = []
+
+    /// Selects `table`'s tab in the bottom area the first time the window is asked to, and opens the area if it was shut, as the
+    /// Diffraction room does (`DiffractionRoomState.offer`). Asked again, it leaves the area as the person left it.
+    func offer(_ table: ImageTable?, in panels: PanelNavigation) {
+        guard let table, !offeredTables.contains(table) else { return }
+        offeredTables.insert(table)
+        panels.selectProcessPane(table.paneID)
+    }
 }

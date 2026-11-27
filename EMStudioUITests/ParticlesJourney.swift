@@ -36,8 +36,8 @@ nonisolated final class ParticlesJourney: Journey {
             waitFor("particles.tableView", timeout: 20)
             XCTAssertGreaterThanOrEqual(app.windows.count, 2, "the table is a window beside the image")
         }
-        try step("Export CSV writes into --export-dir") {
-            waitFor("particles.export").click()
+        try step("Particles CSV in the Export section writes into --export-dir") {
+            openSection("Export", showing: "particles.export").click()
             waitStatus(containing: ["Exported", "particles.csv"])
         }
     }

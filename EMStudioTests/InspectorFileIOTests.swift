@@ -2,7 +2,7 @@
 //  InspectorFileIOTests.swift
 //  The file reads and writes of the Particles section and the Diffraction inspector live in the app layer, not in the views (#282):
 //  the CSV written into `--export-dir` keeps its name and its bytes, a CIF is read into the kit's crystal, the two view files touch
-//  no file, and the Particles section builds its CSV when Export CSV… is pressed, not in its body. The export-folder write goes
+//  no file, and the Image room's Export section builds the objects' CSV when Particles CSV… is pressed, not in its body. The export-folder write goes
 //  through `ExportFile.write`, as the File menu's exports do (#269): any bytes as given, and a folder where the file goes refused
 //  in that writer's words and kept.
 //  Red before the change: no `ExportDirectoryFile`, no `DiffractionReadoutExport`; the views called `FileManager`, `Data(contentsOf:)`
@@ -108,10 +108,10 @@ nonisolated final class InspectorFileIOTests: XCTestCase {
         }
     }
 
-    /// The two view files touch no file: what they read and write goes through the app layer.
+    /// The view files touch no file: what they read and write goes through the app layer.
     /// Red under: a writer or a reader back in a view file.
     func testTheTwoInspectorsTouchNoFile() throws {
-        for name in ["ImageRoomParticles.swift", "DiffractionRoomInspector.swift"] {
+        for name in ["ImageRoomParticles.swift", "ImageRoomTables.swift", "DiffractionRoomInspector.swift"] {
             let text = try FFTRoomWiringTests.squeezedUI(name)
             for call in ["FileManager.default", "Data(contentsOf:", ".write(to:", "startAccessingSecurityScopedResource"] {
                 XCTAssertFalse(text.contains(call), "\(name) calls \(call)")
@@ -122,17 +122,19 @@ nonisolated final class InspectorFileIOTests: XCTestCase {
         XCTAssertTrue(inspector.contains("defaultFilename: exportName) { result in"))
     }
 
-    /// The Particles section makes its CSV document when Export CSV… is pressed and drops it when the panel is done; the body
-    /// builds none. Red under: the document built in the `fileExporter` call again (the whole CSV on every body evaluation).
+    /// The Image room's Export section makes the objects' CSV document when Particles CSV… is pressed and drops it when the panel is
+    /// done; the body builds none (#864 moved it there from the Particles section). Red under: the document built in the
+    /// `fileExporter` call again (the whole CSV on every body evaluation).
     func testTheParticlesCSVIsBuiltWhenExportIsPressed() throws {
-        let section = try FFTRoomWiringTests.squeezedUI("ImageRoomParticles.swift")
+        let section = try FFTRoomWiringTests.squeezedUI("ImageRoomTables.swift")
         XCTAssertTrue(section.contains("@State private var exportDocument: RoomExportFile?"))
         XCTAssertTrue(section.contains(
             ".fileExporter(isPresented: Binding(get: { exportDocument != nil }, set: { if !$0 { exportDocument = nil } }), "
                 + "document: exportDocument, contentType: .commaSeparatedText, defaultFilename: ParticleExport.baseName(of: image.fileName)) { result in"))
         XCTAssertFalse(section.contains("document: RoomExportFile("), "no document made in the body")
-        XCTAssertTrue(section.contains("let text = csv(analysis) guard let directory = appState.exportDirectory else { "
-            + "exportDocument = RoomExportFile(text: text) return }"))
-        XCTAssertEqual(section.components(separatedBy: "csv(analysis)").count - 1, 1, "the CSV is built in one place, the export")
+        XCTAssertTrue(section.contains("let text = ExportSnapshot.particlesCSV(report, image: image, openItems: appState.openItems) "
+            + "guard let directory = appState.exportDirectory else { exportDocument = RoomExportFile(text: text) return }"))
+        XCTAssertEqual(section.components(separatedBy: "ExportSnapshot.particlesCSV(").count - 1, 1, "the CSV is built in one place, the export")
+        XCTAssertFalse(try FFTRoomWiringTests.squeezedUI("ImageRoomParticles.swift").contains("fileExporter"), "no export left in Particles")
     }
 }

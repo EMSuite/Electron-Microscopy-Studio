@@ -29,7 +29,7 @@ nonisolated enum ExportDirectoryFile {
     }
 }
 
-/// Where Export CSV writes when the launch gave `--export-dir`: "<image name> particles.csv" in that folder.
+/// Where Particles CSV… writes when the launch gave `--export-dir`: "<image name> particles.csv" in that folder.
 nonisolated enum ParticleExport {
     static func baseName(of imageFileName: String) -> String { (imageFileName as NSString).deletingPathExtension + " particles" }
 

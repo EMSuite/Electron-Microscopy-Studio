@@ -3,7 +3,7 @@
 //  Role: the agent door's tools for the Image room (#558). `get_image_room` reads the room for the file shown: its stack and frame,
 //        the measuring tool, the marks with their values as the Measure section words them, the SEM rows and vendor fields, and the
 //        Particles section (settings, region, the last Show Objects' counts, sizes and density). `get_particles` gives the object
-//        table (a page of it) or Export CSV…'s text; `get_profile` a profile mark's samples as Export Profile… writes them.
+//        table (a page of it) or Particles CSV…'s text; `get_profile` a profile mark's samples as Export Profile… writes them.
 //        `set_image_room` sets the tool, the stack's frame and its held contrast; `set_marks` adds, selects and removes marks and
 //        sets a profile's width; `set_particles` sets the Particles section and presses Show Objects or Hide.
 //
@@ -33,7 +33,7 @@ extension MacTEMAgentDoor {
         },
         AgentTool(name: "get_particles", title: "Particle objects",
                   summary: "After Show Objects: the object table (a page of it, by number or largest first; counted_only as the table's "
-                      + "switch), or with csv true the CSV Export CSV… writes, its provenance lines first.",
+                      + "switch), or with csv true the CSV Particles CSV… writes, its provenance lines first.",
                   input: .window,
                   parameters: [
                       AgentParameter("first", .integer(1...10_000_000), summary: "The first row, from 1. Default 1."),

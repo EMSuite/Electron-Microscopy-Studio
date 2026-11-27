@@ -52,12 +52,13 @@ nonisolated final class InspectorSectionOrderTests: XCTestCase {
     }
 
     func testEveryImagePutsDisplaySecondAndTheJobInDependencyOrder() {
-        XCTAssertEqual(ImageSections.order(.measured), [.calibration, .stack, .display, .particles, .measure, .lineage])
+        XCTAssertEqual(ImageSections.order(.measured), [.calibration, .stack, .display, .particles, .measure, .lineage, .export])
         XCTAssertEqual(ImageSections.order(.hrtem),
-                       [.calibration, .stack, .display, .microscope, .hrtem, .thermalVibrations, .besideMeasured, .particles, .measure, .lineage])
-        XCTAssertEqual(ImageSections.order(.stem), [.calibration, .stack, .display, .stem, .particles, .measure, .lineage])
+                       [.calibration, .stack, .display, .microscope, .hrtem, .thermalVibrations, .besideMeasured, .particles, .measure, .lineage, .export])
+        XCTAssertEqual(ImageSections.order(.stem), [.calibration, .stack, .display, .stem, .particles, .measure, .lineage, .export])
         for kind in [ImageSections.Kind.measured, .hrtem, .stem] {
             XCTAssertEqual(ImageSections.order(kind).first, .calibration)
+            XCTAssertEqual(ImageSections.order(kind).last, .export, "Export last in \(kind) (#864)")
             XCTAssertEqual(ImageSections.order(kind).filter { $0 != .stack }.dropFirst().first, .display, "Display second in \(kind)")
         }
     }

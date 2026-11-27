@@ -2,7 +2,8 @@
 //  ImageRoomInspector.swift
 //  Role: the Image room's inspector content. Settings, in `ImageSections.order` (#1043): the calibration a distance in this room is
 //        measured in (readiness, the first section), Display (ImageRoomDisplay.swift), a simulated image's job (Microscope, HRTEM,
-//        Thermal Vibrations, Beside Measured; or STEM), then Particles (ImageRoomParticles.swift) and Measure (ImageRoomMeasure.swift).
+//        Thermal Vibrations, Beside Measured; or STEM), then Particles (ImageRoomParticles.swift), Measure (ImageRoomMeasure.swift), the marks' record and Export
+//        (ImageRoomTables.swift).
 //        Info: what the open image is, as the file states it, then what it records about the acquisition
 //        (ImageRoomAcquisition.swift; an SEM TIFF's vendor rows and databar control: ImageRoomSEM.swift).
 //
@@ -68,6 +69,9 @@ struct ImageRoomSettings: View {
         case .lineage:
             // The record of those marks: collapsed, drawn only when there is something to show.
             if let item { ImageRoomLineageSection(item: item) }
+        case .export:
+            // What the room takes home, last and closed (control placement §4, #864).
+            if let item { ImageRoomExportSection(item: item) }
         }
     }
 }
