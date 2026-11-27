@@ -37,12 +37,11 @@ nonisolated final class DynamicalSpotsTests: XCTestCase {
         for t in 0 ..< 3 {
             XCTAssertEqual(kit.thicknesses[t] / 10, spots.thicknessesNM[t], accuracy: 1e-9, "the kit's slices end at period \(t + 1)")
             XCTAssertNil(spots.intensities[t][.zero])
-            // The kit's beams, less the box-grid points that are no lattice reflection (#1150).
-            let translations = DynamicalSpots.latticeTranslations(of: built.slab.unit.structure)
+            // The kit's beams, every one (the kit lists lattice reflections only, SimulatoKit 0.8.1, #1150).
             for (beam, value) in zip(kit.beams, kit.intensities[t]) where beam.hkl != .zero {
-                let kept = DynamicalSpots.isReflection(beam.spatialFrequency, translations: translations)
-                XCTAssertEqual(spots.intensities[t][MillerIndex(beam.hkl.x, beam.hkl.y, beam.hkl.z)], kept ? value : nil)
+                XCTAssertEqual(spots.intensities[t][MillerIndex(beam.hkl.x, beam.hkl.y, beam.hkl.z)], value)
             }
+            XCTAssertEqual(spots.intensities[t].count, kit.beams.filter { $0.hkl != .zero }.count, "no beam dropped or added")
         }
         XCTAssertEqual(spots.specimen, "Si [1 1 0]")
         XCTAssertEqual(spots.beams(at: 9).thicknessNM, spots.thicknessesNM[2], "an index past the last is the thickest")
@@ -64,10 +63,11 @@ nonisolated final class DynamicalSpotsTests: XCTestCase {
     }
 
     /// Every beam is a reflection of the fcc lattice (#1150): along [0 0 1] the cubic box's grid also has the points h, k odd, l = 0,
-    /// where the first-order Laue zone ring lands in projection (1 2̄1 1 at 3.9 Å⁻¹), and the kit names them 1 2̄1 0; abTEM's
-    /// `index_diffraction_spots(centering="F")` leaves them out, and so does the room. Along [1 1 0] the same holds, and 002 (a
-    /// lattice reflection diamond's glide forbids, excited by double diffraction) stays. Red before: the kit's mixed-parity beams
-    /// were kept. Mutation: the translation check off; the glide-forbidden 002 left out too.
+    /// where the first-order Laue zone ring lands in projection (1 2̄1 1 at 3.9 Å⁻¹); SimulatoKit up to 0.8.0 named them 1 2̄1 0.
+    /// abTEM's `index_diffraction_spots(centering="F")` leaves them out, and so do the kit from 0.8.1 and the room. Along [1 1 0]
+    /// the same holds, and 002 (a lattice reflection diamond's glide forbids, excited by double diffraction) stays. Red before
+    /// (the kit at 0.7.0 without the app's interim filter): the kit's mixed-parity beams were kept. Mutation: the glide-forbidden
+    /// 002 left out too.
     func testEveryBeamIsAReflectionOfTheLattice() throws {
         func isFCC(_ m: MillerIndex) -> Bool {
             let parities = Set([m.h, m.k, m.l].map { (($0 % 2) + 2) % 2 })
@@ -78,8 +78,7 @@ nonisolated final class DynamicalSpotsTests: XCTestCase {
         let perPeriod = built001.slab.sliceThicknesses.count / built001.slab.repeats.z
         let kit = try BeamIntensities(exitWaves: exit001.waves, of: built001.slab,
                                       exitPlanes: .afterSlices(exit001.planePeriods.map { $0 * perPeriod - 1 }))
-        XCTAssertTrue(kit.beams.contains { $0.hkl == SIMD3(1, -21, 0) }, "the kit names the HOLZ point 1 2̄1 0")
-        XCTAssertFalse(DynamicalSpots.latticeTranslations(of: built001.slab.unit.structure).isEmpty, "the cubic box holds the F centring")
+        XCTAssertFalse(kit.beams.contains { $0.hkl == SIMD3(1, -21, 0) }, "the kit leaves out the HOLZ point 1 2̄1 0")
         let spots001 = try DynamicalSpots(exit001, built: built001)
         XCTAssertFalse(spots001.intensities[0].isEmpty)
         for row in spots001.intensities { for hkl in row.keys { XCTAssertTrue(isFCC(hkl), "\(hkl) is no fcc reflection") } }
