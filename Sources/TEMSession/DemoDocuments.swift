@@ -615,7 +615,7 @@ package nonisolated enum DemoDocuments {
         var counts = [Double]()
         counts.reserveCapacity(n * n * channels)
         for y in 0..<n {
-            for x in 0..<n { counts.append(contentsOf: Truth.eelsTOverLambda(y: y) == Truth.eelsTOverLambdaAbove ? above : below) }
+            for _ in 0..<n { counts.append(contentsOf: Truth.eelsTOverLambda(y: y) == Truth.eelsTOverLambdaAbove ? above : below) }
         }
         let image = try LowLossSpectrumImage(nx: n, ny: n, channels: channels, counts: counts,
                                              energyOffsetEV: Truth.eelsOffsetEV, energyScaleEV: Truth.eelsDispersionEV)
