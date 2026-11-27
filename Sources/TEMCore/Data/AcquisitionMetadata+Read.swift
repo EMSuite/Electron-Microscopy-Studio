@@ -34,6 +34,8 @@ import FormatoDM
 import FormatoEMD
 import FormatoMRC
 import FormatoTIFF
+import TEMBase
+import TEMSEM
 
 nonisolated extension AcquisitionMetadata {
     /// What the file at `path` records about how its image was acquired; every field nil ("not recorded") when it

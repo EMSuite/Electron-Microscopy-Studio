@@ -16,6 +16,8 @@
 import Foundation
 import ImagoCore
 import Synchronization
+import TEMBase
+import TEMSEM
 
 /// What Place Beside shows: the measured image (by its file), the layout, the rotation and the inset's size.
 package nonisolated struct HRTEMBeside: Sendable, Equatable {

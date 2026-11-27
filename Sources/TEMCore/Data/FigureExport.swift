@@ -18,6 +18,8 @@
 import Foundation
 import ImagoCore
 import ShellExport
+import TEMBase
+import TEMSEM
 
 package nonisolated enum FigureExport {
     /// What Export Figure… writes: a vector PDF or SVG, or the PNG Export Image… always wrote.

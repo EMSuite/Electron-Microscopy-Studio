@@ -5,6 +5,8 @@ import Foundation
 import SpectroCore
 import SpectroEELS
 import ShellEDXModel
+import TEMBase
+import TEMSEM
 
 // MARK: - The Maps control
 

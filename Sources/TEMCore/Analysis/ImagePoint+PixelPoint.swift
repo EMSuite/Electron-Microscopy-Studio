@@ -7,6 +7,8 @@
 //
 
 import ImagoCore
+import TEMBase
+import TEMSEM
 
 /// A position on an image in pixel coordinates: x = column, y = row; pixel (r, c) has its centre at (c, r).
 package nonisolated struct ImagePoint: Sendable, Equatable, Hashable, Codable {

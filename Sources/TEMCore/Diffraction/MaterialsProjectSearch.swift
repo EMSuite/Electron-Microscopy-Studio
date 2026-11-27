@@ -13,6 +13,8 @@
 
 import Foundation
 import DiffractoCore
+import TEMBase
+import TEMSEM
 
 package nonisolated enum MaterialsProjectSearch {
     /// The most elements one search spans: 2⁴ − 1 = 15 chemical systems, one request each.

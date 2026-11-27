@@ -9,6 +9,8 @@
 import Foundation
 import SimulatoCore
 import SimulatoProbe
+import TEMBase
+import TEMSEM
 
 /// The Optics popup of the mockup brief: Uncorrected is the default (Paul, 23 Nov).
 package nonisolated enum HRTEMPreset: String, CaseIterable, Sendable {

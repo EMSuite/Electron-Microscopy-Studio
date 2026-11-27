@@ -28,6 +28,8 @@ import ImagoCore
 import CoreGraphics
 import CoreText
 import Foundation
+import TEMBase
+import TEMSEM
 
 extension ImageExport {
 

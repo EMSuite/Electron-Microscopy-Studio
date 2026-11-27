@@ -6,6 +6,8 @@
 //
 
 import Synchronization
+import TEMBase
+import TEMSEM
 
 /// A one-way flag: lowered at first, raised once, read from any thread.
 package nonisolated final class CancellationFlag: Sendable {

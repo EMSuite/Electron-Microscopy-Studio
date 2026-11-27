@@ -7,6 +7,8 @@
 import Foundation
 import ImagoCore
 import ImagoFilters
+import TEMBase
+import TEMSEM
 
 package nonisolated struct ParticleSettings: Equatable, Sendable {
     package enum Polarity: String, Sendable, CaseIterable, Identifiable {

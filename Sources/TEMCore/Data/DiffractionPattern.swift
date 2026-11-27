@@ -1,5 +1,7 @@
 import Foundation
 import ImagoCore
+import TEMBase
+import TEMSEM
 
 /// A float image and its display normalisation; the arithmetic is ImagoKit's `DisplayNormalization`.
 package nonisolated struct FloatImage {

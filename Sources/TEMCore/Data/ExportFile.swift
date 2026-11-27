@@ -20,6 +20,8 @@
 
 import Foundation
 import ImagoCore
+import TEMBase
+import TEMSEM
 
 /// What every export names about its source: the file, the object, the size and the calibration EXACTLY as the file
 /// states it (never the display-converted axes: a Velox pixel in metres is recorded in metres, and the line that says what

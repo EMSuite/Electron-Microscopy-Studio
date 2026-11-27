@@ -16,6 +16,8 @@ import DiffractoCore
 import Foundation
 import SimulatoCore
 import simd
+import TEMBase
+import TEMSEM
 
 package nonisolated enum SimulationSpecimen {
     /// The thickness a new Simulation document starts at, nm: abTEM's HRTEM examples, and enough for the exit planes of the reference

@@ -1,8 +1,8 @@
 #!/usr/bin/env python
-"""tools/parity/sem/simulation_tables.py — write TEMCore's Kikuchi scattering tables from the pinned diffsims.
+"""tools/parity/sem/simulation_tables.py — write TEMSEM's Kikuchi scattering tables from the pinned diffsims.
 
     References/sem-venv/bin/python -I -B tools/parity/sem/simulation_tables.py \
-        > Sources/TEMCore/SEM/Simulation/KikuchiScatteringTables.swift
+        > Sources/TEMSEM/Simulation/KikuchiScatteringTables.swift
 
 diffsims 0.7.0's two parameter tables, carried by this script, not by hand: the X-ray parameters of the International
 Tables (vol. C, table 4.3.2.3; `diffsims.utils.atomic_scattering_params.ATOMIC_SCATTERING_PARAMS`, five (a, b) pairs per

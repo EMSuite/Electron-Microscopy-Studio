@@ -7,6 +7,8 @@ import FormatoCore
 import FormatoMSA
 import SpectroCore
 import SpectroEELS
+import TEMBase
+import TEMSEM
 
 // MARK: - Dead stretches
 

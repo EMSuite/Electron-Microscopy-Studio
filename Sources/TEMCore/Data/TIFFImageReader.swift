@@ -16,6 +16,8 @@
 import Foundation
 import FormatoCore
 import FormatoTIFF
+import TEMBase
+import TEMSEM
 
 package nonisolated enum TIFFImageReader {
     /// Why a TIFF is not read. Each names what the file holds, so the refusal is specific.

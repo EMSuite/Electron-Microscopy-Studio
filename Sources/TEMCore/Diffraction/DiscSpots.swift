@@ -14,6 +14,8 @@
 
 import Foundation
 import DiffractoGeometry
+import TEMBase
+import TEMSEM
 
 package nonisolated enum DiscSpots {
     /// A direct beam at least this wide (radius, px) makes the pattern one of discs. A selected-area pattern's beam (and its

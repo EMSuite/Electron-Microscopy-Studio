@@ -11,6 +11,8 @@ import Foundation
 import DiffractoCore
 import DiffractoGeometry
 import DiffractoOrientation
+import TEMBase
+import TEMSEM
 
 /// A spot double diffraction adds between two of the crystals.
 package nonisolated struct VariantDoubleSpot: Sendable, Equatable {

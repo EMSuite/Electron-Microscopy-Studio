@@ -12,10 +12,16 @@ Sources/TEMSession             the owners of session state: the open files, each
                                image, its presentation and marks, the sidecar,
                                lineage and results, the SEM rooms' sessions — no
                                SwiftUI, no AppState
-Sources/TEMCore                readers, the calibrated image, the rooms' compute      package
-                               over the kits, writers; the SEM program's own
-                               ports and their two Metal paths (SEM/) — no
-                               SwiftUI, no AppState, no Session
+Sources/TEMCore                readers, the rooms' compute over the kits, writers;    package
+                               the file routing to the SEM doors — no SwiftUI,
+                               no AppState, no Session
+Sources/TEMSEM                 the SEM program's own ports and their two Metal        package
+                               paths (#849) — kits and TEMBase only, never
+                               TEMCore or TEMSession
+Sources/TEMBase                what TEMCore and TEMSEM share: the app name, the       package
+                               calibrated image and its stored pixels, unit
+                               display, text lines, checked conversions, a scan
+                               row's parallel work — kits only
 FormatoKit                     the suite's file-format library: the DM3/DM4, Velox    package dependency
                                EMD, MRC and TIFF readers, the HDF5 layer, the
                                libhdf5 it ships
@@ -32,9 +38,11 @@ MacEMUI                        the window shell, controls, the Metal image view 
 
 `Package.swift` takes each kit by version range (`from:`); `Package.resolved` holds the versions built.
 
-Each layer knows nothing above it, and that is a module boundary: `Package.swift` builds `Sources/TEMCore` and
-`Sources/TEMSession` as SwiftPM targets, the app target links them as package products, and `swift build`
-(`tools/run-tests.sh core`) fails the moment either reaches upward. Their sources live outside the app's
+Each layer knows nothing above it, and that is a module boundary: `Package.swift` builds `Sources/TEMBase`,
+`Sources/TEMSEM`, `Sources/TEMCore` and `Sources/TEMSession` as SwiftPM targets, the app target links TEMCore and TEMSession as
+package products (TEMCore re-exports TEMBase and TEMSEM, `Sources/TEMCore/Exports.swift`, so one `import TEMCore` still reaches
+them), and `swift build` (`tools/run-tests.sh core`) fails the moment one reaches upward; `inventory` also fails an import of
+TEMCore or TEMSession in TEMSEM or TEMBase, or of TEMSEM in TEMBase. Their sources live outside the app's
 synchronized folder, so every file compiles exactly once with no exception list (mac4DSTEM keeps Core/ inside its
 app folder and excludes it file by file; that list has drifted). Declarations use `package` access; the app and
 test targets set `SWIFT_PACKAGE_NAME` to the package's identity, derived from the checkout folder so a renamed clone
@@ -63,7 +71,7 @@ build `-Onone` in Debug (see "Known limitations").
    first object that is not the thumbnail, has exactly two dimensions larger than one, and whose axes do not carry
    two different units). DM3/DM4, TIFF, MRC, TIA `.ser`/`.emi` and Velox `.emd` are all FormatoKit's readings behind TEMCore's thin seams (`TIFFImageReader`, `MRCImageReader`, `TIAImageReader`,
    `VeloxImageReader` over one frame and one hyperslab, `KitImages`); the libhdf5 the `.emd` reader loads is FormatoKit's FormatoLibHDF5 framework in `Contents/Frameworks`; the result is a `CalibratedImage`
-   (`TEMCore/Data/CalibratedImage.swift`): Float32 pixels, row-major, and each axis's origin, scale and unit exactly
+   (`TEMBase/CalibratedImage.swift`): Float32 pixels, row-major, and each axis's origin, scale and unit exactly
    as the file states them.
 3. **Normalise for display.** `FloatImage.normalized()` maps the finite range to [0, 1] and non-finite pixels to the
    masked sentinel; `MetalImageView.contentVersion` hashes the result; `IntensityHistogram` counts the RAW pixels for
@@ -93,11 +101,12 @@ EBSD patterns, orientation maps and SEM-EDS files take their own path into their
 | The FFT room's preprocessing over ImagoKit | `Sources/TEMCore/FFT/` |
 | The particle pass over ImagoKit | `Sources/TEMCore/Particles/` |
 | The Diffraction room's pure core (the standards, calling DiffractoKit directly) | `Sources/TEMCore/Diffraction/` |
-| Opening an EDS spectrum image (the room itself is MacEMUI's); exspy's SEM-EDS line intensities (`SEMEDSLines`, `XrayLineDatabase`) | `Sources/TEMCore/EDX/` |
+| Opening an EDS spectrum image (the room itself is MacEMUI's) | `Sources/TEMCore/EDX/` |
 | The EELS room's compute: SpectroKit called with the room's choices (stages, windows, fits, regions, exports) | `Sources/TEMCore/EELS/` |
 | The seam between the app's `ImagePoint` and ImagoKit's `PixelPoint` | `Sources/TEMCore/Analysis/` |
 | The Simulation document's specimen, HRTEM image, optics, frozen phonons and Place Beside, over SimulatoKit | `Sources/TEMCore/Simulation/` |
-| The SEM program's ports: EBSD and TKD readers, pattern processing, orientations, indexing, maps, grains, texture, Kikuchi simulation, the SEM-EDS map readers, the session report ("The SEM program") | `Sources/TEMCore/SEM/` and its subfolders |
+| The SEM program's ports: EBSD and TKD readers, pattern processing, orientations, indexing, maps, grains, texture, Kikuchi simulation, the SEM-EDS map readers and line intensities, the session report ("The SEM program") | `Sources/TEMSEM/` and its subfolders |
+| What TEMCore and TEMSEM share (`AppName`, `CalibratedImage`, `StoredPixels`, `UnitDisplay`, `TextLines`, `CheckedConversion`, `ScanRowWork`) | `Sources/TEMBase/` |
 | Session owners (`@Observable`), no SwiftUI, the SEM rooms' `EBSDSession`, `IndexingSession` and `OrientationMapSession` among them | `Sources/TEMSession/` |
 | Unit tests; committed fixtures (≤ 1 MiB) in `Fixtures/` | `EMStudioTests/` |
 | Reference harnesses, the SEM reference bundles, their fixtures and scripts | `tools/parity/<name>/`, each folder in one array of `tools/run-tests.sh`; the gate and release scripts in `tools/`, their libraries in `tools/lib/` |
@@ -132,27 +141,27 @@ window shell, controls, inspector kit and Metal image view are the MacEMUI packa
 
 EBSD, TKD, SEM images and SEM-EDS (`docs/sem/north-star.md` names its figures). Its numbers follow the pinned Python SEM stack
 (`tools/parity/sem/requirements.lock`), ported here rather than taken from a kit: decision D-SEM-1 (`docs/decisions.md`) keeps the
-SEM code in `Sources/TEMCore/SEM/` and the `Sources/TEMSession/` owners, over FormatoKit's HDF5 layer and ImagoKit's images,
-with no kit change; a kit move is a later program, once the API has settled. Each file names the module it ports in its
+SEM code in the app package, now its own target `Sources/TEMSEM/` (#849), and the `Sources/TEMSession/` owners, over FormatoKit's
+HDF5 layer and ImagoKit's images; the kit move (#848) takes it out of that one target, step by step. Each file names the module it ports in its
 first lines; `docs/parity.md` lists every function with its reference, test and tolerance, `docs/sem/catalogue.md` what is
 ported from where, and `NOTICE` the licences.
 
-| Under `Sources/TEMCore/` | holds | `docs/parity.md` section |
+| Under `Sources/TEMSEM/` | holds | `docs/parity.md` section |
 |---|---|---|
-| `SEM/` (its own files) | the EBSD and TKD pattern readers (`EBSDH5Reader` for h5ebsd, `EDAXBinaryReader`, `OxfordBinaryReader`) and their doors (`EBSDOpening`, `EDAXOpening`, `OxfordOpening`), the map readers `ANGReader` and `CTFReader`, `EBSDDataset` and `EBSDPatternAccess`, the Patterns room's pure part and its virtual BSE images (`EBSDBrowsing`, `VirtualBSEImaging`), the pattern processing (`PatternPipeline`, `PatternProcessing`, `PatternFilters`, `PatternWindow`, `AdaptiveHistogramEqualization`, `NeighbourAveraging`, `NLPAR`), `PatternQuality`, the detector geometry (`EBSDDetectorProjection`, `PCCalibrationMovingScreen`), the SEM TIFF record (`SEMImageMetadata`) and a HyperSpy file's spectrum (`HyperSpySpectrumFile`, on FormatoKit's reader) | Readers; SEM images (TIFF); Pattern processing; Pattern filters; Pattern quality; Detector geometry; Patterns room |
-| `SEM/NORDIF/` | a NORDIF acquisition: `Setting.txt`, `Pattern.dat`, its bitmaps and calibration patterns, and the door that opens them as one dataset | Readers |
-| `SEM/Orientation/` | orix's rotations, point groups, orientations and misorientations, vectors and projections, Miller indices, fundamental sectors, colour keys and cubochoric sampling; the crystal lattice the texture and simulation code share | Orientation maths |
-| `SEM/CrystalMap/` | orix's `CrystalMap` and `PhaseList`, one type for every map reader and indexing result; the neighbour misorientation; the Maps room's pictures (`OrientationMaps`) and analysis (`MapAnalysis`) | Crystal map |
-| `SEM/Grains/` | DefDAP's grain boundaries, grains, KAM, GROD and GOS | Grains, KAM and GOS |
-| `SEM/Deformation/` | DefDAP's quaternions and crystal symmetries, slip systems, Schmid factors and slip traces, the Nye tensor and GND density | Slip analysis and GND density |
-| `SEM/Texture/` | orix's pole density function and pole figures; the ODF by kernel density estimation (Hielscher and Schaeben 2008) | Pole figures, inverse pole figures and the ODF |
-| `SEM/Indexing/` | Hough indexing (PyEBSDIndex), dictionary indexing with its Metal path, refinement (kikuchipy, with SciPy's Nelder-Mead), the orientation similarity map, the merge of dictionary maps, the comparison of two runs, and the Indexing room's plans and results | Hough indexing; Dictionary indexing; Refinement; Crystal map (`IndexingComparison`) |
-| `SEM/MasterPattern/` | EMsoft's master pattern files (kikuchipy's reader) and their projection onto a detector, with its Metal path | Master patterns and their projection |
-| `SEM/Simulation/` | kikuchipy's geometrical Kikuchi simulation and kinematical master pattern on diffsims' reflectors: the pattern panes' overlay | Kikuchi simulation |
-| `SEM/Export/` | the `.ang` writer (orix's) and the `.ctf` writer (the layout orix's reader reads) | Crystal map writers |
-| `SEM/EDS/` | the SEM-EDS map readers of Bruker, EDAX and JEOL (RosettaSciIO's) and their door (`SEMEDSOpening`); they hand the EDS room a `CSRSpectrumImage` of their own (D-SEM-76) | SEM-EDS map readers |
-| `SEM/Report/` | the SEM session's rows (`SEMSessionRow`), the files the rooms wrote, the methods the report cites, and the session report set as Markdown or PDF from numbers the rooms computed | none: no numbers of its own |
-| `EDX/` (`SEMEDSLines`, `XrayLineDatabase`) | exspy's SEM-EDS line intensities and window quantification, on exspy's element database | SEM-EDS (exspy's window path) |
+| its own files | the EBSD and TKD pattern readers (`EBSDH5Reader` for h5ebsd, `EDAXBinaryReader`, `OxfordBinaryReader`) and their doors (`EBSDOpening`, `EDAXOpening`, `OxfordOpening`), the map readers `ANGReader` and `CTFReader`, `EBSDDataset` and `EBSDPatternAccess`, the Patterns room's pure part and its virtual BSE images (`EBSDBrowsing`, `VirtualBSEImaging`), the detector geometry (`EBSDDetectorProjection`, `PCCalibrationMovingScreen`) and the SEM TIFF record (`SEMImageMetadata`) | Readers; SEM images (TIFF); Detector geometry; Patterns room |
+| `Patterns/` | the pattern processing (`PatternPipeline`, `PatternProcessing`, `PatternFilters`, `PatternWindow`, `AdaptiveHistogramEqualization`, `NeighbourAveraging`, `NLPAR`) and `PatternQuality` | Pattern processing; Pattern filters; Pattern quality |
+| `NORDIF/` | a NORDIF acquisition: `Setting.txt`, `Pattern.dat`, its bitmaps and calibration patterns, and the door that opens them as one dataset | Readers |
+| `Orientation/` | orix's rotations, point groups, orientations and misorientations, vectors and projections, Miller indices, fundamental sectors, colour keys and cubochoric sampling; the crystal lattice the texture and simulation code share | Orientation maths |
+| `CrystalMap/` | orix's `CrystalMap` and `PhaseList`, one type for every map reader and indexing result; the neighbour misorientation; the Maps room's pictures (`OrientationMaps`) and analysis (`MapAnalysis`) | Crystal map |
+| `Grains/` | DefDAP's grain boundaries, grains, KAM, GROD and GOS | Grains, KAM and GOS |
+| `Deformation/` | DefDAP's quaternions and crystal symmetries, slip systems, Schmid factors and slip traces, the Nye tensor and GND density | Slip analysis and GND density |
+| `Texture/` | orix's pole density function and pole figures; the ODF by kernel density estimation (Hielscher and Schaeben 2008) | Pole figures, inverse pole figures and the ODF |
+| `Indexing/` | Hough indexing (PyEBSDIndex), dictionary indexing with its Metal path, refinement (kikuchipy, with SciPy's Nelder-Mead), the orientation similarity map, the merge of dictionary maps, the comparison of two runs, and the Indexing room's plans and results | Hough indexing; Dictionary indexing; Refinement; Crystal map (`IndexingComparison`) |
+| `MasterPattern/` | EMsoft's master pattern files (kikuchipy's reader) and their projection onto a detector, with its Metal path | Master patterns and their projection |
+| `Simulation/` | kikuchipy's geometrical Kikuchi simulation and kinematical master pattern on diffsims' reflectors: the pattern panes' overlay | Kikuchi simulation |
+| `Export/` | the `.ang` writer (orix's) and the `.ctf` writer (the layout orix's reader reads) | Crystal map writers |
+| `EDS/` | the SEM-EDS map readers of Bruker, EDAX and JEOL (RosettaSciIO's) and their door (`SEMEDSOpening`); they hand the EDS room a `CSRSpectrumImage` of their own (D-SEM-76); exspy's SEM-EDS line intensities and window quantification (`SEMEDSLines`), on exspy's element database (`XrayLineDatabase`) | SEM-EDS map readers; SEM-EDS (exspy's window path) |
+| `Report/` | the SEM session's rows (`SEMSessionRow`), the files the rooms wrote, the methods the report cites, and the session report set as Markdown or PDF from numbers the rooms computed | none: no numbers of its own |
 
 **The owners and the rooms.** TEMSession holds one owner per SEM room, the room's only state, which its views read:
 `EBSDSession` (with `EBSDSession+Overlay`) is the Patterns room's: the open EBSD or TKD dataset, the picked
@@ -190,18 +199,18 @@ FormatoKit's sniff decides, since the sniff knows none of these formats (an h5eb
 `OrientationMapSession`, and lands in the richest room: Patterns, then Maps, EDS, EELS, Image (`FileInventory.Landing`). A
 dataset's own crystal map reaches the Maps room through the Patterns room, an Indexing run through `Open in Maps`.
 
-**Metal in TEMCore.** Two numeric ports carry a float32 Metal path beside their float64 CPU reference (D16); they are the
+**Metal in TEMSEM.** Two numeric ports carry a float32 Metal path beside their float64 CPU reference (D16); they are the
 only files in `Sources/` and `EMStudio/` that import Metal (the drawing is MacEMUI's):
 
-- `SEM/Indexing/DictionaryIndexingMetal.swift`: the score matrix of dictionary indexing. Its CPU reference is
+- `TEMSEM/Indexing/DictionaryIndexingMetal.swift`: the score matrix of dictionary indexing. Its CPU reference is
   `DictionaryIndexing.matchCPU`; the automatic backend takes the GPU from 10⁹ products (`workThreshold`); it is held to
   the CPU within 1e-5 by `SEMDictionaryIndexingParityTests` (D-SEM-72).
-- `SEM/MasterPattern/MasterPatternProjectionMetal.swift`: many patterns projected from one master pattern (a dictionary).
+- `TEMSEM/MasterPattern/MasterPatternProjectionMetal.swift`: many patterns projected from one master pattern (a dictionary).
   Its CPU reference is `MasterPatternProjection.project`; `patternsFloat32` takes the GPU from 10⁶ pattern pixels
   (`metalWorkThreshold`); it is held to the CPU within 1e-3 on the -1 to 1 scale by `MasterPatternParityTests` (D-SEM-34).
 
 Both compile their kernel from source at first use with safe (not fast) math, and ship no `.metal` file, so the app's
-shader library stays the shell's; they are the two rows of `tools/kit-boundary.allow` that let TEMCore import Metal.
+shader library stays the shell's; they are the two rows of `tools/kit-boundary.allow` that let TEMSEM import Metal.
 
 **Reference bundles and their CI.** `tools/parity/sem` (the `references` array of `tools/run-tests.sh`) holds the pinned
 stack (`requirements.lock`, built into `References/sem-venv` by `setup.sh`), the downloaded datasets (`data-manifest.txt`,
@@ -237,7 +246,7 @@ The interface is English and is not translated (the project's only language is `
 how a number and a time are written, and that depends on where they go (#302).
 
 - **On screen: the reader's locale.** A number a person reads goes through `Num` (`EMStudio/UI/NumberFormat.swift`),
-  which writes through `UnitDisplay` (`Sources/TEMCore/Data/UnitDisplay.swift`): printf's digits, so the screen shows
+  which writes through `UnitDisplay` (`Sources/TEMBase/UnitDisplay.swift`): printf's digits, so the screen shows
   the last digit the CSV writes, with the locale's decimal mark, no grouping separator and no exponent. The EELS room's
   `EELSRoomFormat` (`Sources/TEMCore/EELS/EELSRoomChassis.swift`) writes the reader's mark without grouping as well.
   These helpers take a `locale` that defaults to `.autoupdatingCurrent`: right for a view, wrong for a file. A count in
@@ -263,14 +272,14 @@ Which of the two each writer uses:
 | Maps and Texture PNG | `MapsFigure` (`EMStudio/App/MapsRoomState.swift`) | `scaleBarLabel`, `rangeLabel` and `mrdLabel`, whose `locale` defaults to `labelLocale`. |
 | EELS maps PNG | `EMStudio/UI/EELSRoom.swift` | Each tile's `EELSMapTile.detailText(locale: labelLocale)`. |
 | Grains and histogram CSV | `MapsRoomFormat.grainsCSV` and `histogramCSV` (`EMStudio/App/MapsRoomState.swift`) | `String(format:)`, `%.6g`. |
-| Indexing results CSV, `.ang`, `.ctf` | `IndexingResult.csv` (`Sources/TEMCore/SEM/Indexing/IndexingResult.swift`), `ANGWriter` and `CTFWriter` (`Sources/TEMCore/SEM/Export/`) | `String(format:)`. |
-| Kikuchi overlay CSV | `KikuchiOverlay.csv` (`Sources/TEMCore/SEM/Simulation/KikuchiOverlay.swift`) | A number's `description`. |
+| Indexing results CSV, `.ang`, `.ctf` | `IndexingResult.csv` (`Sources/TEMSEM/Indexing/IndexingResult.swift`), `ANGWriter` and `CTFWriter` (`Sources/TEMSEM/Export/`) | `String(format:)`. |
+| Kikuchi overlay CSV | `KikuchiOverlay.csv` (`Sources/TEMSEM/Simulation/KikuchiOverlay.swift`) | A number's `description`. |
 | Method and metadata JSON | `methodJSON` of `IndexingPlan`, `DictionaryIndexingPlan`, `PatternPipeline` and `EELSCompute`; `EBSDBrowsing.metadataJSON` | `JSONEncoder` or `JSONSerialization`. The dictionary record's `energy` words: `DictionaryIndexingPlan.energyWords(locale:)` in `en_US_POSIX`; `energyKeV` beside them is the number. |
 | EELS CSV and MSA | `EELSExports` (`Sources/TEMCore/EELS/EELSExports.swift`) | `%.9g`; the `.msa` is FormatoKit's `MSAWriter`. The results CSV's thickness, fit quality and deconvolution lines are made in `en_US_POSIX` (`EELSSession.resultsCSV`, `EELSDeconvolveCompute.recordLine`). |
 | Diffraction CSV | `DiffractionExport` (`Sources/TEMCore/Diffraction/DiffractionExport.swift`) | `%.9g`. |
 | Particles CSV | `ParticleFormat.csv` (`Sources/TEMCore/Particles/ParticleCompute.swift`) | `String(format:)`. |
 | EDX CSV and MSA | MacEMUI's `ShellEDXModel` | `String(format:)` in the CSVs; the `.msa` is FormatoKit's `MSAWriter` (`EDXExports.msa`). |
-| Session report, Markdown and PDF | `SEMSessionReport` (`Sources/TEMCore/SEM/Report/SEMSessionReport.swift`), from `ExportPanels.exportSessionReport` | Rows: `SEMSessionLedger.rows(of:locale:)` with `labelLocale`, which reaches the Refine words and the dictionary's master and energy words (`SEMSessionLedger.refineField` and `dictionaryFields`). Dates: `SEMSessionReport.Clock`, a `DateFormatter` in `en_US_POSIX` on the Gregorian calendar ("2026-11-07 16:42"). |
+| Session report, Markdown and PDF | `SEMSessionReport` (`Sources/TEMSEM/Report/SEMSessionReport.swift`), from `ExportPanels.exportSessionReport` | Rows: `SEMSessionLedger.rows(of:locale:)` with `labelLocale`, which reaches the Refine words and the dictionary's master and energy words (`SEMSessionLedger.refineField` and `dictionaryFields`). Dates: `SEMSessionReport.Clock`, a `DateFormatter` in `en_US_POSIX` on the Gregorian calendar ("2026-11-07 16:42"). |
 | Session sidecar | `SessionSidecarFile` and `SessionLineage` (`Sources/TEMCore/Data/`) | `JSONEncoder`: integers, times as milliseconds. |
 
 A test holds each writer that passes a locale: the file's string is the `en_US_POSIX` one, and the same value in `de_DE`

@@ -2,6 +2,8 @@
 // Edges and Fit. Each stage is not run, current, or stale (its input has changed since); a stale result stays on screen, dimmed, and is never blanked.
 // Pure values and strings: no kit call, no view.
 import Foundation
+import TEMBase
+import TEMSEM
 
 package enum EELSStage: String, CaseIterable, Sendable {
     case align, thickness, deconvolve, edges, fit

@@ -13,6 +13,8 @@
 
 import CryptoKit
 import Foundation
+import TEMBase
+import TEMSEM
 
 package nonisolated struct LinkedFile: Codable, Equatable, Hashable, Sendable {
     /// The link's own id: the key of the app's bookmark for it. A new id for each file linked.

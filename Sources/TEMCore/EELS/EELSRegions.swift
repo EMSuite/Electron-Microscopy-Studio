@@ -7,6 +7,8 @@ import SpectroCore
 import SpectroEDX
 import SpectroEELS
 import ShellEDXModel
+import TEMBase
+import TEMSEM
 
 /// One region's row: its pixels, the summed low loss's total and t/λ, and, with the edge model's inputs, one row per fitted edge.
 package nonisolated struct EELSRegionRow: Equatable, Sendable, Identifiable {

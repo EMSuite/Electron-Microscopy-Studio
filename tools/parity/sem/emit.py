@@ -1652,7 +1652,7 @@ def case_m7_eds_quant_tm002(ctx):
 
 def _xray_database(b):
     """exspy's element database as the quantification above reads it: every element's Z and atomic weight and every X-ray
-    line's energy and weight, in the database's own order, exact (Sources/TEMCore/EDX/XrayLineDatabase.swift is generated
+    line's energy and weight, in the database's own order, exact (Sources/TEMSEM/EDS/XrayLineDatabase.swift is generated
     from the same dict by make_xray_database.py and must equal these arrays)."""
     from exspy._misc.elements import elements as db
 

@@ -8,7 +8,7 @@
 #               each skipped test is named with its XCTSkip's reason, and one that tools/unit-skips.allow does not list
 #               fails (tools/lib/unit-skips.sh); a compiler warning in the app's own sources and tests is listed and
 #               fails (tools/lib/app-warnings.sh), as `core` fails one in the package
-#   core        `swift build` of the package from a fresh scratch path: TEMCore and TEMSession — the layering gate
+#   core        `swift build` of the package from a fresh scratch path: TEMBase, TEMSEM, TEMCore and TEMSession — the layering gate
 #               (a package target cannot reach the app's App/ or UI/), the Swift 6 gate, and zero warnings
 #   scientific  the reference harnesses (the `scientific` array below): every one runs, a red one does not stop the rest,
 #               and the run fails at the end naming each red one (tools/lib/run-harnesses.sh)
@@ -331,13 +331,13 @@ core_build() (
   warnings="$(core_warnings "$work/core.log")" || wrc=$?
   (( wrc != 2 )) || return 1
   if [[ -n "$warnings" ]]; then
-    echo "core: swift build exit 0 but with warnings; TEMCore and TEMSession build with zero:" >&2
+    echo "core: swift build exit 0 but with warnings; the package targets build with zero:" >&2
     print -r -- "$warnings" >&2
     return 1
   fi
   notes="$(skipped_caches "$work/core.log")"
   (( notes == 0 )) || echo "core: SwiftPM skipped its repository cache $notes times and cloned afresh; those notes are not warnings"
-  echo "core: TEMCore + TEMSession built from scratch, 0 warnings"
+  echo "core: TEMBase, TEMSEM, TEMCore + TEMSession built from scratch, 0 warnings"
 )
 
 # The Release configuration, built the way tools/release.sh and tools/release-store.sh archive it, before a tag exists: whole-module
@@ -529,6 +529,17 @@ inventory() {
   # MetalKit and Cocoa count as AppKit: a file whose only import is MetalKit compiles NSColor and NSScreen.
   if grep -rnE --include='*.swift' "${imports}(SwiftUI|AppKit|Cocoa|MetalKit)([^[:alnum:]_]|$)" "$ROOT/Sources"; then
     echo "  ^ TEMCore and TEMSession describe no UI (docs/architecture.md)"; rc=1
+  fi
+
+  echo "== layering: TEMSEM and TEMBase sit below TEMCore (#849)"
+  # The SEM program's target imports kits and TEMBase only, so each step of the kit move (#848) is a move out of one target; TEMBase
+  # imports kits only. Package.swift declares no such dependency either, but an undeclared import can still build when the other
+  # module happens to be built first, so the grep holds the rule.
+  if grep -rnE --include='*.swift' "${imports}(TEMCore|TEMSession)([^[:alnum:]_]|$)" "$ROOT/Sources/TEMSEM" "$ROOT/Sources/TEMBase"; then
+    echo "  ^ TEMSEM and TEMBase import neither TEMCore nor TEMSession (docs/architecture.md)"; rc=1
+  fi
+  if grep -rnE --include='*.swift' "${imports}TEMSEM([^[:alnum:]_]|$)" "$ROOT/Sources/TEMBase"; then
+    echo "  ^ TEMBase imports no TEMSEM (docs/architecture.md)"; rc=1
   fi
 
   echo "== the UI contract"

@@ -15,6 +15,8 @@ import Foundation
 import DiffractoCore
 import DiffractoGeometry
 import DiffractoScattering
+import TEMBase
+import TEMSEM
 
 package nonisolated enum ZoneAxisText {
     /// [u v w] from what a person types: three integers separated by spaces or commas, inside [ ] or not, or three digits run

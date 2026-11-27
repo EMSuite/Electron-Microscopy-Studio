@@ -1,6 +1,6 @@
 //
 //  SEMOrientationSamplingParityTests.swift
-//  TEMCore's `OrientationSampling` (Sources/TEMCore/SEM/Orientation/OrientationSampling.swift) against orix 0.15.0's
+//  TEMCore's `OrientationSampling` (Sources/TEMSEM/Orientation/OrientationSampling.swift) against orix 0.15.0's
 //  cubochoric sampling through the committed bundle `m3/orientation-sampling` (tools/parity/sem/emit.py, inputs
 //  tools/parity/sem/fixtures/sampling_inputs.json). Counts and semi-edge steps exact; rotations within atol 1e-7 in orix's
 //  order (every stride-th row and the last of each sample, the bundle's `stride`). Red before the port: the type does not

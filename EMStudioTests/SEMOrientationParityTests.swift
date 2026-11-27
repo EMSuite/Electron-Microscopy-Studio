@@ -1,6 +1,6 @@
 //
 //  SEMOrientationParityTests.swift
-//  TEMCore's orientation core (Sources/TEMCore/SEM/Orientation: `RotationConversions`, `Rotation`, `PointGroup`,
+//  TEMCore's orientation core (Sources/TEMSEM/Orientation: `RotationConversions`, `Rotation`, `PointGroup`,
 //  `OrientationRegion`, `Orientations`, `Misorientations`) against orix 0.15.0 through the committed bundles
 //  `m3/rotation-conversions`, `m3/point-groups`, `m3/orientation-regions` and `m3/ti-disorientations` (tools/parity/sem/emit.py).
 //  Tolerances are the bundles' (docs/parity.md): components and angles within atol 1e-7, symmetry elements and region normals

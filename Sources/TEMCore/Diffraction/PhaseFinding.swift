@@ -16,6 +16,8 @@ import Foundation
 import DiffractoCore
 import DiffractoGeometry
 import DiffractoOrientation
+import TEMBase
+import TEMSEM
 
 /// Where a candidate phase came from.
 package nonisolated enum PhaseSource: String, Sendable, Codable, CaseIterable, Equatable {

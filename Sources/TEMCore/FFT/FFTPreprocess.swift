@@ -5,6 +5,8 @@
 import Foundation
 import ImagoCore
 import ImagoFilters
+import TEMBase
+import TEMSEM
 
 package nonisolated struct FFTPreprocess: Equatable, Sendable {
     package enum Window: String, CaseIterable, Sendable, Identifiable {

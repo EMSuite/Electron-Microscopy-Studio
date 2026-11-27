@@ -1,6 +1,6 @@
 //
 //  SEMTextureParityTests.swift
-//  Pole figures, inverse pole figure densities and ODF sections (Sources/TEMCore/SEM/Texture: `EqualAreaGrid`,
+//  Pole figures, inverse pole figure densities and ODF sections (Sources/TEMSEM/Texture: `EqualAreaGrid`,
 //  `PoleDensityFunction`, `PoleFigures`, `OrientationDensity`) against orix 0.15.0 through the committed bundles
 //  `m5/texture-ti` and `m5/texture-cubic`, and figure F13 on orix-data's whole Ti map (`m5/texture-ti-full`, skipped until
 //  tools/parity/sem/fetch-data.sh has fetched it). Tolerances are the bundles' (docs/parity.md): counts exact except that

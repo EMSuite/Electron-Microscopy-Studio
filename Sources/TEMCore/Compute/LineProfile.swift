@@ -10,6 +10,8 @@
 //
 
 import ImagoCore
+import TEMBase
+import TEMSEM
 
 extension LineProfile {
     package nonisolated static func sample(_ image: CalibratedImage, from: ImagePoint, to: ImagePoint, width: Int) -> LineProfile {

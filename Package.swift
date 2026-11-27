@@ -1,7 +1,7 @@
 // swift-tools-version: 6.2
 // SPDX-License-Identifier: GPL-3.0-only
-// TEMCore and TEMSession, the app's two library targets (`tools/run-tests.sh core` builds them standalone: the layering
-// gate). Kits and MacEMUI by version range (Package.resolved holds the versions built). No UI below the app: TEMCore takes only ShellEDXModel (the shared EDS room's model) and ShellExport (figures and the methods record) from MacEMUI, neither with SwiftUI.
+// TEMCore and TEMSession, the app's two library products, over TEMSEM (the SEM program, #849) and TEMBase below both
+// (`tools/run-tests.sh core` builds them standalone: the layering gate). Kits and MacEMUI by version range (Package.resolved holds the versions built). No UI below the app: TEMCore takes only ShellEDXModel (the shared EDS room's model) and ShellExport (figures and the methods record) from MacEMUI, neither with SwiftUI.
 import PackageDescription
 
 let package = Package(
@@ -23,9 +23,47 @@ let package = Package(
         .package(url: "https://github.com/EMSuite/SimulatoKit", from: "0.8.1"),
     ],
     targets: [
+        // Below TEMCore and TEMSEM: what both use (the app name, the calibrated image and its stored pixels, unit display, text
+        // lines, checked conversions, a scan row's parallel work). Kits only.
+        .target(
+            name: "TEMBase",
+            dependencies: [
+                .product(name: "FormatoCore", package: "FormatoKit"),
+                .product(name: "ImagoCore", package: "ImagoKit"),
+            ],
+            swiftSettings: [
+                .unsafeFlags(["-O"], .when(configuration: .debug)),
+                .enableUpcomingFeature("NonisolatedNonsendingByDefault"),
+                .enableUpcomingFeature("InferIsolatedConformances"),
+                .enableUpcomingFeature("MemberImportVisibility"),
+            ]
+        ),
+        // The SEM program's ports (EBSD, TKD, SEM images, SEM-EDS; #849): kits and TEMBase only, never TEMCore or TEMSession, so each
+        // later step of the kit move (#848) is a move out of one target. TEMCore imports it and re-exports it.
+        .target(
+            name: "TEMSEM",
+            dependencies: [
+                "TEMBase",
+                .product(name: "FormatoCore", package: "FormatoKit"),
+                .product(name: "FormatoHDF5", package: "FormatoKit"),
+                .product(name: "FormatoTIFF", package: "FormatoKit"),
+                .product(name: "DiffractoCore", package: "DiffractoKit"),
+                .product(name: "ImagoCore", package: "ImagoKit"),
+                .product(name: "ImagoFilters", package: "ImagoKit"),
+                .product(name: "SpectroCore", package: "SpectroKit"),
+            ],
+            swiftSettings: [
+                .unsafeFlags(["-O"], .when(configuration: .debug)),
+                .enableUpcomingFeature("NonisolatedNonsendingByDefault"),
+                .enableUpcomingFeature("InferIsolatedConformances"),
+                .enableUpcomingFeature("MemberImportVisibility"),
+            ]
+        ),
         .target(
             name: "TEMCore",
             dependencies: [
+                "TEMBase",
+                "TEMSEM",
                 .product(name: "Formato", package: "FormatoKit"),
                 .product(name: "FormatoCore", package: "FormatoKit"),
                 .product(name: "FormatoDM", package: "FormatoKit"),

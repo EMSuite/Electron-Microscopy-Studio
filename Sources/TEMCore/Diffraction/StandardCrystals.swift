@@ -9,6 +9,8 @@
 import Foundation
 import DiffractoCore
 import DiffractoScattering
+import TEMBase
+import TEMSEM
 
 package struct StandardCrystal: Sendable, Equatable {
     /// "Au", "Al" or "Si".

@@ -8,6 +8,8 @@
 import Foundation
 import ImagoCore
 import ShellExport
+import TEMBase
+import TEMSEM
 
 extension ProfileCSV {
     /// What a line profile is checked against (the Results room and its CSV show it verbatim); the `# validation:` line adds

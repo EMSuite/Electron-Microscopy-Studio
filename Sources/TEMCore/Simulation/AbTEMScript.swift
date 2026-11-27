@@ -14,6 +14,8 @@
 import DiffractoCore
 import Foundation
 import SimulatoCore
+import TEMBase
+import TEMSEM
 
 package nonisolated enum AbTEMScript {
     /// The versions the script is written for: SimulatoKit's pins (its docs/parity.md).

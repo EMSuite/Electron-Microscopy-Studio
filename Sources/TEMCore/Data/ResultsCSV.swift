@@ -16,6 +16,8 @@
 import Foundation
 import ImagoCore
 import ShellExport
+import TEMBase
+import TEMSEM
 
 package nonisolated enum ResultsCSV {
     /// The whole file (UTF-8, LF), or nil without a row. `session` is the sentence that says where the file's marks are kept

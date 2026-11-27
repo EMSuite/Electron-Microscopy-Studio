@@ -15,6 +15,8 @@ import ImagoCore
 import SimulatoCore
 import SimulatoMultislice
 import SimulatoProbe
+import TEMBase
+import TEMSEM
 
 /// The objective lens and the beam of an HRTEM image. The defaults are the design's Uncorrected preset at 200 kV (Cs 1.0 mm, focal
 /// spread 5 nm), with abTEM's defaults where it has one: no angular spread and no objective aperture.

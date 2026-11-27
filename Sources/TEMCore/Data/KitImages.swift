@@ -12,6 +12,8 @@ import FormatoEMD
 import ImagoCore
 import FormatoMRC
 import FormatoTIFF
+import TEMBase
+import TEMSEM
 
 extension AxisCalibration {
     package init(_ axis: TIFFAppImage.Axis) { self.init(scale: axis.scale, unit: axis.units, origin: axis.origin) }

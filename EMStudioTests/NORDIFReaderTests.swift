@@ -1,6 +1,6 @@
 //
 //  NORDIFReaderTests.swift
-//  The NORDIF readers (Sources/TEMCore/SEM/NORDIF) against kikuchipy 0.13.1 on the in-package NORDIF folder
+//  The NORDIF readers (Sources/TEMSEM/NORDIF) against kikuchipy 0.13.1 on the in-package NORDIF folder
 //  (Fixtures/sem/nordif, kikuchipy's `data/nordif`): reference.json is written by tools/parity/sem/nordif/reference.py
 //  from `kikuchipy.load` and holds the settings, the detector, the SHA-256 of every pattern block in map order with its
 //  corner rows, the calibration positions and their scaled forms, and the sentence each damaged settings file is

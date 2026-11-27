@@ -9,6 +9,8 @@
 import DiffractoCore
 import Foundation
 import ImagoCore
+import TEMBase
+import TEMSEM
 
 /// One line of the readout: a ring or a spot with what the kit says about it.
 package nonisolated struct DiffractionReadoutRow: Sendable, Equatable, Identifiable {

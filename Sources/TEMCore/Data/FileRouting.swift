@@ -10,6 +10,8 @@ import FormatoDM
 import FormatoEMD
 import FormatoMSA
 import SpectroCore
+import TEMBase
+import TEMSEM
 
 /// What a file holds, and so which rooms an Open fills.
 package nonisolated struct FileInventory: Equatable, Sendable {

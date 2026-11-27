@@ -16,6 +16,8 @@
 
 import Foundation
 import DiffractoCore
+import TEMBase
+import TEMSEM
 
 package nonisolated struct SimulationSessionFile: Codable, Equatable, Sendable {
     /// The extension of a session file; an Open routes it to a Simulation document, never to a room's reader.

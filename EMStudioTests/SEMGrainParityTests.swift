@@ -1,6 +1,6 @@
 //
 //  SEMGrainParityTests.swift
-//  TEMCore's grain analysis (Sources/TEMCore/SEM/Grains: `GrainMap`, `DefDAPQuat`, `DefDAPCrystalStructure`, `GrainBoundaries`,
+//  TEMCore's grain analysis (Sources/TEMSEM/Grains: `GrainMap`, `DefDAPQuat`, `DefDAPCrystalStructure`, `GrainBoundaries`,
 //  `GrainSegmentation`, `KernelAverageMisorientation`, `GrainOrientationStatistics`) against DefDAP 1.3.1 through the
 //  bundles `m5/grains-ti` (a committed 90 x 120 corner of orix-data's Ti map), `m5/grains-sdss` (the two-phase steel,
 //  committed as Fixtures/ebsd-sdss-ferrite-austenite.ang) and `m5/grains-ti-full` (figures F11 and F12: the whole

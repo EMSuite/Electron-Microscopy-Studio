@@ -1,6 +1,6 @@
 # sem-readers
 
-The fixtures and truth of the SEM program's file readers (`Sources/TEMCore/SEM/`), written by the Python references' own readers
+The fixtures and truth of the SEM program's file readers (`Sources/TEMSEM/`), written by the Python references' own readers
 so a reader is tested against what the reference returns. Classified `support` in `tools/run-tests.sh`: not a harness, nothing
 runs per session; the unit tests read the committed fixtures.
 

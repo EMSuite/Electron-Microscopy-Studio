@@ -90,6 +90,8 @@
 
 import Foundation
 import FormatoHDF5
+import TEMBase
+import TEMSEM
 
 package nonisolated enum SessionSidecarFile {
     package static let identityAttribute = "mactem_session_schema"

@@ -16,6 +16,8 @@ import CoreGraphics
 import Foundation
 import FormatoCore
 import ImageIO
+import TEMBase
+import TEMSEM
 
 package nonisolated enum PictureImageReader {
     /// The extensions read here, lower case. PNG and JPEG only: HEIC and BMP are not read (docs/design/files-exports.md).
