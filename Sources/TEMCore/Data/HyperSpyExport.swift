@@ -18,6 +18,8 @@ import Foundation
 import ImagoCore
 import ShellExport
 import SpectroEELS
+import TEMBase
+import TEMSEM
 
 package nonisolated enum HyperSpyExport {
     /// The methods record's key in the file's metadata tree: `s.metadata.Processing.methods_record`, the record's JSON.

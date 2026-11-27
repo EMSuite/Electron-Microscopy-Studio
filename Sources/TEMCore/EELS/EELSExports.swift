@@ -6,6 +6,8 @@ import FormatoCore
 import FormatoMSA
 import ImagoCore
 import ShellEDXModel
+import TEMBase
+import TEMSEM
 
 /// The literature each EELS method follows, as the room's tooltips, the figure subtitle and every export name it. A method is named with its
 /// reference, as scientific software does; no trust label is written.

@@ -1,6 +1,6 @@
 # sem-image
 
-The Tescan reference of macTEM's SEM TIFF metadata reader (`Sources/TEMCore/SEM/SEMImageMetadata.swift`). RosettaSciIO has
+The Tescan reference of macTEM's SEM TIFF metadata reader (`Sources/TEMSEM/SEMImageMetadata.swift`). RosettaSciIO has
 no Tescan branch, so `tescan_reference.py` transcribes NexusLIMS's `tescan_tif` pipeline (MIT) and writes, from NexusLIMS's own
 test file `tescan-pfib_dataZeroed.tif`, the tag's bytes and the sections it parses into `EMStudioTests/Fixtures/sem-tiff/`
 (`SOURCES-sem-tiff.md` there names the source and its sha256). Re-run it only when NexusLIMS's pipeline changes; a changed

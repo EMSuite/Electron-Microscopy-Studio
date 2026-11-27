@@ -1,7 +1,7 @@
 //
 //  SEMColorKeyParityTests.swift
 //  TEMCore's vectors, Miller indices, stereographic projection, fundamental sectors and colour keys
-//  (Sources/TEMCore/SEM/Orientation: `StereographicProjection`, `CrystalLattice`, `Miller`, `FundamentalSector`,
+//  (Sources/TEMSEM/Orientation: `StereographicProjection`, `CrystalLattice`, `Miller`, `FundamentalSector`,
 //  `DirectionColorKeyTSL`, `IPFColorKeyTSL`, `EulerColorKey`) against orix 0.15.0 through the committed bundles
 //  `m3/ipf-color-keys`, `m3/ipf-sdss-ferrite-austenite` and `m3/ipf-nickel-ebsd-large` (tools/parity/sem/emit.py, figure F6).
 //  Tolerances are the bundles' (docs/parity.md): colours within 1e-6, coordinates within 1e-7, sector geometry within 1e-10,

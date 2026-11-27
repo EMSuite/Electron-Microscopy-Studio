@@ -1,6 +1,6 @@
 //
 //  CrystalMapParityTests.swift
-//  TEMCore's crystal map model (Sources/TEMCore/SEM/CrystalMap: `CrystalMap`, `PhaseList`, `NeighbourMisorientation`,
+//  TEMCore's crystal map model (Sources/TEMSEM/CrystalMap: `CrystalMap`, `PhaseList`, `NeighbourMisorientation`,
 //  `AngleHistogram`) against orix 0.15.0 through the bundles `m3/ti-neighbour-misorientations` (a committed 3 x 507 Ti map),
 //  `m3/ti-neighbour-misorientations-full` (figure F7: orix-data's whole 381 x 507 Ti map, a downloaded dataset) and
 //  `m3/crystal-map-sdss` (orix-data's two-phase .ang map, committed as Fixtures/ebsd-sdss-ferrite-austenite.ang).

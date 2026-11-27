@@ -8,6 +8,7 @@
 import Foundation
 import ImagoCore
 import ImagoFFT
+import TEMBase
 
 nonisolated extension CalibratedImage {
     /// The kit's image of these pixels and axes. `CalibratedImage` already holds the invariants `Micrograph` checks

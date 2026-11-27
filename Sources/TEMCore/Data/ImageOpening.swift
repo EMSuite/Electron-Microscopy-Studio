@@ -17,6 +17,8 @@ import ImagoCore
 import Foundation
 import FormatoCore
 import FormatoDM
+import TEMBase
+import TEMSEM
 
 package nonisolated enum ImageOpening {
     /// File extensions macTEM reads today, lower case.

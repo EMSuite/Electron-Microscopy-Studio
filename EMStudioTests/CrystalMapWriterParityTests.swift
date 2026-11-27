@@ -1,6 +1,6 @@
 //
 //  CrystalMapWriterParityTests.swift
-//  TEMCore's crystal map writers (Sources/TEMCore/SEM/Export: `ANGWriter`, `CTFWriter`) against the bundles `m8/write-ang-*`
+//  TEMCore's crystal map writers (Sources/TEMSEM/Export: `ANGWriter`, `CTFWriter`) against the bundles `m8/write-ang-*`
 //  (orix 0.15.0's `.ang` `file_writer`) and `m8/write-ctf-*` (tools/parity/sem/ctf_writer.py, the Oxford layout orix's reader
 //  reads; orix writes no .ctf), figure F18: the written file's bytes equal the reference's (sha256 of the whole file, its line
 //  count, every header line and every 50th data line), and `emit.py` asserts that orix reads each reference back to the

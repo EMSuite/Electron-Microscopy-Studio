@@ -5,6 +5,7 @@
 import Foundation
 import SpectroCore
 import SpectroEELS
+import TEMBase
 
 /// The Processing section's Deconvolution choice.
 package enum EELSDeconvolutionChoice: Equatable, Hashable, Sendable {

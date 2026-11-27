@@ -5,6 +5,8 @@ import Foundation
 import ImagoCore
 import SpectroCore
 import SpectroEELS
+import TEMBase
+import TEMSEM
 
 /// How I_0 is cut, as the room offers it.
 package enum EELSThresholdChoice: Equatable, Sendable {

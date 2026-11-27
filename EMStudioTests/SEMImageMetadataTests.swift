@@ -1,6 +1,6 @@
 //
 //  SEMImageMetadataTests.swift
-//  The SEM TIFF record (TEMCore/SEM/SEMImageMetadata.swift) against RosettaSciIO 0.15.0 and tifffile (tools/parity/sem's
+//  The SEM TIFF record (TEMSEM/SEMImageMetadata.swift) against RosettaSciIO 0.15.0 and tifffile (tools/parity/sem's
 //  pinned stack): the parity part reads the vendor tag of each of RosettaSciIO's eight SEM test TIFFs (the tag's bytes, held in
 //  each `m1/read-sem-tiff-*` bundle that tools/parity/sem/emit.py wrote from the real file, planted into a TIFF of the file's
 //  own width and height) and compares every mapped value with that bundle: texts exactly, numbers to 1e-9 relative, axes at

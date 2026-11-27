@@ -11,6 +11,7 @@ import ImagoCore
 import DiffractoCore
 import DiffractoGeometry
 import DiffractoScattering
+import TEMBase
 
 /// The pattern centre in pixels (row, column; a pixel's centre is at its integer), and where it came from.
 package nonisolated struct DiffractionCentre: Sendable, Equatable {

@@ -33,6 +33,7 @@ import Foundation
 import FormatoCore
 import FormatoTIA
 import ImagoCore
+import TEMBase
 
 package nonisolated enum TIAImageReader {
     /// The extensions of a TIA acquisition, lower case.

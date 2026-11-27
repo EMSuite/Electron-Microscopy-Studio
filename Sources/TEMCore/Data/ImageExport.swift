@@ -34,6 +34,8 @@ import Foundation
 import ImageIO
 import ShellExport
 import UniformTypeIdentifiers
+import TEMBase
+import TEMSEM
 
 package nonisolated enum ImageExport {
     /// The longest side an export takes: a 16 384² canvas is 1 GiB of RGB.

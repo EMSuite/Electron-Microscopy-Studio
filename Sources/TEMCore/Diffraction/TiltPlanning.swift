@@ -14,6 +14,7 @@ import Foundation
 import DiffractoCore
 import DiffractoGeometry
 import ImagoCore
+import TEMBase
 
 /// The holder as the document keeps it: the tilts now, where they came from, the limits and the calibrated axis.
 package nonisolated struct HolderSettings: Sendable, Codable, Equatable {

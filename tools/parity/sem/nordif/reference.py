@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-only
-"""Reference for macTEM's NORDIF reader (Sources/TEMCore/SEM/NORDIF), from kikuchipy 0.13.1.
+"""Reference for macTEM's NORDIF reader (Sources/TEMSEM/NORDIF), from kikuchipy 0.13.1.
 
 Reads the in-package NORDIF folder of kikuchipy (`kikuchipy/data/nordif`: Pattern.dat, Setting.txt, the three bad
 settings files, the background and calibration .bmp patterns) with `kikuchipy.load` exactly as a user would, and writes

@@ -127,7 +127,7 @@ Upstream's own tests compare hand-written 3 x 3 uint8 answers exactly (`test_rem
 | `PatternProcessing.normalizeIntensity` (`numStd`, `divideBySquareRoot`) | `_normalize_intensity` (`EBSD.normalize_intensity` on float32) | `testNormalizeIntensity…` | rtol 1e-5, atol 1e-6 (1e-8 with the square root); measured 4.8e-7 | float64 mean and population std, float32 out |
 | `PatternProcessing.downsample` / `bin` | `_downsample2d` / `_bin2d` (`EBSD.downsample`) | `testDownsample…`, `testRoomChain…` | uint8 within one grey level; measured exact for factors 2 and 3 | float32 sums and rescale with the reciprocal, as kikuchipy's kernel; a size not divisible by the factor is refused (`.parameter("factor")`), kikuchipy points at `crop` |
 
-NLPAR (`Sources/TEMCore/SEM/NLPAR.swift`, tests `SEMNLPARParityTests`): PyEBSDIndex 0.3.10.1's CPU path (`nlpar_cpu`;
+NLPAR (`Sources/TEMSEM/Patterns/NLPAR.swift`, tests `SEMNLPARParityTests`): PyEBSDIndex 0.3.10.1's CPU path (`nlpar_cpu`;
 Brewick, Wright and Rowenhorst 2019, Ultramicroscopy 200, 50), references `tools/parity/sem/emit.py` cases
 `m2/nlpar-nickel-ebsd-large` (the shipped demo scan, run in every unit-test pass) and `m2/nlpar-kikuchipy-h5ebsd`.
 pyebsdindex has no NLPAR test of its own; the tolerances are the harness rule for float32 results (D-SEM-13). The port keeps
@@ -155,7 +155,7 @@ denoised values differ only where float64 `exp` rounds differently.
 
 ## Orientation maths
 
-orix 0.15.0's quaternion package ported into `Sources/TEMCore/SEM/Orientation/` (P3-01): conventions of Rowenhorst et al.
+orix 0.15.0's quaternion package ported into `Sources/TEMSEM/Orientation/` (P3-01): conventions of Rowenhorst et al.
 (2015), "Consistent representations of and conversions between 3D rotations" (unit quaternions scalar first, passive,
 P = -1, Bunge Euler angles lab to crystal). Bundles from `tools/parity/sem/emit.py`, inputs in
 `tools/parity/sem/fixtures/orientation_inputs.json`, tests in `SEMOrientationParityTests`.
@@ -175,7 +175,7 @@ P = -1, Bunge Euler angles lab to crystal). Bundles from `tools/parity/sem/emit.
 
 ## Crystal map
 
-orix 0.15.0's `orix.crystal_map` ported into `Sources/TEMCore/SEM/CrystalMap/` (P3-03): one `CrystalMap` for every reader and
+orix 0.15.0's `orix.crystal_map` ported into `Sources/TEMSEM/CrystalMap/` (P3-03): one `CrystalMap` for every reader and
 every later indexing result. The `.ctf`, `.ang` and h5ebsd readers hand their maps over as `CrystalMap` (their own reader tests
 stay the truth; `testTheCTFReaderHandsTheF7MapThrough` takes the F7 head map through `CTFReader`). Tests in
 `CrystalMapParityTests`; bundles from `tools/parity/sem/emit.py`.
@@ -190,7 +190,7 @@ stay the truth; `testTheCTFReaderHandsTheF7MapThrough` takes the F7 head map thr
 
 ## Crystal map writers
 
-`Sources/TEMCore/SEM/Export/` (P8-01, figure F18): a `CrystalMap` written as EDAX TSL `.ang` and Oxford `.ctf`. Tests in
+`Sources/TEMSEM/Export/` (P8-01, figure F18): a `CrystalMap` written as EDAX TSL `.ang` and Oxford `.ctf`. Tests in
 `CrystalMapWriterParityTests`; bundles `m8/write-*` from `tools/parity/sem/writer_cases.py`.
 
 | Function | Reference | Test | Tolerance | Notes |
@@ -201,7 +201,7 @@ stay the truth; `testTheCTFReaderHandsTheF7MapThrough` takes the F7 head map thr
 
 ## Grains, KAM and GOS (figures F11, F12)
 
-DefDAP 1.3.1 (Apache-2.0) ported into `Sources/TEMCore/SEM/Grains/` (P5-01). Tests in `SEMGrainParityTests`; bundles from
+DefDAP 1.3.1 (Apache-2.0) ported into `Sources/TEMSEM/Grains/` (P5-01). Tests in `SEMGrainParityTests`; bundles from
 `tools/parity/sem/grain_cases.py` (imported by `emit.py`): `m5/grains-ti` (90 x 120 corner of orix-data's Ti map,
 committed in `fixtures/grain_inputs.json`), `m5/grains-sdss` (the two-phase steel) and `m5/grains-ti-full` (figures F11
 and F12, the whole 381 x 507 Ti map, fetched; skips without it). DefDAP runs as a library on maps built with its
@@ -219,7 +219,7 @@ and F12, the whole 381 x 507 Ti map, fetched; skips without it). DefDAP runs as 
 
 ## Pole figures, inverse pole figures and the ODF (figure F13)
 
-orix 0.15.0 ported into `Sources/TEMCore/SEM/Texture/` (P5-02). Tests in `SEMTextureParityTests`; bundles from
+orix 0.15.0 ported into `Sources/TEMSEM/Texture/` (P5-02). Tests in `SEMTextureParityTests`; bundles from
 `tools/parity/sem/texture_cases.py` (imported by `emit.py`): `m5/texture-ti` (the 2000 committed Ti orientations of
 `fixtures/orientation_inputs.json`, 622), `m5/texture-cubic` (the 100 seeded m-3m orientations) and `m5/texture-ti-full`
 (figure F13, the whole 381 x 507 Ti map, fetched; skips without it). Figure script `texture_figure.py`.
@@ -235,7 +235,7 @@ orix 0.15.0 ported into `Sources/TEMCore/SEM/Texture/` (P5-02). Tests in `SEMTex
 
 ## Slip analysis and GND density
 
-DefDAP 1.3.1 (Apache-2.0) ported into `Sources/TEMCore/SEM/Deformation/` (P5-03): DefDAP's own quaternion conventions and
+DefDAP 1.3.1 (Apache-2.0) ported into `Sources/TEMSEM/Deformation/` (P5-03): DefDAP's own quaternion conventions and
 symmetry lists (`DefDAPQuat`, `DefDAPCrystalStructure`; passive, northern hemisphere, its element order), its six slip-system
 files verbatim, the per-grain slip analysis and the Nye tensor. Bundles `m5/slip-ti` and `m5/slip-sdss` from
 `tools/parity/sem/emit.py`, inputs in `tools/parity/sem/fixtures/slip_inputs.json`, tests in `SEMSlipParityTests`.
@@ -444,7 +444,7 @@ PC) and `np.allclose` defaults (coordinates).
 
 References: the bundles `m7/eds-lines-tm002` (F16) and `m7/eds-quant-tm002` (F17, with the X-ray line table as its `db_` arrays) in
 `tools/parity/sem` (exspy 0.3.2, HyperSpy 2.5.0) on the BAM TM002 spectrum (`fixtures/exspy_EDS_SEM_TM002.hspy`); tests in
-`SEMEDSParityTests`. Port: `Sources/TEMCore/EDX/SEMEDSLines.swift` (Fiori and Newbury 1978 for the line width; Cliff and
+`SEMEDSParityTests`. Port: `Sources/TEMSEM/EDS/SEMEDSLines.swift` (Fiori and Newbury 1978 for the line width; Cliff and
 Lorimer 1975 for the k-factor ratio); SpectroKit's model-fit quantification is unchanged and stays the EDS room's own path.
 
 | Function | Reference | Test | Tolerance | Notes |

@@ -42,6 +42,8 @@
 
 import CryptoKit
 import Foundation
+import TEMBase
+import TEMSEM
 
 /// The recorded marks of one session on one image. Serialized as one JSON root attribute (`mactem_lineage`).
 package nonisolated struct SessionLineage: Sendable, Equatable {

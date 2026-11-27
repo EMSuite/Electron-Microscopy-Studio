@@ -1,6 +1,6 @@
 //
 //  SEMSlipParityTests.swift
-//  TEMCore's slip analysis (Sources/TEMCore/SEM/Deformation: `DefDAPQuat`, `SlipSystemSet`, `SlipPhase`, `SlipTraceAnalysis`,
+//  TEMCore's slip analysis (Sources/TEMSEM/Deformation: `DefDAPQuat`, `SlipSystemSet`, `SlipPhase`, `SlipTraceAnalysis`,
 //  `NyeTensor`) against DefDAP 1.3.1 through the committed bundles `m5/slip-ti` (hcp titanium, orix-data Ti_orientations.ctf
 //  corner) and `m5/slip-sdss` (fcc austenite and bcc ferrite, orix-data sdss_ferrite_austenite.ang), emitted from
 //  tools/parity/sem/fixtures/slip_inputs.json. Tolerances are the bundles' (docs/parity.md): slip-system indices exact, unit

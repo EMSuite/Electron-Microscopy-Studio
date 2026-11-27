@@ -13,6 +13,7 @@ import ImagoCore
 import DiffractoCore
 import DiffractoGeometry
 import DiffractoOrientation
+import TEMBase
 
 package nonisolated enum PatternIndexing {
 

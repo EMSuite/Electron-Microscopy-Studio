@@ -21,6 +21,7 @@ import Foundation
 import ImagoCore
 import ImagoFFT
 import ShellExport
+import TEMSEM
 
 package nonisolated enum ExportMethods {
     /// The PNG text chunk's keyword.

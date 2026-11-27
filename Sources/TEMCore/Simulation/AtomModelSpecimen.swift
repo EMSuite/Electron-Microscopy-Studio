@@ -13,6 +13,8 @@
 import DiffractoCore
 import Foundation
 import SimulatoCore
+import TEMBase
+import TEMSEM
 
 package nonisolated struct AtomModelSpecimen: Sendable, Equatable {
     /// The most atoms a model may have (the design's limit).

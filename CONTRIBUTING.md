@@ -25,7 +25,7 @@ later.
 ```sh
 xcodebuild -project EMStudio.xcodeproj -scheme EMStudio -destination 'platform=macOS' build
 tools/run-tests.sh unit         # the unit tests, and no compiler warning: run these before you open a pull request
-tools/run-tests.sh core         # TEMCore and TEMSession build alone, with no warning (the layering check)
+tools/run-tests.sh core         # the package's targets build alone, with no warning (the layering check)
 tools/run-tests.sh inventory    # repository checks (notices, large files, harness list, UI identifiers)
 ```
 
@@ -35,8 +35,8 @@ wins, then `xcode-select`, then any Xcode in `/Applications`.
 ## Where code goes
 
 The Xcode project uses synchronized folder groups, so placement is wiring: a file under `EMStudio/` joins the app target.
-Views describe the interface only; compute lives in `Sources/TEMCore`, session state in `Sources/TEMSession`, and
-neither imports SwiftUI or anything above it. More in [`docs/architecture.md`](docs/architecture.md).
+Views describe the interface only; compute lives in `Sources/TEMCore`, the SEM program's ports in `Sources/TEMSEM`, what both
+share in `Sources/TEMBase`, session state in `Sources/TEMSession`, and none imports SwiftUI or anything above it. More in [`docs/architecture.md`](docs/architecture.md).
 
 The numerics are the suite's kits ([FormatoKit](https://github.com/EMSuite/FormatoKit),
 [DiffractoKit](https://github.com/EMSuite/DiffractoKit), [ImagoKit](https://github.com/EMSuite/ImagoKit),

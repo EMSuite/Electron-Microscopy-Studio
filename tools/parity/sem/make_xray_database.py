@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""tools/parity/sem/make_xray_database.py — write Sources/TEMCore/EDX/XrayLineDatabase.swift from exspy's element database.
+"""tools/parity/sem/make_xray_database.py — write Sources/TEMSEM/EDS/XrayLineDatabase.swift from exspy's element database.
 
     make_xray_database.py OUT.swift
 

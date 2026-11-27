@@ -32,6 +32,7 @@ import ImagoCore
 import Foundation
 import FormatoCore
 import FormatoEMD
+import TEMBase
 
 package nonisolated enum VeloxImageReader {
     package enum Refusal: Error, Equatable {

@@ -3,6 +3,8 @@
 import Foundation
 import SpectroCore
 import ShellEDXModel
+import TEMBase
+import TEMSEM
 
 package enum EDXOpening {
     /// File extensions the Open panel offers (a Velox EMD or a GMS DM4; a single spectrum as `.msa` or HyperSpy's `.hspy`; the SEM-EDS
