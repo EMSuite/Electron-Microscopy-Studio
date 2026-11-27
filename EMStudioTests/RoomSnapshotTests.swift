@@ -1,7 +1,7 @@
 //
 //  RoomSnapshotTests.swift
 //  Snapshots of the app's rooms in light and in dark (#805, plan row P11 of 2.3), on EMSuiteUI's ShellSnapshotTesting (suite#137):
-//  each room drawn at a fixed window size and compared with the PNG committed under __Snapshots__/RoomSnapshotTests/. They compare only
+//  each room drawn at two fixed window sizes (1100 × 720, and Paul's 1512 × 982, #1097) and compared with the PNG committed under __Snapshots__/RoomSnapshotTests/. They compare only
 //  on CI's unit job on the org's Mac runner, where SNAPSHOTS=1 is set; elsewhere they skip (fonts and AppKit's controls differ
 //  between Macs and macOS versions). A picture that
 //  is new or differs fails the test, and CI puts it on the pr-pictures branch and in one comment on the pull request: that is the PR's
@@ -18,6 +18,8 @@ import XCTest
 
 nonisolated final class RoomSnapshotTests: XCTestCase {
     static let windowSize = CGSize(width: 1100, height: 720)
+    /// Paul's window (#1097): each room again at 1512 × 982, so CI shows it as he meets it. Named `<room>-empty-1512`.
+    static let largeWindowSize = CGSize(width: 1512, height: 982)
 
     /// Draws `area` of a fresh window in both appearances and fails for each picture that is new or changed.
     @MainActor private func check(_ area: WorkspaceArea, file: StaticString = #filePath, line: UInt = #line) throws {
@@ -29,9 +31,11 @@ nonisolated final class RoomSnapshotTests: XCTestCase {
         // One picture to throw away first: the first window's `onAppear` turns the inspector on in `state` and SwiftUI animates
         // it in, so a picture of the first window catches it part way. Later windows start with it on and draw it at rest.
         _ = Snapshot.render(view, size: Self.windowSize, appearance: .light)
-        for appearance in SnapshotAppearance.allCases {
-            let result = Snapshot.verify(view, named: "\(area)-empty", size: Self.windowSize, appearance: appearance, testFile: file)
-            if let failure = result.failure { XCTFail(failure, file: file, line: line) }
+        for (size, name) in [(Self.windowSize, "\(area)-empty"), (Self.largeWindowSize, "\(area)-empty-1512")] {
+            for appearance in SnapshotAppearance.allCases {
+                let result = Snapshot.verify(view, named: name, size: size, appearance: appearance, testFile: file)
+                if let failure = result.failure { XCTFail(failure, file: file, line: line) }
+            }
         }
     }
 

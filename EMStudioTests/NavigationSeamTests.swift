@@ -23,6 +23,31 @@ nonisolated final class NavigationSeamTests: XCTestCase {
         XCTAssertEqual(draggedDown, 0, accuracy: 0.001)
     }
 
+    /// The Output log is shut in a fresh window and stays shut in every room until the person opens it (#1097): entering a room
+    /// with a document opens nothing, and no app source opens the area or picks Output but the View menu's toggle. A room's
+    /// table is offered in the area when the person asks for it (`offer`), which is not the log. Red under: a room that sets
+    /// `showProcessArea = true` or selects `.output` on entry.
+    @MainActor func testTheOutputLogIsShutUntilThePersonOpensIt() async throws {
+        let state = AppState(launch: LaunchOptions(arguments: []))
+        XCTAssertFalse(state.navigation.panels.showProcessArea, "a fresh window's Output is shut")
+        await state.openDemo(.diffraction)?.value
+        for area in WorkspaceArea.allCases {
+            state.selectWorkspace(area)
+            XCTAssertFalse(state.navigation.panels.showProcessArea, "entering \(area) opened the Output log")
+        }
+        let root = URL(fileURLWithPath: #filePath).resolvingSymlinksInPath().deletingLastPathComponent().deletingLastPathComponent()
+        for folder in ["EMStudio", "Sources"] {
+            let files = FileManager.default.enumerator(at: root.appendingPathComponent(folder), includingPropertiesForKeys: nil)
+            while let url = files?.nextObject() as? URL {
+                guard url.pathExtension == "swift" else { continue }
+                let text = try String(contentsOf: url, encoding: .utf8)
+                for opener in ["showProcessArea = true", "selectProcessPane(.output)", "insert(.output)", "processFraction = "] {
+                    XCTAssertFalse(text.contains(opener), "\(url.lastPathComponent) opens the Output log on its own (\(opener))")
+                }
+            }
+        }
+    }
+
     /// `PanelNavigation.showProcessArea` (the shell's, held as `panels`) is `processFraction > 0` with a setter that restores `lastProcessFraction`.
     @MainActor func testProcessAreaToggleRestoresTheLastDraggedFraction() {
         let navigation = WorkspaceNavigation()
