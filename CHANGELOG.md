@@ -3,6 +3,19 @@
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). App versions are tagged with a `v`
 (`v1.0.0`); release-please writes each new entry above the older ones from the merged pull requests' titles.
 
+## [2.6.1](https://github.com/EMSuite/Electron-Microscopy-Studio/compare/v2.6.0...v2.6.1) (2026-11-27)
+
+
+### Bug Fixes
+
+* Add Phase names each match's space group and writes GaAs, not AsGa (EMSuiteUI 0.22.0) ([#1178](https://github.com/EMSuite/Electron-Microscopy-Studio/issues/1178)) ([67d6df4](https://github.com/EMSuite/Electron-Microscopy-Studio/commit/67d6df4121b77c69f2e687c3a6fe0c21042f1e5f))
+* Diffraction marks unexplained spots dashed, titles its word headings, and labels exported figures as the room places them ([#1173](https://github.com/EMSuite/Electron-Microscopy-Studio/issues/1173)) ([b5940b2](https://github.com/EMSuite/Electron-Microscopy-Studio/commit/b5940b284a1cfd4736be980e84f5fa59d7f1cc3e))
+* every room divider drags, the Output log stays shut until asked, and histograms read min · mean · max (EMSuiteUI 0.21.0) ([#1175](https://github.com/EMSuite/Electron-Microscopy-Studio/issues/1175)) ([2caa45d](https://github.com/EMSuite/Electron-Microscopy-Studio/commit/2caa45dd13b2d1b0f167f68297299dcd739e35b2))
+* Simulation documents show the Dynamical beams, list what the screen lists, and keep their hkl labels mode ([#1171](https://github.com/EMSuite/Electron-Microscopy-Studio/issues/1171)) ([d7cf09d](https://github.com/EMSuite/Electron-Microscopy-Studio/commit/d7cf09de98a48fc844f17dacdee4a4d9b2cd9dc5))
+* the EDS energy axis is refined from 0.6 keV up, on the kits of 26 Nov (FormatoKit 0.22.0, ImagoKit 0.12.0, SpectroKit 0.17.2, SimulatoKit 0.8.1) ([#1163](https://github.com/EMSuite/Electron-Microscopy-Studio/issues/1163)) ([8ef2eb2](https://github.com/EMSuite/Electron-Microscopy-Studio/commit/8ef2eb215db039212cbae5376445a1c4206b60da))
+* the Image room has one Export section, and the profile chart and the objects sit under the image ([#1180](https://github.com/EMSuite/Electron-Microscopy-Studio/issues/1180)) ([fe56361](https://github.com/EMSuite/Electron-Microscopy-Studio/commit/fe563618c7951216eb55e659110847e36df38fc9))
+* the SEM tables write a unit in parentheses after its symbol, as the TEM tables do ([#1179](https://github.com/EMSuite/Electron-Microscopy-Studio/issues/1179)) ([45528cb](https://github.com/EMSuite/Electron-Microscopy-Studio/commit/45528cb780d20a0abc325688b611d6985093f5a5))
+
 ## [2.6.0](https://github.com/EMSuite/Electron-Microscopy-Studio/compare/v2.1.1...v2.6.0) (2026-11-27)
 
 
