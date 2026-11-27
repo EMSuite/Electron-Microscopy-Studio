@@ -7,7 +7,7 @@
 # Needs the "Developer ID Application" certificate in the login keychain (DEVELOPER_ID_APPLICATION overrides its name; the
 # built app's signature is checked against that name) and a notarytool keychain profile (default macem-notary; override
 # with NOTARY_PROFILE). Output: build/release/<stamp>/Electron-Microscopy-Studio-<version>.dmg and a copy named
-# Electron-Microscopy-Studio.dmg for the "latest" link, plus the old names' copies (macEM.dmg, macTEM.dmg) so old links work.
+# Electron-Microscopy-Studio.dmg for the "latest" link. From 2.6.1 no copies under the old app names are made.
 # The steps follow mac4DSTEM's tools/release (build-developer-id.sh, notarize.sh, make-dmg.sh, appcast.sh); the DMG here
 # is a plain hdiutil image with an Applications link, no dmgbuild. Last, macem.xml, the website's update feed (tools/appcast.sh,
 # #583), signed with the EdDSA key in the login keychain.
@@ -129,10 +129,6 @@ xcrun stapler staple "$DMG"
 xcrun stapler validate "$DMG"
 spctl --assess --type open --context context:primary-signature "$DMG"
 cp "$DMG" "$OUT/$FILE.dmg"
-# The old names: up to 2.1.0 the download was macEM.dmg, up to 1.3 macTEM.dmg. Each release attaches byte-identical copies under
-# both, so links and bookmarks to releases/latest/download/macEM.dmg and macTEM.dmg keep working.
-cp "$DMG" "$OUT/macEM.dmg"
-cp "$DMG" "$OUT/macTEM.dmg"
 
 echo "== Update feed (Sparkle, #583)"
 "$ROOT/tools/appcast.sh" "$DMG" "$VERSION" "$OUT/macem.xml"
@@ -140,7 +136,6 @@ echo "== Update feed (Sparkle, #583)"
 echo
 echo "Done: $DMG"
 echo "Also: $OUT/$FILE.dmg (for releases/latest/download/$FILE.dmg)"
-echo "And:  $OUT/macEM.dmg and $OUT/macTEM.dmg (the old names; attach both too, for the old links)"
 echo "SHA-256: $(shasum -a 256 "$DMG" | cut -d' ' -f1)"
 echo "Size: $(stat -f%z "$DMG") bytes"
 echo "Feed: $OUT/macem.xml (commit it to the website as appcast/macem.xml once the DMGs are on the release)"

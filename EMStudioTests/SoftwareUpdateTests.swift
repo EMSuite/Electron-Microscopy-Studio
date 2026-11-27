@@ -77,14 +77,18 @@ nonisolated final class SoftwareUpdateTests: XCTestCase {
         XCTAssertTrue(project.contains(#"codesign --force --sign \"${EXPANDED_CODE_SIGN_IDENTITY}\" --options runtime"#))
     }
 
-    /// Mutation: drop the helper signing, the key check or the feed step from the download; or the store's updater checks - red.
+    /// Mutation: drop the helper signing, the key check or the feed step from the download, bring back an old-name DMG copy; or the store's updater checks - red.
     func testTheReleaseScriptsSignTheDownloadsUpdaterAndRefuseItInTheStore() throws {
         let download = try text("tools/release.sh")
         for check in ["Installer.xpc", "Autoupdate", "Updater.app", "Downloader.xpc", "SUPublicEDKey", "SET-BEFORE-RELEASE",
                       "-clonedSourcePackagesDirPath", "CURRENT_PROJECT_VERSION=\"$EXPECTED\"", "mach-lookup", "tools/appcast.sh",
-                      // The new name from the project's setting, and the old names' copies, so old download links keep working (#759).
-                      "MACEM_APP_NAME_NO", #"cp "$DMG" "$OUT/$FILE.dmg""#, #"cp "$DMG" "$OUT/macEM.dmg""#, #"cp "$DMG" "$OUT/macTEM.dmg""#] {
+                      // The name from the project's setting (#759).
+                      "MACEM_APP_NAME_NO", #"cp "$DMG" "$OUT/$FILE.dmg""#] {
             XCTAssertTrue(download.contains(check), "release.sh no longer handles \(check)")
+        }
+        // From 2.6.1 the release carries only the app's own name: no macEM.dmg or macTEM.dmg copies (Paul, 27 Nov 2026).
+        for old in ["macEM.dmg", "macTEM.dmg"] {
+            XCTAssertFalse(download.contains(old), "release.sh still makes \(old)")
         }
         let feed = try text("tools/appcast.sh")
         for part in ["sign_update", "sparkle:version", "sparkle:minimumSystemVersion", "releases/download/{tag}/Electron-Microscopy-Studio-{version}.dmg",
