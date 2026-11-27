@@ -5,7 +5,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "macTEM",
+    name: "EMStudio",
     platforms: [.macOS(.v26)],
     products: [
         .library(name: "TEMCore", targets: ["TEMCore"]),
@@ -111,7 +111,7 @@ let package = Package(
                       exclude: ["README.md", "reference.py", "run.sh"],
                       sources: ["main.swift"],
                       kits: [("ImagoCore", "ImagoKit")]),
-        // The planting binding is the unit tests' (macTEMTests/TestHDF5Binding.swift), linked here as a symlink.
+        // The planting binding is the unit tests' (EMStudioTests/TestHDF5Binding.swift), linked here as a symlink.
         parityHarness("SidecarParity", "sidecar-parity",
                       exclude: ["README.md", "dense_fuzz.py", "fixtures", "marks_reference.py", "reference.py", "run.sh"],
                       sources: ["main.swift", "fuzz.swift", "marks.swift", "TestHDF5Binding.swift"],

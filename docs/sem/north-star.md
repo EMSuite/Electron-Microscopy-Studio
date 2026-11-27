@@ -6,7 +6,7 @@ data. The numbers below come from the pinned Python stack (`tools/parity/sem/req
 orix 0.15.0, HyperSpy 2.5.0, exspy 0.3.2, RosettaSciIO 0.15.0, pyEBSDindex 0.3.10.1 on CPython 3.14.6) run on the
 data `docs/data-sources.md` names; the reference bundles under `tools/parity/sem/references/` hold them in full, each
 array with its tolerance, and `tools/parity/sem/check.py` keeps them from drifting. A figure "matches" when every
-array behind it passes its bundle's tolerance in `macTEMTests`.
+array behind it passes its bundle's tolerance in `EMStudioTests`.
 
 ## Study 1, EBSD: Ånes et al. 2020, recrystallised nickel
 

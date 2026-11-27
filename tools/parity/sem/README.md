@@ -1,7 +1,7 @@
 # tools/parity/sem
 
 The SEM program's parity harness: the pinned Python stack (kikuchipy, orix, diffsims, HyperSpy, exspy, RosettaSciIO,
-pyEBSDindex) emits a reference bundle for every ported function; `macTEMTests` compares the Swift port against the
+pyEBSDindex) emits a reference bundle for every ported function; `EMStudioTests` compares the Swift port against the
 bundle within the tolerance the bundle states; CI is red on drift on either side. No SEM function ships without a
 bundle and a test against it.
 
@@ -26,7 +26,7 @@ drift-gate.sh         setup, fetch, check (not run.sh: that name is the Swift-ha
 `values` (exact JSON: shapes, axes, metadata, fingerprints of arrays too large to commit), `scalars` and `arrays`,
 each with `rtol` and `atol` (0/0 is exact; otherwise numpy's `assert_allclose` rule, |a - b| <= atol + rtol * |b|,
 the reference as b). Arrays are raw little-endian C-order files; dtype one of uint8, uint16, int32, int64,
-float32, float64. The Swift loader is `macTEMTests/SEMParityReference.swift`. An array of rotations may also carry
+float32, float64. The Swift loader is `EMStudioTests/SEMParityReference.swift`. An array of rotations may also carry
 `symmetry` (an orix point group name), `rotation` (`quaternion` or `euler_bunge_radians`) and
 `angle_tolerance_degrees`: `check.py` then compares it point by point by the misorientation angle under that group, so
 a re-emit that hands another symmetry twin of the same orientation agrees (#434); the Swift loader ignores the keys.

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Planted pictures and their truth for the picture reader (#792, pins I1 to I3 of docs/design/files-exports.md in the suite).
 
-    python3 -I tools/parity/picture-parity/make_fixtures.py macTEMTests/Fixtures/picture
+    python3 -I tools/parity/picture-parity/make_fixtures.py EMStudioTests/Fixtures/picture
 
 Writes small PNGs and JPEGs and `truth.json`: for each file its shape after EXIF rotation and the grey value of every pixel as
 the reference reads it. The reference is RosettaSciIO 0.14.0's `rsciio.image.file_reader`, which is `imageio.imread` over

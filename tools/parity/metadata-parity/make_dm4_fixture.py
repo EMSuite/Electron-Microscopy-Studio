@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The planted-truth DM4 fixtures of the unit tests (macTEMTests/Fixtures/planted-2d.dm4 and its truth).
+"""The planted-truth DM4 fixtures of the unit tests (EMStudioTests/Fixtures/planted-2d.dm4 and its truth).
 
     make_dm4_fixture.py <fixture.dm4> <truth.json>    the committed fixture (commit both files)
     make_dm4_fixture.py --types <dir>                 one planted DM4 per pixel type, and its truth, into <dir>

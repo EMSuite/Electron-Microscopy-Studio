@@ -1,6 +1,6 @@
 #!/bin/bash
 # The Audit workflow's nightly CPU benchmark (.github/workflows/audit.yml, the suite's app template): runs
-# macTEMTests/BenchmarkTests (open, the FFT spectrum, EDS Quantify, the EELS Run, Hough indexing, on generated data) and
+# EMStudioTests/BenchmarkTests (open, the FFT spectrum, EDS Quantify, the EELS Run, Hough indexing, on generated data) and
 # writes the cases to $1 as a JSON list of {name, dtype, size, ms: [median]}. Each case is already a median of a few runs;
 # the job compares it with the previous night's and lists one more than 25 % slower.
 #
@@ -16,9 +16,9 @@ work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
 rc=0
-TEST_RUNNER_MACTEM_BENCHMARKS=1 xcodebuild test -project "$ROOT/macTEM.xcodeproj" -scheme macTEM \
+TEST_RUNNER_MACTEM_BENCHMARKS=1 xcodebuild test -project "$ROOT/EMStudio.xcodeproj" -scheme EMStudio \
   -configuration Debug -destination 'platform=macOS' -derivedDataPath "$work/DerivedData" \
-  -only-testing:macTEMTests/BenchmarkTests/testTheNightlyBenchmarks -parallel-testing-enabled NO \
+  -only-testing:EMStudioTests/BenchmarkTests/testTheNightlyBenchmarks -parallel-testing-enabled NO \
   -testLanguage en -testRegion US SWIFT_OPTIMIZATION_LEVEL=-O CODE_SIGNING_ALLOWED=NO > "$work/bench.log" 2>&1 || rc=$?
 grep -E "MACTEM_BENCH |error:|: error|\) failed |skipped|TEST (SUCCEEDED|FAILED)" "$work/bench.log" | tail -40 || true
 if [ "$rc" -ne 0 ]; then echo "benchmarks: xcodebuild exit $rc"; tail -30 "$work/bench.log"; exit 1; fi

@@ -19,7 +19,7 @@
 //        the map's 1D ids, the file order) is `metadata(data:)`. Compressed patterns are refused by name, as in kikuchipy; a version
 //        word of Int64.min and beam positions that give no map (not finite, or more steps apart than an Int counts) are refused in
 //        words instead of trapping. The parity test reads kikuchipy's own `patterns.ebsp` and the layouts kikuchipy's tests write
-//        (macTEMTests/Fixtures/sem/oxford, from tools/parity/sem-readers/make_oxford_fixtures.py) bit-exact. The `.ctf` map next to
+//        (EMStudioTests/Fixtures/sem/oxford, from tools/parity/sem-readers/make_oxford_fixtures.py) bit-exact. The `.ctf` map next to
 //        the file is `OxfordOpening`'s.
 //
 

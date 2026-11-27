@@ -45,7 +45,7 @@ echo "== Archive ($(git -C "$ROOT" rev-parse --short HEAD))"
 # The download's build number is its version (#583): Sparkle compares the feed's sparkle:version with CFBundleVersion, and the
 # project's CURRENT_PROJECT_VERSION does not move between releases. The packages are cloned to build/SourcePackages, apart
 # from any other checkout's.
-xcodebuild archive -project "$ROOT/macTEM.xcodeproj" -scheme macTEM -configuration Release \
+xcodebuild archive -project "$ROOT/EMStudio.xcodeproj" -scheme EMStudio -configuration Release \
   -destination 'generic/platform=macOS' -archivePath "$ARCHIVE" ARCHS=arm64 \
   -clonedSourcePackagesDirPath "$ROOT/build/SourcePackages" CURRENT_PROJECT_VERSION="$EXPECTED" \
   CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="$IDENTITY" OTHER_CODE_SIGN_FLAGS="--timestamp" > "$OUT/archive.log" 2>&1 \
@@ -89,7 +89,7 @@ for signed in "$SPARKLE" "$SPARKLE"/Versions/B/XPCServices/Installer.xpc "$SPARK
   [[ "$details" == *"Authority=$IDENTITY"* && "$details" == *"(runtime)"* && "$details" == *"Timestamp="* ]] \
     || { echo "$signed is not signed with the Developer ID, the hardened runtime and a timestamp." >&2; exit 1; }
 done
-# The sandboxed installer is reached through the download's one exception (macTEM-Direct.entitlements).
+# The sandboxed installer is reached through the download's one exception (EMStudio-Direct.entitlements).
 codesign -d --entitlements :- "$APP" > "$OUT/entitlements.plist" 2>/dev/null
 /usr/libexec/PlistBuddy -c 'Print :com.apple.security.temporary-exception.mach-lookup.global-name' "$OUT/entitlements.plist" \
   | grep -q -- '-spki' || { echo "The download cannot reach Sparkle's installer (mach-lookup exception)." >&2; exit 1; }

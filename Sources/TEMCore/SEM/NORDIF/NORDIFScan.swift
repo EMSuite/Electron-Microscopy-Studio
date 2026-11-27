@@ -4,7 +4,7 @@
 //        `file_reader`; GPL-3.0-or-later, kikuchipy developers): `Pattern.dat` is the patterns as one uint8 block in map
 //        order (row, column, pattern row, pattern column), with no header; the scan and pattern sizes come from
 //        `Setting.txt` beside it (`NORDIFSettings`), and the static background from `Background acquisition pattern.bmp`
-//        when the folder has one. Parity: macTEMTests/Fixtures/sem/nordif/reference.json (NORDIFReaderTests).
+//        when the folder has one. Parity: EMStudioTests/Fixtures/sem/nordif/reference.json (NORDIFReaderTests).
 //
 //  A file shorter than the settings say reads with its missing pixels as 0 and says so in `note`, as kikuchipy pads it
 //  (with a warning); a longer file reads its first `rows * columns` patterns and says so. The whole block is read into

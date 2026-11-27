@@ -3,7 +3,7 @@
 # (tools/lib/sparkle-pin.sh), archived as Sparkle's own Configurations/make-xcframework.sh archives the framework of its Swift
 # Package Manager zip, with one override: SPARKLE_NORMALIZE_INSTALLED_APPLICATION_NAME=1 (Configurations/ConfigCommon.xcconfig,
 # 0 upstream). With it, Sparkle's installer moves an updated app to <SUBundleName>.app, so a copy installed as macEM.app becomes
-# "Electron Microscopy Studio.app" on its next update (SUBundleName, macTEM/Info-Direct.plist, #759). The installer that runs
+# "Electron Microscopy Studio.app" on its next update (SUBundleName, EMStudio/Info-Direct.plist, #759). The installer that runs
 # is the installed app's own, so the rename happens on the update after the first release that carries this build. Sparkle's
 # note on the flag: turn it off again once the rename is done (Vendor/Sparkle/README.md says how).
 #

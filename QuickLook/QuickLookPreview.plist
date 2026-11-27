@@ -2,7 +2,7 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- Base only. A data-based preview: the extension returns PNG data (QLIsDataBasedPreview), no view controller. The content types are the app's imported types (macTEM/Info.plist,
+	<!-- Base only. A data-based preview: the extension returns PNG data (QLIsDataBasedPreview), no view controller. The content types are the app's imported types (EMStudio/Info.plist,
 	     UTImportedTypeDeclarations): Quick Look matches on content type, never on the extension. One owner per type (suite
 	     decision of 22 Oct): this app answers for dm3, dm4, mrc, emd and ser; 4DSTEM Studio for h5 and hdf5. The .emd type conforms
 	     to HDF5, so its more specific declaration wins over 4DSTEM Studio's HDF5 extension. Same list in both plists (#903's test). -->

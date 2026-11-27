@@ -6,7 +6,7 @@
 //        GPU once per indexing run, prepared straight into their buffer; the dictionary and score buffers are made once per run, two
 //        of each, so one chunk's product runs while the CPU prepares the next chunk and merges the one before. Same port and licence
 //        as DictionaryIndexing.swift.
-//        Checked against the float64 CPU path in macTEMTests/SEMDictionaryIndexingParityTests.swift within `tolerance`.
+//        Checked against the float64 CPU path in EMStudioTests/SEMDictionaryIndexingParityTests.swift within `tolerance`.
 //
 
 import Foundation

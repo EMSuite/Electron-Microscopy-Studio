@@ -15,8 +15,8 @@ fail() { echo "unit-skips-selftest: $1"; print -r -- "$out"; exit 1; }
 # One case passes, one skips and is listed (sem-data), one skips and is not; the last carries no nodeIdentifier, so it is named by
 # its suite.
 cat > "$work/tests.json" <<'JSON'
-{"testNodes": [{"name": "macTEM", "nodeType": "Test Plan", "result": "Passed", "children": [
-  {"name": "macTEMTests", "nodeType": "Unit test bundle", "result": "Passed", "children": [
+{"testNodes": [{"name": "EMStudio", "nodeType": "Test Plan", "result": "Passed", "children": [
+  {"name": "EMStudioTests", "nodeType": "Unit test bundle", "result": "Passed", "children": [
     {"name": "PlantedTests", "nodeType": "Test Suite", "result": "Passed", "children": [
       {"name": "testRuns()", "nodeIdentifier": "PlantedTests/testRuns()", "nodeType": "Test Case", "result": "Passed"},
       {"name": "testNeedsTheSEMData()", "nodeIdentifier": "PlantedTests/testNeedsTheSEMData()", "nodeType": "Test Case", "result": "Skipped",

@@ -2,10 +2,10 @@
 """Reference arrays for TEMCore's `PatternProcessing` (static and dynamic background removal of EBSD patterns) from
 kikuchipy 0.13.1, the pinned Python reference of the SEM program (docs/parity.md).
 
-    python3 -I background_reference.py --data patterns_v2.h5 --out ../../../macTEMTests/Fixtures/sem/background
+    python3 -I background_reference.py --data patterns_v2.h5 --out ../../../EMStudioTests/Fixtures/sem/background
     python3 -I background_reference.py --data patterns_v2.h5 --whole-set "$MACEM_DATA/sem/nickel_ebsd_large"
 
-`--out` writes the per-pattern fixtures the unit tests (macTEMTests/SEMBackgroundParityTests.swift) read: pattern (0, 0) and
+`--out` writes the per-pattern fixtures the unit tests (EMStudioTests/SEMBackgroundParityTests.swift) read: pattern (0, 0) and
 pattern (27, 37) of kikuchipy's nickel_ebsd_large (Aanes et al. 2020, CC BY 4.0; docs/data-sources.md) and the file's static
 background, raw little-endian arrays named `<case>.u8` / `<case>.f32` beside `manifest.json` (shapes, parameters, pins, and the
 sha256 of every array). `--whole-set` writes the opt-in whole-set references (all 4125 patterns, 15 MB each) the same test

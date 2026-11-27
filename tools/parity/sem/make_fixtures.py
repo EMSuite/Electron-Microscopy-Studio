@@ -28,7 +28,7 @@ Planted, deterministic, small, committed under fixtures/ with the hand-written t
 * `orientation_inputs.json`: the inputs of the orientation-maths bundles (m3): seeded unit quaternions with seven
   special rotations, Bunge angles, cubochoric points, vectors, seeded m-3m orientations, the point-group names orix
   defines, and the Bunge angles of the first 2000 rows of orix-data's `Ti_orientations.ctf` (CC BY 4.0, the head
-  committed as macTEMTests/Fixtures/sem/oxford/ti_orientations_head.ctf). `--orientation-only` writes just this file.
+  committed as EMStudioTests/Fixtures/sem/oxford/ti_orientations_head.ctf). `--orientation-only` writes just this file.
 * `ipf_inputs.json`: the inputs of the vector, projection and colour-key bundle (m3/ipf-color-keys): seeded directions
   with the inverse-pole-figure corners, stereographic points, lattices from triclinic to hexagonal with Miller indices,
   seeded rotations for the Euler colour key. `--ipf-only` writes just this file.
@@ -260,7 +260,7 @@ def write_orientation_inputs() -> None:
     v = rng.normal(size=(64, 3))
     c = np.random.default_rng(3).normal(size=(100, 4))
     c /= np.linalg.norm(c, axis=1, keepdims=True)
-    ti = HERE.parent.parent.parent / "macTEMTests" / "Fixtures" / "sem" / "oxford" / "ti_orientations_head.ctf"
+    ti = HERE.parent.parent.parent / "EMStudioTests" / "Fixtures" / "sem" / "oxford" / "ti_orientations_head.ctf"
     ti_eu = np.loadtxt(ti, skiprows=1, usecols=(0, 1, 2))
     groups = list(symmetry._groups) + [symmetry.C2, symmetry.Cs, symmetry.D3]
     out = {

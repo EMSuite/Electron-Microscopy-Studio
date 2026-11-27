@@ -1,4 +1,4 @@
-# tools/parity/sem-readers/make_h5ebsd_fixtures.py — writes the h5ebsd fixtures of macTEMTests and the truth they are read against.
+# tools/parity/sem-readers/make_h5ebsd_fixtures.py — writes the h5ebsd fixtures of EMStudioTests and the truth they are read against.
 #
 #   python -I -B make_h5ebsd_fixtures.py <out dir>
 #

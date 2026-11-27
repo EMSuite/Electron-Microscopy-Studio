@@ -1,7 +1,7 @@
 # UI journeys: the one job that needs a screen. Everything a PR waits on runs on GitHub's runners (ci.yml); this
 # workflow is never a required check and never runs on a pull request (SEM program, 2026-11-06; docs/decisions.md).
 #
-# WHAT RUNS: `tools/run-tests.sh ui` — the XCUITest journeys (macTEMUITests, scheme macTEMUI): the real app, built for
+# WHAT RUNS: `tools/run-tests.sh ui` — the XCUITest journeys (EMStudioUITests, scheme EMStudioUI): the real app, built for
 # this run, walked as a user would, one screenshot per step. The screenshots and the result bundle are uploaded as
 # artifacts of the run; this is the on-screen record a review reads, and the source of a room PR's release-assets shots.
 #

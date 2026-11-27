@@ -8,7 +8,7 @@
 //        and the rotations as unit quaternions from the Bunge Euler angles (`_conversions.eu2qu`, Rowenhorst et al. 2015 eqs. A.5-6),
 //        all held in one `CrystalMap`.
 //        The grid, step, projection centre and working distance of the header are read beside (orix leaves them in the file).
-//        Parity: macTEMTests/ANGReaderTests.swift against ebsd-edax.truth.json (tools/parity/sem-readers/make_edax_fixtures.py).
+//        Parity: EMStudioTests/ANGReaderTests.swift against ebsd-edax.truth.json (tools/parity/sem-readers/make_edax_fixtures.py).
 //
 
 import Foundation

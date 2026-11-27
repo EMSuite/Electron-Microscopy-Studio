@@ -19,7 +19,7 @@
 //        header lines beside it.
 //
 //        The parity test reads the files orix's own tests write and the head of Ti_orientations.ctf at 1e-12
-//        (macTEMTests/Fixtures/sem/oxford, from tools/parity/sem-readers/make_oxford_fixtures.py).
+//        (EMStudioTests/Fixtures/sem/oxford, from tools/parity/sem-readers/make_oxford_fixtures.py).
 //
 
 import Foundation

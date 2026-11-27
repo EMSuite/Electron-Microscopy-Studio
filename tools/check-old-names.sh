@@ -3,7 +3,7 @@
 #
 # The app is "Electron Microscopy Studio" in both builds since 2.1.1; up to 2.1.0 the website download was macEM, up to 1.3
 # macTEM, and the sibling app is "4DSTEM Studio" (was mac4DSTEM). A sentence on screen takes the name from AppName.display.
-# This fails on a Swift string literal in macTEM/ or Sources/ that names macEM, macTEM or mac4DSTEM, unless the line holds a
+# This fails on a Swift string literal in EMStudio/ or Sources/ that names macEM, macTEM or mac4DSTEM, unless the line holds a
 # fragment that tools/old-names.allow lists: what a written file says about its writer (provenance the readers rely on), the
 # bundle identifier, and names that are never shown. Comment lines are skipped. Plain grep, no build.
 # Exit 0 clean, 1 on a violation, 2 when the allowlist is missing or a row has no reason.
@@ -23,7 +23,7 @@ while IFS=$'\t' read -r fragment reason; do
   printf '%s\n' "$fragment" >> "$fragments"
 done <<< "$rows"
 
-hits="$(git grep -n -I -E '"[^"]*(macEM|macTEM|mac4DSTEM)[^"]*"' -- 'macTEM/*.swift' 'Sources/*.swift' \
+hits="$(git grep -n -I -E '"[^"]*(macEM|macTEM|mac4DSTEM)[^"]*"' -- 'EMStudio/*.swift' 'Sources/*.swift' \
   | grep -vE '^[^:]+:[0-9]+:[[:space:]]*//' \
   | grep -v -F -f "$fragments")"
 if [ -n "$hits" ]; then

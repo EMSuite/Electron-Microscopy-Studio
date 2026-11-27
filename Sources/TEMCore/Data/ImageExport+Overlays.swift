@@ -6,9 +6,9 @@
 //        plan, the picture and the metadata all read one layout.
 //
 //  THE LOOK is the screen's, re-stated in export pixels ("What the PNG draws"):
-//  `ScaleBar` (macTEM/UI/PaneOverlays.swift) — a label over a 2-pt bar, white on a black 45 % plate with 8-pt side and
+//  `ScaleBar` (EMStudio/UI/PaneOverlays.swift) — a label over a 2-pt bar, white on a black 45 % plate with 8-pt side and
 //  5-pt vertical padding and 3 pt between, 4-pt corners, an 8-pt margin bottom-left — and `ImageMarksOverlay.draw`
-//  (macTEM/UI/ImageRoomMarks.swift) in the UNSELECTED style: black 60 % under-stroke 2 pt wider than the yellow line,
+//  (EMStudio/UI/ImageRoomMarks.swift) in the UNSELECTED style: black 60 % under-stroke 2 pt wider than the yellow line,
 //  rings of radius 3, a translucent band for a profile's width, a value label in a black 65 % box kept inside the image.
 //  One screen point is `u` export pixels (`ScaleBarMath.overlayScale`). The marks are drawn first and the bar after, as on
 //  the screen, where the footer sits above the marks' overlay.

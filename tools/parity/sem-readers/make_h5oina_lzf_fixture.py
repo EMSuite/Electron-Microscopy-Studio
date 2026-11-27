@@ -1,6 +1,6 @@
-# tools/parity/sem-readers/make_h5oina_lzf_fixture.py — writes ebsd-oxford-lzf.h5oina for macTEMTests (#524).
+# tools/parity/sem-readers/make_h5oina_lzf_fixture.py — writes ebsd-oxford-lzf.h5oina for EMStudioTests (#524).
 #
-#   python -I -B make_h5oina_lzf_fixture.py <macTEMTests/Fixtures/ebsd-oxford.h5oina> <out dir>   (h5py 3.16.0, NumPy 2.5.4)
+#   python -I -B make_h5oina_lzf_fixture.py <EMStudioTests/Fixtures/ebsd-oxford.h5oina> <out dir>   (h5py 3.16.0, NumPy 2.5.4)
 #
 # AZtec (H5OINA 5.0 to 7.0) stores its pattern datasets compressed with h5py's LZF filter (HDF5 filter 32000), which libhdf5 does
 # not carry; FormatoKit 0.14.0 decodes it. This copies ebsd-oxford.h5oina object by object, attributes included, and writes every

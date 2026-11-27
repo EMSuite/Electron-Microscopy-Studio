@@ -48,7 +48,7 @@ BUILD_ARGS=()
 echo "== App Store archive ($(git -C "$ROOT" rev-parse --short HEAD))"
 # ARCHS=arm64 on the command line, as tools/release.sh: the project's setting does not reach the package targets.
 # MACEM_STORE_BUILD=YES is the one switch the store build flips: the Sparkle updater (#583) compiles only without it.
-xcodebuild archive -project "$ROOT/macTEM.xcodeproj" -scheme macTEM -configuration Release \
+xcodebuild archive -project "$ROOT/EMStudio.xcodeproj" -scheme EMStudio -configuration Release \
   -destination 'generic/platform=macOS' -archivePath "$ARCHIVE" ARCHS=arm64 \
   -allowProvisioningUpdates CODE_SIGN_STYLE=Automatic DEVELOPMENT_TEAM="$TEAM" MACEM_STORE_BUILD=YES \
   "${BUILD_ARGS[@]}" > "$OUT/archive.log" 2>&1 || { tail -30 "$OUT/archive.log"; exit 1; }

@@ -1,0 +1,97 @@
+//
+//  DiffractionCrystalPaneTests.swift
+//  The crystal pane beside the Diffraction room's pattern (#790, plan row R7): empty until the simulated spots are shown, then the
+//  crystal at their orientation (a typed zone axis, Index's, Flip's), as one cell VESTA draws, and a turn of the crystal turns the
+//  spots. Red before: the room had no crystal pane (`DiffractionCrystalScenes`, `CrystalPaneModel` did not exist).
+//
+//  The cells are the room's standards: silicon draws 18 atoms and 16 bonds (8 corners, 6 faces, 4 inside, each inside atom bonded to
+//  four), aluminium 14 atoms and no bond (VESTA's table has no Al-Al pair).
+//
+
+import XCTest
+import DiffractoCore
+import ShellCrystal
+import TEMCore
+import TEMSession
+@testable import EMStudio
+
+nonisolated final class DiffractionCrystalPaneTests: XCTestCase {
+
+    @MainActor private func analysis(_ crystal: String) throws -> (DiffractionAnalysis, CalibratedImage) {
+        let image = CalibratedImage(width: 256, height: 256, pixels: [Float](repeating: 1, count: 256 * 256), x: nil, y: nil,
+                                    fileName: "blank", source: "test", voltage: 200_000)
+        let a = DiffractionAnalysis()
+        a.bind(image)
+        a.typedDeltaQ = 0.01
+        a.setCrystal(.preset(try XCTUnwrap(StandardCrystals.named(crystal))))
+        return (a, image)
+    }
+
+    @MainActor func testTheCellIsDrawnAsVESTADrawsIt() throws {
+        let si = try XCTUnwrap(StandardCrystals.named("Si"))
+        let silicon = DiffractionCrystalScenes.scene(for: .preset(si))
+        XCTAssertEqual(silicon.atoms.count, 18)
+        XCTAssertEqual(silicon.bonds.count, 16)
+        XCTAssertTrue(silicon.atoms.allSatisfy { $0.atomicNumber == 14 })
+        XCTAssertNotNil(silicon.cell)
+        XCTAssertEqual(CrystalPaneModel.sites(si.structure).count, 8)
+        XCTAssertEqual(CrystalPaneModel.bonds(si.structure).count, si.structure.bonds.count / 2, "each bond once")
+
+        let al = try XCTUnwrap(StandardCrystals.named("Al"))
+        let aluminium = DiffractionCrystalScenes.scene(for: .preset(al))
+        XCTAssertEqual(aluminium.atoms.count, 14)
+        XCTAssertEqual(aluminium.bonds.count, 0)
+    }
+
+    @MainActor func testThePaneFollowsTheSimulatedSpotsAndTurnsThem() throws {
+        let (a, image) = try analysis("Au")
+        XCTAssertNil(DiffractionCrystalScenes.shown(a), "empty until the simulated spots are shown")
+
+        a.simulation.isShown = true
+        a.setZoneAxis(SIMD3(0, 0, 1))
+        let typed = try XCTUnwrap(DiffractionCrystalScenes.shown(a))
+        XCTAssertEqual(typed, a.drawnOrientation)
+        XCTAssertEqual(CrystalPaneModel.label(phase: "Au", orientation: typed, cell: a.crystal.structure.cell), "Au, zone axis [001]")
+
+        // Flip turns the crystal too.
+        a.flip()
+        let flipped = try XCTUnwrap(DiffractionCrystalScenes.shown(a))
+        XCTAssertEqual(flipped, typed.rotatedInPlane(by: .pi))
+
+        // The view's frame and back is the same orientation, exactly; a crystal turned in the pane turns the spots.
+        XCTAssertEqual(CrystalPaneModel.orientation(view: CrystalPaneModel.view(flipped)), flipped)
+        let tilted = typed.tilted(by: SIMD2(0, 2 * Double.pi / 180))
+        a.turnByHand(to: try XCTUnwrap(CrystalPaneModel.orientation(view: CrystalPaneModel.view(tilted))))
+        XCTAssertEqual(a.drawnOrientation, tilted)
+        XCTAssertEqual(CrystalPaneModel.label(phase: "Au", orientation: tilted, cell: a.crystal.structure.cell), "Au, zone axis [001], tilted 2.0°")
+        XCTAssertNotNil(try? a.simulatedSpots(image: image)?.get(), "the spots are drawn at the crystal's orientation")
+
+        a.simulation.isShown = false
+        XCTAssertNil(DiffractionCrystalScenes.shown(a))
+    }
+
+    /// The pane shows and hides (#789): View > Show Crystal shows and hides it, one state per document, on by
+    /// default with the unit cell drawn, it appears once simulated spots are drawn; hidden, the pattern takes the room, and the divider's place is the window's scene storage.
+    /// Red before: the pane could not be hidden and its width was fixed.
+    @MainActor func testTheCrystalPaneShowsAndHidesAndItsSplitIsStored() throws {
+        let view = DiffractionViewState()
+        XCTAssertTrue(view.showsCrystal)
+        XCTAssertTrue(view.showsUnitCell)
+        view.showsCrystal = false
+        XCTAssertFalse(view.showsCrystal)
+        let room = try FFTRoomWiringTests.squeezedUI("DiffractionRoom.swift")
+        XCTAssertTrue(room.contains("if let pane = DiffractionSidePaneView.shown(part: part, view: view, analysis: analysis) { WorkspaceCentre(storageKey: DiffractionCrystalSplit.storageKey,"), "the split is stored")
+        XCTAssertTrue(room.contains("} else { WorkspaceCentre { patternPanel(analysis: analysis, view: view, rows: rows) } }"), "hidden, the pattern takes the room")
+        XCTAssertEqual(DiffractionCrystalSplit.storageKey, "diffraction.crystalSplit")
+        XCTAssertTrue(try FFTRoomWiringTests.squeezedUI("DiffractionSidePane.swift").contains("DiffractionCrystalPane(analysis: analysis, showsUnitCell: view.showsUnitCell,"))
+        let a = DiffractionAnalysis()
+        a.simulation.isShown = false
+        view.showsCrystal = true
+        XCTAssertNil(DiffractionSidePaneView.shown(part: .index, view: view, analysis: a), "the crystal waits for the simulated spots")
+        a.simulation.isShown = true
+        XCTAssertEqual(DiffractionSidePaneView.shown(part: .index, view: view, analysis: a), .crystal)
+        let inspector = try FFTRoomWiringTests.squeezedUI("DiffractionRoomInspector.swift")
+        XCTAssertFalse(inspector.contains("diffraction.crystal.show"), "showing the pane is a layout choice: View > Show Crystal")
+        XCTAssertTrue(inspector.contains(".accessibilityIdentifier(\"diffraction.crystal.unitCell\")"))
+    }
+}

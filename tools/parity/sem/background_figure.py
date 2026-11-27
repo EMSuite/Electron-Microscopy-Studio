@@ -3,7 +3,7 @@
 (subtract, frequency domain, std = width / 8, truncate 4) background removal — kikuchipy's reference pattern beside the
 pattern TEMCore's `PatternProcessing` computed, and their difference in grey levels.
 
-    python3 -I background_figure.py --fixtures ../../../macTEMTests/Fixtures/sem/background --ours F2.u8 --out F2.png
+    python3 -I background_figure.py --fixtures ../../../EMStudioTests/Fixtures/sem/background --ours F2.u8 --out F2.png
 
 `--ours` is the 60 x 60 uint8 array the unit test `testFigureF2PatternZeroAfterStaticAndDynamicBackground` writes to
 $TMPDIR/macTEM-F2-ours.u8, or a text file holding the base64 line it prints. Without `--ours` the figure shows the raw pattern,

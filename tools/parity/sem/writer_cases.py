@@ -24,7 +24,7 @@ from refbundle import Bundle
 
 HERE = Path(__file__).resolve().parent
 FIXTURES = HERE / "fixtures"
-SDSS_LABEL = "sem-data/orix/sdss_ferrite_austenite.ang"  # the same bytes as macTEMTests/Fixtures/ebsd-sdss-ferrite-austenite.ang
+SDSS_LABEL = "sem-data/orix/sdss_ferrite_austenite.ang"  # the same bytes as EMStudioTests/Fixtures/ebsd-sdss-ferrite-austenite.ang
 ORIENTATION_INPUTS = FIXTURES / "orientation_inputs.json"
 TI_COLUMNS, TI_ROWS = 507, 3
 SAMPLE_EVERY = 50

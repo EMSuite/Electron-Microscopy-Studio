@@ -1,0 +1,71 @@
+//
+//  DemoEELSCoreLossTests.swift
+//  #1088: Help > Open Demo Data > EELS Spectrum Image held only a low loss, so the room's edge fit and its maps could not be shown
+//  ("This file holds no core-loss spectrum image to fit"). The demo now carries a core loss with the C, N and O K edges planted
+//  (`DemoDocuments.Truth.eelsAmounts`): carbon everywhere, oxygen in a central disc, nitrogen in the top half. Red before: no core loss.
+//
+
+import SpectroEELS
+import TEMCore
+import TEMSession
+import XCTest
+@testable import EMStudio
+
+nonisolated final class DemoEELSCoreLossTests: XCTestCase {
+    @MainActor func testTheDemoFitsItsPlantedEdgesIntoMapsThatShowWhereEachIs() async throws {
+        let demo = try DemoDocuments.eels()
+        let core = try XCTUnwrap(demo.coreLoss, "the demo carries a core loss")
+        XCTAssertEqual(core.channels, DemoDocuments.Truth.eelsCoreChannels)
+        let session = EELSSession()
+        await session.bind(demo).value
+        await session.settled()
+        session.setConvolveLowLoss(false)
+        for edge in [CoreLossEdge.carbonK, .nitrogenK, .oxygenK] { session.toggleEdge(edge) }
+        await session.fit()?.value
+        await session.settled()
+        XCTAssertNotNil(session.model, session.failure ?? session.fitRefusal ?? "no fit")
+
+        let side = DemoDocuments.Truth.eelsSide
+        func value(_ id: String, x: Int, y: Int) throws -> Double {
+            try XCTUnwrap(session.modelTiles.first { $0.id == id }, "\(id) in \(session.modelTiles.map(\.id))").values[y * side + x]
+        }
+        XCTAssertGreaterThan(try value("edge-O-K1", x: 8, y: 8), 10 * max(try value("edge-O-K1", x: 0, y: 0), 1e-12), "oxygen in the central disc")
+        XCTAssertGreaterThan(try value("edge-N-K1", x: 8, y: 2), 10 * max(try value("edge-N-K1", x: 8, y: 13), 1e-12), "nitrogen in the top half")
+        let carbonCorner = try value("edge-C-K1", x: 0, y: 15), carbonCentre = try value("edge-C-K1", x: 8, y: 8)
+        XCTAssertEqual(carbonCorner, carbonCentre, accuracy: 0.05 * carbonCentre, "carbon everywhere alike")
+    }
+
+    /// The shipped demo fits at the room's defaults with one Run (walk 2026-11-26). Its low loss is 0.25 eV per channel and its core loss 1 eV, and
+    /// exSpy's model refuses a low loss of another dispersion; Convolve stays on by default, so the room fits without the low loss and says why,
+    /// rather than sending the pair to the kit to be refused. Red before: Run was refused ("the convolution would shift the edges"), no model.
+    @MainActor func testTheDemoFitsAtTheDefaultsWithOneRun() async throws {
+        let session = EELSSession()
+        await session.bind(try DemoDocuments.eels()).value
+        await session.settled()
+        XCTAssertTrue(session.convolveLowLoss, "Convolve is on by default")
+        let why = try XCTUnwrap(session.convolveBlocker, "the demo's two dispersions differ")
+        XCTAssertTrue(why.contains("0.25 eV") && why.contains("1 eV"), why)
+        XCTAssertFalse(session.effectiveConvolve)
+        session.toggleEdge(.carbonK)
+        await session.run().value
+        await session.settled()
+        XCTAssertNil(session.failure)
+        XCTAssertNil(session.fitRefusal)
+        XCTAssertNotNil(session.model, "one Run fits the demo at its defaults")
+        XCTAssertEqual(session.fitState, .current)
+        // A second edge stales the fit; Run fits again.
+        session.toggleEdge(.oxygenK)
+        XCTAssertTrue(session.canRun)
+        await session.run().value
+        await session.settled()
+        XCTAssertEqual(session.fitState, .current, session.failure ?? "")
+    }
+
+    /// The energy axis never prints "-0": the first tick of a window just below zero is +0. Red before: -0.0, read "-0".
+    func testTheEnergyAxisHasNoNegativeZero() {
+        let ticks = EELSOneAxis.ticks(in: -2.5 ... 20)
+        let zero = ticks.first { $0 == 0 }
+        XCTAssertEqual(zero?.sign, .plus, "\(ticks)")
+        XCTAssertFalse(ticks.map { EELSRoomFormat.sig($0, 5) }.contains("-0"))
+    }
+}

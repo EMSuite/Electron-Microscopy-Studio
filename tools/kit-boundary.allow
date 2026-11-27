@@ -7,8 +7,8 @@
 # not science, or a lineage/marks record (app-side provenance).
 
 # The display pipeline is MacEMUI's (its Colormaps.metal); the app holds no .metal file. The test of its export twin:
-macTEMTests/ImageExportGPUTests.swift	Metal	GPU image export vs CPU rendering
-macTEMTests/RoomMemoryTests.swift	Metal	the Metal device's allocated bytes, to name a texture held after a close (#713)
+EMStudioTests/ImageExportGPUTests.swift	Metal	GPU image export vs CPU rendering
+EMStudioTests/RoomMemoryTests.swift	Metal	the Metal device's allocated bytes, to name a texture held after a close (#713)
 
 # SEM: the float32 GPU paths of two numeric ports in TEMCore.
 Sources/TEMCore/SEM/MasterPattern/MasterPatternProjectionMetal.swift	Metal	SEM master pattern projection: the float32 GPU path of a numeric port that lives in TEMCore because the SEM program changes no kit; checked against the float64 CPU path
@@ -18,6 +18,6 @@ Sources/TEMCore/Diffraction/CrystalPaneModel.swift	simd	the crystal pane hands S
 
 # Simulation: the orientation matrix DiffractoKit hands over (simd_double3x3) and its columns; no numerics of the app's own.
 Sources/TEMCore/Simulation/SimulationSpecimen.swift	simd	the slab's orientation as DiffractoKit gives it (simd_double3x3), read to name its in-plane angle; the numbers are the kits'
-macTEMTests/SimulationSpecimenTests.swift	simd	compares the slab's orientation columns with the pattern's (simd_length)
+EMStudioTests/SimulationSpecimenTests.swift	simd	compares the slab's orientation columns with the pattern's (simd_length)
 Sources/TEMCore/Simulation/SlabDrawing.swift	simd	the crystal pane draws the slab in the crystal frame: the slab builder's rotation applied to its atoms for display, no science (#897)
-macTEMTests/SlabDrawingTests.swift	simd	reads the slab's orientation columns to check the drawn slab's third axis is the zone axis (#897)
+EMStudioTests/SlabDrawingTests.swift	simd	reads the slab's orientation columns to check the drawn slab's third axis is the zone axis (#897)

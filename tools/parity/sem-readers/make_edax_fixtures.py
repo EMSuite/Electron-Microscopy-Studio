@@ -1,4 +1,4 @@
-# tools/parity/sem-readers/make_edax_fixtures.py — writes the EDAX binary (.up1/.up2) and .ang fixtures of macTEMTests and the
+# tools/parity/sem-readers/make_edax_fixtures.py — writes the EDAX binary (.up1/.up2) and .ang fixtures of EMStudioTests and the
 # truth they are read against (kikuchipy 0.13.1 `edax_binary.file_reader`, orix 0.15.0 `ang.file_reader`).
 #
 #   python -I -B make_edax_fixtures.py <out dir> [sdss_ferrite_austenite.ang]
