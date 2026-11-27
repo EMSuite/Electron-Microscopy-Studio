@@ -2,9 +2,10 @@
 // or a Velox.emd with an EELS stream, or a TIA series of EELS spectra (`.ser`, `TIASpectra`) (`VeloxSpectrumImageSignals`; NOT yet verified on a real Velox EELS file). A single spectrum (a GMS EELS
 // object of dimensions [energy], an EMSA/MSA file of signal type ELS) opens as a 1 x 1 spectrum image.
 // The counts stay as stored. What the file states (E0, the two angles) rides along for the mean free path; nothing is assumed.
-// The room holds every count as a Double, so a file whose cubes would take more than half of the Mac's memory once read is refused in a
-// sentence (`memoryRefusal`): a GMS file before a cube is read, from its header; a Velox file once FormatoKit has read it and before a cube is
-// converted (its reader hands the shapes with the data).
+// The room holds the counts as SpectroKit's `EELSCounts`, at the file's own precision where it can (a GMS float32 cube stays four bytes a count,
+// #620). A file whose cubes would take more than half of the Mac's memory once read is refused in a sentence (`memoryRefusal`): a GMS file
+// before a cube is read, from its header; a Velox file once FormatoKit has read it and before a cube is converted (its reader hands the shapes
+// with the data).
 import Foundation
 import FormatoCore
 import FormatoDM
