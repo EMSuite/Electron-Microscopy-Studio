@@ -13,6 +13,7 @@
 
 import Foundation
 import FormatoCore
+import FormatoEBSD
 import TEMBase
 
 /// A rectangle on the detector in pixels, half-open on the right and bottom (`hs.roi.RectangularROI` as the signal is sliced).
