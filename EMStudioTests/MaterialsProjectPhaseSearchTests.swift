@@ -149,12 +149,13 @@ nonisolated final class MaterialsProjectPhaseSearchTests: XCTestCase {
     }
 
     /// Since DiffractoKit 0.26.0 decoding a search answer detects each row's space group, up to 500 rows a system, so Find Phases
-    /// decodes off the main actor through EMSuiteUI's `AddPhaseModel.decodeSearch`, as Add Phase does (#1115, EMSuiteUI#283).
-    /// Red under: a direct call to the kit's synchronous decode from the main actor.
+    /// decodes off the main actor through its own `@concurrent` helper, as Add Phase does (#1115, EMSuiteUI#283). Red under: the
+    /// kit's synchronous decode called from the main actor.
     func testTheSearchAnswerIsDecodedOffTheMainActor() throws {
         let root = URL(fileURLWithPath: #filePath).resolvingSymlinksInPath().deletingLastPathComponent().deletingLastPathComponent()
         let source = try String(contentsOf: root.appendingPathComponent("EMStudio/App/MaterialsProjectPhaseSearch.swift"), encoding: .utf8)
-        XCTAssertTrue(source.contains("try await AddPhaseModel.decodeSearch(data)"), "Find Phases does not decode through the off-main helper")
-        XCTAssertFalse(source.contains("try MaterialsProjectOptimade.decodeSearch("), "Find Phases decodes on the main actor")
+        XCTAssertTrue(source.contains("switch try await decodeSearch(data) {"), "Find Phases does not decode through the off-main helper")
+        XCTAssertTrue(source.contains("@concurrent nonisolated static func decodeSearch(_ data: Data) async throws"), "the helper is not off-main")
+        XCTAssertEqual(source.components(separatedBy: "MaterialsProjectOptimade.decodeSearch(").count, 2, "the kit's decode is called outside the helper")
     }
 }
