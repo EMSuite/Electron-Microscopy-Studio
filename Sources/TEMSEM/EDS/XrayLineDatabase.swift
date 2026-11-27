@@ -6,8 +6,6 @@
 //        the dict's order; energies are keV, weights are exspy's relative line weights. Parity: the `db_` arrays of `m7/eds-quant-tm002`,
 //        exact (SEMEDSParityTests).
 //
-import TEMBase
-
 
 package nonisolated enum XrayLineDatabase {
     package struct Line: Equatable, Sendable {

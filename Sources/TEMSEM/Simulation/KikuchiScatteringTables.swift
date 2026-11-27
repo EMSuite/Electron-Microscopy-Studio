@@ -5,8 +5,6 @@
 //  pairs per element symbol, f(s) = sum a exp(-b s^2), s = g / 2) and Doyle & Turner's electron parameters (Acta Cryst. A24, 390,
 //  1968, via De Graef & McHenry 2007, table 12.1: a1..a4, b1..b4 in 1/A^2 for Z = 1..98). Parity bundle m6/kikuchi-scattering-tables.
 //
-import TEMBase
-
 
 package nonisolated enum KikuchiScatteringTables {
     /// The X-ray table's element symbols, in diffsims' order.
