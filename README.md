@@ -13,7 +13,7 @@ Apple silicon.
 
 ## Download
 
-The current version is 2.6.0. <!-- x-release-please-version -->
+The current version is 2.6.1. <!-- x-release-please-version -->
 
 Get the signed and notarised DMG from the [latest release](https://github.com/EMSuite/Electron-Microscopy-Studio/releases/latest). It needs
 macOS 26 or later on an Apple silicon Mac. The latest release has everything below.
