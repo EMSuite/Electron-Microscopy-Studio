@@ -479,12 +479,6 @@ nonisolated enum MapsRoomFormat {
         }
     }
 
-    /// "SF 0.47 · trace 132° in blue · inclined 61°": the trace names the colour it is drawn in, so a plane row and its line on the map
-    /// match by words, not by colour alone, and VoiceOver hears it (#356).
-    static func planeText(_ plane: GrainSlip.Plane) -> String {
-        "SF \(fraction(plane.schmid)) · \(traceText(plane.traceAngle, colour: plane.colour)) · inclined \(angle(plane.inclination * 180 / .pi, digits: 0))°"
-    }
-
     /// "trace 132° in blue", from the trace's angle in radians and DefDAP's colour name; "no trace" for a plane parallel to the map.
     static func traceText(_ radians: Double, colour: String, locale: Locale = .autoupdatingCurrent) -> String {
         guard radians.isFinite else { return "no trace" }

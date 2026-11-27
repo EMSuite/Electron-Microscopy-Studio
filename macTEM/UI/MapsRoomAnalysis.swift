@@ -263,7 +263,7 @@ struct MapsGrainsTable: View {
     }
 }
 
-/// One slip plane of the picked grain, a row of the Slip table: the numbers and words `MapsRoomFormat.planeText` writes in one line,
+/// One slip plane of the picked grain, a row of the Slip table: the numbers and words of `MapsRoomFormat` (`fraction`, `traceText`, `angle`),
 /// one per column. `id` is the plane's place in DefDAP's list, the table's first order.
 nonisolated struct MapsSlipRow: Identifiable, Equatable, Sendable {
     let id: Int
@@ -281,7 +281,7 @@ nonisolated struct MapsSlipRow: Identifiable, Equatable, Sendable {
     var traceOrder: Double { traceDegrees.isFinite ? traceDegrees : .infinity }
     var colourWord: String { MapsRoomFormat.colourWord(colour) }
 
-    /// The grain's planes in DefDAP's order, in degrees as `MapsRoomFormat.traceText` and `planeText` convert them.
+    /// The grain's planes in DefDAP's order, in degrees as `MapsRoomFormat.traceText` and `angle` convert them.
     static func rows(_ slip: GrainSlip) -> [MapsSlipRow] {
         slip.planes.enumerated().map { index, plane in
             MapsSlipRow(id: index, plane: plane.label, colour: plane.colour, schmid: plane.schmid,
@@ -297,7 +297,7 @@ nonisolated struct MapsSlipRow: Identifiable, Equatable, Sendable {
 
 /// The picked grain's slip planes as a table of the bottom area (#1095; under the Grains table as about thirty lines of text before, and
 /// in the inspector before #1066): per plane a swatch in its trace's colour on the map with the plane, the largest Schmid factor of its
-/// systems, the trace's angle and colour, and the inclination, each in `planeText`'s format; sortable by every column. One line says
+/// systems, the trace's angle and colour, and the inclination, each in `MapsRoomFormat`'s format; sortable by every column. One line says
 /// why there is nothing to list.
 struct MapsSlipTable: View {
     let session: OrientationMapSession

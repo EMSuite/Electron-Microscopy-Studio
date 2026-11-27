@@ -69,8 +69,8 @@ package nonisolated enum DemoDocuments {
         package static let eelsZeroLossCounts = 100_000.0
         package static let eelsTOverLambdaAbove = 0.5
         package static let eelsTOverLambdaBelow = 0.8
-        /// The t/λ planted at the pixel (x, y): the upper half (y < 8) is the thinner side.
-        package static func eelsTOverLambda(x: Int, y: Int) -> Double { y < eelsSide / 2 ? eelsTOverLambdaAbove : eelsTOverLambdaBelow }
+        /// The t/λ planted in row y (every pixel of a row has the same): the upper half (y < 8) is the thinner side.
+        package static func eelsTOverLambda(y: Int) -> Double { y < eelsSide / 2 ? eelsTOverLambdaAbove : eelsTOverLambdaBelow }
         /// Its core loss (#1088): 700 channels of 1 eV from 200 eV, a power-law background A E^-3 under the C, N and O K edges
         /// (exSpy's model, `EELSEdgeQuantification`'s cross sections at 200 kV and 10 mrad), each edge's amount per pixel planted:
         /// carbon everywhere (a support film), oxygen in a disc at the centre (a particle), nitrogen in the top half (the thinner side).
@@ -597,7 +597,7 @@ package nonisolated enum DemoDocuments {
     // MARK: The EELS spectrum image
 
     /// 16 x 16 x 1024: a narrow zero-loss peak holding `eelsZeroLossCounts` and one plasmon at 15 eV whose area makes ln(I_total / I_0)
-    /// equal `eelsTOverLambda(x:y:)` at each pixel (both normalised over the channels, so the answer is exact by construction).
+    /// equal `eelsTOverLambda(y:)` at each pixel (both normalised over the channels, so the answer is exact by construction).
     package static func eels() throws -> LoadedEELS {
         let n = Truth.eelsSide, channels = Truth.eelsChannels
         let energies = (0..<channels).map { Truth.eelsOffsetEV + Truth.eelsDispersionEV * Double($0) }
@@ -615,7 +615,7 @@ package nonisolated enum DemoDocuments {
         var counts = [Double]()
         counts.reserveCapacity(n * n * channels)
         for y in 0..<n {
-            for x in 0..<n { counts.append(contentsOf: Truth.eelsTOverLambda(x: x, y: y) == Truth.eelsTOverLambdaAbove ? above : below) }
+            for x in 0..<n { counts.append(contentsOf: Truth.eelsTOverLambda(y: y) == Truth.eelsTOverLambdaAbove ? above : below) }
         }
         let image = try LowLossSpectrumImage(nx: n, ny: n, channels: channels, counts: counts,
                                              energyOffsetEV: Truth.eelsOffsetEV, energyScaleEV: Truth.eelsDispersionEV)

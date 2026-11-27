@@ -31,7 +31,7 @@ nonisolated final class EELSRegionsTests: XCTestCase {
         let side = DemoDocuments.Truth.eelsSide
         let mask = region.mask(nx: side, ny: side) ?? [Bool](repeating: true, count: side * side)
         let inside = (0..<(side * side)).filter { mask[$0] }
-        let ratios = inside.map { exp(DemoDocuments.Truth.eelsTOverLambda(x: $0 % side, y: $0 / side)) }
+        let ratios = inside.map { exp(DemoDocuments.Truth.eelsTOverLambda(y: $0 / side)) }
         return log(ratios.reduce(0, +) / Double(inside.count))
     }
 
