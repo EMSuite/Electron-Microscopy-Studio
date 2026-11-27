@@ -12,7 +12,7 @@ let package = Package(
         .library(name: "TEMSession", targets: ["TEMSession"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/EMSuite/FormatoKit", from: "0.23.0"),
+        .package(url: "https://github.com/EMSuite/FormatoKit", from: "0.23.1"),
         .package(url: "https://github.com/EMSuite/DiffractoKit", from: "0.27.0"),
         .package(url: "https://github.com/EMSuite/ImagoKit", from: "0.12.0"),
         .package(url: "https://github.com/EMSuite/SpectroKit", from: "0.17.3"),

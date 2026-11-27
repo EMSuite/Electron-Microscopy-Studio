@@ -24,6 +24,7 @@
 import Foundation
 import Synchronization
 import FormatoCore
+import FormatoEBSD
 import ImagoCore
 import TEMBase
 

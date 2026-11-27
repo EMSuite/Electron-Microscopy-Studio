@@ -24,8 +24,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/EMSuite/FormatoKit",
       "state" : {
-        "revision" : "b042524888955154f7cb4577b0ed10c7b22fb9ba",
-        "version" : "0.23.0"
+        "revision" : "954cdc95decea2eabd8a86f7f9029d91db753c3f",
+        "version" : "0.23.1"
       }
     },
     {
