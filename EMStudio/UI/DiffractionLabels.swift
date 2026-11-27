@@ -41,7 +41,7 @@ nonisolated enum DiffractionLegend {
         case simulated(OverlaySignal.SpotMark)
         /// A found spot's red cross.
         case found
-        /// A found spot Index did not explain, where its mark differs from a found spot's.
+        /// A found spot Index did not explain: the same red cross, dashed (#1063).
         case unexplained
     }
 
@@ -52,8 +52,15 @@ nonisolated enum DiffractionLegend {
 
     static let foundWord = "found"
     static let unexplainedWord = "unexplained"
-    /// Whether an unexplained spot has a mark of its own: today it is the same red cross as an explained one, so the chip names none.
-    static let unexplainedMarkDiffers = false
+    /// Whether an unexplained spot has a mark of its own: a dashed red cross (#1063), so the chip names it.
+    static let unexplainedMarkDiffers = true
+    /// The dash of an unexplained spot's cross, on the pattern and in the chip.
+    static let unexplainedDash: [CGFloat] = [2, 1.5]
+
+    /// The marks Index left unexplained: the found spots whose row in Index's table has no hkl.
+    static func unexplained(in rows: [PatternIndexing.SpotRow]) -> Set<UUID> {
+        Set(rows.filter { $0.hkl == nil }.map(\.id))
+    }
 
     /// The chip's rows: none while no overlay is shown; the simulated mark with the phase's name, then the found cross with "found"
     /// when spots were found, then "unexplained" only where its mark differs.

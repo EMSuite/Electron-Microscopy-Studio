@@ -800,6 +800,8 @@ private struct DiffractionOverlay: View {
         let line = OverlaySignal.width(1.5, increasedContrast: high)
         let rings = analysis.rings
         let spots = analysis.spots
+        // A found spot Index left unexplained is a dashed cross, the chip's "unexplained" (#1063).
+        let unexplained = DiffractionLegend.unexplained(in: analysis.indexSpotRows)
         let labels = Dictionary(uniqueKeysWithValues: rows.map { ($0.id, label(for: $0)) })
         // A found spot's d label only on the selected row and under the pointer (#1045); every ring keeps its own.
         let shown = DiffractionMarkLabels.labelled(
@@ -850,7 +852,8 @@ private struct DiffractionOverlay: View {
                 var cross = Path()
                 cross.move(to: CGPoint(x: p.x - 6, y: p.y - 6)); cross.addLine(to: CGPoint(x: p.x + 6, y: p.y + 6))
                 cross.move(to: CGPoint(x: p.x - 6, y: p.y + 6)); cross.addLine(to: CGPoint(x: p.x + 6, y: p.y - 6))
-                ctx.stroke(cross, with: .color(.red), lineWidth: line)
+                ctx.stroke(cross, with: .color(.red),
+                           style: StrokeStyle(lineWidth: line, dash: unexplained.contains(spot.id) ? DiffractionLegend.unexplainedDash : []))
                 if shown.contains(spot.id), let text = labels[spot.id] {
                     DiffractionHalo.draw(Text(text).font(.caption).foregroundStyle(.white), at: CGPoint(x: p.x + 8, y: p.y - 6),
                                          anchor: .leading, in: ctx)
@@ -941,7 +944,7 @@ private struct DiffractionLegendChip: View {
                             cross.move(to: CGPoint(x: c.x - 4, y: c.y - 4)); cross.addLine(to: CGPoint(x: c.x + 4, y: c.y + 4))
                             cross.move(to: CGPoint(x: c.x - 4, y: c.y + 4)); cross.addLine(to: CGPoint(x: c.x + 4, y: c.y - 4))
                             ctx.stroke(cross, with: .color(.red),
-                                       style: StrokeStyle(lineWidth: 1.5, dash: entry.mark == .unexplained ? [2, 1.5] : []))
+                                       style: StrokeStyle(lineWidth: 1.5, dash: entry.mark == .unexplained ? DiffractionLegend.unexplainedDash : []))
                         }
                     }
                     .frame(width: 12, height: 12) // science: the legend chip drawn on the pattern

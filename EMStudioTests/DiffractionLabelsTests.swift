@@ -113,7 +113,8 @@ nonisolated final class DiffractionLabelsTests: XCTestCase {
 
     // MARK: Legend
 
-    /// Mutation: a chip with the overlay off, no phase name, "unexplained" with the same mark as "found" - red.
+    /// Mutation: a chip with the overlay off, no phase name, "unexplained" with the same mark as "found", no "unexplained" row
+    /// after an Index that left a spot unexplained (#1063) - red.
     func testTheLegendsEntries() {
         XCTAssertTrue(DiffractionLegend.entries(overlayShown: false, phase: "Si", hasFound: true, hasUnexplained: true).isEmpty,
                       "no chip while no overlay is shown")
@@ -122,12 +123,19 @@ nonisolated final class DiffractionLabelsTests: XCTestCase {
         XCTAssertEqual(simulatedOnly, [.init(mark: .simulated(.ring), text: "Si")])
 
         let indexed = DiffractionLegend.entries(overlayShown: true, phase: "Si", hasFound: true, hasUnexplained: true)
-        XCTAssertEqual(indexed, [.init(mark: .simulated(.ring), text: "Si"), .init(mark: .found, text: "found")],
-                       "an unexplained spot is the same red cross today, so the chip names no mark of its own")
+        XCTAssertEqual(indexed, [.init(mark: .simulated(.ring), text: "Si"), .init(mark: .found, text: "found"),
+                                 .init(mark: .unexplained, text: "unexplained")],
+                       "an unexplained spot has a mark of its own, the dashed cross, and the chip names it")
+        XCTAssertEqual(DiffractionLegend.entries(overlayShown: true, phase: "Si", hasFound: true, hasUnexplained: false).count, 2,
+                       "no row while every found spot is explained")
+        XCTAssertFalse(DiffractionLegend.unexplainedDash.isEmpty, "the mark differs from a found spot's")
 
-        let distinct = DiffractionLegend.entries(overlayShown: true, phase: "Si", hasFound: true, hasUnexplained: true,
-                                                 unexplainedDiffers: true)
-        XCTAssertEqual(distinct.last, .init(mark: .unexplained, text: "unexplained"))
+        // The unexplained marks are the found spots whose Index row has no hkl.
+        let explained = UUID(), unexplained = UUID()
+        func row(_ id: UUID, _ hkl: MillerIndex?) -> PatternIndexing.SpotRow {
+            PatternIndexing.SpotRow(id: id, number: 1, hkl: hkl, radiusPx: 30, q: 0.3, d: 3.1, dExpected: nil, deltaPercent: nil, phase: "Si")
+        }
+        XCTAssertEqual(DiffractionLegend.unexplained(in: [row(explained, MillerIndex(1, 1, 1)), row(unexplained, nil)]), [unexplained])
     }
 
     // MARK: The room draws them
@@ -141,6 +149,8 @@ nonisolated final class DiffractionLabelsTests: XCTestCase {
         XCTAssertFalse(room.contains("ZoneAxisOverlay.labelled("))
         XCTAssertTrue(room.contains("if shown.contains(spot.id), let text = labels[spot.id]"))
         XCTAssertTrue(room.contains("DiffractionLegendChip(entries: legend)"))
+        XCTAssertTrue(room.contains("dash: unexplained.contains(spot.id) ? DiffractionLegend.unexplainedDash : []"),
+                      "the pattern draws an unexplained spot's cross dashed, as the chip does")
         XCTAssertTrue(room.contains("layer.addFilter(.shadow("), "labels keep a dark halo")
     }
 }
