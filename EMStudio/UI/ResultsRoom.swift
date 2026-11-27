@@ -8,7 +8,8 @@
 //        and the shown groups).
 //
 //        LAYOUT: a 26-pt header (the file · "12 results, 3 hidden" · the session sentence of the Image room's tail) over the
-//        Table. Columns Result · Value · Source · Record · Method; the method's name, its tooltip the
+//        Table, and the SEM session's table under it when the window holds one, the two split by the shared divider the person
+//        drags (`VerticalPaneSplit`, remembered per window, #1094). Columns Result · Value · Source · Record · Method; the method's name, its tooltip the
 //        producer's sentence (`ResultsFormat`). No selection: nothing is shown but the table. No result: a
 //        `ContentUnavailableView`. No chart, no statistics, no editing: a result is removed in the room that made it.
 //
@@ -19,6 +20,7 @@
 //
 
 import ShellLayout
+import ShellSpectroscopy
 import SwiftUI
 import TEMCore
 import TEMSession
@@ -42,24 +44,45 @@ struct ResultsRoom: View {
             ResultsHeader(fileName: image.fileName, shown: shown, hidden: rows.count - shown,
                           session: ExportSnapshot.sessionSentence(of: item))
             Divider()
-            if rows.isEmpty {
-                ContentUnavailableView(ResultsFormat.emptyTitle, systemImage: "square.grid.2x2",
-                                       description: Text(ResultsFormat.emptyDetail))
-            } else if sections.isEmpty {
-                ContentUnavailableView(ResultsFormat.allHiddenTitle, systemImage: "eye.slash",
-                                       description: Text(ResultsFormat.allHiddenDetail))
+            if sessionRows.isEmpty {
+                table(rows: rows, sections: sections, state: state)
             } else {
-                ResultsTable(item: item, sections: sections, state: state)
-            }
-            if !sessionRows.isEmpty {
-                Divider()
-                ResultsSessionPane(rows: sessionRows, state: state)
+                // The image's table over the SEM session's, split by the shared divider the person drags, remembered per window
+                // (#1094), as every room's pane boundary is.
+                VerticalPaneSplit(storageKey: ResultsRoomLayout.sessionSplitKey, defaultFraction: ResultsRoomLayout.sessionSplitFraction,
+                                  resizeLabel: "Resize the results and the session's results", topName: "Results",
+                                  minimumTop: ResultsRoomLayout.minimumPaneHeight, minimumBottom: ResultsRoomLayout.minimumPaneHeight) {
+                    table(rows: rows, sections: sections, state: state)
+                } bottom: {
+                    ResultsSessionPane(rows: sessionRows, state: state)
+                }
             }
         }
         .onChange(of: item.id, initial: true) { state.attach(to: item.id) }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("results.room")
     }
+
+    /// The selected file's table, or why there is none.
+    @ViewBuilder
+    private func table(rows: [ResultRow], sections: [ResultsSection], state: ResultsRoomState) -> some View {
+        if rows.isEmpty {
+            ContentUnavailableView(ResultsFormat.emptyTitle, systemImage: "square.grid.2x2",
+                                   description: Text(ResultsFormat.emptyDetail))
+        } else if sections.isEmpty {
+            ContentUnavailableView(ResultsFormat.allHiddenTitle, systemImage: "eye.slash",
+                                   description: Text(ResultsFormat.allHiddenDetail))
+        } else {
+            ResultsTable(item: item, sections: sections, state: state)
+        }
+    }
+}
+
+/// The Results room's split (#1094): the image's table over the SEM session's.
+enum ResultsRoomLayout {
+    static let sessionSplitKey = "results.sessionSplit"
+    static let sessionSplitFraction = 0.6
+    static let minimumPaneHeight: CGFloat = 120
 }
 
 /// The header: what the table holds, and where the marks are kept.
