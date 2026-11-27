@@ -109,7 +109,8 @@ extension ExportSnapshot {
             guard let row = spot.row, let column = spot.column else { return nil }
             return FigureExport.PatternOverlay.Measured(points: [ImagePoint(x: column, y: row)], label: labels[spot.id] ?? "")
         }
-        let simulated = (try? analysis.simulatedSpots(image: image)?.get()) ?? []
+        // The spots the room draws: a Simulation document's Dynamical beams where they are shown (#1157).
+        let simulated = (try? item.simulatedSpots(image: image)?.get()) ?? []
         let labelled = analysis.simulation.showsLabels ? ZoneAxisOverlay.labelled(simulated) : []
         let overlay = FigureExport.PatternOverlay(centre: analysis.centre.map { ImagePoint(x: $0.column, y: $0.row) }, rings: rings, spots: spots,
                                                   simulated: simulated, labelled: labelled)

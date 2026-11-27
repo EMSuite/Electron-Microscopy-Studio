@@ -13,6 +13,7 @@
 //  before: the coverage rows were gaps and none of these arguments or tools existed.
 //
 
+import DiffractoCore
 import Foundation
 import ShellAgentDoor
 import TEMCore
@@ -226,5 +227,37 @@ nonisolated final class AgentDoorSimulationTests: XCTestCase {
         XCTAssertFalse(png.refused, png.text)
         let bytes = try Data(contentsOf: root.appendingPathComponent("pattern.png"))
         XCTAssertEqual(Array(bytes.prefix(4)), [0x89, 0x50, 0x4E, 0x47], "a PNG")
+    }
+
+    /// #1158: with no phase shown, a Simulation document's Spots table is empty on screen, and get_spot_table and the Spots CSV say
+    /// the same; with a phase, the door's rows are the screen's. Mutation: the door reading `simulatedSpotRows` (the fallback
+    /// standard's spots) - red. Red before: get_spot_table listed Au's spots under the empty state.
+    @MainActor func testWithNoPhaseTheDoorListsNoSpotsAsTheScreen() async throws {
+        let state = AppState(launch: LaunchOptions(arguments: []))
+        keep.append(state)
+        door.enroll(state) { [weak state] in state.map { MacTEMAgentDoor.summary(of: $0) } ?? [:] }
+        let opened = try await call("new_simulation")
+        XCTAssertFalse(opened.refused, opened.text)
+        try await waitUntil("the simulation to open", seconds: 30) {
+            state.openItems.selected?.session.image != nil && state.navigation.workspaceArea == .diffraction
+        }
+        let item = try XCTUnwrap(state.openItems.selected)
+        let image = try XCTUnwrap(item.session.image)
+        item.diffraction.bind(image)  // as the room's view binds it on screen
+        XCTAssertTrue(SimulationEmptyState.isShown(for: item), "no phase yet")
+        XCTAssertFalse(item.simulatedSpotRows(image: image).isEmpty, "the owner still simulates the standard")
+
+        let empty = try json(try await call("get_spot_table").text)
+        XCTAssertEqual((empty["rows"] as? [[String: Any]])?.count, 0, "\(empty)")
+        let csv = try await call("save_diffraction", ["which": "spots_csv", "file": "spots.csv"])
+        XCTAssertTrue(csv.refused, "no spots on screen, no Spots CSV: \(csv.text)")
+
+        item.diffraction.setCrystal(try auPhase())
+        let shown = try json(try await call("get_spot_table").text)
+        let rows = try XCTUnwrap(shown["rows"] as? [[String: Any]], "\(shown)")
+        let screen = SimulationEmptyState.spotRows(of: item, image: image)
+        XCTAssertFalse(screen.isEmpty)
+        XCTAssertEqual(rows.count, screen.count, "the door lists the screen's rows")
+        XCTAssertEqual(rows.compactMap { $0["hkl"] as? [Int] }, screen.compactMap { $0.hkl.map { [$0.h, $0.k, $0.l] } })
     }
 }

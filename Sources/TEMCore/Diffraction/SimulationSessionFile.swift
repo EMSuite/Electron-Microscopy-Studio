@@ -55,13 +55,17 @@ package nonisolated struct SimulationSessionFile: Codable, Equatable, Sendable {
     package var turnDegrees: Double
     /// The orientation set by hand (the Tilt tool, Flip), drawn in place of the zone axis and turn; nil when they draw it.
     package var orientation: CrystalOrientation?
+    /// Whether any hkl is drawn; kept beside `labelMode` for the readers before it.
     package var showsLabels: Bool
+    /// The `hkl labels` pop-up's mode, `HKLLabelMode`'s raw value (#1054); absent in older files, read as `showsLabels` says.
+    package var labelMode: String?
     package var doubleDiffraction: Bool
     /// σ of the excitation envelope, Å⁻¹.
     package var excitationError: Double
 
     package init(phase: SavedPhase?, beamKV: Double?, cameraLengthMM: Double, kMax: Double, zoneAxis: SIMD3<Int>, turnDegrees: Double,
-                 orientation: CrystalOrientation?, showsLabels: Bool, doubleDiffraction: Bool, excitationError: Double) {
+                 orientation: CrystalOrientation?, showsLabels: Bool, labelMode: HKLLabelMode? = nil, doubleDiffraction: Bool,
+                 excitationError: Double) {
         self.phase = phase
         self.beamKV = beamKV
         self.cameraLengthMM = cameraLengthMM
@@ -69,7 +73,8 @@ package nonisolated struct SimulationSessionFile: Codable, Equatable, Sendable {
         self.zoneAxis = [zoneAxis.x, zoneAxis.y, zoneAxis.z]
         self.turnDegrees = turnDegrees
         self.orientation = orientation
-        self.showsLabels = showsLabels
+        self.showsLabels = labelMode.map { $0 != .off } ?? showsLabels
+        self.labelMode = labelMode?.rawValue
         self.doubleDiffraction = doubleDiffraction
         self.excitationError = excitationError
     }
@@ -77,6 +82,12 @@ package nonisolated struct SimulationSessionFile: Codable, Equatable, Sendable {
     /// The zone axis as the owner holds it (the reader checked it holds three).
     package var zoneAxisVector: SIMD3<Int> {
         zoneAxis.count == 3 ? SIMD3(zoneAxis[0], zoneAxis[1], zoneAxis[2]) : SIMD3(0, 0, 1)
+    }
+
+    /// The label mode to draw: the stored one, else Strongest or None as `showsLabels` says (a file from before #1054, or a mode
+    /// this version does not know).
+    package var hklLabelMode: HKLLabelMode {
+        labelMode.flatMap(HKLLabelMode.init(rawValue:)) ?? (showsLabels ? .strongest : .off)
     }
 
     /// Whether `url` names a session file, by its extension.

@@ -15,6 +15,7 @@ import DiffractoCore
 import SimulatoCore
 import SimulatoMultislice
 import TEMCore
+import Observation
 import TEMSession
 @testable import EMStudio
 
@@ -199,5 +200,55 @@ nonisolated final class DynamicalSpotsTests: XCTestCase {
         XCTAssertEqual(DiffractionSpotFormat.cell(.dynamical, row(MillerIndex(2, 2, 0)).withDynamical(beams), locale: locale), UnitDisplay.noValue)
         XCTAssertEqual(DiffractionSpotFormat.cell(.dynamical, row(nil).withDynamical(beams), locale: locale), UnitDisplay.noValue)
         XCTAssertEqual(DiffractionSpotFormat.cell(.dynamical, row(MillerIndex(1, 1, 1)).withDynamical(nil), locale: locale), UnitDisplay.noValue)
+    }
+
+    /// #1157: the Spots table lists what the room draws, so with Dynamical on the forbidden 002 has its row, after the kinematical
+    /// ones and named as double diffraction; the kinematical table has none. Mutation: the rows built from the kinematical spots
+    /// (as before), or the forbidden beams left out - red.
+    @MainActor func testTheSpotsTableListsTheForbiddenBeamTheRoomDraws() throws {
+        let (built, exit) = try silicon()
+        let beams = try DynamicalSpots(exit, built: built).beams(at: 2)
+        let image = CalibratedImage(width: 256, height: 256, pixels: [Float](repeating: 1, count: 256 * 256), x: nil, y: nil,
+                                    fileName: "blank", source: "test", voltage: 200_000)
+        let analysis = DiffractionAnalysis()
+        analysis.bind(image)
+        analysis.typedDeltaQ = 0.01
+        analysis.simulation.isShown = true
+        analysis.simulation.zoneAxis = SIMD3(1, 1, 0)
+        analysis.setCrystal(.preset(try XCTUnwrap(StandardCrystals.named("Si"))))
+        let g002 = MillerIndex(0, 0, 2)
+        XCTAssertFalse(analysis.simulatedSpotRows(image: image).contains { $0.hkl == g002 }, "kinematical: 002 is forbidden")
+
+        let drawn = try XCTUnwrap(analysis.simulatedSpots(image: image, dynamical: beams)).get()
+        let rows = analysis.simulatedSpotRows(image: image, dynamical: beams)
+        XCTAssertEqual(Set(rows.compactMap(\.hkl)), Set(drawn.map(\.hkl)), "a row for every drawn spot")
+        XCTAssertEqual(rows.map(\.number), Array(1...rows.count))
+        let row = try XCTUnwrap(rows.first { $0.hkl == g002 })
+        XCTAssertEqual(row.phase, analysis.crystal.name + PatternIndexing.doubleDiffractionPhase)
+        XCTAssertEqual(row.d, 5.4309 / 2, accuracy: 1e-6)
+        let firstForbidden = try XCTUnwrap(rows.firstIndex { $0.phase.hasSuffix(PatternIndexing.doubleDiffractionPhase) })
+        XCTAssertTrue(rows[firstForbidden...].allSatisfy { $0.phase.hasSuffix(PatternIndexing.doubleDiffractionPhase) }, "the allowed beams first")
+        XCTAssertEqual(row.withDynamical(beams).dynamicalPercent, beams.intensities[g002].map { $0 * 100 })
+    }
+
+    /// #1157: a view that asked for the beams before the run watches the run land, so the pattern redraws with the beams when they
+    /// arrive. Red before: `dynamicalBeams` returned at `exitWavesAreCurrent` (an unobserved key) before reading the stored spots,
+    /// so nothing it read changed when the run ended and the screen kept the kinematical spots.
+    @MainActor func testAViewThatAskedBeforeTheRunRedrawsWhenItLands() async throws {
+        let model = SimulationModel()
+        model.setThickness(nm: 2)
+        let si = DiffractionCrystal.phase(PhaseCrystal(id: "mp-149", name: "Si", structure: CrystalPresets.silicon))
+        model.setDynamical(true)
+        final class Flag: @unchecked Sendable { var changed = false }
+        let flag = Flag()
+        let before = withObservationTracking {
+            model.dynamicalBeams(crystal: si, zoneAxis: SIMD3(1, 1, 0))
+        } onChange: {
+            flag.changed = true
+        }
+        XCTAssertNil(before, "no run yet")
+        await model.updateExitWaves(crystal: si, zoneAxis: SIMD3(1, 1, 0))
+        XCTAssertNotNil(model.dynamicalBeams(crystal: si, zoneAxis: SIMD3(1, 1, 0)))
+        XCTAssertTrue(flag.changed, "the run's landing invalidates what asked before it")
     }
 }

@@ -215,7 +215,7 @@ extension MacTEMAgentDoor {
         let simulation = DemoDocuments.isSimulation(item.url)
         switch which {
         case "spots_csv":
-            let empty = simulation ? analysis.simulatedSpotRows(image: image).isEmpty : analysis.indexSpotRows.isEmpty
+            let empty = simulation ? SimulationEmptyState.spotRows(of: item, image: image).isEmpty : analysis.indexSpotRows.isEmpty
             guard !empty else {
                 return .refused(.refusal(status: 409, message: simulation
                     ? "No simulated spots to write: show them (simulate_pattern overlay true)."
@@ -277,9 +277,10 @@ extension MacTEMAgentDoor {
         } else {
             out["answer"] = NSNull()
         }
-        // The rows the room's Spots table lists: a Simulation document's simulated spots (#907), else Index's.
+        // The rows the room's Spots table lists: a Simulation document's simulated spots (#907), none while it shows no phase
+        // (#1158), else Index's.
         if DemoDocuments.isSimulation(item.url) {
-            let rows: [[String: Any]] = item.session.image.map { item.simulatedSpotRows(image: $0).map(spotRow) } ?? []
+            let rows: [[String: Any]] = item.session.image.map { SimulationEmptyState.spotRows(of: item, image: $0).map(spotRow) } ?? []
             out["rows"] = rows
         } else {
             let rows: [[String: Any]] = item.indexSpotRows.map(spotRow)

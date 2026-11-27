@@ -42,11 +42,11 @@ extension OpenItem {
         return diffraction.indexSpotRows.map { $0.withDynamical(beams) }
     }
 
-    /// A Simulation document's Spots table (`DiffractionAnalysis.simulatedSpotRows`), each row with its hkl's dynamical intensity
-    /// where Dynamical is on (#911).
+    /// A Simulation document's Spots table (`DiffractionAnalysis.simulatedSpotRows`): the spots the room draws, so with Dynamical on
+    /// its beams, a forbidden one (002 in Si [1 1 0]) among them (#1157), each row with its hkl's dynamical intensity (#911).
     package func simulatedSpotRows(image: CalibratedImage) -> [PatternIndexing.SpotRow] {
         let beams = dynamicalBeams
-        return diffraction.simulatedSpotRows(image: image).map { $0.withDynamical(beams) }
+        return diffraction.simulatedSpotRows(image: image, dynamical: beams).map { $0.withDynamical(beams) }
     }
 
     /// The simulated spots the room draws for this item (`DiffractionAnalysis.simulatedSpots`), dynamical where it is.
