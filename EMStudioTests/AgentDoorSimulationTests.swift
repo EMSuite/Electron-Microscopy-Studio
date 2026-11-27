@@ -243,6 +243,7 @@ nonisolated final class AgentDoorSimulationTests: XCTestCase {
         }
         let item = try XCTUnwrap(state.openItems.selected)
         let image = try XCTUnwrap(item.session.image)
+        item.diffraction.bind(image)  // as the room's view binds it on screen
         XCTAssertTrue(SimulationEmptyState.isShown(for: item), "no phase yet")
         XCTAssertFalse(item.simulatedSpotRows(image: image).isEmpty, "the owner still simulates the standard")
 
