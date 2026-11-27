@@ -13,6 +13,7 @@
 //  before: the coverage rows were gaps and none of these arguments or tools existed.
 //
 
+import DiffractoCore
 import Foundation
 import ShellAgentDoor
 import TEMCore
