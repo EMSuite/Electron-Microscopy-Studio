@@ -75,7 +75,7 @@ nonisolated final class ParticlesRealFileJourney: Journey {
             }
         } }
         try step("export CSV") {
-            let export = waitFor("particles.export", timeout: 20)
+            let export = openSection("Export", showing: "particles.export", timeout: 20)
             export.click()
             let bar = waitFor("status.bar", timeout: 20)
             let exported = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in self.text(bar).hasPrefix("Exported ") }, object: nil)

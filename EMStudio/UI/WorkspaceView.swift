@@ -23,7 +23,7 @@ struct WorkspaceView: View {
     var body: some View {
         WorkspaceColumn(
             navigation: appState.navigation.panels,
-            tabs: [ProcessTab.output { OutputPane(log: appState.activityLog) }] + diffractionTabs + mapsTabs,
+            tabs: [ProcessTab.output { OutputPane(log: appState.activityLog) }] + imageTabs + diffractionTabs + mapsTabs,
             // One tab at a time at full width, chosen in the area's header, one toggle for the area (#1112): side by side, two tables
             // and Output were about 180 pt each and clipped, under up to four look-alike toggles.
             processAreaStyle: .tabs,
@@ -55,6 +55,17 @@ struct WorkspaceView: View {
         mapsTables.map { table in
             ProcessTab(id: table.paneID, title: table.title, systemImage: table.systemImage) {
                 MapsTablePane(table: table)
+            }
+        }
+    }
+
+    /// The Image room's results under the image (#864): the selected profile's chart and the found objects, while the room shows an
+    /// image; none elsewhere. The window selects each once it has something to show (`ImageTableOffers`).
+    private var imageTabs: [ProcessTab] {
+        guard appState.navigation.workspaceArea == .image, appState.openItems.selected?.session.image != nil else { return [] }
+        return ImageTable.allCases.map { table in
+            ProcessTab(id: table.paneID, title: table.title, systemImage: table.systemImage) {
+                ImageTablePane(table: table)
             }
         }
     }
@@ -158,6 +169,7 @@ struct WorkspaceView: View {
                         }
                     } else {
                         ImagePane(item: item)
+                            .modifier(ImageTableOffers(item: item))
                     }
                 }
                     .id(item.id)

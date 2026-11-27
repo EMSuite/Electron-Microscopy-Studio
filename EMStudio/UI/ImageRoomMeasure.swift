@@ -1,7 +1,7 @@
 //
 //  ImageRoomMeasure.swift
 //  Role: the Image room's Measure section (Settings tab, under Display): the tool, the list of marks on the open file, and, for a
-//        selected profile, its chart and width. Presentation only: the marks and their profiles are the file's
+//        selected profile, its width (its chart is the Profile tab under the image, #864). Presentation only: the marks and their profiles are the file's
 //        `ImageMeasurements` (TEMSession), the numbers TEMCore's (`ImageMeasurement`, `LineProfile`), the tool the
 //        window's `ImageRoomTools`. What a mark's value READS as is `MarkFormat`, pure so a test pins it.
 //
@@ -192,8 +192,8 @@ private struct MeasureMarkRow: View {
 
 // MARK: - The selected profile
 
-/// The selected mark's profile, when it is one: the chart, the width it averages over, and Export Profile… (a CSV of its
-/// samples; the File menu's item of the same name opens the same panel, for when this row has scrolled out of view).
+/// The selected mark's profile, when it is one: the width it averages over. Its chart is the Profile tab under the image and its CSV
+/// the Export section's (#864).
 private struct MeasureProfileDetail: View {
     @Environment(AppState.self) private var appState
     let session: ImageSession
@@ -201,9 +201,7 @@ private struct MeasureProfileDetail: View {
     let measurements: ImageMeasurements
 
     var body: some View {
-        if let mark = measurements.mark(measurements.selection), mark.kind == .profile,
-           let profile = measurements.profiles[mark.id] {
-            MeasureProfileChart(profile: profile, x: image.x, y: image.y)
+        if let mark = measurements.mark(measurements.selection), mark.kind == .profile, measurements.profiles[mark.id] != nil {
             InspectorRow("Width") {
                 HStack(spacing: 8) {
                     Text(verbatim: "\(mark.width) px")
@@ -212,16 +210,6 @@ private struct MeasureProfileDetail: View {
                     Stepper("Width", value: width(of: mark), in: 1...ImageMeasurements.maximumWidth)
                         .labelsHidden()
                         .accessibilityValue(RoomAccessibilityText.pixels(Double(mark.width)))
-                }
-            }
-            // Drawn with the chart, so absent for a line with no samples (nothing to export). Dimmed while a read runs: the
-            // image shown stays during a re-read and this row with it, but the export waits for the new pixels.
-            if !profile.samples.isEmpty {
-                InspectorActionRow {
-                    Button("Export Profile…") { ExportPanels.exportProfile(appState: appState) }
-                        .disabled(appState.imageSession.isLoading)
-                        .help("Save this line profile as a CSV file")
-                        .accessibilityIdentifier("export.profileButton")
                 }
             }
         }
@@ -239,14 +227,12 @@ private struct MeasureProfileDetail: View {
 }
 
 /// Intensity along the line: position in the shown unit against the raw value (never the display window: no contrast
-/// setting reaches a number). Swift Charts speaks its own audio graph; the summary is the spoken overview.
-private struct MeasureProfileChart: View {
+/// setting reaches a number). Swift Charts speaks its own audio graph; the summary is the spoken overview. It fills the Profile tab
+/// under the image (`ImageTablePane`, #864), the width and height the bottom area's.
+struct MeasureProfileChart: View {
     let profile: LineProfile
     let x: AxisCalibration?
     let y: AxisCalibration?
-
-    /// The chart's height: a fixed 120 pt (the design note's cost), the width is the column's.
-    private static let chartHeight: CGFloat = 120
 
     private struct Sample: Identifiable {
         let id: Int
@@ -266,7 +252,8 @@ private struct MeasureProfileChart: View {
 
     var body: some View {
         if profile.samples.isEmpty {
-            InspectorNote("This line has no samples.")
+            Text("This line has no samples.").font(.callout).foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             let shown = MarkFormat.chartPositions(profile, x: x, y: y)
             let samples = zip(shown.positions, profile.samples).enumerated()
@@ -286,7 +273,7 @@ private struct MeasureProfileChart: View {
             .chartYAxis { numberedAxis }
             .chartXAxisLabel(shown.unit, alignment: .center)
             .chartYAxisLabel("Value")
-            .frame(height: Self.chartHeight)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .accessibilityLabel("Line profile")
             .accessibilityValue(MarkFormat.profileSummary(profile, positions: shown.positions, unit: shown.unit))
         }

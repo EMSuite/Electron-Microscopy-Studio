@@ -4,8 +4,9 @@
 //        a 2D image, found by a threshold on the raw range (bright or dark objects), optional Gaussian smoothing, connected-component
 //        labelling and the objects' moments, then counted (not on the edge, not below the minimum area). The image keeps its marks;
 //        the objects are outlined over it (`ParticleOverlay`), the mask can be tinted while the settings are edited, and an object
-//        table (its own window, `ParticleTableWindow`, so it stays beside the image) selects a row to outline it heavier (⌘C copies
-//        the selected row, `ParticleTableFormat`); the pointer
+//        table (the Objects tab under the image, #864, and its own window, `ParticleTableWindow`, so it stays beside the image)
+//        selects a row to outline it heavier (⌘C copies the selected row, `ParticleTableFormat`); the counts are the tab's and the
+//        CSV the room's Export section's (ImageRoomTables.swift); the pointer
 //        readout names the object under the pointer (`ImageReadout`). Presentation only: the numbers are ImagoKit's through
 //        `ParticleCompute`, held per file by `ParticleAnalysis` (TEMSession).
 //
@@ -14,7 +15,6 @@ import ShellControls
 import ShellInspector
 import SwiftUI
 import ImagoCore
-import UniformTypeIdentifiers
 import TEMCore
 import TEMSession
 import ShellEDXModel
@@ -24,10 +24,7 @@ struct ImageRoomParticlesSection: View {
     let item: OpenItem
     private var image: CalibratedImage { item.session.imageOrBlank }
     let rawRange: ClosedRange<Float>?
-    /// The CSV the save panel writes: made when Export CSV… is pressed and dropped when the panel is done, so the body builds none.
-    @State private var exportDocument: RoomExportFile?
     @Environment(\.openWindow) private var openWindow
-    @Environment(AppState.self) private var appState
 
     private struct PreviewKey: Equatable { var settings: ParticleSettings; var on: Bool }
 
@@ -35,11 +32,11 @@ struct ImageRoomParticlesSection: View {
         let analysis = item.particles
         let settings = analysis.settings
         InspectorSection("Particles") {
-            // First, under the header, so the table and the export are in view without scrolling past the settings.
+            // First, under the header, so the table's own window is in view without scrolling past the settings. The table and the
+            // counts are also the Objects tab under the image (#864); the CSV is the Export section's.
             if analysis.report != nil {
                 InspectorActionRow {
                     Button("Object Table…") { openWindow(id: ParticleTableWindow.id) }.accessibilityIdentifier("particles.table")
-                    Button("Export CSV…") { export(analysis) }.accessibilityIdentifier("particles.export")
                 }
             }
             SegmentedPicker(label: "Objects", items: ParticleSettings.Polarity.allCases.map { ($0, .title($0.title)) },
@@ -93,16 +90,8 @@ struct ImageRoomParticlesSection: View {
                 if analysis.showsObjects { Button("Hide") { analysis.hideObjects() } }
             }
             if let failure = analysis.failure { InspectorWarning(failure, systemImage: "xmark.octagon.fill") }
-            if let report = analysis.report {
-                let scale = ParticleCompute.scale(of: image)
+            if analysis.report != nil {
                 if !analysis.isCurrent { InspectorWarning("The settings changed since these objects were found: Show Objects again.", systemImage: "arrow.triangle.2.circlepath") }
-                InspectorNote(ParticleFormat.counts(report.summary))
-                    .accessibilityIdentifier("particles.counts")
-                    .accessibilityValue(String(report.summary.counted))
-                InspectorNote(ParticleFormat.sizes(report.summary, scale: scale))
-                InspectorNote(ParticleFormat.density(report.summary, scale: scale))
-                    .accessibilityIdentifier("particles.density")
-                if !scale.isCalibrated { InspectorNote("The image is not calibrated (or its pixels are not square): sizes are in pixels.") }
             } else if !analysis.isComputing {
                 InspectorNote("Choose bright or dark objects and a threshold, then Show Objects.")
             }
@@ -113,33 +102,6 @@ struct ImageRoomParticlesSection: View {
             try? await Task.sleep(for: .milliseconds(150))
             if !Task.isCancelled { analysis.updatePreview(image: image) }
         }
-        .fileExporter(isPresented: Binding(get: { exportDocument != nil }, set: { if !$0 { exportDocument = nil } }),
-                      document: exportDocument,
-                      contentType: .commaSeparatedText,
-                      defaultFilename: ParticleExport.baseName(of: image.fileName)) { result in
-            switch result {
-            case .success(let url): appState.statusText = "Exported \(url.lastPathComponent)"
-            case .failure(let error): appState.present(error)
-            }
-        }
-    }
-
-    /// `--export-dir` (a UI journey) writes without a panel, as the Diffraction readout does; otherwise the save panel, for the CSV
-    /// as it is at this press (the one place it is built).
-    private func export(_ analysis: ParticleAnalysis) {
-        let text = csv(analysis)
-        guard let directory = appState.exportDirectory else {
-            exportDocument = RoomExportFile(text: text)
-            return
-        }
-        do {
-            let url = try ParticleExport.write(text, imageFileName: image.fileName, into: directory)
-            appState.statusText = "Exported \(url.lastPathComponent)"
-        } catch { appState.present(error) }
-    }
-
-    private func csv(_ analysis: ParticleAnalysis) -> String {
-        analysis.report.map { ExportSnapshot.particlesCSV($0, image: image, openItems: appState.openItems) } ?? ""
     }
 }
 
@@ -175,10 +137,13 @@ nonisolated struct ParticleRow: Identifiable, Hashable, Sendable {
     }
 }
 
-private struct ParticleTableSheet: View {
+/// The object table: in the Objects window, and under the image as the Objects tab of the bottom area (`ImageTablePane`, #864),
+/// where `embedded` drops the window's padding and minimum size and the counts line the tab states above it.
+struct ParticleTableSheet: View {
     let analysis: ParticleAnalysis
     let report: ParticleReport
     let scale: ParticleScale
+    var embedded = false
     @State private var countedOnly = false
     @State private var sortOrder = [KeyPathComparator(\ParticleRow.id)]
     @State private var rowsMemo = ParticleRowsMemo()
@@ -189,8 +154,9 @@ private struct ParticleTableSheet: View {
         // Read here, so Edit > Copy is offered and dimmed as the selection comes and goes.
         let selected = analysis.selectedLabel
         VStack(alignment: .leading, spacing: 10) {
-            // A window: its title bar names it and closes it (⌘W), so no headline and no Done.
-            HStack {
+            // A window: its title bar names it and closes it (⌘W), so no headline and no Done. Under the image the counts lead the row.
+            HStack(alignment: .top) {
+                if embedded { ImageObjectsSummary(report: report, scale: scale) }
                 Spacer()
                 Toggle("Counted only", isOn: $countedOnly)
             }
@@ -205,10 +171,12 @@ private struct ParticleTableSheet: View {
             // ⌘C and Edit > Copy: the selected object's row under the column titles, tab-separated; dimmed with no row selected.
             .onCopyCommand(perform: rows.contains(where: { $0.id == selected }) ? { copied(rows, selected: selected) } : nil)
             .accessibilityIdentifier("particles.tableView")
-            Text(ParticleFormat.counts(report.summary) + " · select a row to outline it on the image").font(.caption).foregroundStyle(.secondary)
+            if !embedded {
+                Text(ParticleFormat.counts(report.summary) + " · select a row to outline it on the image").font(.caption).foregroundStyle(.secondary)
+            }
         }
-        .padding(16)
-        .frame(minWidth: EDXLayout.tableSheetMinimum.width, minHeight: EDXLayout.tableSheetMinimum.height)
+        .padding(embedded ? 0 : 16)
+        .frame(minWidth: embedded ? nil : EDXLayout.tableSheetMinimum.width, minHeight: embedded ? nil : EDXLayout.tableSheetMinimum.height)
     }
 
     /// What ⌘C hands the system: the selected row as the table shows it (`ParticleTableFormat.copyText`), nothing when none is.

@@ -19,7 +19,7 @@ nonisolated enum ImageSections {
     enum Kind: Sendable { case measured, hrtem, stem }
 
     enum Section: String, CaseIterable, Sendable {
-        case calibration, stack, display, microscope, hrtem, thermalVibrations, besideMeasured, stem, particles, measure, lineage
+        case calibration, stack, display, microscope, hrtem, thermalVibrations, besideMeasured, stem, particles, measure, lineage, export
     }
 
     /// The kind of the document at `url`: a Simulation document's HRTEM or STEM image, or any other image.
@@ -30,14 +30,14 @@ nonisolated enum ImageSections {
         return .measured
     }
 
-    /// The sections in their order. The frame of an image stack sits with what is looked at, before Display.
+    /// The sections in their order. The frame of an image stack sits with what is looked at, before Display; Export is last (#864).
     static func order(_ kind: Kind) -> [Section] {
         let job: [Section] = switch kind {
         case .measured: []
         case .hrtem: [.microscope, .hrtem, .thermalVibrations, .besideMeasured]
         case .stem: [.stem]
         }
-        return [.calibration, .stack, .display] + job + [.particles, .measure, .lineage]
+        return [.calibration, .stack, .display] + job + [.particles, .measure, .lineage, .export]
     }
 }
 
