@@ -94,7 +94,7 @@ nonisolated final class SessionUITests: XCTestCase {
     }
 
     /// The outcome the real function gives for a sidecar planted with `count` marks.
-    @MainActor private func restoredOutcome(in directory: URL, marks count: Int, source: URL) throws -> SidecarOutcome {
+    @MainActor private func restoredOutcome(marks count: Int, source: URL) throws -> SidecarOutcome {
         try plantSidecar(beside: source, marks: count)
         let image = Self.image()
         return SessionOpening.outcome(source: source, sidecar: nil, opened: Self.identity(image), image: image)
@@ -180,7 +180,7 @@ nonisolated final class SessionUITests: XCTestCase {
         let directory = try scratch()
         let source = directory.appendingPathComponent("scan.dm4")
         let reader = Reader()
-        await reader.script(outcomes: [try restoredOutcome(in: directory, marks: 2, source: source)])
+        await reader.script(outcomes: [try restoredOutcome(marks: 2, source: source)])
         let (_, item) = try await openedItem(reader, source)
         XCTAssertEqual(item.measurements.marks.count, 2)
         XCTAssertEqual(item.measurements.sidecar, .restored)
@@ -213,7 +213,7 @@ nonisolated final class SessionUITests: XCTestCase {
         let directory = try scratch()
         let source = directory.appendingPathComponent("scan.dm4")
         let reader = Reader()
-        await reader.script(outcomes: [try restoredOutcome(in: directory, marks: 2, source: source)])
+        await reader.script(outcomes: [try restoredOutcome(marks: 2, source: source)])
         await reader.hold()
         let items = makeItems(reader)
         items.open(urls: [source])
@@ -704,7 +704,7 @@ nonisolated final class SessionUITests: XCTestCase {
         item.adopt(.needsAccess, identity: Self.identity(image), on: image)
         item.measurements.add(marks(1)[0], on: image)                    // marks already drawn: a restore is dropped
         let directory = try scratch()
-        let restored = try restoredOutcome(in: directory, marks: 2, source: directory.appendingPathComponent("scan.dm4"))
+        let restored = try restoredOutcome(marks: 2, source: directory.appendingPathComponent("scan.dm4"))
         XCTAssertFalse(item.adopt(restored, identity: Self.identity(image), on: image))
         XCTAssertFalse(item.sidecarNeedsAccess, "it was read")
 

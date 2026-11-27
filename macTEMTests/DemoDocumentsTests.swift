@@ -70,11 +70,11 @@ nonisolated final class DemoDocumentsTests: XCTestCase {
         XCTAssertEqual(map.pixels.count, 256)
         let side = DemoDocuments.Truth.eelsSide
         for (k, p) in map.pixels.enumerated() {
-            XCTAssertEqual(try XCTUnwrap(p.tOverLambda), DemoDocuments.Truth.eelsTOverLambda(x: k % side, y: k / side), accuracy: 2e-3,
+            XCTAssertEqual(try XCTUnwrap(p.tOverLambda), DemoDocuments.Truth.eelsTOverLambda(y: k / side), accuracy: 2e-3,
                            "pixel \(k): the fixed 4 eV threshold leaves a plasmon tail of about 1e-4 in I_0")
         }
-        XCTAssertEqual(DemoDocuments.Truth.eelsTOverLambda(x: 3, y: 2), 0.5)
-        XCTAssertEqual(DemoDocuments.Truth.eelsTOverLambda(x: 3, y: 12), 0.8)
+        XCTAssertEqual(DemoDocuments.Truth.eelsTOverLambda(y: 2), 0.5)
+        XCTAssertEqual(DemoDocuments.Truth.eelsTOverLambda(y: 12), 0.8)
         let above = try XCTUnwrap(map.pixels[2 * side + 3].tOverLambda), below = try XCTUnwrap(map.pixels[12 * side + 3].tOverLambda)
         XCTAssertGreaterThan(below - above, 0.25, "the map is not flat: the lower half is thicker")
         session.setThreshold(.estimated)
