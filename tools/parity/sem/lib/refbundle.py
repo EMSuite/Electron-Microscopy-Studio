@@ -1,7 +1,7 @@
 """Reference bundles: how tools/parity/sem writes what the Python stack computed, and how check.py reads it back.
 
 A bundle is one folder under tools/parity/sem/references/<milestone>/<case>/: a `manifest.json` and one raw binary
-file per array. The manifest is the contract the Swift side (macTEMTests/SEMParityReference.swift) reads:
+file per array. The manifest is the contract the Swift side (EMStudioTests/SEMParityReference.swift) reads:
 
     {
       "schema": 1,

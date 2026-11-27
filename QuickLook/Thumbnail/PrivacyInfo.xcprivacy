@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!-- The extension's App Store privacy manifest (#903): it tracks nothing and collects nothing. Its one required-reason API is the
-     file size and stat calls FormatoKit's readers make on the file Quick Look hands it (3B52.1). macTEMTests/PrivacyManifestTests.swift
+     file size and stat calls FormatoKit's readers make on the file Quick Look hands it (3B52.1). EMStudioTests/PrivacyManifestTests.swift
      checks every shipped bundle. -->
 <plist version="1.0">
 <dict>

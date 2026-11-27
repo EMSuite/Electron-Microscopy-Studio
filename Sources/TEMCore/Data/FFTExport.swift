@@ -3,7 +3,7 @@
 //  Role: the writers of the FFT room's export: the radial profile
 //        as a CSV, the measured spots as a CSV, and what the transform's PNG adds to `ImageExport` (its source with the
 //        frequency steps as "axes", and its Description's "fft" block). Values in, text or bytes out; the app's snapshot
-//        (macTEM/App/ExportSnapshot.swift) gathers the values from the room's owners when the panel opens.
+//        (EMStudio/App/ExportSnapshot.swift) gathers the values from the room's owners when the panel opens.
 //
 //        EXACT: every number the products hold is written `%.17g` (`CSVText.number`), so a reader's `float()` is the
 //        in-memory Double bit for bit; a "shown" column is that Double times the factor the app shows it with

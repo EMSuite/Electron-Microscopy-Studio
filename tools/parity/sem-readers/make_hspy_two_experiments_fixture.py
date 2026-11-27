@@ -1,4 +1,4 @@
-# tools/parity/sem-readers/make_hspy_two_experiments_fixture.py — writes hyperspy-image-and-eels.hspy for macTEMTests (#820, plan row X4).
+# tools/parity/sem-readers/make_hspy_two_experiments_fixture.py — writes hyperspy-image-and-eels.hspy for EMStudioTests (#820, plan row X4).
 #
 #   python -I -B make_hspy_two_experiments_fixture.py <out dir>   (h5py 3.16.0, NumPy 2.5.4)
 #

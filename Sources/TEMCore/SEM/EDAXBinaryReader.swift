@@ -7,7 +7,7 @@
 //        navigation dimension, with its warning as `note`), and the patterns by index or map position, as stored. Version 2 is refused
 //        as upstream refuses it; so is a damaged header, whose sizes leave the Int range or give no pattern, instead of trapping.
 //        The pairing with the `.ang` map next to the file is `EDAXOpening`.
-//        Parity: macTEMTests/EDAXBinaryReaderTests.swift against ebsd-edax.truth.json (tools/parity/sem-readers/make_edax_fixtures.py).
+//        Parity: EMStudioTests/EDAXBinaryReaderTests.swift against ebsd-edax.truth.json (tools/parity/sem-readers/make_edax_fixtures.py).
 //
 
 import Foundation

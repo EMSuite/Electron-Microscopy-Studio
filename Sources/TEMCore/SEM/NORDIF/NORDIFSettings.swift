@@ -3,7 +3,7 @@
 //  Role: `Setting.txt` of a NORDIF acquisition (UF-1100, UF-420) read as kikuchipy 0.13.1 reads it
 //        (`kikuchipy/io/plugins/nordif/_api.py`, `_get_settings_from_file`; GPL-3.0-or-later, kikuchipy developers):
 //        the microscope, the detector angles, the acquisition and calibration pattern settings, the area and the
-//        pattern positions. The parity is macTEMTests/Fixtures/sem/nordif/reference.json, emitted by
+//        pattern positions. The parity is EMStudioTests/Fixtures/sem/nordif/reference.json, emitted by
 //        tools/parity/sem/nordif/reference.py; NORDIFReaderTests compares every field.
 //
 //  The file is tab-separated `key<TAB>value<TAB>unit` lines under `[Section]` headers, written in Latin-1 (kikuchipy

@@ -10,7 +10,7 @@
 //        De Graef 2013; the square Lambert projection of Roşca 2010), BSD-3-Clause, both notices in NOTICE.
 //        The float64 path below is the reference (decision D16); `MasterPatternProjectionMetal` is the float32 GPU path behind
 //        `patternsFloat32`, checked against this one.
-//        Parity: macTEMTests/MasterPatternParityTests.swift against tools/parity/sem/references/m6/project-master-pattern-*
+//        Parity: EMStudioTests/MasterPatternParityTests.swift against tools/parity/sem/references/m6/project-master-pattern-*
 //        (figure F15), within `np.allclose`'s defaults on the float values and one grey level on the integer ones.
 //
 

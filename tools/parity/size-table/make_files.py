@@ -162,7 +162,7 @@ def write(kind, out, gb, fixture, seed):
 
 
 def default_fixture():
-    return Path(__file__).resolve().parents[2] / "macTEMTests" / "Fixtures" / "ebsd-kikuchipy-h5ebsd.h5"
+    return Path(__file__).resolve().parents[2] / "EMStudioTests" / "Fixtures" / "ebsd-kikuchipy-h5ebsd.h5"
 
 
 def self_test():

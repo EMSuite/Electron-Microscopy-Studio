@@ -16,8 +16,8 @@
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../../.." && pwd)"
-FIXTURE="$ROOT/macTEMTests/Fixtures/planted-2d.dm4"
-PLANTED="$ROOT/macTEMTests/Fixtures/planted-2d.truth.json"
+FIXTURE="$ROOT/EMStudioTests/Fixtures/planted-2d.dm4"
+PLANTED="$ROOT/EMStudioTests/Fixtures/planted-2d.truth.json"
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/mactem-export-parity.XXXXXX")"
 trap 'rm -rf "$WORK"' EXIT
 

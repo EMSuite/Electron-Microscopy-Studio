@@ -16,7 +16,7 @@
 #   * `tools/run-tests.sh core`      — TEMCore and TEMSession built standalone by `swift build` (Package.swift)
 #     from a fresh scratch path: the layering gate. It fails the moment Core reaches into Session or either
 #     reaches into the app, and on any compiler warning. About three minutes.
-#   * `tools/run-tests.sh unit`      — the XCTest suite (macTEMTests) through xcodebuild, every declared test run by name;
+#   * `tools/run-tests.sh unit`      — the XCTest suite (EMStudioTests) through xcodebuild, every declared test run by name;
 #     a compiler warning in the app's own sources or tests fails it (tools/lib/app-warnings.sh).
 #   Each is its own step, so the job's log names the one that failed. The required check is the job, `unit (XCTest)`.
 #
@@ -32,7 +32,7 @@
 # (the store texts in docs/app-store/ among them) or the issue templates runs no macOS job (process item 3 again). The
 # Linux job `changes` lists the pull request's files and says whether any needs the Mac; `unit` is then skipped, and GitHub
 # counts a job skipped by its `if` as passing, so the required check `unit (XCTest)` is met with no stand-in. A doc that
-# the job's tests or gates read (docs/parity.md, docs/architecture.md, ...: its path named anywhere under macTEMTests*/,
+# the job's tests or gates read (docs/parity.md, docs/architecture.md, ...: its path named anywhere under EMStudioTests*/,
 # tools/run-tests.sh or tools/lib/) counts as code, so a pull request that edits it runs `unit`. What the skip gives up is
 # the inventory's live-docs check on that pull request; the nightly runs it on main.
 #
@@ -57,7 +57,7 @@
 #     other build here is Debug for the concrete platform=macOS, so without it a Release-only failure first shows on the
 #     owner's Mac after the tag exists. release-please.yml dispatches CI on each Release PR, so it runs there too, before
 #     the merge that tags. Not a required check.
-#   * `tools/run-tests.sh ui-build` — the UI journeys (macTEMUITests) compiled and not run. On a pull request
+#   * `tools/run-tests.sh ui-build` — the UI journeys (EMStudioUITests) compiled and not run. On a pull request
 #     ui-build.yml runs it, for the paths that can break the journeys' build, and it is not a required check there, so a
 #     pull request can merge with it red; this run is what then says main no longer compiles them. Not a required check.
 # The nightly's `unit` job runs `inventory` and `core` first too; the Linux jobs skip the schedule event. Dispatch CI on a branch to run
@@ -160,7 +160,7 @@ jobs:
         run: |
           set -euo pipefail
           macos=false
-          dirs=$(ls -d macTEMTests* tools/run-tests.sh tools/lib 2>/dev/null || true)
+          dirs=$(ls -d EMStudioTests* tools/run-tests.sh tools/lib 2>/dev/null || true)
           while IFS= read -r f; do
             [ -n "$f" ] || continue
             if [[ "$f" != */* && "$f" == *.md ]] || [[ "$f" == .github/ISSUE_TEMPLATE/* ]]; then
@@ -338,7 +338,7 @@ jobs:
             git diff --stat HEAD
             git diff HEAD -- '*Package.resolved' | head -80
           fi
-          git checkout --force HEAD -- Package.resolved macTEM.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+          git checkout --force HEAD -- Package.resolved EMStudio.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
           git diff --exit-code --stat HEAD -- '*Package.resolved'
           ps -axo pid,etime,command | grep -E 'xcodebuild|SWBBuildService|XCBBuildService|swift-package|Xcode.app' | grep -v grep || true
       - name: Run the inventory (cheapest first)
@@ -363,7 +363,7 @@ jobs:
           echo "MACTEM_REQUIRE_SEM_DATA=1" >> "$GITHUB_ENV"
       - name: Run the unit gate
         if: needs.changes.outputs.light != 'true'
-        # The room snapshots (macTEMTests/RoomSnapshotTests, #805) compare here: TEST_RUNNER_ reaches the tests through xcodebuild.
+        # The room snapshots (EMStudioTests/RoomSnapshotTests, #805) compare here: TEST_RUNNER_ reaches the tests through xcodebuild.
         # Only on the org's Mac runner, where pull requests run (#957): fonts and AppKit's controls differ between macOS versions, so
         # the references are that Mac's, and GitHub's macos-26 (main, tags, the nightly, a fork's PR) skips them.
         run: tools/run-tests.sh unit

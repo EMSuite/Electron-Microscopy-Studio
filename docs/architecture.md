@@ -6,8 +6,8 @@ mac4DSTEM is held.
 ## Layers and the dependency rule
 
 ```text
-SwiftUI views (macTEM/UI/)     present state, send user intent                      app target
-macTEM/App/ (AppState, …)      own the window, compose the owners, dispatch           app target
+SwiftUI views (EMStudio/UI/)     present state, send user intent                      app target
+EMStudio/App/ (AppState, …)      own the window, compose the owners, dispatch           app target
 Sources/TEMSession             the owners of session state: the open files, each      package
                                image, its presentation and marks, the sidecar,
                                lineage and results, the SEM rooms' sessions — no
@@ -86,8 +86,8 @@ EBSD patterns, orientation maps and SEM-EDS files take their own path into their
 
 | Putting in… | goes under… |
 |---|---|
-| App entry, `AppState` and its orchestration extensions, window-level state, menus | `macTEM/App/` |
-| SwiftUI views, the inspector kit, the canvas, overlays | `macTEM/UI/` |
+| App entry, `AppState` and its orchestration extensions, window-level state, menus | `EMStudio/App/` |
+| SwiftUI views, the inspector kit, the canvas, overlays | `EMStudio/UI/` |
 | Readers, the image and calibration model, writers | `Sources/TEMCore/Data/` |
 | The histogram, the line-profile seam, the signposts (the FFT and its display rules are ImagoKit's) | `Sources/TEMCore/Compute/` |
 | The FFT room's preprocessing over ImagoKit | `Sources/TEMCore/FFT/` |
@@ -99,7 +99,7 @@ EBSD patterns, orientation maps and SEM-EDS files take their own path into their
 | The Simulation document's specimen, HRTEM image, optics, frozen phonons and Place Beside, over SimulatoKit | `Sources/TEMCore/Simulation/` |
 | The SEM program's ports: EBSD and TKD readers, pattern processing, orientations, indexing, maps, grains, texture, Kikuchi simulation, the SEM-EDS map readers, the session report ("The SEM program") | `Sources/TEMCore/SEM/` and its subfolders |
 | Session owners (`@Observable`), no SwiftUI, the SEM rooms' `EBSDSession`, `IndexingSession` and `OrientationMapSession` among them | `Sources/TEMSession/` |
-| Unit tests; committed fixtures (≤ 1 MiB) in `Fixtures/` | `macTEMTests/` |
+| Unit tests; committed fixtures (≤ 1 MiB) in `Fixtures/` | `EMStudioTests/` |
 | Reference harnesses, the SEM reference bundles, their fixtures and scripts | `tools/parity/<name>/`, each folder in one array of `tools/run-tests.sh`; the gate and release scripts in `tools/`, their libraries in `tools/lib/` |
 | Docs | `docs/` |
 | Pinned references, fetched or provisioned | `References/` (gitignored; `tools/lib/python.sh`, `tools/lib/fetch-rsciio.sh`, `tools/lib/fetch-py4dstem-scattering.sh`; the SEM stack `References/sem-venv` from `tools/parity/sem/setup.sh`, its datasets `References/sem-data` from `tools/parity/sem/fetch-data.sh`) |
@@ -161,7 +161,7 @@ position (`pinned`), the pattern on screen, the navigation map, the processing p
 (Hough or Dictionary) and its settings, the master patterns, the last run of each method, Compare and the overlay.
 `OrientationMapSession` is the Maps room's: the map shown (an `.ang`, `.ctf` or map-only `.h5oina` opened on its own, the dataset's crystal map,
 or an Indexing run sent by `Open in Maps`, D-SEM-99), its layer, pictures, colour keys and analysis. `AppState` composes them
-as `ebsd`, `indexing` and `maps`, each with a view-state type in `macTEM/App/` (`PatternsRoomState`, `IndexingRoomState`,
+as `ebsd`, `indexing` and `maps`, each with a view-state type in `EMStudio/App/` (`PatternsRoomState`, `IndexingRoomState`,
 `MapsRoomState`) that holds only what the centre and the inspector share, and wires them in `init`: every dataset the
 Patterns room binds starts the Indexing room over on it and gives the Maps room its crystal map (`ebsd.onBind`), and closing
 it ends the Indexing room's work and drops the dataset's maps from the Maps room (a map opened on its own stays).
@@ -191,7 +191,7 @@ FormatoKit's sniff decides, since the sniff knows none of these formats (an h5eb
 dataset's own crystal map reaches the Maps room through the Patterns room, an Indexing run through `Open in Maps`.
 
 **Metal in TEMCore.** Two numeric ports carry a float32 Metal path beside their float64 CPU reference (D16); they are the
-only files in `Sources/` and `macTEM/` that import Metal (the drawing is MacEMUI's):
+only files in `Sources/` and `EMStudio/` that import Metal (the drawing is MacEMUI's):
 
 - `SEM/Indexing/DictionaryIndexingMetal.swift`: the score matrix of dictionary indexing. Its CPU reference is
   `DictionaryIndexing.matchCPU`; the automatic backend takes the GPU from 10⁹ products (`workThreshold`); it is held to
@@ -207,7 +207,7 @@ shader library stays the shell's; they are the two rows of `tools/kit-boundary.a
 stack (`requirements.lock`, built into `References/sem-venv` by `setup.sh`), the downloaded datasets (`data-manifest.txt`,
 fetched into `References/sem-data` by `fetch-data.sh`), small committed fixtures, and `emit.py`, which writes one bundle
 per ported function into `references/<milestone>/<case>/` (`manifest.json` with the tolerances, and raw arrays). The unit
-job of `ci.yml` holds each port to its bundle on every PR (`macTEMTests/SEMParityReference.swift` loads one, the parity
+job of `ci.yml` holds each port to its bundle on every PR (`EMStudioTests/SEMParityReference.swift` loads one, the parity
 tests compare), and `SEMParityHarnessTests` checks that every bundle loads intact, its fixtures match `SHA256SUMS` and its
 case is named in `docs/sem/north-star.md`. `.github/workflows/sem-parity.yml` holds the bundles to the stack: on a Linux
 runner, on a change under `tools/parity/sem`, it rebuilds the stack, fetches the data, regenerates the planted fixtures
@@ -236,7 +236,7 @@ mac4DSTEM's, unchanged (its `docs/architecture.md`, "The UI contract"):
 The interface is English and is not translated (the project's only language is `en`). What follows the reader's Mac is
 how a number and a time are written, and that depends on where they go (#302).
 
-- **On screen: the reader's locale.** A number a person reads goes through `Num` (`macTEM/UI/NumberFormat.swift`),
+- **On screen: the reader's locale.** A number a person reads goes through `Num` (`EMStudio/UI/NumberFormat.swift`),
   which writes through `UnitDisplay` (`Sources/TEMCore/Data/UnitDisplay.swift`): printf's digits, so the screen shows
   the last digit the CSV writes, with the locale's decimal mark, no grouping separator and no exponent. The EELS room's
   `EELSRoomFormat` (`Sources/TEMCore/EELS/EELSRoomChassis.swift`) writes the reader's mark without grouping as well.
@@ -245,7 +245,7 @@ how a number and a time are written, and that depends on where they go (#302).
 - **In every file the app writes: `en_US_POSIX`.** A decimal point, no grouping, and dates that do not depend on the
   Mac's region, so a figure, a table and a report made on a German Mac read as those made on an American one, and a
   script reads either. A writer never calls a display helper at its default. It passes `ExportSnapshot.labelLocale`
-  (`macTEM/App/ExportSnapshot.swift`, the app's constant for `en_US_POSIX`; TEMCore and TEMSession cannot see it and
+  (`EMStudio/App/ExportSnapshot.swift`, the app's constant for `en_US_POSIX`; TEMCore and TEMSession cannot see it and
   name the locale themselves) to a helper that takes a `locale`, or it uses a format that has none: `String(format:)`
   without a locale argument writes a point whatever the process locale is, and so do `JSONEncoder`,
   `JSONSerialization` and a Swift number's `description`. A helper made only for a file never defaults to the reader's
@@ -259,10 +259,10 @@ Which of the two each writer uses:
 | File | Written by | Its numbers and dates |
 |---|---|---|
 | Image PNG | `ImageExport` (`Sources/TEMCore/Data/ImageExport.swift`), from `ExportSnapshot` | Mark labels: `MarkFormat.value(…, locale: labelLocale)`. Scale bar: ImagoKit's `ScaleBarMath` writes the number, `UnitDisplay.label` the unit. Description chunk: JSON built by hand, numbers by `description`. |
-| Line profile, results, radial profile and spots CSV | `Sources/TEMCore/Data/ProfileCSV.swift`, `ResultsCSV.swift` and `FFTExport.swift`, over ImagoKit's CSV writers | `%.17g` (`CSVText.number`). The results CSV's `session:` line: `ExportSnapshot.sessionHeader` (`macTEM/App/ResultsExportSnapshot.swift`), ISO 8601 with the zone's offset. The spots CSV's note: `FFTRoomFormat.accuracyNote(…, locale: labelLocale)` (`macTEM/App/FFTExportSnapshot.swift`). |
-| Maps and Texture PNG | `MapsFigure` (`macTEM/App/MapsRoomState.swift`) | `scaleBarLabel`, `rangeLabel` and `mrdLabel`, whose `locale` defaults to `labelLocale`. |
-| EELS maps PNG | `macTEM/UI/EELSRoom.swift` | Each tile's `EELSMapTile.detailText(locale: labelLocale)`. |
-| Grains and histogram CSV | `MapsRoomFormat.grainsCSV` and `histogramCSV` (`macTEM/App/MapsRoomState.swift`) | `String(format:)`, `%.6g`. |
+| Line profile, results, radial profile and spots CSV | `Sources/TEMCore/Data/ProfileCSV.swift`, `ResultsCSV.swift` and `FFTExport.swift`, over ImagoKit's CSV writers | `%.17g` (`CSVText.number`). The results CSV's `session:` line: `ExportSnapshot.sessionHeader` (`EMStudio/App/ResultsExportSnapshot.swift`), ISO 8601 with the zone's offset. The spots CSV's note: `FFTRoomFormat.accuracyNote(…, locale: labelLocale)` (`EMStudio/App/FFTExportSnapshot.swift`). |
+| Maps and Texture PNG | `MapsFigure` (`EMStudio/App/MapsRoomState.swift`) | `scaleBarLabel`, `rangeLabel` and `mrdLabel`, whose `locale` defaults to `labelLocale`. |
+| EELS maps PNG | `EMStudio/UI/EELSRoom.swift` | Each tile's `EELSMapTile.detailText(locale: labelLocale)`. |
+| Grains and histogram CSV | `MapsRoomFormat.grainsCSV` and `histogramCSV` (`EMStudio/App/MapsRoomState.swift`) | `String(format:)`, `%.6g`. |
 | Indexing results CSV, `.ang`, `.ctf` | `IndexingResult.csv` (`Sources/TEMCore/SEM/Indexing/IndexingResult.swift`), `ANGWriter` and `CTFWriter` (`Sources/TEMCore/SEM/Export/`) | `String(format:)`. |
 | Kikuchi overlay CSV | `KikuchiOverlay.csv` (`Sources/TEMCore/SEM/Simulation/KikuchiOverlay.swift`) | A number's `description`. |
 | Method and metadata JSON | `methodJSON` of `IndexingPlan`, `DictionaryIndexingPlan`, `PatternPipeline` and `EELSCompute`; `EBSDBrowsing.metadataJSON` | `JSONEncoder` or `JSONSerialization`. The dictionary record's `energy` words: `DictionaryIndexingPlan.energyWords(locale:)` in `en_US_POSIX`; `energyKeV` beside them is the number. |
@@ -287,7 +287,7 @@ the settings a room recorded with an exported file.
 - macOS 26 or later on Apple silicon (`MACOSX_DEPLOYMENT_TARGET = 26.0`, `.macOS(.v26)`, lowered from 27 on 2026-10-28);
   Xcode 27 (Swift 6.4) on the dev Mac, Xcode 26.6 (Swift 6.3) on CI. An API newer than macOS 26.0 sits behind `if #available`.
   `ARCHS = arm64`.
-- Build: open `macTEM.xcodeproj`, scheme `macTEM`, ⌘R; or `xcodebuild -project macTEM.xcodeproj -scheme macTEM -destination 'platform=macOS' build`.
+- Build: open `EMStudio.xcodeproj`, scheme `EMStudio`, ⌘R; or `xcodebuild -project EMStudio.xcodeproj -scheme EMStudio -destination 'platform=macOS' build`.
 - Gates: `tools/run-tests.sh unit | core | scientific | inventory`; the `scientific` array in that script is the
   harness roster. A harness is an executable target in `Package.swift` (`parityHarness`, TEMCore's own Swift
   settings, held equal by `inventory`), built by `tools/lib/harness.sh`, and compares against a reference

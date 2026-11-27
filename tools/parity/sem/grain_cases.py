@@ -308,7 +308,7 @@ def case_m5_grains_ti_full(ctx):
 
 def case_m5_grains_sdss(ctx):
     """The two-phase steel (fetched; the Swift test reads the same file committed as
-    macTEMTests/Fixtures/ebsd-sdss-ferrite-austenite.ang): austenite (fcc, 225) and ferrite (bcc, 229), both DefDAP
+    EMStudioTests/Fixtures/ebsd-sdss-ferrite-austenite.ang): austenite (fcc, 225) and ferrite (bcc, 229), both DefDAP
     cubic, the file's Bunge angles in radians as written (no frame change: misorientations, grains, KAM and GROD do not
     move under a common sample rotation), phase boundaries."""
     _defdap()

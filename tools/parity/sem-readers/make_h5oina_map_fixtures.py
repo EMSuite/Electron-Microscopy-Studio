@@ -1,4 +1,4 @@
-# tools/parity/sem-readers/make_h5oina_map_fixtures.py — writes the map-only H5OINA fixtures of macTEMTests (#513).
+# tools/parity/sem-readers/make_h5oina_map_fixtures.py — writes the map-only H5OINA fixtures of EMStudioTests (#513).
 #
 #   python -I -B make_h5oina_map_fixtures.py <out dir>        (h5py 3.16.0, NumPy 2.5.4, as pinned in tools/parity/sem)
 #

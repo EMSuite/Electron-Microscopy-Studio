@@ -10,7 +10,7 @@
 
 # Pinned references (ncempy and its Python stack, later rosettasciio/py4DSTEM) and the owner's reference
 # trees: machine-local, fetched or provisioned on demand by tools/lib/*, never committed. Test fixtures are
-# committed under macTEMTests/Fixtures/, never here.
+# committed under EMStudioTests/Fixtures/, never here.
 /References
 
 # Local build products (the harnesses build in the gate dir, not here;

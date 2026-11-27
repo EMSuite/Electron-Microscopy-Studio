@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 """Reference fixtures for the Oxford Instruments readers (SEM program, brief P1-03).
 
-Writes, under macTEMTests/Fixtures/sem/oxford/, the files the unit tests read bit-exact (.ebsp) and at 1e-12 (.ctf)
+Writes, under EMStudioTests/Fixtures/sem/oxford/, the files the unit tests read bit-exact (.ebsp) and at 1e-12 (.ctf)
 against what kikuchipy 0.13.1 and orix 0.15.0 read from the same bytes:
 
   patterns.ebsp              kikuchipy's own test file (kikuchipy/data/oxford_binary, CC BY 4.0: nickel_ebsd_small
@@ -40,7 +40,7 @@ from kikuchipy.io.plugins.oxford_binary._api import OxfordBinaryFileReader
 from orix import io
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
-OUT = os.path.join(ROOT, "macTEMTests", "Fixtures", "sem", "oxford")
+OUT = os.path.join(ROOT, "EMStudioTests", "Fixtures", "sem", "oxford")
 
 
 # ------------------------------------------------------------------ .ebsp

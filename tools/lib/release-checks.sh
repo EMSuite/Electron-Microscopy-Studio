@@ -19,12 +19,12 @@
 # which drops a path that does not exist, so an app that had lost a framework passed (the store script checked none by name).
 # FormatoKit loads libhdf5 at run time rather than linking it: such an app launches, then fails every HDF5, EMD and h5ebsd open.
 # mac4DSTEM's release-arch.sh records the same defect. The demo files are named for the same reason: Help > Open Demo Data opens
-# nothing, and says nothing, when one is missing (macTEM/App/DemoData.swift).
+# nothing, and says nothing, when one is missing (EMStudio/App/DemoData.swift).
 #
 # The store check reads only the com.apple.security.* keys: automatic signing adds com.apple.application-identifier and
-# com.apple.developer.team-identifier from the profile. They are the five of macTEM/macTEM.entitlements (AppStoreReleaseTests
+# com.apple.developer.team-identifier from the profile. They are the five of EMStudio/EMStudio.entitlements (AppStoreReleaseTests
 # holds the two lists together); network.client reaches the Materials Project and nothing else (#778, docs/app-store/app-privacy.txt),
-# and network.server is the agent door's loopback listener. The Developer ID build signs with macTEM-Direct.entitlements (these plus the updater's installer exception, #583) and is not held to the exact set.
+# and network.server is the agent door's loopback listener. The Developer ID build signs with EMStudio-Direct.entitlements (these plus the updater's installer exception, #583) and is not held to the exact set.
 
 # Fails unless $1 is a Mach-O holding arm64 and nothing else.
 assert_mactem_arm64_only() {  # <Mach-O>

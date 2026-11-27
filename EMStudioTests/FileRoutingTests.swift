@@ -1,0 +1,285 @@
+//
+//  FileRoutingTests.swift
+//  Open by content (`FileRouting`, TEMCore; `AppState.open(urls:)`): FormatoKit's sniff decides where a file goes, a single spectrum (an
+//  `.msa`, a Velox file of spectra) opens in the EDX room as a one-pixel spectrum image, a 4D dataset or an unknown file is refused in
+//  words, and a file of images keeps the Image room. The kit's fixtures are planted and committed; the owner's and RosettaSciIO's example
+//  files are read from `References/` when they are there (and the test says it skipped when not): nothing of them is copied.
+//
+
+import XCTest
+import SpectroCore
+import TEMCore
+import TEMSession
+@testable import EMStudio
+import ShellEDXModel
+
+nonisolated final class FileRoutingTests: XCTestCase {
+
+    static func fixture(_ name: String) -> String {
+        URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("Fixtures/\(name)").path
+    }
+
+    static func temp(_ name: String, _ data: Data) throws -> URL {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("route-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let url = dir.appendingPathComponent(name)
+        try data.write(to: url)
+        return url
+    }
+
+    /// The suite's `References/…` file, or a skip: the owner's data and the parity examples are not committed anywhere.
+    static func reference(_ relative: String) throws -> String {
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        // The org folder's References (this repo's own `References/` when it has one).
+        let candidates = [root.appendingPathComponent("References/\(relative)").path,
+                          root.deletingLastPathComponent().appendingPathComponent("References/\(relative)").path]
+        guard let path = candidates.first(where: { FileManager.default.fileExists(atPath: $0) }) else {
+            throw XCTSkip("\(relative) is not in the data folder ($MACEM_DATA)")
+        }
+        return path
+    }
+
+    // MARK: Routes
+
+    /// Images are images, a Velox file of spectra only is one spectrum, 4D datasets and unknown files are refused with the sentence that
+    /// says what they are. Red under: the extension deciding; a Velox spectrum opened as an image.
+    func testFilesAreInventoriedByContent() throws {
+        XCTAssertEqual(FileRouting.inventory(path: Self.fixture("planted-2d.dm4")), FileInventory(image: true))
+        XCTAssertEqual(FileRouting.inventory(path: Self.fixture("velox-aniso.emd")), FileInventory(image: true))
+        XCTAssertEqual(FileRouting.inventory(path: Self.fixture("velox-single-spectrum.emd")), FileInventory(singleSpectrum: true))
+        let mib = try Self.temp("scan.mib", Data("x".utf8))
+        guard let fourD = FileRouting.inventory(path: mib.path).refusal else { return XCTFail("a MIB file is a 4D dataset") }
+        XCTAssertTrue(fourD.contains("scan.mib") && fourD.contains("4D dataset") && fourD.contains("4DSTEM Studio"), fourD)
+        let unknown = try Self.temp("notes.xyz", Data("hello".utf8))
+        XCTAssertEqual(FileRouting.inventory(path: unknown.path).refusal,
+                       "notes.xyz is not a format Electron Microscopy Studio opens (or its extension and its first bytes disagree).")
+        let liar = try Self.temp("fake.dm4", Data("this is not a DM file".utf8))
+        XCTAssertNotNil(FileRouting.inventory(path: liar.path).refusal, "bytes that disagree with the extension are refused")
+    }
+
+    /// A file that cannot be read at all is refused for what happened, never for its format: one gone from where it was, and one macTEM
+    /// may not read (the sandbox closes a path that came neither from the Open panel, a drop, the Finder nor a bookmark; here the
+    /// file's own permissions close it the same way). Red before: both "is not a format macEM opens", the format blamed for bytes
+    /// that were never read (driven 2026-11-11: a Ceta TIFF and a Velox EMD given by path at launch).
+    func testAFileThatCannotBeReadIsRefusedForThatNotForItsFormat() throws {
+        let tiff = try Self.temp("ceta.tif", Data("II*\0 not read".utf8))
+        try FileManager.default.setAttributes([.posixPermissions: 0o000], ofItemAtPath: tiff.path)
+        defer { try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: tiff.path) }
+        XCTAssertEqual(FileRouting.inventory(path: tiff.path).refusal,
+                       "Electron Microscopy Studio was not given access to ceta.tif: open it with File > Open…, drop it on the window or open it from the Finder.")
+        let gone = tiff.deletingLastPathComponent().appendingPathComponent("moved.emd")
+        XCTAssertEqual(FileRouting.inventory(path: gone.path).refusal, "moved.emd is no longer where it was (moved, renamed or deleted).")
+        XCTAssertNil(FileRouting.accessRefusal(path: Self.fixture("planted-2d.dm4")), "a file that reads is judged by its format")
+    }
+
+    /// The landing room is the richest dataset: a spectrum cube before an image, EELS between.
+    func testTheLandingRoomIsTheRichestDataset() {
+        XCTAssertEqual(FileInventory(image: true).landing, .image)
+        XCTAssertEqual(FileInventory(image: true, edsSpectrumImage: true).landing, .eds)
+        XCTAssertEqual(FileInventory(image: true, eelsSpectrumImage: true).landing, .eels)
+        XCTAssertEqual(FileInventory(image: true, edsSpectrumImage: true, eelsSpectrumImage: true).landing, .eds)
+        XCTAssertEqual(FileInventory(singleSpectrum: true).landing, .eds)
+        XCTAssertNil(FileInventory(refusal: "no").landing)
+        XCTAssertGreaterThan(FileInventory.Landing.eds.richness, FileInventory.Landing.eels.richness)
+        XCTAssertGreaterThan(FileInventory.Landing.eels.richness, FileInventory.Landing.image.richness)
+    }
+
+    // MARK: Single spectra
+
+    /// An `.msa` written by the room's own export reads back as a one-pixel spectrum image with the same counts, axis and beam energy; it
+    /// routes to the EDX room. Red under: counts rounded wrongly; the axis read in eV as keV; the beam energy dropped.
+    func testAnMSAFileIsAOnePixelSpectrumImage() throws {
+        let counts: [UInt64] = (0..<256).map { UInt64($0 % 17) * 3 + 1 }
+        let axis = EnergyAxis(offset: -0.1, scale: 0.01, size: counts.count)
+        let url = try Self.temp("planted.msa", try EDXExports.msa(counts: counts, axis: axis, title: "planted", beamEnergyKeV: 200, host: .macTEM))
+        XCTAssertEqual(FileRouting.inventory(path: url.path), FileInventory(singleSpectrum: true))
+        XCTAssertTrue(FileRouting.isSingleSpectrum(path: url.path))
+        let loaded = try FileRouting.spectrumFile(path: url.path)
+        XCTAssertEqual(loaded.metadata.scanWidth, 1); XCTAssertEqual(loaded.metadata.scanHeight, 1)
+        XCTAssertEqual(loaded.metadata.channelCount, 256)
+        XCTAssertEqual(loaded.metadata.beamEnergyKeV, 200)
+        XCTAssertEqual(loaded.energyAxis.offset, -0.1, accuracy: 1e-9); XCTAssertEqual(loaded.energyAxis.scale, 0.01, accuracy: 1e-9)
+        XCTAssertEqual(loaded.metadata.energyDispersionEV, 10, accuracy: 1e-6)
+        XCTAssertEqual(loaded.image.sum(mask: nil), counts, "the counts, exactly")
+        let negative = try Self.temp("neg.msa", try EDXExports.msa(counts: [1, 2, 3], axis: axis, title: "x", beamEnergyKeV: nil, host: .macTEM).replacingBytes("1.000000", with: "-1.000000"))
+        XCTAssertThrowsError(try FileRouting.spectrumFile(path: negative.path)) {
+            XCTAssertEqual(($0 as? LocalizedError)?.errorDescription, "The spectrum holds negative or non-finite values: it is not a count spectrum.")
+        }
+    }
+
+    /// FormatoKit's planted Velox single spectrum (12 channels of 5 eV from -480 eV, 200 kV): it opens as a one-pixel spectrum image.
+    func testAVeloxSingleSpectrumOpens() throws {
+        let path = Self.fixture("velox-single-spectrum.emd")
+        XCTAssertTrue(EDXOpening.isSpectrumImage(at: URL(fileURLWithPath: path)))
+        let loaded = try FileRouting.spectrumFile(path: path)
+        XCTAssertEqual(loaded.metadata.channelCount, 12)
+        XCTAssertEqual(loaded.energyAxis.offset, -0.48, accuracy: 1e-9); XCTAssertEqual(loaded.energyAxis.scale, 0.005, accuracy: 1e-9)
+        XCTAssertEqual(loaded.metadata.beamEnergyKeV, 200)
+        XCTAssertEqual(loaded.image.sum(mask: nil).count, 12)
+    }
+
+    // MARK: Through the app's Open
+
+    /// The app's Open sends an `.msa` to the EDX room (the room is selected, the spectrum bound as one pixel) and an image to the Image room
+    /// (no room change); a refused file raises the alert with its sentence. Red under: everything opened as an image.
+    @MainActor func testTheAppsOpenRoutesASpectrumToTheEDXRoomAndAnImageToTheImageRoom() async throws {
+        let counts: [UInt64] = (0..<512).map { UInt64($0 % 23) * 2 + 1 }
+        let msa = try Self.temp("spectrum.msa", try EDXExports.msa(counts: counts, axis: EnergyAxis(offset: 0, scale: 0.01, size: counts.count), title: "t", beamEnergyKeV: 200, host: .macTEM))
+        let state = AppState(launch: LaunchOptions(arguments: []))
+        XCTAssertEqual(state.navigation.workspaceArea, .image)
+        await state.open(urls: [msa])?.value
+        XCTAssertEqual(state.navigation.workspaceArea, .edx)
+        try await waitUntil("the spectrum to land in the EDS room", seconds: 10) { state.edx.hasImage }
+        XCTAssertEqual(state.edx.fileName, "spectrum.msa")
+        await state.edx.settled()
+        XCTAssertEqual(state.edx.regionPixels, 1)
+        XCTAssertEqual(state.edx.totalCounts, counts.reduce(0, +))
+        XCTAssertTrue(state.openItems.items.isEmpty, "a spectrum is not an open image")
+
+        let dm = try Self.temp("planted.dm4", Data(contentsOf: URL(fileURLWithPath: Self.fixture("planted-2d.dm4"))))
+        await state.open(urls: [dm])?.value
+        XCTAssertEqual(state.openItems.items.count, 1)
+        XCTAssertEqual(state.navigation.workspaceArea, .image, "an image opened from a spectrum room lands on the image")
+        XCTAssertTrue(state.edx.hasImage, "the spectrum is still there")
+
+        let mib = try Self.temp("scan.mib", Data("x".utf8))
+        await state.open(urls: [mib])?.value
+        XCTAssertTrue(state.errorMessage?.contains("4D dataset") == true, "the alert says what the file is: \(state.errorMessage ?? "none")")
+        XCTAssertEqual(state.openItems.items.count, 1, "a refused file opens nothing")
+    }
+
+    /// A GMS spectrum image saved with the spectra picked from it (#553): the EELS cube and two single spectra, no image. It opens in
+    /// the EELS room only; the image path took the single spectra as an image and raised "holds no 2D image" beside the open room.
+    /// A file of single spectra alone, which no room takes, still goes to the image reader so its refusal names what it holds.
+    func testADMSpectrumImageWithItsPickedSpectraIsNoImage() throws {
+        let ev = DM4TestFile.Axis(origin: 0, scale: 0.5, units: "eV")
+        let nm = DM4TestFile.Axis(origin: 0, scale: 2, units: "nm")
+        let cube = DM4TestFile.object(name: "EELS SI", dims: [4, 3, 16], axes: [nm, nm, ev])
+        let picked = DM4TestFile.object(name: "Spectrum 1", dims: [16], axes: [ev])
+        let both = try DM4TestFile.write(DM4TestFile.file([cube, picked, picked]), named: "(1) Picker of STEM SI.dm4", for: self)
+        let found = FileRouting.inventory(path: both)
+        XCTAssertTrue(found.eelsSpectrumImage)
+        XCTAssertFalse(found.image, "the picked spectra are not an image")
+        XCTAssertEqual(found.landing, .eels)
+        let spectraOnly = try DM4TestFile.write(DM4TestFile.file([picked, picked]), named: "spectra.dm4", for: self)
+        XCTAssertTrue(FileRouting.inventory(path: spectraOnly).image, "no room takes it, so the image reader refuses it in words")
+    }
+
+    /// A GMS EELS line scan ("C K Signal (EELS).dm4": one [channels, positions] object, its position axis without a unit) is refused by the EELS room in
+    /// words and is not also drawn as a 432 × 172 picture of spectra in an Image tab (#559). The same shape with no EELS role is not an image either.
+    func testADMEELSLineScanIsNotAlsoAnImage() throws {
+        let ev = DM4TestFile.Axis(origin: 0, scale: 0.5, units: "eV")
+        let bare = DM4TestFile.Axis(origin: 0, scale: 1, units: "")
+        let lineScan = DM4TestFile.object(name: "C K Signal (EELS)", dims: [16, 5], axes: [ev, bare])
+        let path = try DM4TestFile.write(DM4TestFile.file([lineScan]), named: "C K Signal (EELS).dm4", for: self)
+        let found = FileRouting.inventory(path: path)
+        XCTAssertTrue(found.eelsSpectrumImage)
+        XCTAssertFalse(found.image, "the line scan is not an image")
+        let unnamed = DM4TestFile.object(name: "Spectrum line", dims: [16, 5], axes: [ev, bare])
+        let other = try DM4TestFile.write(DM4TestFile.file([unnamed]), named: "line.dm4", for: self)
+        XCTAssertThrowsError(try ImageOpening.openNow(path: other), "a line scan with an energy axis is not opened as an image")
+    }
+
+    // MARK: Example files (read from References, not committed)
+
+    /// A real Velox single spectrum (the FEI example in the parity set): it routes to the EDX room and reads as 4096 channels with a
+    /// plausible beam energy.
+    func testTheFEIExampleSpectrumOpensAsASpectrum() throws {
+        let path = try Self.reference("mac4DSTEM/velox-parity/fei_emd_files/fei_emd_spectrum.emd")
+        XCTAssertEqual(FileRouting.inventory(path: path), FileInventory(singleSpectrum: true))
+        let loaded = try FileRouting.spectrumFile(path: path)
+        XCTAssertEqual(loaded.metadata.channelCount, 4096)
+        XCTAssertGreaterThan(loaded.image.sum(mask: nil).reduce(0, +), 0)
+    }
+
+    /// The three Velox files of the study each hold images AND spectrum streams (the EELS one also an EELS cube): the file decides, so the
+    /// inventory says image + EDS (+ EELS), and the landing room is the spectrum cube's, never the image's. Red under: images first.
+    func testAVeloxSpectrumImageIsAnImageAndAnEDSCubeAndLandsInEDS() throws {
+        let small = FileRouting.inventory(path: try Self.reference("mac4DSTEM/velox-parity/velox_emd_version11/Test SI 16x16 215 kx.emd"))
+        XCTAssertEqual(small, FileInventory(image: true, edsSpectrumImage: true))
+        XCTAssertEqual(small.landing, .eds)
+        let dual = FileRouting.inventory(path: try Self.reference("mac4DSTEM/velox-parity/velox_EELS_EDS/example_velox_EELS_EDS.emd"))
+        XCTAssertEqual(dual, FileInventory(image: true, edsSpectrumImage: true, eelsSpectrumImage: true))
+        XCTAssertEqual(dual.landing, .eds)
+        let loaded = try EDXOpening.open(url: URL(fileURLWithPath: try Self.reference("mac4DSTEM/velox-parity/velox_emd_version11/Test SI 16x16 215 kx.emd")))
+        XCTAssertEqual(loaded.metadata.scanWidth, 16); XCTAssertEqual(loaded.metadata.scanHeight, 16)
+    }
+
+    /// The study's own file (1.7 GB, in the data folder): inventoried from its group names without reading a pixel.
+    func testTheStudyFileIsAnImageAndAnEDSCube() throws {
+        let path = RealDataFolder.path + "/stem-edx/SI HAADF 1456 77000 x 20260420.emd"
+        try XCTSkipUnless(FileManager.default.fileExists(atPath: path), "the study file is not in the data folder ($MACEM_DATA)")
+        XCTAssertEqual(FileRouting.inventory(path: path), FileInventory(image: true, edsSpectrumImage: true))
+    }
+
+    /// Opening a file with a spectrum cube fills BOTH rooms (the image item and the EDS session) and lands in EDS; the Image room's data is
+    /// not dropped by the switch. A spectrum-only file leaves the Image room disabled with its reason.
+    @MainActor func testOpeningAVeloxSpectrumImageFillsTheImageAndTheEDSRoomsAndLandsInEDS() async throws {
+        let path = try Self.reference("mac4DSTEM/velox-parity/velox_emd_version11/Test SI 16x16 215 kx.emd")
+        let state = AppState(launch: LaunchOptions(arguments: []))
+        XCTAssertEqual(state.navigation.workspaceArea, .image)
+        await state.open(urls: [URL(fileURLWithPath: path)])?.value
+        XCTAssertEqual(state.navigation.workspaceArea, .edx, "the file decides, not the room the window was in")
+        try await waitUntil("the EDS room to have the cube", seconds: 20) { state.edx.hasImage }
+        XCTAssertEqual(state.openItems.items.count, 1, "and the Image room has the image")
+        state.selectWorkspace(.image)
+        XCTAssertEqual(state.navigation.workspaceArea, .image, "switching rooms drops nothing")
+        XCTAssertTrue(state.edx.hasImage)
+        XCTAssertNil(state.roomUnavailableReason(.edx)); XCTAssertNil(state.roomUnavailableReason(.image))
+        XCTAssertNotNil(state.roomUnavailableReason(.eels), "no EELS cube in this file")
+        XCTAssertNotNil(state.roomUnavailableReason(.diffraction), "the file's image is a HAADF scan image, not a pattern")
+        XCTAssertNil(state.roomUnavailableReason(.fft))
+    }
+
+    // MARK: A drop
+
+    /// A drop hands on the files of an extension an Open routes, in its order, and names each of the others once, with what macTEM
+    /// opens once after them; a drop of routed files alone refuses nothing, and a dragged web link is not a file. One file's own
+    /// sentence is as it was. Red before: no `FileRouting.dropped` and no `fileClause`, and every refused file's line carried the
+    /// whole list of formats (three files, the list three times in the alert and in the one-line status bar).
+    func testADropNamesEachRefusedFileOnceAndTheFormatsOnce() throws {
+        func file(_ name: String) -> URL { URL(fileURLWithPath: "/data/nordif/\(name)") }
+        let drop = FileRouting.dropped([file("Setting.txt"), file("Pattern.dat"), file("Background.BMP"), file("README")])
+        XCTAssertEqual(drop.accepted, [file("Pattern.dat")])
+        XCTAssertEqual(drop.refusals, ["Setting.txt is a .txt file.", "Background.BMP is a .bmp file.", "README is a file without an extension.",
+                                       FileRouting.openableSentence])
+        XCTAssertEqual(drop.refusals.joined(separator: " ").components(separatedBy: "Electron Microscopy Studio opens").count, 2, "the formats are named once")
+        let routed = FileRouting.dropped([file("a.dm4"), file("b.TIF")])
+        XCTAssertEqual(routed.accepted, [file("a.dm4"), file("b.TIF")])
+        XCTAssertEqual(routed.refusals, [])
+        let link = try XCTUnwrap(URL(string: "https://example.org/scan.tif"))
+        XCTAssertEqual(FileRouting.dropped([link]).accepted, [], "a web link ending in .tif is not a file")
+        XCTAssertEqual(ImageOpening.Refusal.unreadableFormat(file: "notes.txt", ext: "txt").errorDescription,
+                       "notes.txt is a .txt file. " + FileRouting.openableSentence, "one file's own sentence is as it was")
+    }
+
+    /// The rooms a window's documents fill: with nothing open every room stays enterable; with an image only, the spectrum rooms say
+    /// why not; with a spectrum cube only, the image rooms do; the room that loses its data gives way to one that has some.
+    func testRoomAvailabilityFollowsTheDocuments() {
+        let none = RoomHoldings()
+        for area in WorkspaceArea.allCases { XCTAssertNil(RoomAvailability.reason(area, holdings: none), "\(area)") }
+        let image = RoomHoldings(images: true)
+        XCTAssertNil(RoomAvailability.reason(.fft, holdings: image))
+        XCTAssertNotNil(RoomAvailability.reason(.edx, holdings: image))
+        XCTAssertNotNil(RoomAvailability.reason(.eels, holdings: image))
+        let cube = RoomHoldings(eds: true)
+        XCTAssertNil(RoomAvailability.reason(.edx, holdings: cube))
+        XCTAssertNotNil(RoomAvailability.reason(.image, holdings: cube))
+        XCTAssertNotNil(RoomAvailability.reason(.results, holdings: cube))
+        XCTAssertEqual(RoomAvailability.fallback(holdings: cube), .edx)
+        XCTAssertEqual(RoomAvailability.fallback(holdings: image), .image)
+        XCTAssertEqual(RoomAvailability.fallback(holdings: RoomHoldings(images: true, eds: true)), .image)
+        // The HAADF of a spectrum-image file is a scan image: Image, FFT and Results take it, Diffraction does not. Red under: Diffraction enabled for it.
+        let companion = RoomHoldings(images: true, eds: true, imagesAreSpectrumCompanions: true)
+        XCTAssertNil(RoomAvailability.reason(.image, holdings: companion)); XCTAssertNil(RoomAvailability.reason(.fft, holdings: companion))
+        XCTAssertNotNil(RoomAvailability.reason(.diffraction, holdings: companion))
+        XCTAssertNil(RoomAvailability.reason(.diffraction, holdings: RoomHoldings(images: true, eds: true)), "an image file beside the cube is a candidate pattern")
+    }
+}
+
+private nonisolated extension Data {
+    func replacingBytes(_ a: String, with b: String) -> Data {
+        guard let text = String(data: self, encoding: .isoLatin1) else { return self }
+        return Data(text.replacingOccurrences(of: a, with: b).utf8)
+    }
+}

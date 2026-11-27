@@ -5,7 +5,7 @@ intensity of each disc of the zero-order zone at each stored thickness.
 Run (an abTEM 1.0.10 venv: python3 -m venv v && v/bin/pip install abtem==1.0.10; numpy 2.5.5, scipy 1.18.1, ase 3.29.0; about
 a minute):
     <venv>/bin/python -I -B tools/parity/cbed-tilt/cbed_tilt.py [out.json]
-Writes macTEMTests/Fixtures/cbed-tilt.json, which `CBEDTiltTests` reads. float64 throughout.
+Writes EMStudioTests/Fixtures/cbed-tilt.json, which `CBEDTiltTests` reads. float64 throughout.
 
 The frame (the app's, row = lab x, column = lab y, #931): SimulatoKit's slab of Si [1 1 0] puts box x along [0 0 1̄] (py4DSTEM's
 x reference, the shortest lattice row at right angles to the zone), y = z × x along [1̄ 1 0], and z along [1 1 0], pointing at
@@ -36,7 +36,7 @@ from abtem.core.energy import energy2wavelength  # noqa: E402
 from ase import Atoms  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[3]
-OUT = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "macTEMTests/Fixtures/cbed-tilt.json"
+OUT = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "EMStudioTests/Fixtures/cbed-tilt.json"
 dask.config.set(scheduler="synchronous")
 abtem.config.set({"local_diagnostics.progress_bar": False, "precision": "float64"})
 

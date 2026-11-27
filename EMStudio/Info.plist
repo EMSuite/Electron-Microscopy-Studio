@@ -1,0 +1,260 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- App Store export compliance (macTEM#101): macTEM makes no network connection and uses no non-exempt encryption. -->
+	<!-- The menu bar's name (guideline 5.2.5): "Microscopy Studio"; the .app and Finder name is "Electron Microscopy Studio"
+	     (PRODUCT_NAME, CFBundleDisplayName), in both builds (#759). Config/Version.xcconfig. -->
+	<key>CFBundleName</key>
+	<string>$(MACEM_MENU_NAME)</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>LSEnvironment</key>
+	<dict>
+		<key>MallocLargeCache</key>
+		<string>0</string>
+	</dict>
+	<!-- The types the Quick Look extensions answer for (#903, QuickLook/QuickLook*.plist): formats this app reads and does not own,
+	     so imported, never exported (Apple's rule). The HDF5 declaration is 4DSTEM Studio's, word for word; .emd conforms to it. -->
+	<key>UTImportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>org.hdfgroup.hdf5</string>
+			<key>UTTypeDescription</key>
+			<string>HDF5 file</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>h5</string>
+					<string>hdf5</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>com.gatan.dm3</string>
+			<key>UTTypeDescription</key>
+			<string>DigitalMicrograph 3 image</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>dm3</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>com.gatan.dm4</string>
+			<key>UTTypeDescription</key>
+			<string>DigitalMicrograph 4 image</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>dm4</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>org.ccpem.mrc</string>
+			<key>UTTypeDescription</key>
+			<string>MRC image</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>mrc</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>com.emdatasets.emd</string>
+			<key>UTTypeDescription</key>
+			<string>Electron microscopy dataset (EMD)</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>org.hdfgroup.hdf5</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>emd</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>com.fei.tia.ser</string>
+			<key>UTTypeDescription</key>
+			<string>TIA series</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>ser</string>
+				</array>
+			</dict>
+		</dict>
+	</array>
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>TEM image</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>dm4</string>
+				<string>dm3</string>
+				<string>tif</string>
+				<string>tiff</string>
+				<string>mrc</string>
+				<string>emd</string>
+				<string>ser</string>
+				<string>emi</string>
+				<string>img</string>
+				<string>map</string>
+			</array>
+		</dict>
+		<!-- A PNG or JPEG (#792): a pattern from a paper or a camera export. Alternate, so the app is offered under Open With
+		     for pictures and never becomes their default. -->
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Picture</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>png</string>
+				<string>jpg</string>
+				<string>jpeg</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>EDS spectrum</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>msa</string>
+				<string>hspy</string>
+			</array>
+		</dict>
+		<!-- Related items: a vendor scan's pattern file and the map beside it (.up1/.up2 and .ang, .ebsp and .ctf) are read
+		     together by name, and the sandbox grants only the file the person picked. NSIsRelatedItemType lets the app read
+		     the other one (EMStudio/App/RelatedFileAccess.swift); the extensions declared do not change. -->
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>EBSD pattern dataset</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>NSIsRelatedItemType</key>
+			<true/>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>h5</string>
+				<string>hdf5</string>
+				<string>h5oina</string>
+				<string>h5ebsd</string>
+				<string>ebsp</string>
+				<string>ctf</string>
+				<string>up1</string>
+				<string>up2</string>
+				<string>ang</string>
+				<string>dat</string>
+			</array>
+		</dict>
+		<!-- Related items: an EDAX .spd or .lsd reads its energy axis from the .spc of its name beside it (and the map
+		     reads its .ipr, the line scan its .csv, below). The extensions declared do not change. -->
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>SEM-EDS map</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>NSIsRelatedItemType</key>
+			<true/>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>bcf</string>
+				<string>spd</string>
+				<string>lsd</string>
+				<string>pts</string>
+				<string>asw</string>
+				<string>spx</string>
+				<string>spc</string>
+				<string>eds</string>
+			</array>
+		</dict>
+		<!-- A Simulation document's session file (#908), which this app writes and reopens: role Editor, rank Owner. -->
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Simulation document</string>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>LSHandlerRank</key>
+			<string>Owner</string>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>emsim</string>
+			</array>
+		</dict>
+		<!-- Companion files that macTEM never opens on their own: an EDAX map's .ipr (its pixel size) and a line scan's .csv
+		     (its distances). NSIsRelatedItemType lets the sandboxed app read the one beside the file the person picked
+		     (EMStudio/App/RelatedFileAccess.swift). Role and rank None: this claims nothing, so macTEM stays out of the Open
+		     With menu of every CSV file. -->
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>SEM-EDS companion file</string>
+			<key>CFBundleTypeRole</key>
+			<string>None</string>
+			<key>LSHandlerRank</key>
+			<string>None</string>
+			<key>NSIsRelatedItemType</key>
+			<true/>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>ipr</string>
+				<string>csv</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>

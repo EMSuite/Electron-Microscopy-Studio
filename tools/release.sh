@@ -7,7 +7,7 @@
 # Needs the "Developer ID Application" certificate in the login keychain (DEVELOPER_ID_APPLICATION overrides its name; the
 # built app's signature is checked against that name) and a notarytool keychain profile (default macem-notary; override
 # with NOTARY_PROFILE). Output: build/release/<stamp>/Electron-Microscopy-Studio-<version>.dmg and a copy named
-# Electron-Microscopy-Studio.dmg for the "latest" link, plus the old names' copies (macEM.dmg, macTEM.dmg) so old links work.
+# Electron-Microscopy-Studio.dmg for the "latest" link. From 2.6.1 no copies under the old app names are made.
 # The steps follow mac4DSTEM's tools/release (build-developer-id.sh, notarize.sh, make-dmg.sh, appcast.sh); the DMG here
 # is a plain hdiutil image with an Applications link, no dmgbuild. Last, macem.xml, the website's update feed (tools/appcast.sh,
 # #583), signed with the EdDSA key in the login keychain.
@@ -45,7 +45,7 @@ echo "== Archive ($(git -C "$ROOT" rev-parse --short HEAD))"
 # The download's build number is its version (#583): Sparkle compares the feed's sparkle:version with CFBundleVersion, and the
 # project's CURRENT_PROJECT_VERSION does not move between releases. The packages are cloned to build/SourcePackages, apart
 # from any other checkout's.
-xcodebuild archive -project "$ROOT/macTEM.xcodeproj" -scheme macTEM -configuration Release \
+xcodebuild archive -project "$ROOT/EMStudio.xcodeproj" -scheme EMStudio -configuration Release \
   -destination 'generic/platform=macOS' -archivePath "$ARCHIVE" ARCHS=arm64 \
   -clonedSourcePackagesDirPath "$ROOT/build/SourcePackages" CURRENT_PROJECT_VERSION="$EXPECTED" \
   CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="$IDENTITY" OTHER_CODE_SIGN_FLAGS="--timestamp" > "$OUT/archive.log" 2>&1 \
@@ -89,7 +89,7 @@ for signed in "$SPARKLE" "$SPARKLE"/Versions/B/XPCServices/Installer.xpc "$SPARK
   [[ "$details" == *"Authority=$IDENTITY"* && "$details" == *"(runtime)"* && "$details" == *"Timestamp="* ]] \
     || { echo "$signed is not signed with the Developer ID, the hardened runtime and a timestamp." >&2; exit 1; }
 done
-# The sandboxed installer is reached through the download's one exception (macTEM-Direct.entitlements).
+# The sandboxed installer is reached through the download's one exception (EMStudio-Direct.entitlements).
 codesign -d --entitlements :- "$APP" > "$OUT/entitlements.plist" 2>/dev/null
 /usr/libexec/PlistBuddy -c 'Print :com.apple.security.temporary-exception.mach-lookup.global-name' "$OUT/entitlements.plist" \
   | grep -q -- '-spki' || { echo "The download cannot reach Sparkle's installer (mach-lookup exception)." >&2; exit 1; }
@@ -129,10 +129,6 @@ xcrun stapler staple "$DMG"
 xcrun stapler validate "$DMG"
 spctl --assess --type open --context context:primary-signature "$DMG"
 cp "$DMG" "$OUT/$FILE.dmg"
-# The old names: up to 2.1.0 the download was macEM.dmg, up to 1.3 macTEM.dmg. Each release attaches byte-identical copies under
-# both, so links and bookmarks to releases/latest/download/macEM.dmg and macTEM.dmg keep working.
-cp "$DMG" "$OUT/macEM.dmg"
-cp "$DMG" "$OUT/macTEM.dmg"
 
 echo "== Update feed (Sparkle, #583)"
 "$ROOT/tools/appcast.sh" "$DMG" "$VERSION" "$OUT/macem.xml"
@@ -140,7 +136,6 @@ echo "== Update feed (Sparkle, #583)"
 echo
 echo "Done: $DMG"
 echo "Also: $OUT/$FILE.dmg (for releases/latest/download/$FILE.dmg)"
-echo "And:  $OUT/macEM.dmg and $OUT/macTEM.dmg (the old names; attach both too, for the old links)"
 echo "SHA-256: $(shasum -a 256 "$DMG" | cut -d' ' -f1)"
 echo "Size: $(stat -f%z "$DMG") bytes"
 echo "Feed: $OUT/macem.xml (commit it to the website as appcast/macem.xml once the DMGs are on the release)"

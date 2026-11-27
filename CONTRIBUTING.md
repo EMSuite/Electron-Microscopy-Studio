@@ -23,7 +23,7 @@ You need Xcode 27 or Xcode 26.6 (the Command Line Tools alone cannot build it) o
 later.
 
 ```sh
-xcodebuild -project macTEM.xcodeproj -scheme macTEM -destination 'platform=macOS' build
+xcodebuild -project EMStudio.xcodeproj -scheme EMStudio -destination 'platform=macOS' build
 tools/run-tests.sh unit         # the unit tests, and no compiler warning: run these before you open a pull request
 tools/run-tests.sh core         # TEMCore and TEMSession build alone, with no warning (the layering check)
 tools/run-tests.sh inventory    # repository checks (notices, large files, harness list, UI identifiers)
@@ -34,7 +34,7 @@ wins, then `xcode-select`, then any Xcode in `/Applications`.
 
 ## Where code goes
 
-The Xcode project uses synchronized folder groups, so placement is wiring: a file under `macTEM/` joins the app target.
+The Xcode project uses synchronized folder groups, so placement is wiring: a file under `EMStudio/` joins the app target.
 Views describe the interface only; compute lives in `Sources/TEMCore`, session state in `Sources/TEMSession`, and
 neither imports SwiftUI or anything above it. More in [`docs/architecture.md`](docs/architecture.md).
 
@@ -54,7 +54,7 @@ the kit's repository and reaches the app when `Package.swift` moves to the kit's
   hold the pixels, canvases, masks and spectrum cubes. A view, `@State`, closure, `Binding`, preference, focused value
   or environment value holds the owner (or a small value: an index, a size, a version) and reads the pixels through it.
   An array is a value: a closure that SwiftUI keeps after its view is gone keeps every buffer it captured alive.
-  `PixelOwnershipTests` fails a view in `macTEM/UI` that stores one.
+  `PixelOwnershipTests` fails a view in `EMStudio/UI` that stores one.
 
 ## Licence
 
@@ -63,8 +63,8 @@ project is. See `LICENSE` and `NOTICE`.
 
 ## Snapshot tests
 
-`macTEMTests/RoomSnapshotTests` draws each room in light and in dark with EMSuiteUI's `ShellSnapshotTesting` and compares it
-with the PNG committed under `macTEMTests/__Snapshots__/RoomSnapshotTests/<name>.<light|dark>.png`. Pictures differ between
+`EMStudioTests/RoomSnapshotTests` draws each room in light and in dark with EMSuiteUI's `ShellSnapshotTesting` and compares it
+with the PNG committed under `EMStudioTests/__Snapshots__/RoomSnapshotTests/<name>.<light|dark>.png`. Pictures differ between
 macOS versions and Macs, so the references are the ones CI's unit job draws on the org's Mac runner, where pull requests run
 (`SNAPSHOTS=1`); GitHub's macos-26 (main, the nightly, a fork's PR) and a run on another Mac skip them. When that Mac's macOS is
 updated, every picture changes once: commit the new set in one `test:` PR. A picture that is new or differs fails the test; CI puts it on the `pr-pictures` branch under

@@ -321,5 +321,5 @@ library (it is the same one); only the check that the loaded copy is the named o
   time a cascade takes is the unit test's too (`testRemovingTheEndOfAChainOfTwoThousandRemovedNodesIsOnePass`: here the
   250-node chain proves the cascade complete, with no timer). A sidecar damaged inside (a flipped byte in the global heap's
   object size makes HDF5's own read spin, in this library and h5py's alike) could once not be planted, the read never returning; since the fixed-length strings the hang file is one of the cases and is refused by name. The unit
-  tests (`macTEMTests/SessionSidecarFileTests.swift`, `SessionLineageTests.swift`) pin the layers' own rules without Python; this
+  tests (`EMStudioTests/SessionSidecarFileTests.swift`, `SessionLineageTests.swift`) pin the layers' own rules without Python; this
   harness is where they meet h5py.

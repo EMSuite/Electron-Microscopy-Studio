@@ -10,7 +10,7 @@
 //        figure F15) for a sample of orientations (`OrientationSampling.fundamental`), so a large dictionary never sits in
 //        memory whole. The float64 CPU path is the reference (decision D16); `DictionaryIndexingMetal` is the float32 GPU path
 //        for the matrix product of patterns x dictionary, checked against this one.
-//        Parity: macTEMTests/SEMDictionaryIndexingParityTests.swift against tools/parity/sem/references/m4/dictionary-indexing-*
+//        Parity: EMStudioTests/SEMDictionaryIndexingParityTests.swift against tools/parity/sem/references/m4/dictionary-indexing-*
 //        (figure F9): scores within rtol 1e-4 of kikuchipy's float32 run and 1e-5 of its float64 run, simulation indices exact
 //        where the scores do not tie.
 //

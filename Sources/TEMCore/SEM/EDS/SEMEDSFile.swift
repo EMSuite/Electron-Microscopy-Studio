@@ -5,7 +5,7 @@
 //        rsciio states them (name, size, scale, offset, units), the dtype rsciio gives the data, and the metadata fields the app maps,
 //        under rsciio's names. The counts are exact integers; nothing here computes a number. `CSRSpectrumImage` holds a spectrum image
 //        as per-pixel compressed rows (an event-counting detector fills a few channels per pixel), which is what the EDS room sums.
-//        Parity: macTEMTests/SEMEDSMapReaderTests.swift against tools/parity/sem/references/m7/read-* (emit.py, RosettaSciIO 0.15.0).
+//        Parity: EMStudioTests/SEMEDSMapReaderTests.swift against tools/parity/sem/references/m7/read-* (emit.py, RosettaSciIO 0.15.0).
 //
 
 import Foundation

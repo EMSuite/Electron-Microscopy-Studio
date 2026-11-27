@@ -1,4 +1,4 @@
-# tools/parity/sem-readers/make_hspy_4d_fixture.py — writes hyperspy-4d-unnamed.hspy for macTEMTests (real-file sweep, 12 Nov).
+# tools/parity/sem-readers/make_hspy_4d_fixture.py — writes hyperspy-4d-unnamed.hspy for EMStudioTests (real-file sweep, 12 Nov).
 #
 #   python -I -B make_hspy_4d_fixture.py <out dir>   (h5py 3.16.0, NumPy 2.5.4)
 #

@@ -54,11 +54,11 @@ mactem_harness_checkout() {  # <Package>
 
 # The files a harness build reads: the manifest, the pins, TEMCore's sources and the harnesses' own (with the unit tests' HDF5 binding).
 _mactem_harness_sync_mirror() {  # <mirror>
-  mkdir -p "$1/macTEMTests" "$1/tools"
+  mkdir -p "$1/EMStudioTests" "$1/tools"
   rsync -a "$ROOT/Package.swift" "$ROOT/Package.resolved" "$1/"
   rsync -a --delete "$ROOT/Sources/" "$1/Sources/"
   rsync -a --delete "$ROOT/tools/parity/" "$1/tools/parity/"
-  rsync -a "$ROOT/macTEMTests/TestHDF5Binding.swift" "$1/macTEMTests/"
+  rsync -a "$ROOT/EMStudioTests/TestHDF5Binding.swift" "$1/EMStudioTests/"
 }
 
 mactem_harness_mutant() {  # <Product> <output> <file, relative to the repo> <edited copy>

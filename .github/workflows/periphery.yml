@@ -1,5 +1,5 @@
 # Unused-code scan (Periphery). The suite template, adapted for an app: Periphery builds the Xcode project's
-# macTEM scheme itself (the app, its package layers and its tests), so the app target is scanned too, not only Package.swift.
+# EMStudio scheme itself (the app, its package layers and its tests), so the app target is scanned too, not only Package.swift.
 # No --retain-public: an app has no outside consumers.
 # Weekly: keeps one open issue, "Periphery weekly scan", up to date with the findings. Findings are for triage; nothing is
 # deleted here.
@@ -9,7 +9,7 @@
 # their files, so the job also lists every new finding with its file, line and column: as a table in the job summary
 # (capped at 400 rows), as plain lines in the log of the step "List every new finding", and in the raw scan output,
 # uploaded as the artifact periphery-findings-<run>. Delete the code or, for a false positive, write the baseline again in the same PR:
-#   periphery scan --project macTEM.xcodeproj --schemes macTEM --retain-codable-properties \
+#   periphery scan --project EMStudio.xcodeproj --schemes EMStudio --retain-codable-properties \
 #     --write-baseline .periphery-baseline.json -- CODE_SIGNING_ALLOWED=NO
 # Without a Mac: run this workflow by hand on the PR's branch with `write_baseline` ticked, from the Actions page or with
 #   gh workflow run periphery.yml --ref <branch> -f write_baseline=true
@@ -57,7 +57,7 @@ jobs:
         run: brew install periphery && periphery version
       - name: Build and scan the Xcode project
         run: |
-          periphery scan --project macTEM.xcodeproj --schemes macTEM --format csv --relative-results \
+          periphery scan --project EMStudio.xcodeproj --schemes EMStudio --format csv --relative-results \
             -- CODE_SIGNING_ALLOWED=NO > periphery.csv
           echo "count=$(( $(wc -l < periphery.csv) - 1 ))" >> "$GITHUB_ENV"
       - name: Update the issue
@@ -95,7 +95,7 @@ jobs:
         run: brew install periphery && periphery version
       - name: Build and scan against the baseline
         run: |
-          periphery scan --project macTEM.xcodeproj --schemes macTEM --retain-codable-properties \
+          periphery scan --project EMStudio.xcodeproj --schemes EMStudio --retain-codable-properties \
             --baseline .periphery-baseline.json --format github-actions --relative-results \
             -- CODE_SIGNING_ALLOWED=NO | tee periphery.txt
           count=$(grep -c '^::warning' periphery.txt || true)
@@ -238,7 +238,7 @@ jobs:
         run: brew install periphery && periphery version
       - name: Build, scan and write the baseline
         run: |
-          periphery scan --project macTEM.xcodeproj --schemes macTEM --retain-codable-properties \
+          periphery scan --project EMStudio.xcodeproj --schemes EMStudio --retain-codable-properties \
             --write-baseline .periphery-baseline.json --relative-results \
             -- CODE_SIGNING_ALLOWED=NO
           # How the written file differs from the committed one, for the log; the count is for the summary and never fails the step.

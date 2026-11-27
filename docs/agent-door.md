@@ -121,7 +121,7 @@ The EDS tools are EMSuiteUI's `EDXAgentTools`, written once and registered by bo
 
 ## Coverage
 
-`macTEM/App/AgentDoorCoverage.swift` lists every control in the app, by its accessibility identifier, with how an agent
+`EMStudio/App/AgentDoorCoverage.swift` lists every control in the app, by its accessibility identifier, with how an agent
 reaches it: the tool that does it, already seen in a get tool's answer, left to the person on purpose (with the reason), or a
 gap with its open issue. `AgentDoorCoverageTests` fails when a control has no row, a row names a tool the door does not have,
 or a row outlives its control, so a new control cannot ship undecided. The menu bar has its own table beside it, `menuItems`: every item of the File, View, Image, Workspace and Help menus by its title as the source writes it, held by the same test. Every tool that acts is in the table above, and the test fails when one is not. A feature that adds a room action adds its row in the same PR, and the release walk reads the gaps. The release walk reads the gaps left in the table, each with its open issue. A room's open panel is the
@@ -133,7 +133,7 @@ a tab, and none needs to, because `get_diffraction` (the readout), `get_spot_tab
 
 ## Code
 
-`macTEM/App/`: `AgentDoorTools.swift` (the door and the tools that look), `AgentDoorRooms.swift` (the tools that act),
+`EMStudio/App/`: `AgentDoorTools.swift` (the door and the tools that look), `AgentDoorRooms.swift` (the tools that act),
 `AgentDoorPatterns.swift` (the toolbar verb and the Patterns room), `AgentDoorIndexing.swift` (the Indexing room), `AgentDoorMaps.swift` (the Maps room), `AgentDoorEELS.swift` (the EELS room), `AgentDoorImage.swift` (the Image room), `AgentDoorFFT.swift` (the FFT room), `AgentDoorDiffraction.swift` (the Diffraction room), `AgentDoorIndex.swift` (Index, the Spots table and the simulated spots), `AgentDoorPhases.swift` (the phase library), `AgentDoorSession.swift` (the SEM session),
 `AgentDoorGuide.swift` (the workflow guide) and `AgentDoorCoverage.swift`. Settings > Agents is `AgentSettingsView` on
 EMSuiteUI's `AgentDoorSettingsSection`.

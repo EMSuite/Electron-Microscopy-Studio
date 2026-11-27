@@ -10,7 +10,7 @@
 //        One deliberate difference (decision in docs/decisions.md, row in docs/parity.md): an ECP file's Lambert dataset of rank 4
 //        is read as (numset, energy, y, x) like the EBSD and TKD ones; kikuchipy applies the energy pick to its first axis there
 //        and returns an empty array, so for that case the parity covers the whole-energy reading only.
-//        Parity: macTEMTests/MasterPatternParityTests.swift against tools/parity/sem/references/m6/read-master-pattern-*.
+//        Parity: EMStudioTests/MasterPatternParityTests.swift against tools/parity/sem/references/m6/read-master-pattern-*.
 //
 
 import Foundation

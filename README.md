@@ -157,7 +157,7 @@ that made it.
 
 ## Building it yourself
 
-You need Xcode 27 or Xcode 26.6 on an Apple silicon Mac with macOS 26 or later. Open `macTEM.xcodeproj`, pick the `macTEM` scheme and press ⌘R. The first build fetches the kits at
+You need Xcode 27 or Xcode 26.6 on an Apple silicon Mac with macOS 26 or later. Open `EMStudio.xcodeproj`, pick the `EMStudio` scheme and press ⌘R. The first build fetches the kits at
 the versions in `Package.resolved`. The tests run with `tools/run-tests.sh unit`. How the code is organised is in
 [`docs/architecture.md`](docs/architecture.md).
 

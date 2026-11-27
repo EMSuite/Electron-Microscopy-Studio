@@ -8,7 +8,7 @@
 //        file: the app target's shader library stays the shell's). Same ports and licences as MasterPatternProjection.swift.
 //        A dictionary projected chunk by chunk goes through one `Projector`: the master pattern and the cosines uploaded once, the
 //        buffers made once, and a size the kernel's 32-bit indices cannot address refused as `tooLarge` (#624).
-//        Checked against the float64 CPU path in macTEMTests/MasterPatternParityTests.swift within `tolerance` (decision in
+//        Checked against the float64 CPU path in EMStudioTests/MasterPatternParityTests.swift within `tolerance` (decision in
 //        docs/decisions.md: float32 Lambert coordinates on a 401 px master pattern move an interpolation weight by ~1e-5).
 //
 

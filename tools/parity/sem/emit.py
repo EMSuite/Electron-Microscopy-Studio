@@ -1270,7 +1270,7 @@ FFT_LOW = {"cutoff": 22, "cutoff_width": 10}
 FFT_HIGH = {"cutoff": 3, "cutoff_width": 2}
 FFT_ASYM = np.array([[0.0, 1.0, 2.0, 3.0], [4.0, 5.0, 6.0, 7.0], [-1.0, -2.0, 0.5, 1.5]])
 # Values before the cast: within 1e-5 relative or 1e-3 grey levels of kikuchipy's (its FFT runs in float32). Cast
-# patterns: within one grey level (kikuchipy truncates float32/fastmath values), the fraction bound in macTEMTests.
+# patterns: within one grey level (kikuchipy truncates float32/fastmath values), the fraction bound in EMStudioTests.
 FILTER_VALUES = {"rtol": 1e-5, "atol": 1e-3}
 WINDOW = {"rtol": 1e-12, "atol": 1e-15}
 

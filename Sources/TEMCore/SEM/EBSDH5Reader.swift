@@ -5,7 +5,7 @@
 //        `read` is a port of the matching `scan2dict` in `kikuchipy/io/plugins/<layout>/_api.py` (GPL-3.0-or-later): the same
 //        header keys, the same defaults, the same projection-centre conversion to the Bruker convention, the same refusals (hex
 //        grids, non-rectangular regions). The patterns themselves stay in the file and are read by map position (`EBSDPatternReader`).
-//        Parity: macTEMTests/EBSDH5ReaderTests.swift against ebsd-h5ebsd.truth.json (tools/parity/sem-readers/make_h5ebsd_fixtures.py).
+//        Parity: EMStudioTests/EBSDH5ReaderTests.swift against ebsd-h5ebsd.truth.json (tools/parity/sem-readers/make_h5ebsd_fixtures.py).
 //        `content` says which room a file is for: the patterns for the Patterns room; a map without patterns (AZtec's H5OINA map
 //        export, #513; orix's own HDF5 file; a Bruker or EDAX file saved without patterns; EMsoft's dictionary indexing file, #514)
 //        for the Maps room, read by `readMap`; a file of a known maker that holds neither (an EDS-only H5OINA) refused in a sentence.

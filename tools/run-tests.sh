@@ -2,7 +2,7 @@
 # Adapted from mac4DSTEM (tools/run-tests.sh).
 # tools/run-tests.sh — the one entry point to macTEM's gates.
 #
-#   unit        the XCTest suite (macTEMTests), unsigned, in a scratch DerivedData; then the executed tests are
+#   unit        the XCTest suite (EMStudioTests), unsigned, in a scratch DerivedData; then the executed tests are
 #               reconciled BY NAME (Class.method, from the result bundle) against the `func test…()` declarations,
 #               and any difference fails (a stale bundle, a renamed test or one in the wrong class passes a count);
 #               each skipped test is named with its XCTSkip's reason, and one that tools/unit-skips.allow does not list
@@ -17,12 +17,12 @@
 #               the Release configuration built the way the release scripts archive it, signed ad hoc, then the app
 #               checked (release_build below): nightly in CI, so a Release-only failure shows before a tag
 #   ui [Journey ...]
-#               the UI journeys (macTEMUITests) on this Mac's screen: the real app, signed, one screenshot per step
+#               the UI journeys (EMStudioUITests) on this Mac's screen: the real app, signed, one screenshot per step
 #   real-files  the real-file sweep (RealFileSweepTests) on the owner's data folder ($MACEM_DATA, else ../data): every file macEM
 #               claims, opened one at a time, lands in a room or is refused in plain words. Never on a runner. Writes
 #               $TMPDIR/macem-real-files.tsv and $TMPDIR/macem-real-files-summary.txt (no file names in the summary).
 #               MACTEM_SWEEP_FOLDERS="sem,ebsd" narrows it; MACTEM_SWEEP_SECONDS is the wait per file (180)
-#   ui-build    the UI journeys compiled and not run (`build-for-testing` of the macTEMUI scheme, unsigned): needs no
+#   ui-build    the UI journeys compiled and not run (`build-for-testing` of the EMStudioUI scheme, unsigned): needs no
 #               screen, so CI runs it on a pull request that touches the journeys or the project
 #
 # Read the exit code from the script itself, never through a pipe: redirect to a log, `echo $?` on its own line.
@@ -35,7 +35,7 @@ resolve_mactem_developer_dir
 . "$ROOT/tools/lib/run-harnesses.sh"
 # skipped_tests_from_json, and unlisted_skips / listed_not_skipped <allow file>: the skips, held to tools/unit-skips.allow.
 . "$ROOT/tools/lib/unit-skips.sh"
-# app_warnings <root> <log>: the compiler warnings in macTEM/ and macTEMTests/, listed and counted; exit 1 when there is one.
+# app_warnings <root> <log>: the compiler warnings in EMStudio/ and EMStudioTests/, listed and counted; exit 1 when there is one.
 . "$ROOT/tools/lib/app-warnings.sh"
 # kit_bounds <Package.swift> <Package.resolved> <pbxproj> <workspace Package.resolved>: each lower bound is the resolved version.
 . "$ROOT/tools/lib/kit-bounds.sh"
@@ -50,7 +50,7 @@ diagnostic=()                    # never gated
 owner_only=(size-table)          # the owner's own runs
 retired=()                       # kept for history, not run
 support=(crystal-structures sem-readers picture-parity cbed-tilt)     # not harnesses
-references=(sem)                 # emits committed reference bundles (Python, Linux CI: .github/workflows/sem-parity.yml); macTEMTests compares
+references=(sem)                 # emits committed reference bundles (Python, Linux CI: .github/workflows/sem-parity.yml); EMStudioTests compares
 
 # A near-full disk fakes code regressions (mac4DSTEM, 2026-08-06: three runs, three different spurious failure
 # sets). 4 GB is mac4DSTEM's floor for the same lanes: 3.2x its measured unit-suite peak (1245 MB).
@@ -92,7 +92,7 @@ executed_tests_from_json() {
          .testNodes[] | cases("?")' | sed -E 's#\(\)$##; s#/#.#'
 }
 
-# The tests macTEMTests declares, as Class.method: each `func test…()` (no parameters: XCTest runs no other) under
+# The tests EMStudioTests declares, as Class.method: each `func test…()` (no parameters: XCTest runs no other) under
 # the top-level type declared before it in its file. A helper type or a top-level func named test… is attributed
 # to the wrong name on purpose: it then fails the reconciliation instead of being counted. A name is everything up to
 # its parenthesis, not [[:alnum:]_]: awk matches bytes, and a letter such as Å is two (testÅngström ran but was not
@@ -126,7 +126,7 @@ reconcile_test_names() {  # <xcresult> <tests dir>
            | sed -nE 's/^< (.*)/  declared, did not run: \1/p; s/^> (.*)/  ran, not declared:     \1/p')"
   if [[ -n "$diffs" ]]; then
     print -r -- "$diffs"
-    echo "unit: the tests that ran differ by name from the func test…() declarations in macTEMTests"
+    echo "unit: the tests that ran differ by name from the func test…() declarations in EMStudioTests"
     return 1
   fi
   n=${#${(f)executed}}
@@ -153,13 +153,13 @@ unit_tests() (
   # slower (mac4DSTEM ADR 067; here the EDX session tests went from 38 s to 1.9 s for one fit).
   # MACTEM_ONLY_TESTING="ClassA ClassB" runs only those test classes (a mutation loop on a warm DerivedData); the by-name
   # reconciliation below is then skipped and the run is not a landing gate.
-  local -a only=(-only-testing:macTEMTests)
-  if [[ -n "${MACTEM_ONLY_TESTING:-}" ]]; then only=(); local cls; for cls in ${=MACTEM_ONLY_TESTING}; do only+=("-only-testing:macTEMTests/$cls"); done; fi
+  local -a only=(-only-testing:EMStudioTests)
+  if [[ -n "${MACTEM_ONLY_TESTING:-}" ]]; then only=(); local cls; for cls in ${=MACTEM_ONLY_TESTING}; do only+=("-only-testing:EMStudioTests/$cls"); done; fi
   # `-testLanguage en -testRegion US`: the unit tests spell numbers with a decimal point; display strings follow the Mac's locale
   # (ShellLayout's glance, ShellControls' scale bar), and locale-specific cases pass their own Locale.
   # CODE_SIGNING_ALLOWED=NO is for this unsigned XCTest path only; never add it to a build you intend to launch.
   LLVM_PROFILE_FILE="$work/default-%p.profraw" \
-    xcodebuild test -project "$ROOT/macTEM.xcodeproj" -scheme macTEM \
+    xcodebuild test -project "$ROOT/EMStudio.xcodeproj" -scheme EMStudio \
       -configuration Debug -destination 'platform=macOS' \
       -derivedDataPath "${MACTEM_DERIVED_DATA:-$work/DerivedData}" -resultBundlePath "$work/unit.xcresult" \
       "${only[@]}" "${par[@]}" -testLanguage en -testRegion US \
@@ -173,7 +173,7 @@ unit_tests() (
   # A compiler crash prints no `error:` either: its signal and stack dump are the reason.
   grep -E -A8 "Stack dump|PLEASE submit|Segmentation fault|Assertion failed|terminated due to signal|Illegal instruction" "$work/unit.log" | head -40 || true
   echo "unit: xcodebuild exit $rc"
-  # The app's own compiler warnings (tools/lib/app-warnings.sh): each distinct one under macTEM/ or macTEMTests/, then the count.
+  # The app's own compiler warnings (tools/lib/app-warnings.sh): each distinct one under EMStudio/ or EMStudioTests/, then the count.
   # Listed here, failed at the end, so a red test or a refused skip is named first. 0 since #438's run on 10 Nov 2026 (#335).
   local appwarnings=0
   app_warnings "$ROOT" "$work/unit.log" || appwarnings=$?
@@ -216,7 +216,7 @@ unit_tests() (
     fi
     return $(( failed == 0 ? 0 : 1 ))
   fi
-  if ! reconcile_test_names "$work/unit.xcresult" "$ROOT/macTEMTests"; then
+  if ! reconcile_test_names "$work/unit.xcresult" "$ROOT/EMStudioTests"; then
     return $(( rc == 0 ? 1 : rc ))
   fi
   (( rc == 0 )) || return $rc
@@ -256,7 +256,7 @@ unit_tests() (
   echo "unit: $passed tests passed, $skipped skipped as tools/unit-skips.allow allows, every declared test ran by name, 0 app warnings"
 )
 
-# The UI journeys (macTEMUITests, scheme macTEMUI): the real app, signed, walked as a user would, one screenshot per step. Never part of
+# The UI journeys (EMStudioUITests, scheme EMStudioUI): the real app, signed, walked as a user would, one screenshot per step. Never part of
 # `unit`: `tools/run-tests.sh ui [Journey ...]` runs all of them or the named ones. First run: macOS asks to allow Accessibility for Xcode Helper.
 ui_tests() (
   . "$ROOT/tools/lib/gate-dir.sh"
@@ -264,15 +264,15 @@ ui_tests() (
   gate="$(mactem_gate_dir "$ROOT")"; mkdir -p "$gate"
   result="$gate/ui.xcresult"; rm -rf "$result"
   local -a only
-  if (( $# > 0 )); then for journeys in "$@"; do only+=("-only-testing:macTEMUITests/$journeys"); done; else only=(-only-testing:macTEMUITests -skip-testing:macTEMUITests/PerformanceJourney); fi
+  if (( $# > 0 )); then for journeys in "$@"; do only+=("-only-testing:EMStudioUITests/$journeys"); done; else only=(-only-testing:EMStudioUITests -skip-testing:EMStudioUITests/PerformanceJourney); fi
   # Signed (automatic), unlike the unit gate: the app is launched. Packages still need -O or the demo takes 20 times longer.
   # The runner lives at ONE fixed path, whatever the tree (repo, worktree, scratch mirror) and whatever $TMPDIR: macOS grants Screen Recording
-  # (and Accessibility) to macTEMUITests-Runner.app by where it is, so a runner that moves asks again. The suite's place for both apps' runners is
+  # (and Accessibility) to EMStudioUITests-Runner.app by where it is, so a runner that moves asks again. The suite's place for both apps' runners is
   # ~/Library/Caches/macEM-ui-tests/<app> (mac4DSTEM's lane uses the same root); MACEM_UI_DERIVED_DATA overrides the folder for this app.
   local dd="${MACEM_UI_DERIVED_DATA:-$HOME/Library/Caches/macEM-ui-tests/macTEM}"
-  echo "ui: runner in $dd/Build/Products/Debug/macTEMUITests-Runner.app (grant Screen Recording to it once)"
+  echo "ui: runner in $dd/Build/Products/Debug/EMStudioUITests-Runner.app (grant Screen Recording to it once)"
   # One UI run at a time on the one screen: macTEM and mac4DSTEM share this lock file, so their runs queue instead of fighting for the window.
-  lockf -k -t 1200 "${TMPDIR:-/tmp}/macem-ui-tests.lock" xcodebuild test -project "$ROOT/macTEM.xcodeproj" -scheme macTEMUI -configuration Debug -destination 'platform=macOS' \
+  lockf -k -t 1200 "${TMPDIR:-/tmp}/macem-ui-tests.lock" xcodebuild test -project "$ROOT/EMStudio.xcodeproj" -scheme EMStudioUI -configuration Debug -destination 'platform=macOS' \
     -derivedDataPath "$dd" -resultBundlePath "$result" "${only[@]}" SWIFT_OPTIMIZATION_LEVEL=-O > "$gate/ui.log" 2>&1 && rc=0 || rc=$?
   grep -E "error:|TEST (SUCCEEDED|FAILED)" "$gate/ui.log" | tail -20 || true
   echo "ui: xcodebuild exit $rc"
@@ -290,8 +290,8 @@ ui_tests() (
   return $(( rc == 0 && failed == 0 && total > 0 ? 0 : 1 ))
 )
 
-# The UI journeys compiled and not run: `build-for-testing` of the macTEMUI scheme, which builds the app and macTEMUITests. The journeys
-# import only XCTest, `unit` builds macTEMTests alone and `ui` needs the Mac's screen, so no gate a pull request waits on compiled them:
+# The UI journeys compiled and not run: `build-for-testing` of the EMStudioUI scheme, which builds the app and EMStudioUITests. The journeys
+# import only XCTest, `unit` builds EMStudioTests alone and `ui` needs the Mac's screen, so no gate a pull request waits on compiled them:
 # a journey edit with a type error merged green and first failed in the next UI run. Unsigned like `unit` (CODE_SIGNING_ALLOWED=NO, for
 # a build that is never launched) and from a scratch DerivedData; SWIFT_OPTIMIZATION_LEVEL=-O as `ui` passes it, so this compiles what
 # `ui` runs. xcodebuild's exit status is the verdict; the test bundle must also be there, because a scheme that lost its testable
@@ -301,7 +301,7 @@ ui_build() (
   work="$(mktemp -d "${TMPDIR:-/tmp}/mactem-ui-build.XXXXXX")"
   trap 'rm -rf "$work"' EXIT
   # -IDEBuildingContinueBuildingAfterErrors=YES (an Xcode user default, as xcodebuild takes them): one run names every file that fails, not the first batch's errors alone.
-  xcodebuild build-for-testing -project "$ROOT/macTEM.xcodeproj" -scheme macTEMUI -configuration Debug -destination 'platform=macOS' \
+  xcodebuild build-for-testing -project "$ROOT/EMStudio.xcodeproj" -scheme EMStudioUI -configuration Debug -destination 'platform=macOS' \
     -IDEBuildingContinueBuildingAfterErrors=YES \
     -derivedDataPath "$work/DerivedData" SWIFT_OPTIMIZATION_LEVEL=-O CODE_SIGNING_ALLOWED=NO > "$work/ui-build.log" 2>&1 && rc=0 || rc=$?
   grep -E "error:|: error" "$work/ui-build.log" | sort -u | head -200 || true
@@ -311,11 +311,11 @@ ui_build() (
   grep -E -A8 "Stack dump|PLEASE submit|Segmentation fault|Assertion failed|terminated due to signal|Illegal instruction" "$work/ui-build.log" | head -40 || true
   echo "ui-build: xcodebuild exit $rc"
   (( rc == 0 )) || return $rc
-  local -a bundles=("$work"/DerivedData/Build/Products/**/macTEMUITests.xctest(N/))
+  local -a bundles=("$work"/DerivedData/Build/Products/**/EMStudioUITests.xctest(N/))
   if (( ${#bundles} == 0 )); then
-    echo "ui-build: the build wrote no macTEMUITests.xctest: the macTEMUI scheme no longer builds the journeys"; return 1
+    echo "ui-build: the build wrote no EMStudioUITests.xctest: the EMStudioUI scheme no longer builds the journeys"; return 1
   fi
-  echo "ui-build: the app and the UI journeys (macTEMUITests) compiled; nothing was launched and no journey ran"
+  echo "ui-build: the app and the UI journeys (EMStudioUITests) compiled; nothing was launched and no journey ran"
 )
 
 # From a fresh scratch path every run: an incremental build compiles nothing and so prints none of the warnings it
@@ -352,7 +352,7 @@ release_build() (
   local work rc app info macho archs library document key want got version store_name failures=0
   work="$(mktemp -d "${TMPDIR:-/tmp}/mactem-release-build.XXXXXX")"
   trap 'rm -rf "$work"' EXIT
-  xcodebuild build -project "$ROOT/macTEM.xcodeproj" -scheme macTEM -configuration Release \
+  xcodebuild build -project "$ROOT/EMStudio.xcodeproj" -scheme EMStudio -configuration Release \
     -destination 'generic/platform=macOS' -derivedDataPath "$work/DerivedData" ARCHS=arm64 \
     CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= MACEM_STORE_BUILD=YES > "$work/release.log" 2>&1 && rc=0 || rc=$?
   grep -E "error:|: error|BUILD (SUCCEEDED|FAILED)" "$work/release.log" | tail -40 || true
@@ -391,10 +391,10 @@ release_build() (
   got="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$info" 2>/dev/null || true)"
   [[ -n "$want" && "$got" == "$want" ]] || { echo "  VERSION   the app says '$got', Config/Version.xcconfig '$want'"; failures=1; }
   version="$got"
-  want="$(grep -m1 'CURRENT_PROJECT_VERSION = ' "$ROOT/macTEM.xcodeproj/project.pbxproj" | sed 's/.*= \(.*\);/\1/' || true)"
+  want="$(grep -m1 'CURRENT_PROJECT_VERSION = ' "$ROOT/EMStudio.xcodeproj/project.pbxproj" | sed 's/.*= \(.*\);/\1/' || true)"
   got="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$info" 2>/dev/null || true)"
   [[ -n "$want" && "$got" == "$want" ]] || { echo "  BUILD     the app's build number is '$got', the project's '$want'"; failures=1; }
-  want="$(grep -m1 'MACOSX_DEPLOYMENT_TARGET = ' "$ROOT/macTEM.xcodeproj/project.pbxproj" | sed 's/.*= \(.*\);/\1/' || true)"
+  want="$(grep -m1 'MACOSX_DEPLOYMENT_TARGET = ' "$ROOT/EMStudio.xcodeproj/project.pbxproj" | sed 's/.*= \(.*\);/\1/' || true)"
   got="$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$info" 2>/dev/null || true)"
   [[ -n "$want" && "$got" == "$want" ]] || { echo "  FLOOR     the app asks for macOS '$got', the project's floor is '$want'"; failures=1; }
   got="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$info" 2>/dev/null || true)"
@@ -512,7 +512,7 @@ inventory() {
   # ~/GitHub/.worktrees/mac4DSTEM-v5.1.0, lost every `package` symbol of DSTEMCore).
   echo "== SWIFT_PACKAGE_NAME follows the checkout folder"
   local pkg_lines
-  pkg_lines="$(grep -E 'SWIFT_PACKAGE_NAME = ' "$ROOT/macTEM.xcodeproj/project.pbxproj" || true)"
+  pkg_lines="$(grep -E 'SWIFT_PACKAGE_NAME = ' "$ROOT/EMStudio.xcodeproj/project.pbxproj" || true)"
   if [[ -z "$pkg_lines" ]] || grep -vqF 'SWIFT_PACKAGE_NAME = "$(SRCROOT:file:lower:c99extidentifier)";' <<< "$pkg_lines"; then
     echo "  every SWIFT_PACKAGE_NAME must be \"\$(SRCROOT:file:lower:c99extidentifier)\", never a literal name"; rc=1
   fi
@@ -520,8 +520,8 @@ inventory() {
   echo "== packages: each lower bound is the version both Package.resolved files pin (tools/lib/kit-bounds.sh, #806)"
   # The kits and MacEMUI by `from:` range in Package.swift, Sparkle by up to next major in the project; the harnesses build the kits
   # through SwiftPM from Package.resolved. A package update moves the bound with the pin.
-  kit_bounds "$ROOT/Package.swift" "$ROOT/Package.resolved" "$ROOT/macTEM.xcodeproj/project.pbxproj" \
-    "$ROOT/macTEM.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved" || rc=1
+  kit_bounds "$ROOT/Package.swift" "$ROOT/Package.resolved" "$ROOT/EMStudio.xcodeproj/project.pbxproj" \
+    "$ROOT/EMStudio.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved" || rc=1
 
   # Any import form: an attribute (@preconcurrency, @_exported), an access level, an import kind (`import class`).
   local imports='^[[:space:]]*(@[[:alnum:]_]+(\([^)]*\))?[[:space:]]+)*((public|package|internal|fileprivate|private)[[:space:]]+)?import[[:space:]]+([[:alnum:]_]+[[:space:]]+)?'
@@ -532,12 +532,12 @@ inventory() {
   fi
 
   echo "== the UI contract"
-  # Every Swift file under macTEM/UI and under macTEM/App, at any depth: `**/` is zsh's recursive glob (the folder itself and every
+  # Every Swift file under EMStudio/UI and under EMStudio/App, at any depth: `**/` is zsh's recursive glob (the folder itself and every
   # folder below it), so a room's files moved into a subfolder (UI/SEM/) stay under the rules below. A list must not be empty, and
   # each grep also names /dev/null: a grep without a file reads stdin, and with one file it drops the name the exemptions match on.
-  local -a ui_sources=("$ROOT"/macTEM/UI/**/*.swift(N.))
-  local -a app_sources=("$ROOT"/macTEM/App/**/*.swift(N.))
-  (( ${#ui_sources} && ${#app_sources} )) || { echo "  NOT CHECKED  no Swift file under macTEM/UI or under macTEM/App"; rc=1; }
+  local -a ui_sources=("$ROOT"/EMStudio/UI/**/*.swift(N.))
+  local -a app_sources=("$ROOT"/EMStudio/App/**/*.swift(N.))
+  (( ${#ui_sources} && ${#app_sources} )) || { echo "  NOT CHECKED  no Swift file under EMStudio/UI or under EMStudio/App"; rc=1; }
   # SwiftUI only: no split views (HSplitView was half of a launch crash in mac4DSTEM), no AppKit in UI/. Comment lines
   # are exempt. The split ban holds in App/ too, which declares view modifiers and hosts an AppKit accessory view; the name of the
   # defaults key AppKit saves a split's geometry under (LaunchOptions clears it) is a string, not a split.
@@ -545,7 +545,7 @@ inventory() {
        | grep -vF '"NSSplitView Subview Frames"'; then
     echo "  ^ a split banned by the UI contract (docs/architecture.md)"; rc=1
   fi
-  if grep -rnE --include='*.swift' "${imports}(AppKit|Cocoa)([^[:alnum:]_]|$)" "$ROOT/macTEM/UI"; then
+  if grep -rnE --include='*.swift' "${imports}(AppKit|Cocoa)([^[:alnum:]_]|$)" "$ROOT/EMStudio/UI"; then
     echo "  ^ AppKit imported in UI (docs/architecture.md)"; rc=1
   fi
   # Rule 3: the chrome draws no bar or wash of its own; the science panes are exempt, and so is a line marked `// science` (a label
@@ -631,7 +631,7 @@ inventory() {
   # commit's full hash, so a package update that leaves NOTICE naming the old tag fails here (MacEMUI 0.5.0 after 0.5.1, 2026-11).
   echo "== linked packages (NOTICE names each pinned tag and commit)"
   local resolved loc ver rev pins=0
-  for resolved in "$ROOT/Package.resolved" "$ROOT/macTEM.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"; do
+  for resolved in "$ROOT/Package.resolved" "$ROOT/EMStudio.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"; do
     [[ -f "$resolved" ]] || { echo "  MISSING   ${resolved#$ROOT/}"; rc=1; continue; }
     while read -r loc ver rev; do
       pins=$(( pins + 1 ))
@@ -651,10 +651,10 @@ inventory() {
   local sp_info="$ROOT/Vendor/Sparkle/build-info.txt" sp_kw sp_sum sp_path sp_hashed=0 sp_file
   local -a sp_listed=()
   . "$ROOT/tools/lib/sparkle-pin.sh"
-  grep -qF 'relativePath = Vendor/Sparkle;' "$ROOT/macTEM.xcodeproj/project.pbxproj" \
+  grep -qF 'relativePath = Vendor/Sparkle;' "$ROOT/EMStudio.xcodeproj/project.pbxproj" \
     || { echo "  LINK      the Xcode project does not link the local package Vendor/Sparkle"; rc=1; }
-  for sp_file in "$ROOT/macTEM.xcodeproj/project.pbxproj" "$ROOT/Package.resolved" \
-      "$ROOT/macTEM.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"; do
+  for sp_file in "$ROOT/EMStudio.xcodeproj/project.pbxproj" "$ROOT/Package.resolved" \
+      "$ROOT/EMStudio.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"; do
     if grep -qi 'sparkle-project/Sparkle' "$sp_file"; then
       echo "  STOCK     ${sp_file#$ROOT/} names sparkle-project/Sparkle, the package without the rename"; rc=1
     fi
@@ -686,7 +686,7 @@ inventory() {
 
   echo "== bundled folder references (every file must be tracked)"
   local ref bf why
-  for ref in $(grep 'lastKnownFileType = folder' "$ROOT/macTEM.xcodeproj/project.pbxproj" | sed -nE 's/.*path = ([^;]+);.*/\1/p' | tr -d '"'); do
+  for ref in $(grep 'lastKnownFileType = folder' "$ROOT/EMStudio.xcodeproj/project.pbxproj" | sed -nE 's/.*path = ([^;]+);.*/\1/p' | tr -d '"'); do
     if [[ ! -d "$ROOT/$ref" ]]; then echo "  MISSING   $ref"; rc=1; continue; fi
     printf "  %-36s %7s files\n" "$ref" "$(find "$ROOT/$ref" -type f | wc -l | tr -d ' ')"
     for bf in $(cd "$ROOT" && find "$ref" -type f); do
@@ -697,7 +697,7 @@ inventory() {
   done
 
   # Every accessibility identifier a UI journey uses exists in the app's sources, so a renamed identifier fails here before it fails
-  # on screen. An identifier is every quoted dotted literal in macTEMUITests, whatever it is passed to (waitFor, a journey's own
+  # on screen. An identifier is every quoted dotted literal in EMStudioUITests, whatever it is passed to (waitFor, a journey's own
   # waitWords, label or segment, a subscript, waitGone, isAbsent), as mac4DSTEM's check reads them: the three call forms this once
   # read left every other call's identifiers unchecked. The pattern also takes the bundle identifier and PerformanceJourney's
   # signpost names, which the sources hold as literals, so a renamed signpost fails here as well; a file name a journey reads in the
@@ -714,14 +714,14 @@ inventory() {
     shared="${found[1]:-}"
     [[ -n "$shared" ]] || echo "  (no EMSuiteUI checkout beside this repo: the shell's identifiers are not checked here)"
   fi
-  local -a where=("$ROOT/macTEM" "$ROOT/Sources"); [[ -n "$shared" ]] && where+=("$shared")
+  local -a where=("$ROOT/EMStudio" "$ROOT/Sources"); [[ -n "$shared" ]] && where+=("$shared")
   # A dynamic identifier is declared with an interpolation, and resolves by the literal text around it, inside the
   # accessibilityIdentifier call: "edx.composition.Mg" by `"edx.composition.\(…)"`, where the interpolation ends the string, and
   # "edx.composition.Mg.wt" by `"edx.composition.\(…).wt"`, where the identifier's own last part follows it. A bare prefix anywhere
   # in the sources is not enough: "indexing.\(…)", a session ledger row's id, passed every indexing.x.y, and
   # "maps.\(…).\(…)" every maps.x. `interpolation` is `.\(…)` as an ERE: a dot, then an interpolation with no string inside it.
   local ids=0 interpolation='\.\\\([^"]*\)'
-  for id in $(grep -rhoE '"[a-z][A-Za-z]*\.[A-Za-z][A-Za-z0-9.]*"' "$ROOT/macTEMUITests" 2>/dev/null | tr -d '"' | sort -u); do
+  for id in $(grep -rhoE '"[a-z][A-Za-z]*\.[A-Za-z][A-Za-z0-9.]*"' "$ROOT/EMStudioUITests" 2>/dev/null | tr -d '"' | sort -u); do
     if [[ "$id" == *.csv ]]; then continue; fi   # an exported file's name, read in the status line
     ids=$(( ids + 1 ))
     # The shell's chrome (status bar, rooms, the verb, Output) is MacEMUI's: its identifiers are declared there.
@@ -733,7 +733,7 @@ inventory() {
     echo "  MISSING   identifier $id is used by a UI journey and no source declares it"; rc=1
   done
   # No identifier read is a check that did not run (the journeys moved, or the pattern no longer fits them), not a pass.
-  if (( ids == 0 )); then echo "  NOT CHECKED  no identifier read from macTEMUITests"; rc=1; else echo "  $ids identifiers checked"; fi
+  if (( ids == 0 )); then echo "  NOT CHECKED  no identifier read from EMStudioUITests"; rc=1; else echo "  $ids identifiers checked"; fi
 
   # mac4DSTEM's check of its live docs: a doc that says work is held uncommitted is stale once the tree is clean. Status claims
   # only ("held uncommitted", "still uncommitted"), and only positive ones: "nothing is uncommitted" is true on a clean tree. On a

@@ -1,4 +1,4 @@
-# tools/parity/sem-readers/make_orix_map_fixtures.py — writes the orix HDF5 map fixtures of macTEMTests and what orix reads from them (#514).
+# tools/parity/sem-readers/make_orix_map_fixtures.py — writes the orix HDF5 map fixtures of EMStudioTests and what orix reads from them (#514).
 #
 #   python -I -B make_orix_map_fixtures.py <out dir>        (orix 0.15.0, h5py 3.16.0, NumPy 2.5.4, as pinned in tools/parity/sem)
 #

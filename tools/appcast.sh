@@ -1,7 +1,7 @@
 #!/bin/zsh
 # Writes the update feed for one download (#583, as mac4DSTEM#122): tools/appcast.sh <notarized DMG> <version> <out.xml>
 #
-# The website serves the feed at https://mac4dstem.com/appcast/macem.xml (the app's SUFeedURL, macTEM/Info-Direct.plist), so
+# The website serves the feed at https://mac4dstem.com/appcast/macem.xml (the app's SUFeedURL, EMStudio/Info-Direct.plist), so
 # the file this writes is committed to the website repo as appcast/macem.xml in the same PR that sets the download's
 # version and size. One item, the newest release: Sparkle needs only that. The DMG is signed with Sparkle's sign_update,
 # which reads the private EdDSA key from the login keychain (macOS asks once to allow it); the key never leaves the Mac.
@@ -28,7 +28,7 @@ fi
 # sign_update prints the enclosure's two attributes: sparkle:edSignature="…" length="…".
 ATTRIBUTES="$("$SIGN_UPDATE" "$DMG")"
 [[ "$ATTRIBUTES" == *'sparkle:edSignature="'*'length="'* ]] || { echo "sign_update printed no signature: $ATTRIBUTES" >&2; exit 1; }
-FLOOR="$(grep -m1 'MACOSX_DEPLOYMENT_TARGET = ' "$ROOT/macTEM.xcodeproj/project.pbxproj" | sed 's/.*= \(.*\);/\1/')"
+FLOOR="$(grep -m1 'MACOSX_DEPLOYMENT_TARGET = ' "$ROOT/EMStudio.xcodeproj/project.pbxproj" | sed 's/.*= \(.*\);/\1/')"
 
 # The release notes: this version's CHANGELOG section as plain text (headings and links reduced to their words).
 /usr/bin/python3 -I - "$ROOT/CHANGELOG.md" "$VERSION" "$FLOOR" "$ATTRIBUTES" "$FEED" <<'PY'

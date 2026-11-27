@@ -100,19 +100,19 @@ Reused as they are, named so a room PR links the existing type instead of a twin
 | Need | Reuse | Where |
 |---|---|---|
 | window shell, sidebar, inspector frame, infobar, process area, run readout | `WorkspaceColumn`, `WorkspaceSidebarFrame`, `WorkspaceRoomsSection`, `WorkspaceInspectorFrame`, `InfobarRunReadout`, `InfobarGlance`, `PanelNavigation` | MacEMUI ShellLayout |
-| the one verb | `PrimaryActionButton`, `RoomPrimaryAction`, `BusyOperation` | ShellLayout, `macTEM/UI/RoomPrimaryAction.swift` |
+| the one verb | `PrimaryActionButton`, `RoomPrimaryAction`, `BusyOperation` | ShellLayout, `EMStudio/UI/RoomPrimaryAction.swift` |
 | the picture, zoom and pan, scale bar, histogram | `MetalImageView`, `ZoomableContainer` / `ZoomPan`, `PaneFooter`, `ImageScaleBar`, `DisplayControls`, `IntensityHistogram` | ShellMetal, ShellControls, TEMCore |
 | inspector rows and sections | `InspectorSection`, `InspectorRow`, `InspectorValueRow`, `InspectorWarning`, `InspectorNote`, `InspectorScrollColumn` | ShellInspector |
 | the maps block, tiles, colour mix, regions, display popover, display filter | the EDS chassis: `EDXRoom`'s maps block, `MapRaster`, `MapColoring`, `MapAppearance`, the regions table of the Results area | ShellEDXModel, ShellSpectroscopy; `EELSRoom.swift` shows the reuse |
 | region tools and the regions list | the EDS `Tools` segmented control and regions table (`arrow · ▭ · ◯ · ⬠ · ╱`) | ShellSpectroscopy |
 | the room's compute seam | the EELS pattern: a `TEMCore/<Room>/` folder calling the kit with the room's choices, a `TEMSession` owner (`EELSSession`) with stages, `isComputing`, `progress`, `stop()` | `Sources/TEMCore/EELS`, `Sources/TEMSession` |
-| opening a file, the read off the main actor, the item list | `AppState.open(urls:)`, `ImageOpening`, `OpenItems`, `FileInventory` | `macTEM/App`, TEMCore |
-| metadata in the Info tab | `AcquisitionMetadata`, `ImageRoomAcquisition` | TEMCore, `macTEM/UI` |
-| measure, marks, particles, lineage on an image | the Image room's sections and `ImageRoomTools` | `macTEM/UI/ImageRoom*.swift` |
-| exports | `EELSExportKind` pattern, `ResultsCSV`, `FFTExport`, `EDXFigureContent` for a figure of tiles | `macTEM/App/EELSRoomWords.swift`, TEMCore, ShellEDXModel |
-| demo data | `DemoDocument` and `DemoDocuments` (Help › Open Demo Data, `--demo-<name>` launch options, the same path for the menu and the journeys) | `macTEM/App/DemoData.swift`, TEMSession |
+| opening a file, the read off the main actor, the item list | `AppState.open(urls:)`, `ImageOpening`, `OpenItems`, `FileInventory` | `EMStudio/App`, TEMCore |
+| metadata in the Info tab | `AcquisitionMetadata`, `ImageRoomAcquisition` | TEMCore, `EMStudio/UI` |
+| measure, marks, particles, lineage on an image | the Image room's sections and `ImageRoomTools` | `EMStudio/UI/ImageRoom*.swift` |
+| exports | `EELSExportKind` pattern, `ResultsCSV`, `FFTExport`, `EDXFigureContent` for a figure of tiles | `EMStudio/App/EELSRoomWords.swift`, TEMCore, ShellEDXModel |
+| demo data | `DemoDocument` and `DemoDocuments` (Help › Open Demo Data, `--demo-<name>` launch options, the same path for the menu and the journeys) | `EMStudio/App/DemoData.swift`, TEMSession |
 | the periodic table and the EDS pipeline | the shared EDS room (`ShellEDXModel`, `ShellSpectroscopy`), SpectroKit | MacEMUI, SpectroKit |
-| journeys and screenshots | `Journey` (launch with demo arguments, `step` attaches a screenshot, waits never sleep, identifiers never labels), `tools/lib/ui-screenshots.sh` | `macTEMUITests/Support` |
+| journeys and screenshots | `Journey` (launch with demo arguments, `step` attaches a screenshot, waits never sleep, identifiers never labels), `tools/lib/ui-screenshots.sh` | `EMStudioUITests/Support` |
 
 New in the program, built once and shared by the three rooms (all in the macTEM repo; the kits, MacEMUI and
 mac4DSTEM are untouched, Paul's rule):
@@ -123,9 +123,9 @@ mac4DSTEM are untouched, Paul's rule):
   against `tools/parity` references (kikuchipy, pyEBSDindex, orix) at the tolerance stated in `docs/parity.md`.
 - `TEMSession/EBSDSession`: the window's EBSD owner: the dataset, the processing stages with their state (current ·
   stale · refused), the indexing result, the maps, the grains, regions, the picked scan position.
-- `macTEM/UI/ScanMapPane`, `LivePatternPane`, `ScanNavigator` (the thumbnail with the marker, drawn beside a pane that
+- `EMStudio/UI/ScanMapPane`, `LivePatternPane`, `ScanNavigator` (the thumbnail with the marker, drawn beside a pane that
   is not a map of scan positions, as mac4DSTEM's `ScanNavigatorPlacement`), `PoleFigurePane`, `GrainTable`.
-- `macTEM/UI/OrientationColorKey`: the IPF colour key legend as a view, the one legend for maps, tables and exports.
+- `EMStudio/UI/OrientationColorKey`: the IPF colour key legend as a view, the one legend for maps, tables and exports.
 
 ## Demo data
 
@@ -183,7 +183,7 @@ parity thread; figure numbers NS-n are its). A room is done when
 
 ## XCUITest journeys
 
-Every room ships with journeys in `macTEMUITests/<Room>Journey.swift`, on the demo data, in the `Journey` pattern:
+Every room ships with journeys in `EMStudioUITests/<Room>Journey.swift`, on the demo data, in the `Journey` pattern:
 launch with the demo argument, enter the room by its sidebar identifier (`workspace.patterns`), wait on identifiers,
 attach a screenshot per step. Identifiers follow the existing scheme: `<room>.room`, `<room>.map`, `<room>.pattern`,
 `<room>.results`, `settings.<room>` for the inspector scope, `status.bar` for the readout. Each doc lists its journeys.

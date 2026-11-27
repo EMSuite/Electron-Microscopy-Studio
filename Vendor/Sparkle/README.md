@@ -6,7 +6,7 @@ an update in place, so a copy updated from an old release keeps the old file nam
 
 Sparkle has a build setting for this, `SPARKLE_NORMALIZE_INSTALLED_APPLICATION_NAME` (`Configurations/ConfigCommon.xcconfig`,
 0 upstream). Built with 1, its installer moves the updated app to `<SUBundleName>.app`; the app's `SUBundleName` is
-"Electron Microscopy Studio" (`macTEM/Info-Direct.plist`). The installer that runs an update is the installed app's own, so the
+"Electron Microscopy Studio" (`EMStudio/Info-Direct.plist`). The installer that runs an update is the installed app's own, so the
 first release that carries this build renames nothing; every update after it renames the file. The bundle identifier, the
 feed and the user's settings stay as they are.
 

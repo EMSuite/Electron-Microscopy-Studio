@@ -3,7 +3,7 @@
 
 Reads the in-package NORDIF folder of kikuchipy (`kikuchipy/data/nordif`: Pattern.dat, Setting.txt, the three bad
 settings files, the background and calibration .bmp patterns) with `kikuchipy.load` exactly as a user would, and writes
-`reference.json` beside the copied files in macTEMTests/Fixtures/sem/nordif/. NORDIFReaderTests compares the Swift
+`reference.json` beside the copied files in EMStudioTests/Fixtures/sem/nordif/. NORDIFReaderTests compares the Swift
 reader with it: settings exact, patterns bit-exact (SHA-256 of the uint8 block in map order plus corner samples),
 calibration positions exact, the refused files with the sentence stated here.
 
@@ -27,7 +27,7 @@ import kikuchipy as kp
 import numpy as np
 
 ROOT = Path(__file__).resolve().parents[4]
-FIXTURES = ROOT / "macTEMTests" / "Fixtures" / "sem" / "nordif"
+FIXTURES = ROOT / "EMStudioTests" / "Fixtures" / "sem" / "nordif"
 SOURCE = Path(kp.__file__).resolve().parent / "data" / "nordif"
 FILES = [
     "Pattern.dat",

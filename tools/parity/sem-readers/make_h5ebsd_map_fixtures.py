@@ -1,4 +1,4 @@
-# tools/parity/sem-readers/make_h5ebsd_map_fixtures.py — writes the Bruker, EDAX and EMsoft HDF5 map fixtures of macTEMTests and what
+# tools/parity/sem-readers/make_h5ebsd_map_fixtures.py — writes the Bruker, EDAX and EMsoft HDF5 map fixtures of EMStudioTests and what
 # the references read from them (#514).
 #
 #   python -I -B make_h5ebsd_map_fixtures.py <out dir>        (orix 0.15.0, h5py 3.16.0, NumPy 2.5.4, as pinned in tools/parity/sem)
