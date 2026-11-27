@@ -5,4 +5,3 @@
 - HRTEM: a slab from a phase, an image with live defocus and thickness, beside the measured one.
 - CBED with a thickness series, STEM images with detector bands, atom models from XYZ and POSCAR files, thickness from a two-beam CBED disc, and strain maps from a lattice image.
 - Export Figure… writes vector figures; HyperSpy files, CIF and a methods record go out too.
-- Results change: the EDS energy axis is refined from 0.6 keV up, so strong C, N or O lines no longer tilt it.
