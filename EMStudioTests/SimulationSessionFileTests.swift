@@ -144,4 +144,30 @@ nonisolated final class SimulationSessionFileTests: XCTestCase {
         file.cameraLengthMM = 500
         XCTAssertEqual(try SimulationSessionFile.read(try file.encoded(), name: "fine.emsim"), file)
     }
+
+    /// #1054: the hkl labels mode comes back as saved (All no longer reopens on Strongest), `showsLabels` still says whether any
+    /// label is drawn for older readers, and a file from before the field reads as `showsLabels` says. Mutation: the mode not
+    /// written, or an old file read as All - red.
+    @MainActor func testTheHKLLabelModeComesBack() throws {
+        for mode in HKLLabelMode.allCases {
+            let file = SimulationSessionFile(phase: nil, beamKV: 200, cameraLengthMM: 500, kMax: 3, zoneAxis: SIMD3(0, 0, 1), turnDegrees: 0,
+                                             orientation: nil, showsLabels: true, labelMode: mode, doubleDiffraction: false, excitationError: 0.02)
+            let read = try SimulationSessionFile.read(try file.encoded(), name: "\(mode).emsim")
+            XCTAssertEqual(read.hklLabelMode, mode)
+            XCTAssertEqual(read.showsLabels, mode != .off, "older readers see whether labels are drawn")
+            let analysis = DiffractionAnalysis()
+            read.apply(to: analysis)
+            XCTAssertEqual(analysis.simulation.labelMode, mode)
+            XCTAssertEqual(SimulationSessionFile(analysis: analysis).labelMode, mode.rawValue)
+        }
+        for (shows, mode) in [(true, HKLLabelMode.strongest), (false, .off)] {
+            let file = SimulationSessionFile(phase: nil, beamKV: 200, cameraLengthMM: 500, kMax: 3, zoneAxis: SIMD3(0, 0, 1), turnDegrees: 0,
+                                             orientation: nil, showsLabels: shows, doubleDiffraction: false, excitationError: 0.02)
+            var json = try XCTUnwrap(try JSONSerialization.jsonObject(with: try file.encoded()) as? [String: Any])
+            json.removeValue(forKey: "labelMode")
+            let old = try SimulationSessionFile.read(try JSONSerialization.data(withJSONObject: json), name: "old.emsim")
+            XCTAssertNil(old.labelMode)
+            XCTAssertEqual(old.hklLabelMode, mode)
+        }
+    }
 }

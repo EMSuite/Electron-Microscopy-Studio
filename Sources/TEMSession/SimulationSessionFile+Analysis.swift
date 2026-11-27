@@ -21,6 +21,7 @@ extension SimulationSessionFile {
         self.init(phase: phase, beamKV: analysis.typedBeamKV, cameraLengthMM: analysis.cameraLengthMM, kMax: analysis.kMax,
                   zoneAxis: settings.zoneAxis, turnDegrees: settings.inPlaneDegrees,
                   orientation: analysis.isTurnedByHand ? settings.indexed : nil, showsLabels: settings.showsLabels,
+                  labelMode: settings.labelMode,
                   doubleDiffraction: settings.doubleDiffraction, excitationError: settings.excitationError)
     }
 
@@ -34,7 +35,7 @@ extension SimulationSessionFile {
         analysis.setCameraLength(mm: cameraLengthMM)
         analysis.setKMax(kMax)
         analysis.setExcitationError(excitationError)
-        analysis.simulation.showsLabels = showsLabels
+        analysis.simulation.labelMode = hklLabelMode
         analysis.simulation.doubleDiffraction = doubleDiffraction
         analysis.setZoneAxis(zoneAxisVector)
         analysis.setTurn(degrees: turnDegrees)
