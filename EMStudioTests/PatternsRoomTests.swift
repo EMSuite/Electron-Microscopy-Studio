@@ -19,8 +19,18 @@ nonisolated final class PatternsRoomTests: XCTestCase {
         try XCTUnwrap(Bundle(for: PatternsRoomTests.self).url(forResource: name, withExtension: ext), "\(name).\(ext) is not in the test bundle")
     }
 
+    /// The first and last pattern of each file in Fixtures/ebsd-h5ebsd.truth.json (kikuchipy 0.13.1, the readers' truth).
+    private struct Truth: Decodable {
+        struct File: Decodable {
+            let firstPattern: [Int]
+            let lastPattern: [Int]
+            enum CodingKeys: String, CodingKey { case firstPattern = "first_pattern", lastPattern = "last_pattern" }
+        }
+        let files: [String: File]
+    }
+
     private func truthPatterns() throws -> (first: [Int], last: [Int]) {
-        let file = try JSONDecoder().decode(EBSDH5ReaderTests.TruthFile.self, from: Data(contentsOf: fixture("ebsd-h5ebsd.truth", "json")))
+        let file = try JSONDecoder().decode(Truth.self, from: Data(contentsOf: fixture("ebsd-h5ebsd.truth", "json")))
         let truth = try XCTUnwrap(file.files["ebsd-kikuchipy-h5ebsd.h5"])
         return (truth.firstPattern, truth.lastPattern)
     }

@@ -14,6 +14,7 @@
 //        (figure F15), within `np.allclose`'s defaults on the float values and one grey level on the integer ones.
 //
 
+import FormatoEBSD
 import Foundation
 import FormatoCore
 

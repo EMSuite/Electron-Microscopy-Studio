@@ -231,7 +231,7 @@ final class AppState {
             guard let self else { return }
             // Made once for both rooms: it walks every point of the map (#929).
             let mapsDocument = OrientationMapSession.patternsDocument(fileName: document.fileName, url: document.url,
-                                                                      dataset: document.dataset)
+                                                                      dataset: document.dataset, crystalMap: document.crystalMap)
             self.indexing.bind(document, mapsDocument: mapsDocument)
             self.maps.patternsChanged(to: mapsDocument)
         }

@@ -8,6 +8,7 @@
 //
 
 import DiffractoOrientation
+import FormatoEBSD
 import Foundation
 import FormatoCore
 import TEMBase
@@ -145,8 +146,8 @@ package nonisolated enum EBSDBrowsing {
         }
         if detector.assumed.contains(.pixelSize) { rows.append(Row("Detector pixel", "\(n(detector.pixelSize)) µm" + assumed(.pixelSize))) }
         rows.append(Row("Convention", "Bruker"))
-        if let map = dataset.crystalMap {
-            for (id, phase) in map.phases.entries where id != PhaseList.notIndexedID {
+        if let phases = dataset.map?.phaseList() {
+            for (id, phase) in phases.entries where id != PhaseList.notIndexedID {
                 var words = phase.name
                 if let group = phase.spaceGroup { words += " (space group \(group)" + (phase.lattice?.first.map { ", \(four($0)) Å" } ?? "") + ")" }
                 rows.append(Row("Phase", words))
@@ -170,8 +171,8 @@ package nonisolated enum EBSDBrowsing {
         if let mag = dataset.sem.magnification { rows.append(Row("Magnification", "\(n(mag))×")) }
         if let wd = dataset.sem.workingDistanceMM { rows.append(Row("Working distance", "\(n(wd)) mm")) }
         rows.append(Row("Static background", dataset.staticBackground == nil ? "None in the file" : "In the file"))
-        rows.append(Row("Indexed", dataset.crystalMap.map { map in
-            UnitDisplay.count(map.phases.ids.filter { $0 != PhaseList.notIndexedID }.count, "phase", "phases") + " in the file"
+        rows.append(Row("Indexed", dataset.map?.phaseList().map { phases in
+            UnitDisplay.count(phases.ids.filter { $0 != PhaseList.notIndexedID }.count, "phase", "phases") + " in the file"
         } ?? "Not in the file"))
         rows += dataset.notes.map { Row("Note", $0) }
         return rows
@@ -206,8 +207,8 @@ package nonisolated enum EBSDBrowsing {
         if let v = dataset.sem.workingDistanceMM { sem["working_distance_mm"] = v }
         if let v = dataset.sem.microscope { sem["microscope"] = v }
         object["sem"] = sem
-        if let map = dataset.crystalMap {
-            object["phases"] = map.phases.entries.filter { $0.id != PhaseList.notIndexedID }.map { id, phase -> [String: Any] in
+        if let phases = dataset.map?.phaseList() {
+            object["phases"] = phases.entries.filter { $0.id != PhaseList.notIndexedID }.map { id, phase -> [String: Any] in
                 var p: [String: Any] = ["id": id, "name": phase.name]
                 if let g = phase.spaceGroup { p["space_group"] = g }
                 if let g = phase.pointGroupName { p["point_group"] = g }

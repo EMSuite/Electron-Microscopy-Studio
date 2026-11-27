@@ -66,14 +66,6 @@ nonisolated final class SEMDamagedFilesTests: XCTestCase {
 
     // MARK: - #607
 
-    func testABrukerRegionOfInterestWithGapsIsNotRectangular() {
-        // Two positions on the diagonal of a 2 x 2 rectangle: each row and column once, but half the rectangle missing.
-        XCTAssertNil(EBSDH5Reader.rectangularROI(rows: [0, 1], columns: [0, 1]))
-        let full = EBSDH5Reader.rectangularROI(rows: [5, 5, 6, 6], columns: [2, 3, 2, 3])
-        XCTAssertEqual(full?.rows, 2)
-        XCTAssertEqual(full?.fileIndexByPosition.count, 4)
-    }
-
     func testASavedBinningOutsideTheOfferedSetIsRefusedNotDividedBy() throws {
         let side = 4
         let dataset = EBSDDataset(format: .generated, manufacturer: "test", version: "", scanGroup: "s", scanGroups: ["s"], scanRows: 1,

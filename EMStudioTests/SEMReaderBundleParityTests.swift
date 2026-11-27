@@ -184,15 +184,6 @@ nonisolated final class SEMReaderBundleParityTests: XCTestCase {
         try compareDataset(ref, dataset)
     }
 
-    /// kikuchipy h5ebsd, Bruker and EDAX h5ebsd, Oxford H5OINA and `.ebsp`, EDAX `.up1` and NORDIF, each through the door.
-    func testThePatternFilesReadAsKikuchipyReadsThem() throws {
-        for name in Self.doorCases {
-            let ref = try SEMParityReference.load(name)
-            let (dataset, reader) = try EBSDOpening.open(url: try input(ref))
-            try compareScan(ref, dataset: dataset, reader: reader)
-        }
-    }
-
     /// The 55 x 75 north-star scan, the shipped demo file.
     func testTheNorthStarScanReadsAsKikuchipyReadsIt() throws {
         let ref = try SEMParityReference.load(Self.northStarCase)
@@ -217,23 +208,6 @@ nonisolated final class SEMReaderBundleParityTests: XCTestCase {
             XCTAssertEqual((error as? EDAXReadError)?.text, sentence)
         }
         XCTAssertEqual(FileRouting.inventory(path: url.path), FileInventory(refusal: sentence))
-    }
-
-    /// EMsoft's EBSD output (`EMData/EBSD/EBSDPatterns`) has no Swift reader: the routing refuses it as an HDF5 file it does not
-    /// open, the door as a file that is not h5ebsd. The bundle stays the reference a port will be held to.
-    func testTheEMsoftEBSDFileIsRefusedInWords() throws {
-        let ref = try SEMParityReference.load("m1/read-emsoft-ebsd")
-        let url = try input(ref)
-        XCTAssertTrue(FileManager.default.fileExists(atPath: url.path))
-        let routing = "\(url.lastPathComponent) is a 4D dataset or an HDF5 file that is neither a Velox file nor an EBSD scan: "
-            + "Electron Microscopy Studio opens images, spectra and EBSD patterns; open it in 4DSTEM Studio."
-        XCTAssertEqual(FileRouting.inventory(path: url.path), FileInventory(refusal: routing))
-        XCTAssertThrowsError(try EBSDOpening.open(url: url)) { error in
-            XCTAssertEqual((error as? EBSDReadError)?.text,
-                           "\(url.lastPathComponent): it is not an EBSD file (it does not name the software that wrote it).")
-        }
-        XCTAssertEqual(ref.values["navigation_shape_rc"] as? [Int], [1])
-        XCTAssertEqual(ref.values["signal_shape_rc"] as? [Int], [480, 640])
     }
 
     // MARK: - Orientation maps
@@ -273,15 +247,6 @@ nonisolated final class SEMReaderBundleParityTests: XCTestCase {
         for property in properties {
             SEMAssertParity(Array((map.property(property) ?? []).prefix(n)), try reference(ref, "prop_\(property)_head"))
         }
-    }
-
-    /// orix-data's two-phase EDAX `.ang` (the committed fixture, the bundle's downloaded input byte for byte) and the planted
-    /// Oxford `.ctf` with its not-indexed point.
-    func testTheOrientationMapsReadAsOrixReadsThem() throws {
-        let ang = try SEMParityReference.load(Self.angCase)
-        try compareMap(ang, try ANGReader.read(url: try input(ang)).map)
-        let ctf = try SEMParityReference.load(Self.ctfCase)
-        try compareMap(ctf, try CTFReader.read(path: try input(ctf).path).map)
     }
 
     // MARK: - The EDS spectrum

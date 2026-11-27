@@ -6,6 +6,7 @@
 //        row-sized slabs, never the whole dataset at once.
 //
 
+import FormatoEBSD
 import Foundation
 import FormatoCore
 
@@ -18,30 +19,8 @@ package nonisolated protocol EBSDPatternAccess: Sendable {
     func row(_ row: Int) throws -> FormatoArray
 }
 
-extension EBSDPatternReader: EBSDPatternAccess {
-    /// One slab when the file order is the map order and the row is inside the file; else pattern by pattern (a Bruker region of
-    /// interest, a file shorter than its scan).
-    package func row(_ row: Int) throws -> FormatoArray {
-        guard row >= 0, row < dataset.scanRows else {
-            throw EBSDReadError(text: "Row \(row) is outside the \(dataset.scanRows) x \(dataset.scanColumns) scan.")
-        }
-        let columns = dataset.scanColumns
-        let shape = [columns, dataset.patternRows, dataset.patternColumns]
-        let source = dataset.patterns
-        let first = row * columns
-        if source.fileIndexByPosition == nil, first + columns <= source.fileCount {
-            let slab = try rowSlab(row: row)
-            return try FormatoArray(dataType: slab.dataType, shape: shape, bytes: slab.bytes)
-        }
-        var bytes = Data()
-        bytes.reserveCapacity(columns * dataset.patternPixels * dataset.dataType.byteSize)
-        for column in 0..<columns {
-            let one = try pattern(row: row, column: column)
-            bytes.append(one.bytes)
-        }
-        return try FormatoArray(dataType: dataset.dataType, shape: shape, bytes: bytes)
-    }
-}
+/// FormatoKit's reader answers both: one slab per scan row when the file order is the map order, else pattern by pattern.
+extension EBSDPatternReader: EBSDPatternAccess {}
 
 /// A dataset whose patterns are in memory, in map order (row-major scan, then row-major pattern pixels).
 package nonisolated final class EBSDMemoryPatterns: EBSDPatternAccess {

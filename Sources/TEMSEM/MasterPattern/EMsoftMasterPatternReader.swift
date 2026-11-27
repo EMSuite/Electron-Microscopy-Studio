@@ -13,6 +13,7 @@
 //        Parity: EMStudioTests/MasterPatternParityTests.swift against tools/parity/sem/references/m6/read-master-pattern-*.
 //
 
+import FormatoEBSD
 import Foundation
 import FormatoCore
 import FormatoHDF5
@@ -199,7 +200,7 @@ package nonisolated enum EMsoftMasterPatternReader {
             return EBSDMasterPattern(diffractionType: type, projection: projection, hemisphere: hemisphere, dataType: dataType,
                                      hemisphereCount: names.count, energies: read, side: side, values: values, phase: phase,
                                      energyAxis: .init(offset: Double(Float(read[0])), scale: binSize, size: read.count))
-        } catch { throw EBSDReadError.wrap(error, file: url) }
+        } catch { throw EBSDReadError.wrapInAppWords(error, file: url) }
     }
 
     // MARK: - Pieces

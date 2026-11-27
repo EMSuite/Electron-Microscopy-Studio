@@ -50,7 +50,7 @@ nonisolated final class CrystalMapParityTests: XCTestCase {
 
     /// orix-data's Ti table read by `CTFReader` (the orientation-table form), 622 attached as `orix.data.ti_orientations` does.
     static func tiMap(url: URL) throws -> CrystalMap {
-        var map = try CTFReader.read(path: url.path).map
+        var map = try CTFReader.read(path: url.path).map.crystalMap()
         map.phases = PhaseList([(1, ti)])
         return map
     }
@@ -66,14 +66,14 @@ nonisolated final class CrystalMapParityTests: XCTestCase {
     private static let fixtures = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("Fixtures")
 
     private func sdssMap() throws -> CrystalMap {
-        try ANGReader.read(url: Self.fixtures.appendingPathComponent("ebsd-sdss-ferrite-austenite.ang")).map
+        try ANGReader.read(url: Self.fixtures.appendingPathComponent("ebsd-sdss-ferrite-austenite.ang")).map.crystalMap()
     }
 
     /// The reader's map is the model's map: the head of orix-data's Ti table read by `CTFReader` into a `CrystalMap`, its first
     /// three rows kept by a mask, 622 attached, gives the committed F7 numbers.
     func testTheCTFReaderHandsTheF7MapThrough() throws {
         let ref = try SEMParityReference.load("m3/ti-neighbour-misorientations")
-        var map = try CTFReader.read(path: Self.fixtures.appendingPathComponent("sem/oxford/ti_orientations_head.ctf").path).map
+        var map = try CTFReader.read(path: Self.fixtures.appendingPathComponent("sem/oxford/ti_orientations_head.ctf").path).map.crystalMap()
         XCTAssertEqual(map.pointCount, 2000)
         map.phases = PhaseList([(1, Self.ti)])
         let head = map.masked((0..<map.size).map { $0 < 3 * 507 })

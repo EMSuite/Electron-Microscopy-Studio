@@ -244,10 +244,10 @@ package nonisolated enum SEMReferenceVersions {
     /// The Swift packages the app is built with, name and version, as `Package.resolved` pins them (a unit test holds the two equal, so
     /// a kit update changes this list in the same pull request). The report's Versions section lists them.
     package static let builtWith: [SEMSessionField] = [
-        SEMSessionField("FormatoKit", "0.22.0"),
+        SEMSessionField("FormatoKit", "0.23.1"),
         SEMSessionField("ImagoKit", "0.12.0"),
         SEMSessionField("DiffractoKit", "0.27.0"),
-        SEMSessionField("SpectroKit", "0.17.2"),
+        SEMSessionField("SpectroKit", "0.17.3"),
         SEMSessionField("SimulatoKit", "0.8.1"),
         SEMSessionField("EMSuiteUI", "0.22.0"),
     ]

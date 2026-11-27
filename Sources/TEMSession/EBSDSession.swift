@@ -32,11 +32,22 @@ package final class EBSDSession {
         package var fileName: String
         /// The file, nil for a dataset answered from memory.
         package var url: URL?
-        package var dataset: EBSDDataset
+        /// The dataset; a new map in it makes `crystalMap` again.
+        package var dataset: EBSDDataset {
+            didSet { if dataset.map != oldValue.map { crystalMap = dataset.crystalMap } }
+        }
         package var access: any EBSDPatternAccess
+        /// The file's own crystal map (`EBSDDataset.crystalMap`), made once for the rooms that read it (the overlay reads it at
+        /// every pattern); nil when the file holds none.
+        package private(set) var crystalMap: CrystalMap?
 
         package init(fileName: String, url: URL?, dataset: EBSDDataset, access: any EBSDPatternAccess) {
-            self.fileName = fileName; self.url = url; self.dataset = dataset; self.access = access
+            self.init(fileName: fileName, url: url, dataset: dataset, crystalMap: dataset.crystalMap, access: access)
+        }
+
+        /// With the crystal map the open already made from the dataset's map (`EBSDOpening.openWithMap`).
+        package init(fileName: String, url: URL?, dataset: EBSDDataset, crystalMap: CrystalMap?, access: any EBSDPatternAccess) {
+            self.fileName = fileName; self.url = url; self.dataset = dataset; self.crystalMap = crystalMap; self.access = access
         }
     }
 
@@ -581,8 +592,8 @@ package final class EBSDSession {
     nonisolated private static func read(_ url: URL) async throws -> Document {
         let scoped = url.startAccessingSecurityScopedResource()
         defer { if scoped { url.stopAccessingSecurityScopedResource() } }
-        let opened = try EBSDOpening.open(url: url)
-        return Document(fileName: url.lastPathComponent, url: url, dataset: opened.dataset, access: opened.reader)
+        let opened = try EBSDOpening.openWithMap(url: url)
+        return Document(fileName: url.lastPathComponent, url: url, dataset: opened.dataset, crystalMap: opened.crystalMap, access: opened.reader)
     }
 
     /// Starts the room over on `document`: the pinned position at the origin, the first pattern read, the map's pass started. The returned

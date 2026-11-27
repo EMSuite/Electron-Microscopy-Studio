@@ -7,6 +7,8 @@
 //        Maps room's (`isLoneMap`, FileRouting).
 //
 
+import DiffractoOrientation
+import FormatoEBSD
 import Foundation
 
 package nonisolated enum EBSDOpening {
@@ -60,17 +62,34 @@ package nonisolated enum EBSDOpening {
         return nil
     }
 
-    /// The first scan of the file at `url` and the reader for its patterns. Opens the file twice (the header, then the dataset handle it keeps):
-    /// run it off the main actor, inside the file's security scope. Every reader's dataset passes `EBSDDataset.validated()` first, so a
-    /// scan or pattern size no map can be sized by is refused here in words, whichever door read it.
+    /// The first scan of the file at `url` and the reader for its patterns (`openWithMap` without the crystal map).
     package static func open(url: URL) throws -> (dataset: EBSDDataset, reader: EBSDPatternReader) {
-        let ext = url.pathExtension.lowercased()
-        let read: EBSDDataset
-        if OxfordOpening.readableExtensions.contains(ext) { read = try OxfordOpening.open(url: url) }
-        else if EDAXOpening.readableExtensions.contains(ext) { read = try EDAXOpening.open(url: url) }
-        else if NORDIFOpening.readableExtensions.contains(ext) { read = try NORDIFOpening.open(url: url) }
-        else { read = try EBSDH5Reader.read(url: url) }
-        let dataset = try read.validated()
-        return (dataset, try EBSDPatternReader(dataset))
+        let opened = try openWithMap(url: url)
+        return (opened.dataset, opened.reader)
+    }
+
+    /// The first scan of the file at `url`, the reader for its patterns and the file's own crystal map, made once here
+    /// (`EBSDMapColumns.crystalMap()`). Opens the file twice (the header, then the dataset handle it keeps): run it off the main
+    /// actor, inside the file's security scope. Every reader's dataset passes `EBSDDataset.validated()` first, so a scan or pattern
+    /// size no map can be sized by is refused here in words, whichever door read it; a map beside the patterns whose columns make
+    /// no map refuses the file, as the readers did when they made it (the vendors' doors leave such a companion out with a note
+    /// instead). A refusal is in the app's words (`EBSDReadError.inAppWords`).
+    package static func openWithMap(url: URL) throws -> (dataset: EBSDDataset, reader: EBSDPatternReader, crystalMap: CrystalMap?) {
+        do {
+            let ext = url.pathExtension.lowercased()
+            let read: EBSDDataset
+            if OxfordOpening.readableExtensions.contains(ext) { read = try OxfordOpening.open(url: url) }
+            else if EDAXOpening.readableExtensions.contains(ext) { read = try EDAXOpening.open(url: url) }
+            else if NORDIFOpening.readableExtensions.contains(ext) { read = try NORDIFOpening.open(url: url) }
+            else { read = try EBSDH5Reader.read(url: url) }
+            let dataset = try read.validated()
+            var crystalMap: CrystalMap?
+            if let columns = dataset.map {
+                do { crystalMap = try columns.crystalMap() } catch { throw EBSDReadError.wrap(error, file: url) }
+            }
+            return (dataset, try EBSDPatternReader(dataset), crystalMap)
+        } catch {
+            throw EBSDReadError.appWorded(error)
+        }
     }
 }

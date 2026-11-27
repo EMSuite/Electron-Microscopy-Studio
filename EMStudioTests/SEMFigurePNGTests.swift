@@ -55,7 +55,7 @@ nonisolated final class SEMFigurePNGTests: XCTestCase {
     /// Map PNG… of the Maps room carries the file's name as Title and macEM as Software. Red before: the figure dropped its
     /// file name and wrote no text chunk.
     @MainActor func testTheMapFigureCarriesItsFileName() throws {
-        let map = try ANGReader.read(url: Self.fixtures.appendingPathComponent("ebsd-tsl.ang")).map
+        let map = try ANGReader.read(url: Self.fixtures.appendingPathComponent("ebsd-tsl.ang")).map.crystalMap()
         let png = try MapsFigure.png(raster: OrientationMaps.raster(.phase, of: map), layer: .phase, map: map, keys: [],
                                      presentation: ImagePresentation(), fileName: "sdss.ang")
         XCTAssertEqual(try Self.text(png), [PNGTextEntry(keyword: "Title", value: "sdss.ang"),

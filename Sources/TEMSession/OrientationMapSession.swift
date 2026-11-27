@@ -260,11 +260,11 @@ package final class OrientationMapSession {
             if ang.header.isHexagonal {
                 throw MapReadError(text: "\(url.lastPathComponent) is a hexagonal grid (\(ang.header.grid ?? "HexGrid")); only square-grid EBSD maps are read.")
             }
-            return Document(fileName: url.lastPathComponent, url: url, map: ang.map, source: .mapFile, format: Self.angFormat(ang.vendor))
+            return Document(fileName: url.lastPathComponent, url: url, map: try ang.map.crystalMap(), source: .mapFile, format: Self.angFormat(ang.vendor))
         case "ctf":
             do {
                 let ctf = try CTFReader.read(path: url.path)
-                return Document(fileName: url.lastPathComponent, url: url, map: ctf.map, source: .mapFile, format: Self.ctfFormat(ctf.vendor))
+                return Document(fileName: url.lastPathComponent, url: url, map: try ctf.map.crystalMap(), source: .mapFile, format: Self.ctfFormat(ctf.vendor))
             } catch let refusal as CTFReader.Refusal {
                 throw MapReadError(text: "\(url.lastPathComponent): \(refusal.reason)")
             }
@@ -280,9 +280,11 @@ package final class OrientationMapSession {
                 case .edax: Self.edaxFormat
                 case .emsoft: Self.emsoftFormat
                 }
-                return Document(fileName: url.lastPathComponent, url: url, map: found.map, source: .mapFile, format: format)
+                let map: CrystalMap
+                do { map = try found.map.crystalMap() } catch { throw EBSDReadError.wrap(error, file: url) }
+                return Document(fileName: url.lastPathComponent, url: url, map: map, source: .mapFile, format: format)
             } catch let refusal as EBSDReadError {
-                throw MapReadError(text: refusal.text)
+                throw MapReadError(text: refusal.inAppWords.text)
             }
         default:
             throw MapReadError(text: "\(url.lastPathComponent) is not an orientation map (.ang, .ctf, .h5oina or .h5).")
@@ -321,8 +323,9 @@ package final class OrientationMapSession {
 
     /// The EBSD dataset's crystal map, when it carries one whose points fill its scan: the Maps room shows it with the patterns beside.
     /// nil when the dataset has no map (or one of another size), and the room keeps what it showed.
-    package static func patternsDocument(fileName: String, url: URL?, dataset: EBSDDataset) -> Document? {
-        guard let map = dataset.crystalMap else { return nil }
+    /// `crystalMap` is the dataset's own map where the caller holds it (`EBSDSession.Document.crystalMap`), else it is made here.
+    package static func patternsDocument(fileName: String, url: URL?, dataset: EBSDDataset, crystalMap: CrystalMap? = nil) -> Document? {
+        guard let map = crystalMap ?? dataset.crystalMap else { return nil }
         let document = Document(fileName: fileName, url: url, map: map, source: .patterns, format: dataset.format.rawValue)
         guard document.rows == dataset.scanRows, document.columns == dataset.scanColumns else { return nil }
         return document

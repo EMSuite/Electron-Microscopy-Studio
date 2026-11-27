@@ -26,7 +26,7 @@ nonisolated final class RoomRequirementsTests: XCTestCase {
         state.selectWorkspace(.indexing)
         XCTAssertEqual(RoomRequirements.unmet(state), [], "nothing open: the empty inspector says what to open")
         var demo = try DemoDocuments.ebsd()
-        demo.dataset.crystalMap = nil
+        demo.dataset.map = nil
         state.ebsd.bind(demo)
         let verb = try XCTUnwrap(RoomPrimaryAction.current(state))
         XCTAssertFalse(verb.isEnabled)

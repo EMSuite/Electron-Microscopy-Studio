@@ -12,6 +12,7 @@
 //        docs/decisions.md: float32 Lambert coordinates on a 401 px master pattern move an interpolation weight by ~1e-5).
 //
 
+import FormatoEBSD
 import Foundation
 import FormatoCore
 import Metal

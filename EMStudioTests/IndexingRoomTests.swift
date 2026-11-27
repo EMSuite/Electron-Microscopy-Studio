@@ -218,10 +218,10 @@ nonisolated final class IndexingRoomTests: XCTestCase {
         XCTAssertEqual(xmap.phases[id: 0]?.color, indexing.phases[0].color)
         XCTAssertEqual(xmap.property("nmatch"), solutions.map { Double($0.matchedBands) })
         XCTAssertEqual(xmap.scanUnit, patterns.document?.dataset.scanUnit)
-        let ang = try ANGReader.read(url: directory.appendingPathComponent("patterns_v2 indexed.ang")).map
-        let ctf = try CTFReader.read(path: directory.appendingPathComponent("patterns_v2 indexed.ctf").path)
-        XCTAssertEqual(ctf.map.property("bands"), xmap.property("nmatch"), "the .ctf's Bands are the matched bands")
-        for (format, back, bound) in [("ang", ang, 2.0e-5), ("ctf", ctf.map, 3.0e-6)] {
+        let ang = try ANGReader.read(url: directory.appendingPathComponent("patterns_v2 indexed.ang")).map.crystalMap()
+        let ctf = try CTFReader.read(path: directory.appendingPathComponent("patterns_v2 indexed.ctf").path).map.crystalMap()
+        XCTAssertEqual(ctf.property("bands"), xmap.property("nmatch"), "the .ctf's Bands are the matched bands")
+        for (format, back, bound) in [("ang", ang, 2.0e-5), ("ctf", ctf, 3.0e-6)] {
             XCTAssertEqual(back.shape, [result.scanRows, result.scanColumns], format)
             XCTAssertEqual(back.isIndexed, xmap.isIndexed, format)
             var worst = 0.0
@@ -485,7 +485,7 @@ nonisolated final class IndexingRoomTests: XCTestCase {
         let indexing = IndexingSession(patterns: patterns)
         patterns.onBind = { indexing.bind($0) }
         var demo = try DemoDocuments.ebsd()
-        demo.dataset.crystalMap = nil
+        demo.dataset.map = nil
         await patterns.bind(demo).value
         XCTAssertTrue(indexing.phases.isEmpty)
         XCTAssertEqual(indexing.refusal, "Add a phase first: from the file, a preset or a CIF.")
@@ -573,7 +573,7 @@ nonisolated final class IndexingRoomTests: XCTestCase {
         XCTAssertEqual(state.navigation.workspaceArea, .indexing, "with nothing open every room can be entered")
         XCTAssertNil(RoomPrimaryAction.current(state), "no verb before a dataset")
         var demo = try DemoDocuments.ebsd()
-        demo.dataset.crystalMap = nil
+        demo.dataset.map = nil
         state.ebsd.bind(demo)
         XCTAssertNotNil(state.indexing.patterns.document, "the window's Indexing room follows the Patterns room's dataset")
         let verb = RoomPrimaryAction.current(state)

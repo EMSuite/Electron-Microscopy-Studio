@@ -1,9 +1,10 @@
 //
 //  ParityDocTests.swift
-//  docs/parity.md against the readers it describes: the h5ebsd rows say what `EBSDH5Reader` refuses, in the reader's own words, and
-//  name the test that reaches those refusals, so a sentence reworded in the code and not on the page goes red here; the EDAX EDS row
-//  says that the sandboxed app opens a map without its pixel size when the `.ipr` is not of the map's own name; the Thermo/FEI and
-//  `cliffLorimer` rows name the kits' own ports of the same upstream code, so a later fix to one copy finds the others.
+//  docs/parity.md against the readers it describes: the EBSD row says FormatoKit reads the files (#852) and quotes the size
+//  refusals in the kit's own words, naming the tests that reach them and the app's rewording, so a sentence reworded in the code
+//  and not on the page goes red here; the EDAX EDS row says that the sandboxed app opens a map without its pixel size when the
+//  `.ipr` is not of the map's own name; the Thermo/FEI and `cliffLorimer` rows name the kits' own ports of the same upstream
+//  code, so a later fix to one copy finds the others.
 //  These read the page beside this test file; the page's line breaks do not count (a sentence may wrap).
 //
 
@@ -38,18 +39,14 @@ nonisolated final class ParityDocTests: XCTestCase {
         return try flat(String(XCTUnwrap(line, "docs/parity.md has no row that starts with \(prefix)")))
     }
 
-    /// The Readers section names `H5EBSDHeaderBoundsTests` and quotes the reader's refusals as the code words them: the tail of the
-    /// sentence `wholeNumber` throws for NaN, and the two size sentences of `EBSDDataset.sizeRefusal` with the numbers the page uses.
+    /// The Readers section names `H5EBSDHeaderBoundsTests` and quotes the reader's refusals as the code words them: the two size
+    /// sentences of `EBSDDataset.sizeRefusal` with the numbers the page uses (the whole-number refusal is FormatoKit's, #852).
     /// Red before #422: the page named neither the test nor any of these sentences.
     func testTheH5EBSDRowsStateTheirRefusals() throws {
         let readers = try section("Readers (exact)")
         XCTAssertTrue(readers.contains("H5EBSDHeaderBoundsTests"), "the h5ebsd rows do not name H5EBSDHeaderBoundsTests")
-        var number = ""
-        XCTAssertThrowsError(try EBSDH5Reader.wholeNumber(.nan, "x")) { number = ($0 as? EBSDReadError)?.text ?? "\($0)" }
-        XCTAssertTrue(number.hasPrefix("x is nan, "), number)
-        let tail = String(number.dropFirst("x is nan, ".count))
-        XCTAssertFalse(tail.isEmpty, number)
-        XCTAssertTrue(readers.contains(tail), "the Readers section does not say \"\(tail)\"")
+        XCTAssertTrue(readers.contains("FormatoKit"), "the EBSD row does not say FormatoKit reads the files (#852)")
+        XCTAssertTrue(readers.contains("EBSDReadErrorWordsTests"), "the Readers section does not name the test of the app's words")
         let sizes = [EBSDDataset.sizeRefusal(scanRows: 0, scanColumns: 75, patternRows: 60, patternColumns: 60, byteSize: 1),
                      EBSDDataset.sizeRefusal(scanRows: 55, scanColumns: 75, patternRows: 0, patternColumns: 60, byteSize: 1)]
         for size in sizes {

@@ -30,7 +30,7 @@ nonisolated final class MapsRoomTests: XCTestCase {
     /// a phase's colour from the other phase, the not-indexed fill moved.
     func testTheMapPicturesAreOrixsPlotOfTheTwoPhaseSteel() throws {
         let ref = try SEMParityReference.load("m3/maps-room-sdss")
-        let map = try ANGReader.read(url: Self.sdss).map
+        let map = try ANGReader.read(url: Self.sdss).map.crystalMap()
         XCTAssertEqual(OrientationMaps.gridShape(map).rows, 100)
         XCTAssertEqual(OrientationMaps.gridShape(map).columns, 117)
         for (direction, name) in [(SampleDirection.z, "ipf_z_image"), (.x, "ipf_x_image"), (.y, "ipf_y_image")] {
@@ -48,7 +48,7 @@ nonisolated final class MapsRoomTests: XCTestCase {
 
     /// The RGBA the Metal view and the figure take: each colour to the nearest byte, opaque where a point is.
     func testTheRasterBytesAreTheColoursRounded() throws {
-        let map = try ANGReader.read(url: Self.sdss).map
+        let map = try ANGReader.read(url: Self.sdss).map.crystalMap()
         let raster = OrientationMaps.raster(.ipf(.z), of: map)
         let bytes = try XCTUnwrap(raster.rgba8)
         let rgb = try XCTUnwrap(raster.rgb)
@@ -68,7 +68,7 @@ nonisolated final class MapsRoomTests: XCTestCase {
 
     /// The layers in the Maps control's order, and the hover's words (design §3): phase, Bunge angles in degrees, the file's properties.
     func testTheLayersAndTheHoverWords() throws {
-        let map = try ANGReader.read(url: Self.sdss).map
+        let map = try ANGReader.read(url: Self.sdss).map.crystalMap()
         XCTAssertEqual(OrientationMaps.layers(of: map), [.ipf(.z), .ipf(.x), .ipf(.y), .phase, .property("dp"), .property("iq")])
         XCTAssertEqual(OrientationMaps.layers(of: map).map(\.title), ["IPF-Z", "IPF-X", "IPF-Y", "Phase", "dp", "iq"])
         let grid = OrientationMaps.pointIndexGrid(map)

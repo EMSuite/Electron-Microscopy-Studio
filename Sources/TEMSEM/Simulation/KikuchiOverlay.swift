@@ -14,6 +14,7 @@
 //
 
 import DiffractoOrientation
+import FormatoEBSD
 import Foundation
 import TEMBase
 
@@ -198,10 +199,11 @@ package nonisolated enum KikuchiOverlay {
     /// The overlay at `position`, or why there is none. `bands` maps a phase id to its bands (the session caches them per phase).
     /// With `beamEnergyKeV` each line carries its band's two edges. With `master` (a phase id, the phase and its bands to the phase's
     /// kinematical master pattern), the pattern carries its kinematical simulation for the point's orientation and projection centre.
-    package static func pattern(_ dataset: EBSDDataset, at position: EBSDPosition, maxR: Double, beamEnergyKeV: Double? = nil,
-                                master: ((Int, CrystalPhase, Bands) -> EBSDMasterPattern?)? = nil,
+    /// `crystalMap` is the dataset's own map where the caller holds it (the session reads it at every pattern), else it is made here.
+    package static func pattern(_ dataset: EBSDDataset, crystalMap: CrystalMap? = nil, at position: EBSDPosition, maxR: Double,
+                                beamEnergyKeV: Double? = nil, master: ((Int, CrystalPhase, Bands) -> EBSDMasterPattern?)? = nil,
                                 bands: (Int, CrystalPhase) -> Bands?) -> Result<Pattern, Absence> {
-        guard let map = dataset.crystalMap, let pc = projectionCenter(dataset, at: position) else { return .failure(.noOrientations) }
+        guard let map = crystalMap ?? dataset.crystalMap, let pc = projectionCenter(dataset, at: position) else { return .failure(.noOrientations) }
         let index = position.index(columns: dataset.scanColumns)
         guard map.rotations.indices.contains(index), map.isInData[index] else { return .failure(.notIndexed) }
         let id = map.allPhaseIDs[index]

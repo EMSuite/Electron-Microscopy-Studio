@@ -7,6 +7,7 @@
 //
 
 import DiffractoOrientation
+import FormatoEBSD
 import Foundation
 import FormatoCore
 import TEMBase

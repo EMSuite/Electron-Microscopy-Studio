@@ -47,7 +47,7 @@ nonisolated final class SEMGrainParityTests: XCTestCase {
     }
 
     private func sdss() throws -> GrainMap {
-        let map = try ANGReader.read(url: Self.fixtures.appendingPathComponent("ebsd-sdss-ferrite-austenite.ang")).map
+        let map = try ANGReader.read(url: Self.fixtures.appendingPathComponent("ebsd-sdss-ferrite-austenite.ang")).map.crystalMap()
         return try GrainMap(map: map)
     }
 

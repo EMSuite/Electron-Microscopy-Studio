@@ -7,6 +7,7 @@ import Foundation
 import Formato
 import FormatoCore
 import FormatoDM
+import FormatoEBSD
 import FormatoEMD
 import FormatoMSA
 import SpectroCore
@@ -166,7 +167,7 @@ package nonisolated enum FileRouting {
             switch found {
             case .patterns: return FileInventory(ebsdPatterns: true)
             case .map: return FileInventory(orientationMap: true)
-            case .refused(let sentence): return FileInventory(refusal: sentence)
+            case .refused(let refusal): return FileInventory(refusal: refusal.inAppWords.text)
             }
         }
         switch kind {
@@ -224,7 +225,7 @@ package nonisolated enum FileRouting {
             return FileInventory(refusal: "\(name) is a 4D dataset or an HDF5 file that is neither a Velox file nor an EBSD scan: \(AppName.display) opens images, spectra and EBSD patterns; open it in 4DSTEM Studio.")
         case .unknown:
             // A `.dat` whose `Setting.txt` is there but may not be read (the sandbox granted the file, not its folder) says so.
-            if let why = NORDIFOpening.unreadableSettingsRefusal(url) { return FileInventory(refusal: why) }
+            if let why = NORDIFOpening.unreadableSettingsRefusal(url) { return FileInventory(refusal: why.inAppWords.text) }
             return FileInventory(refusal: "\(name) is not a format \(AppName.display) opens (or its extension and its first bytes disagree).")
         }
     }

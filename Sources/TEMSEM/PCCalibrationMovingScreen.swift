@@ -10,6 +10,7 @@
 //        Parity bundle `m2/pc-moving-screen-si` (figure F5); row in docs/parity.md.
 //
 
+import FormatoEBSD
 import Foundation
 
 package nonisolated struct PCCalibrationMovingScreen: Sendable, Equatable {

@@ -23,7 +23,7 @@ nonisolated final class CrystalMapHeaderProvenanceTests: XCTestCase {
                                                            software: ExportSnapshot.provenance(info: info))
 
     func testTheANGHeaderStatesTheKnownValuesAndOrixsReaderReadsThemBack() throws {
-        let map = try ANGReader.read(url: Self.sdss).map
+        let map = try ANGReader.read(url: Self.sdss).map.crystalMap()
         let text = try ANGWriter.text(of: map, options: .init(acquisition: Self.acquisition))
         let back = try ANGReader.read(text: text, url: URL(fileURLWithPath: "/sdss.ang"))
         let pc = try XCTUnwrap(back.header.projectionCenter)
@@ -31,7 +31,7 @@ nonisolated final class CrystalMapHeaderProvenanceTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(back.header.workingDistance), 15.2, accuracy: 1e-6)
         XCTAssertTrue(text.contains("# NOTES: Written by Electron Microscopy Studio 2.1.0 (42) with FormatoKit"), "the build and the kits")
         XCTAssertTrue(text.contains("# NOTES: Beam energy 20 kV"))
-        XCTAssertEqual(back.map.size, map.size)
+        XCTAssertEqual(try back.map.crystalMap().size, map.size)
         // Without an acquisition: orix's zeros, no notes.
         let plain = try ANGWriter.text(of: map)
         XCTAssertTrue(plain.contains("# x-star                 0.000000\n"))
@@ -39,11 +39,11 @@ nonisolated final class CrystalMapHeaderProvenanceTests: XCTestCase {
     }
 
     func testTheCTFHeaderStatesMagnificationBeamEnergyAndTilt() throws {
-        let map = try ANGReader.read(url: Self.sdss).map
+        let map = try ANGReader.read(url: Self.sdss).map.crystalMap()
         let text = try CTFWriter.text(of: map, project: "sdss", author: ExportSnapshot.softwareName(info: Self.info), acquisition: Self.acquisition)
         XCTAssertTrue(text.contains("\tMag\t2000\tCoverage\t100\tDevice\t0\tKV\t20\tTiltAngle\t70\tTiltAxis\t0\n"), "the CS0 line")
         XCTAssertTrue(text.contains("Author\tElectron Microscopy Studio 2.1.0 (42)\n"))
-        let back = try CTFReader.read(text: text).map
+        let back = try CTFReader.read(text: text).map.crystalMap()
         XCTAssertEqual(back.size, map.size)
         // Unknown stays the format's 0.
         let unknown = try CTFWriter.text(of: map, acquisition: CrystalMapAcquisition(magnification: nil, beamEnergyKeV: 15.5))

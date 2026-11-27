@@ -12,6 +12,7 @@
 //  the tutorial's `det.pc_average`; the sample tilt and the camera elevation are the file's.
 //
 
+import FormatoEBSD
 import Foundation
 import FormatoCore
 import TEMBase

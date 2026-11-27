@@ -120,7 +120,7 @@ nonisolated final class OrientationMapsGridTests: XCTestCase {
         let angs: [(String, [Int], Double)] = [("ebsd-tsl.ang", [3, 4], 2), ("ebsd-tsl-hex.ang", [3, 4], 2),
                                                ("ebsd-sdss-ferrite-austenite.ang", [100, 117], 1.5)]
         for (name, shape, step) in angs {
-            let map = try ANGReader.read(url: Self.fixtures.appendingPathComponent(name)).map
+            let map = try ANGReader.read(url: Self.fixtures.appendingPathComponent(name)).map.crystalMap()
             XCTAssertEqual(map.shape, shape, name)
             XCTAssertEqual(map.dx, step, accuracy: 1e-9, name)
             XCTAssertEqual(map.dy, step, accuracy: 1e-9, name)
@@ -129,7 +129,7 @@ nonisolated final class OrientationMapsGridTests: XCTestCase {
         let ctfs: [(String, [Int])] = [("oxford", [5, 3]), ("bruker", [7, 13]), ("astar", [7, 13]), ("emsoft", [7, 13]), ("mtex", [7, 13]),
                                        ("ti_orientations_head", [4, 507])]
         for (name, shape) in ctfs {
-            let map = try CTFReader.read(path: Self.fixtures.appendingPathComponent("sem/oxford/\(name).ctf").path).map
+            let map = try CTFReader.read(path: Self.fixtures.appendingPathComponent("sem/oxford/\(name).ctf").path).map.crystalMap()
             XCTAssertEqual(map.shape, shape, name)
             maps.append((name, map))
         }
