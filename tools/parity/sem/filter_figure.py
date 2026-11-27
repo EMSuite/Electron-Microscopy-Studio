@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Figure F4 of the SEM program (plan.md, milestone 2): pattern (0, 0) of nickel_ebsd_large through kikuchipy's guide
+"""Figure F4 of the SEM program (docs/sem/north-star.md): pattern (0, 0) of nickel_ebsd_large through kikuchipy's guide
 filter, a Gaussian lowpass (cutoff 22, width 10) times highpass (cutoff 3, width 2) transfer function applied in the
 frequency domain with shift=True — kikuchipy's reference pattern beside the one TEMCore's `PatternFilters` computed, and
 their difference in grey levels.

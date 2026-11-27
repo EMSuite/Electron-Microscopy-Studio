@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Reference arrays for TEMCore's `PatternProcessing` (static and dynamic background removal of EBSD patterns) from
-kikuchipy 0.13.1, the pinned Python reference of the SEM program (docs/sem/plan.md, docs/parity.md).
+kikuchipy 0.13.1, the pinned Python reference of the SEM program (docs/parity.md).
 
     python3 -I background_reference.py --data patterns_v2.h5 --out ../../../macTEMTests/Fixtures/sem/background
     python3 -I background_reference.py --data patterns_v2.h5 --whole-set "$MACEM_DATA/sem/nickel_ebsd_large"

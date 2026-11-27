@@ -10,7 +10,7 @@ The file's content decides the room it opens in. A multi-page TIFF or ImageJ sta
 ROOMS
 • Image: calibration from the file, colormap, contrast and gamma; distances, angles, line profiles and particles; image stacks. Your marks are saved in a session file next to the image. SEM TIFFs show the microscope's settings, and a Thermo Fisher or Tescan databar can be shown or hidden.
 • FFT: the transform of the image or a region with a window, spots and their d-spacings, the radial profile, a masked inverse, and Gaussian, band-pass, ABSF and Wiener filters.
-• EDS: TEM spectrum images and SEM-EDS maps and spectra. Pick elements from the periodic table or let Auto ID suggest them, then get net-count, wt%, at% and thickness maps, regions, and the Cliff-Lorimer composition, with zeta-factor and cross-section methods.
+• EDS: pick elements or let Auto ID suggest them. TEM spectrum images give net-count, wt%, at% and thickness maps, regions and the Cliff-Lorimer composition (zeta-factor and cross-section too); SEM-EDS gives line intensities, as eXSpy does.
 • EELS: Dual-EELS spectrum images. Align the zero-loss peak, map t/λ, pick edges from 383 K, L and M edges of 95 elements, and fit their intensities and at%, each with its uncertainty.
 • Diffraction: calibrate on a ring of a standard (Au, Al or Si), then index rings and spots against a standard or a CIF and read their d-spacings.
 • Patterns: the EBSD or TKD scan beside the live pattern, with mean intensity, virtual BSE, image quality and average dot product maps. Remove the backgrounds, rescale, equalise, filter, bin, average neighbouring patterns and denoise with NLPAR, and draw the Kikuchi bands of the file's orientations over the pattern. The file stays unchanged.
