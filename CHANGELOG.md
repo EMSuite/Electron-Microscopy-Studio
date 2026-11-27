@@ -3,6 +3,13 @@
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). App versions are tagged with a `v`
 (`v1.0.0`); release-please writes each new entry above the older ones from the merged pull requests' titles.
 
+## [2.6.1](https://github.com/EMSuite/Electron-Microscopy-Studio/compare/v2.6.0...v2.6.1) (2026-11-27)
+
+
+### Bug Fixes
+
+* the EDS energy axis is refined from 0.6 keV up, on the kits of 26 Nov (FormatoKit 0.22.0, ImagoKit 0.12.0, SpectroKit 0.17.2, SimulatoKit 0.8.1) ([#1163](https://github.com/EMSuite/Electron-Microscopy-Studio/issues/1163)) ([8ef2eb2](https://github.com/EMSuite/Electron-Microscopy-Studio/commit/8ef2eb215db039212cbae5376445a1c4206b60da))
+
 ## [2.6.0](https://github.com/EMSuite/Electron-Microscopy-Studio/compare/v2.1.1...v2.6.0) (2026-11-27)
 
 
